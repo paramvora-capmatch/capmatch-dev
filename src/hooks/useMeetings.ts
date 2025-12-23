@@ -207,6 +207,9 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 	useEffect(() => {
 		if (!user) return;
 
+		// Capture ref value for cleanup
+		const timeoutId = refreshTimeoutRef.current;
+
 		// Initial fetch
 		fetchUpcomingMeetings();
 		fetchPastMeetings();
@@ -267,8 +270,8 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 				supabase.removeChannel(channel);
 			}
 			// Clear any pending refresh timeout
-			if (refreshTimeoutRef.current) {
-				clearTimeout(refreshTimeoutRef.current);
+			if (timeoutId) {
+				clearTimeout(timeoutId);
 			}
 		};
 	}, [

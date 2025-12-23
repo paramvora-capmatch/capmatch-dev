@@ -1,11 +1,12 @@
-// Shared utility: AI-powered meeting transcript summarization using Google Gemini
+// Shared utility: AI-powered meeting transcript summarization using backend LiteLLM proxy
 // Generates structured summaries with CRE-specific context
+// Falls back to direct Gemini API if backend URL is not configured
 
 import type { MeetingSummary } from './daily-types.ts'
 
 /**
  * Generate AI-powered summary from meeting transcript text
- * Uses Gemini 2.5 Flash for fast, cost-effective summarization
+ * Uses backend LiteLLM proxy (Gemini 2.5 Flash) if available, otherwise falls back to direct Gemini API
  *
  * @param transcriptText - Plain text transcript (WebVTT already parsed)
  * @returns Structured summary or null if generation fails
@@ -14,9 +15,37 @@ export async function generateMeetingSummary(
   transcriptText: string
 ): Promise<MeetingSummary | null> {
   try {
+    // Try backend endpoint first if configured
+    const backendUrl = Deno.env.get('BACKEND_URL')
+    if (backendUrl) {
+      try {
+        const response = await fetch(`${backendUrl}/api/v1/ai/meeting-summary`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            transcriptText,
+          }),
+        })
+
+        if (response.ok) {
+          const summary: MeetingSummary = await response.json()
+          return summary
+        } else {
+          console.warn(
+            `Backend meeting summary failed (${response.status}), falling back to direct Gemini API`
+          )
+        }
+      } catch (error) {
+        console.warn('Backend meeting summary error, falling back to direct Gemini API:', error)
+      }
+    }
+
+    // Fallback to direct Gemini API
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
     if (!geminiApiKey) {
-      console.error('GEMINI_API_KEY not configured')
+      console.error('Neither BACKEND_URL nor GEMINI_API_KEY configured')
       return null
     }
 
