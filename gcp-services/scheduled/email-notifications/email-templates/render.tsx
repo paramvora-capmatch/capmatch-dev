@@ -3,8 +3,8 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { render } from "@react-email/render";
-import DigestEmail, { DigestTemplateData } from "./DigestEmail.js";
-import InviteEmail, { InviteTemplateData } from "./InviteEmail.js";
+import DigestEmail, { DigestTemplateData } from "./emails/DigestEmail.js";
+import InviteEmail, { InviteTemplateData } from "./emails/InviteEmail.js";
 
 const cardBaseStyle =
   "background:#F8FAFF;border-radius:20px;border:1px solid #BFDBFE;padding:24px;margin-bottom:16px;";

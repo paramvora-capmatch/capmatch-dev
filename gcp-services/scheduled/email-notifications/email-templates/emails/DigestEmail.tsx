@@ -107,27 +107,76 @@ export default function DigestEmail(props: Partial<DigestTemplateData>) {
         <Container style={container} className="container">
           {/* Header with Logo */}
           <Section style={headerSection}>
-            <Img
-              src="https://capmatch.com/CapMatchLogo.png"
-              alt="CapMatch"
-              width="56"
-              height="56"
-              style={logo}
-              className="header-logo"
-            />
+            <table
+              align="center"
+              width="100%"
+              border={0}
+              cellPadding="0"
+              cellSpacing="0"
+              role="presentation"
+              className="header-row"
+              style={headerRow}
+            >
+              <tbody>
+                <tr>
+                  <td>
+                    <table
+                      align="center"
+                      width="100%"
+                      border={0}
+                      cellPadding="0"
+                      cellSpacing="0"
+                      role="presentation"
+                    >
+                      <tbody style={innerTbody}>
+                        <tr style={innerTr}>
+                          <td align="center" colSpan={2} style={centeredCell}>
+                            <table
+                              border={0}
+                              cellPadding="0"
+                              cellSpacing="0"
+                              role="presentation"
+                              style={logoBrandRow}
+                            >
+                              <tr>
+                                <td style={logoColumn}>
+                                  <Img
+                                    className="logo-img"
+                                    alt="CapMatch"
+                                    height={48}
+                                    src="https://capmatch.com/CapMatchLogo.png"
+                                    style={logo}
+                                    width={48}
+                                  />
+                                </td>
+                                <td style={brandSpacer} width="12"></td>
+                                <td style={brandColumn}>
+                                  <p style={brandText}>CAPMATCH</p>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colSpan={2} data-id="__react-email-column" style={headingCell}>
+                            <Heading style={mainHeading} className="main-heading">
+                              Daily Digest
+                            </Heading>
+                            <Text style={subheading} className="subheading">
+                              Important activity across your projects.
+                            </Text>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </Section>
 
           {/* Main Content */}
           <Section style={contentWrapper} className="content-wrapper">
-            {/* Main Heading */}
-            <Heading style={mainHeading} className="main-heading">
-              Daily Digest
-            </Heading>
-
-            {/* Subheading */}
-            <Text style={subheading} className="subheading">
-              Important activity across your projects.
-            </Text>
 
             {/* Hero Section */}
             <Section style={hero} className="hero">
@@ -188,14 +237,67 @@ const container: CSSProperties = {
 };
 
 const headerSection: CSSProperties = {
+  marginBottom: "32px",
+};
+
+const headerRow: CSSProperties = {
+  marginBottom: "32px",
+};
+
+const innerTbody: CSSProperties = {
+  width: "100%",
+};
+
+const innerTr: CSSProperties = {
+  width: "100%",
+};
+
+const brandText: CSSProperties = {
+  fontSize: "18px",
+  lineHeight: "24px",
+  letterSpacing: "0.4em",
+  color: "#0F172A",
+  margin: "0 0 8px 0",
+  fontWeight: 600,
+  marginTop: "0",
+  marginRight: "0",
+  marginBottom: "8px",
+  marginLeft: "0",
+};
+
+const centeredCell: CSSProperties = {
   textAlign: "center",
-  padding: "32px 32px 0 32px",
-  backgroundColor: backgroundColor,
+};
+
+const logoBrandRow: CSSProperties = {
+  margin: "0 auto",
+};
+
+const logoColumn: CSSProperties = {
+  textAlign: "left",
+  verticalAlign: "middle",
+};
+
+const brandSpacer: CSSProperties = {
+  width: "12px",
+};
+
+const brandColumn: CSSProperties = {
+  verticalAlign: "middle",
+  paddingTop: "8px",
+};
+
+const headingCell: CSSProperties = {
+  paddingTop: "16px",
 };
 
 const logo: CSSProperties = {
-  margin: "0 auto",
   display: "block",
+  outline: "none",
+  border: "none",
+  textDecoration: "none",
+  width: "60px",
+  height: "48px",
 };
 
 const contentWrapper: CSSProperties = {

@@ -48,6 +48,7 @@ import { useChatStore } from "@/stores/useChatStore";
 import { usePermissionStore } from "@/stores/usePermissionStore";
 import { usePermissions } from "@/hooks/usePermissions";
 import { generateOMInsights } from "@/lib/om-insights";
+import { apiClient } from "@/lib/apiClient";
 
 const unwrapValue = (val: any) => {
 	if (val && typeof val === "object" && "value" in val) {

@@ -173,7 +173,7 @@ export const apiClient = {
       orgName?: string;
       inviterName?: string;
       email?: string;
-    }>('/auth/validate-invite', {
+    }>('/api/v1/auth/validate-invite', {
       method: 'POST',
       body: JSON.stringify({ token }),
     });
@@ -199,7 +199,7 @@ export const apiClient = {
         expires_at: string;
         [key: string]: any;
       };
-    }>('/users/invite', {
+    }>('/api/v1/users/invite', {
       method: 'POST',
       body: JSON.stringify(params),
     });
@@ -218,7 +218,7 @@ export const apiClient = {
     return apiRequest<{
       success: boolean;
       message: string;
-    }>('/users/remove', {
+    }>('/api/v1/users/remove', {
       method: 'POST',
       body: JSON.stringify(params),
     });
@@ -237,7 +237,7 @@ export const apiClient = {
   }) => {
     return unauthenticatedApiRequest<{
       status: string;
-    }>('/auth/accept-invite', {
+    }>('/api/v1/auth/accept-invite', {
       method: 'POST',
       body: JSON.stringify({
         token: params.token,
@@ -264,7 +264,7 @@ export const apiClient = {
       project: any;
       borrowerResumeContent: any;
       borrowerResumeSourceProjectId: string | null;
-    }>('/projects/create', {
+    }>('/api/v1/projects/create', {
       method: 'POST',
       body: JSON.stringify(params),
     });
@@ -286,7 +286,7 @@ export const apiClient = {
   }) => {
     return apiRequest<{
       ok: boolean;
-    }>('/projects/update', {
+    }>('/api/v1/projects/update', {
       method: 'POST',
       body: JSON.stringify(params),
     });
@@ -306,7 +306,7 @@ export const apiClient = {
       success: boolean;
       borrowerResumeContent: any;
       sourceProjectId: string;
-    }>('/projects/copy-borrower-profile', {
+    }>('/api/v1/projects/copy-borrower-profile', {
       method: 'POST',
       body: JSON.stringify(params),
     });
@@ -329,7 +329,7 @@ export const apiClient = {
       thread_id?: string;
       thread?: any;
       message: string;
-    }>('/chat/threads', {
+    }>('/api/v1/chat/threads', {
       method: 'POST',
       body: JSON.stringify(params),
     });
@@ -348,7 +348,7 @@ export const apiClient = {
   }) => {
     return apiRequest<{
       message: string;
-    }>('/calendar/update-response', {
+    }>('/api/v1/calendar/update-response', {
       method: 'POST',
       body: JSON.stringify(params),
     });
@@ -372,7 +372,7 @@ export const apiClient = {
         id: string;
         email: string;
       };
-    }>('/users/onboard-borrower', {
+    }>('/api/v1/users/onboard-borrower', {
       method: 'POST',
       body: JSON.stringify(params),
     });
@@ -413,7 +413,7 @@ export const apiClient = {
     return apiRequest<{
       success: boolean;
       message: string;
-    }>('/users/update-member-permissions', {
+    }>('/api/v1/users/update-member-permissions', {
       method: 'POST',
       body: JSON.stringify(params),
     });
