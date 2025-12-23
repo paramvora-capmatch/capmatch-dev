@@ -997,23 +997,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		setIsCopyingBorrower(true);
 		setCopyError(null);
 		try {
-			const { data, error } = await supabase.functions.invoke(
-				"copy-borrower-profile",
-				{
-					body: {
-						source_project_id: copySourceProjectId,
-						target_project_id: projectId,
-					},
-				}
-			);
+			const { data, error } = await apiClient.copyBorrowerProfile({
+				source_project_id: copySourceProjectId,
+				target_project_id: projectId,
+			});
 
-			if (error) {
+			if (error || !data) {
 				throw new Error(
-					error.message || "Failed to copy borrower profile"
+					error?.message || "Failed to copy borrower profile"
 				);
 			}
 
-			const copiedResume = (data?.borrowerResumeContent ??
+			const copiedResume = (data.borrowerResumeContent ??
 				{}) as BorrowerResumeContent;
 			const nextProgress = computeBorrowerCompletion(copiedResume);
 

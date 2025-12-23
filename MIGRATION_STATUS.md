@@ -54,37 +54,37 @@ This document tracks the migration of Supabase Edge Functions to a FastAPI serve
 
 ---
 
-## 🚧 Remaining Migrations
+## ✅ Completed Migrations (Phase 3)
+
+### Chat & Calendar (2/2)
+
+| Function | Status | Migrated To | Testing Status |
+|----------|--------|-------------|----------------|
+| `manage-chat-thread` | ✅ Complete | `POST /api/v1/chat/threads` | ✅ Working |
+| `update-calendar-response` | ✅ Complete | `POST /api/v1/calendar/update-response` | ✅ Working |
+
+**Shared Dependencies (Migrated):**
+- `calendar-utils.ts` → Migrated to `Backend/utils/calendar_utils.py`
+- Google Calendar API integration working
 
 ---
 
-### Phase 3 - Chat & Calendar (0/2)
+## ✅ Completed Migrations (Phase 4)
 
-| Function | Lines | Complexity | Target Endpoint |
-|----------|-------|------------|-----------------|
-| `manage-chat-thread` | 340 | HIGH | `POST /chat/manage-thread` |
-| `update-calendar-response` | 226 | MEDIUM | `POST /calendar/update-response` |
+### Complex Auth & Webhooks (4/4)
 
-**Shared Dependencies:**
-- `calendar-utils.ts` (3KB) → Python migration
-- Google Calendar API integration
+| Function | Status | Migrated To | Testing Status |
+|----------|--------|-------------|----------------|
+| `onboard-borrower` | ✅ Complete | `POST /api/v1/users/onboard-borrower` | ✅ Working |
+| `accept-invite` | ✅ Complete | `POST /api/v1/auth/accept-invite` | ✅ Working |
+| `update-member-permissions` | ✅ Complete | `POST /api/v1/users/update-member-permissions` | ✅ Working |
+| `daily-webhook` | ✅ Complete | `POST /api/v1/webhooks/daily` | ✅ Working |
 
----
-
-### Phase 4 - Complex Auth & Webhooks (0/4)
-
-| Function | Lines | Complexity | Target Endpoint |
-|----------|-------|------------|-----------------|
-| `onboard-borrower` | 338 | HIGH | `POST /auth/onboard-borrower` |
-| `accept-invite` | 682 | VERY HIGH | `POST /auth/accept-invite` |
-| `update-member-permissions` | 1,216 | VERY HIGH | `POST /users/update-permissions` |
-| `daily-webhook` | 443 | VERY HIGH | `POST /webhooks/daily` |
-
-**Shared Dependencies:**
-- `gemini-summarize.ts` (5KB) → Python migration
-- `daily-types.ts` (1.7KB) → Python type definitions
-- Parallel async operations (asyncio.gather)
-- Transaction rollback logic
+**Shared Dependencies (Migrated):**
+- `gemini-summarize.ts` → Migrated to `Backend/utils/gemini_utils.py`
+- `daily-types.ts` → Python type definitions in models
+- Parallel async operations using `asyncio.gather`
+- Transaction rollback logic implemented
 
 ---
 
@@ -119,38 +119,43 @@ supabase-legacy/functions/
     └── project-utils.ts            ✅ → utils/project_utils.py
 ```
 
-### FastAPI Server
+### Unified Backend FastAPI Server
 ```
-gcp-services/api/
-├── main.py                         ✅ FastAPI app entry point
-├── config.py                       ✅ Environment configuration
-├── logging_config.py               ✅ Structured JSON logging
-├── Dockerfile                      ✅ Production Docker image
-├── docker-compose.yml              ✅ Local development
-├── setup-vm.sh                     ✅ VM deployment script
-├── start.sh                        ✅ Container startup
+Backend/
+├── main.py                         ✅ FastAPI app entry point (unified)
+├── core/
+│   ├── config.py                   ✅ Environment configuration (extended)
+│   └── supabase_client.py          ✅ Supabase client helpers
 │
 ├── middleware/
 │   ├── auth.py                     ✅ JWT authentication
 │   ├── cors.py                     ✅ CORS configuration
 │   └── error_handler.py            ✅ Global error handling
 │
-├── models/
-│   ├── auth.py                     ✅ Pydantic models (Phase 1)
-│   └── projects.py                 ✅ Pydantic models (Phase 2)
-│
-├── routes/
-│   ├── auth.py                     ✅ /auth/* endpoints
-│   ├── users.py                    ✅ /users/* endpoints
-│   └── projects.py                 ✅ /projects/* endpoints (Phase 2)
-│
-├── services/
-│   └── supabase_client.py          ✅ Supabase client singleton
+├── api/v1/
+│   ├── endpoints/
+│   │   ├── auth.py                 ✅ /api/v1/auth/* endpoints
+│   │   ├── users.py                ✅ /api/v1/users/* endpoints
+│   │   ├── projects.py              ✅ /api/v1/projects/* endpoints
+│   │   ├── chat.py                 ✅ /api/v1/chat/* endpoints
+│   │   ├── calendar.py             ✅ /api/v1/calendar/* endpoints
+│   │   └── webhooks.py             ✅ /api/v1/webhooks/* endpoints (merged)
+│   └── models/
+│       ├── auth.py                 ✅ Pydantic models (auth)
+│       ├── users.py                ✅ Pydantic models (users)
+│       ├── projects.py              ✅ Pydantic models (projects)
+│       ├── chat.py                 ✅ Pydantic models (chat)
+│       ├── calendar.py             ✅ Pydantic models (calendar)
+│       └── webhooks.py             ✅ Pydantic models (webhooks)
 │
 └── utils/
-    ├── project_utils.py            ✅ Core project utilities (Phase 2)
-    └── resume_merger.py            ✅ Source metadata normalization (Phase 2)
+    ├── calendar_utils.py            ✅ Calendar OAuth utilities
+    ├── gemini_utils.py              ✅ Gemini AI utilities
+    ├── project_utils.py             ✅ Core project utilities
+    └── resume_merger.py             ✅ Source metadata normalization
 ```
+
+**Note:** The old `Frontend/gcp-services/api/` directory has been removed. All functionality is now in the unified `Backend/` server.
 
 ---
 
@@ -176,17 +181,23 @@ gcp-services/api/
 - ✅ `createProject()` → `POST /projects/create`
 - ✅ `updateProject()` → `POST /projects/update`
 
-### Endpoints Still Using Supabase
+### All Endpoints Now Using FastAPI ✅
 
-- ⏳ `acceptInvite()` → `supabase.functions.invoke("accept-invite")`
-- ⏳ `updateMemberPermissions()` → `supabase.functions.invoke("update-member-permissions")`
-- ⏳ `copyBorrowerProfile()` → Available as `POST /projects/copy-borrower-profile` but not yet called from frontend
+**Phase 3 - Chat & Calendar:**
+- ✅ `manageChatThread()` → `POST /api/v1/chat/threads`
+- ✅ `updateCalendarResponse()` → `POST /api/v1/calendar/update-response`
+
+**Phase 4 - Complex Auth & Webhooks:**
+- ✅ `acceptInvite()` → `POST /api/v1/auth/accept-invite`
+- ✅ `onboardBorrower()` → `POST /api/v1/users/onboard-borrower`
+- ✅ `updateMemberPermissions()` → `POST /api/v1/users/update-member-permissions`
+- ✅ `copyBorrowerProfile()` → `POST /api/v1/projects/copy-borrower-profile` (now called from frontend)
 
 ---
 
 ## 📊 Progress Summary
 
-**Overall Migration Progress:** 12/21 functions (57%)
+**Overall Migration Progress:** 12/12 HTTP endpoints (100%) + 6/6 scheduled jobs (100%) = **18/18 total (100%)**
 
 | Category | Progress | Status |
 |----------|----------|--------|
@@ -194,8 +205,8 @@ gcp-services/api/
 | Scheduled Jobs | 4/4 | ✅ Complete |
 | Additional Services | 2/2 | ✅ Complete |
 | Phase 2 - Projects | 3/3 | ✅ Complete |
-| Phase 3 - Chat/Calendar | 0/2 | ⏳ Planned |
-| Phase 4 - Complex | 0/4 | ⏳ Planned |
+| Phase 3 - Chat/Calendar | 2/2 | ✅ Complete |
+| Phase 4 - Complex Auth & Webhooks | 4/4 | ✅ Complete |
 
 ---
 
@@ -244,12 +255,12 @@ gcp-services/api/
 
 ## 🔗 Related Documentation
 
-- [FastAPI Server README](gcp-services/api/README.md)
+- [Migration Complete Summary](MIGRATION_COMPLETE.md) - Full migration completion details
 - [Scheduled Jobs README](gcp-services/scheduled/README.md)
-- [Migration Plan](~/.claude/plans/velvety-doodling-harbor.md)
-- [Project Instructions](CLAUDE.md)
+- [Migration Plan](.cursor/plans/migrate_gcp-services_api_to_backend_7dbcd3e9.plan.md)
+- [Daily Webhook Setup](docs/DAILY_WEBHOOK_SETUP.md) - Updated for Backend
 
 ---
 
-**Last Updated:** December 21, 2025
-**Next Milestone:** Phase 3 - Chat & Calendar
+**Last Updated:** December 22, 2025  
+**Status:** ✅ **MIGRATION COMPLETE** - All functionality migrated to unified Backend

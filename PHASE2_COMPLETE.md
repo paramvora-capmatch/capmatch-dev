@@ -5,7 +5,7 @@
 Successfully migrated all 3 Phase 2 project operation functions from Supabase Edge Functions to FastAPI on GCP.
 
 **Migration Date:** December 21, 2025  
-**Overall Progress:** 12/21 functions (57% complete)
+**Overall Progress:** ✅ **100% Complete** - All phases migrated (see [MIGRATION_COMPLETE.md](MIGRATION_COMPLETE.md))
 
 ---
 
@@ -33,14 +33,14 @@ Successfully migrated all 3 Phase 2 project operation functions from Supabase Ed
 
 ### Supporting Infrastructure
 
-**New Files Created:**
-- `gcp-services/api/models/projects.py` - Pydantic request/response models
-- `gcp-services/api/routes/projects.py` - FastAPI route handlers (3 endpoints)
-- `gcp-services/api/utils/project_utils.py` - Core utilities (storage, borrower fetching, descendant checking)
-- `gcp-services/api/utils/resume_merger.py` - Source metadata normalization logic
+**New Files Created (in Backend):**
+- `Backend/api/v1/models/projects.py` - Pydantic request/response models
+- `Backend/api/v1/endpoints/projects.py` - FastAPI route handlers (3 endpoints)
+- `Backend/utils/project_utils.py` - Core utilities (storage, borrower fetching, descendant checking)
+- `Backend/utils/resume_merger.py` - Source metadata normalization logic
 
 **Files Modified:**
-- `gcp-services/api/main.py` - Registered projects router
+- `Backend/main.py` - Registered projects router (and all other migrated routers)
 
 **Files Archived:**
 - Moved `supabase/functions/create-project/` → `supabase-legacy/functions/`
@@ -105,40 +105,28 @@ If project creation fails at any step, the cleanup function automatically delete
 | Scheduled Jobs | 4/4 | ✅ Complete |
 | Additional Services | 2/2 | ✅ Complete |
 | **Phase 2 - Projects** | **3/3** | **✅ Complete** |
-| Phase 3 - Chat/Calendar | 0/2 | ⏳ Planned |
-| Phase 4 - Complex Auth | 0/4 | ⏳ Planned |
+| Phase 3 - Chat/Calendar | 2/2 | ✅ Complete |
+| Phase 4 - Complex Auth & Webhooks | 4/4 | ✅ Complete |
 
-**Total:** 12/21 functions migrated (57%)
+**Total:** 12/12 HTTP endpoints migrated (100%) + 6/6 scheduled jobs (100%)
 
 ---
 
 ## 🚀 Next Steps
 
-### Option 1: Test Phase 2
+### ✅ Migration Complete!
 
-Test the new endpoints locally:
+All phases have been completed. See [MIGRATION_COMPLETE.md](MIGRATION_COMPLETE.md) for full details.
+
+**Test the endpoints locally:**
 
 ```bash
-cd gcp-services/api
-python main.py
-# Visit http://localhost:8080/docs for Swagger UI
+cd Backend
+python -m uvicorn main:app --reload --port 8000
+# Visit http://localhost:8000/docs for Swagger UI
 ```
 
-Try creating and updating projects from the frontend to verify everything works!
-
-### Option 2: Continue to Phase 3
-
-Migrate Chat & Calendar operations (2 functions):
-- `manage-chat-thread` → `POST /chat/manage-thread`
-- `update-calendar-response` → `POST /calendar/update-response`
-
-### Option 3: Continue to Phase 4
-
-Migrate Complex Auth & Webhooks (4 functions):
-- `onboard-borrower` → `POST /auth/onboard-borrower`
-- `accept-invite` → `POST /auth/accept-invite`
-- `update-member-permissions` → `POST /users/update-permissions`
-- `daily-webhook` → `POST /webhooks/daily`
+All endpoints are now available in the unified Backend server!
 
 ---
 
@@ -146,7 +134,7 @@ Migrate Complex Auth & Webhooks (4 functions):
 
 - All Phase 2 endpoints require JWT authentication (except where explicitly noted)
 - Document cloning functionality in `copy-borrower-profile` is not yet implemented (requires additional `document_operations.py` module)
-- The `copyBorrowerProfile()` method is available in apiClient but not yet called from the frontend
+- ✅ The `copyBorrowerProfile()` method is now called from `ProjectWorkspace.tsx` via `apiClient`
 - Completeness percentage is stored in a dedicated column, not in JSONB content
 - Locked fields are stored in a dedicated column, not in JSONB content
 

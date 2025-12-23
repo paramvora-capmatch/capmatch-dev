@@ -17,11 +17,11 @@ The webhook system automatically processes meeting transcripts and generates AI 
 1. **Daily.co Account & API Key**
    - Sign up at https://dashboard.daily.co/
    - Get your API key from https://dashboard.daily.co/developers
-   - Add to `gcp-services/api/.env`: `DAILY_API_KEY=your_key_here`
+   - Add to `Backend/.env`: `DAILY_API_KEY=your_key_here`
 
 2. **Google Gemini API Key** (for AI summaries)
    - Get your key from https://makersuite.google.com/app/apikey
-   - Add to `gcp-services/api/.env`: `GEMINI_API_KEY=your_key_here`
+   - Add to `Backend/.env`: `GEMINI_API_KEY=your_key_here`
 
 3. **ngrok** (for local development)
    - Install: `brew install ngrok` (macOS)
@@ -39,14 +39,14 @@ supabase db push
 
 This adds the `room_name` field to the `meetings` table.
 
-### 2. Start Your FastAPI Development Server
+### 2. Start Your Backend Development Server
 
 ```bash
-cd gcp-services/api
+cd Backend
 python -m uvicorn main:app --reload --port 8000
 ```
 
-Your FastAPI server should be running at http://localhost:8000
+Your Backend FastAPI server should be running at http://localhost:8000
 
 ### 3. Expose Local Server with ngrok
 
@@ -75,7 +75,7 @@ Forwarding                    https://abc123.ngrok-free.app -> http://localhost:
 
 ```bash
 # Load your .env file
-export DAILY_API_KEY=$(grep DAILY_API_KEY gcp-services/api/.env | cut -d '=' -f2)
+export DAILY_API_KEY=$(grep DAILY_API_KEY Backend/.env | cut -d '=' -f2)
 ```
 
 Or manually:
@@ -169,13 +169,13 @@ WHERE room_name = 'my-unique-room-name';
 
 ### List All Webhooks
 ```bash
-export DAILY_API_KEY=$(grep DAILY_API_KEY gcp-services/api/.env | cut -d '=' -f2)
+export DAILY_API_KEY=$(grep DAILY_API_KEY Backend/.env | cut -d '=' -f2)
 ./scripts/list-daily-webhooks.sh
 ```
 
 ### Delete a Webhook
 ```bash
-export DAILY_API_KEY=$(grep DAILY_API_KEY gcp-services/api/.env | cut -d '=' -f2)
+export DAILY_API_KEY=$(grep DAILY_API_KEY Backend/.env | cut -d '=' -f2)
 ./scripts/delete-daily-webhook.sh <webhook-uuid>
 ```
 
@@ -212,15 +212,15 @@ export DAILY_API_KEY=$(grep DAILY_API_KEY gcp-services/api/.env | cut -d '=' -f2
 
 3. **Verify API keys are set**
    ```bash
-   cat gcp-services/api/.env | grep DAILY_API_KEY
-   cat gcp-services/api/.env | grep GEMINI_API_KEY
+   cat Backend/.env | grep DAILY_API_KEY
+   cat Backend/.env | grep GEMINI_API_KEY
    ```
 
 ### AI Summary Not Generated
 
 1. **Check Gemini API key**
    ```bash
-   cat gcp-services/api/.env | grep GEMINI_API_KEY
+   cat Backend/.env | grep GEMINI_API_KEY
    ```
 
 2. **Check server logs for AI errors**
@@ -282,8 +282,8 @@ When deploying to production:
          │
          ▼
 ┌─────────────────────────┐
-│  FastAPI Server         │
-│  /webhooks/daily        │
+│  Backend FastAPI Server │
+│  /api/v1/webhooks/daily │
 │  1. Fetch transcript    │
 │  2. Parse WebVTT        │
 │  3. Call Gemini AI      │
