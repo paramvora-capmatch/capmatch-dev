@@ -1578,7 +1578,7 @@ async function callOnboardBorrower(
 	retries = 3
 ): Promise<OnboardResponse> {
 	const backendUrl = getBackendUrl();
-	const endpoint = `${backendUrl}/users/onboard-borrower`;
+	const endpoint = `${backendUrl}/api/v1/users/onboard-borrower`;
 
 	for (let attempt = 1; attempt <= retries; attempt++) {
 		try {
