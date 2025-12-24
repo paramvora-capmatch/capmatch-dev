@@ -30,7 +30,16 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const provider = state as CalendarProvider;
+  // Parse state parameter (format: provider|returnUrl)
+  const decodedState = decodeURIComponent(state);
+  const [provider, returnUrl] = decodedState.includes('|') 
+    ? decodedState.split('|', 2).map(part => decodeURIComponent(part))
+    : [decodedState, null];
+  
+  // Default return URL to dashboard if not provided or invalid
+  const finalReturnUrl = returnUrl && returnUrl.startsWith('/') 
+    ? returnUrl 
+    : '/dashboard';
 
   try {
     // Create server-side Supabase client with cookie access
@@ -125,16 +134,18 @@ export async function GET(request: NextRequest) {
       throw insertError;
     }
 
-    // Redirect back to dashboard with success message and open settings modal with calendar tab
-    return NextResponse.redirect(
-      new URL('/dashboard?calendar_connected=true&open_settings=calendar', request.url)
-    );
+    // Redirect back to original page (or dashboard) with success message and open settings modal with calendar tab
+    const returnUrlWithParams = new URL(finalReturnUrl, request.url);
+    returnUrlWithParams.searchParams.set('calendar_connected', 'true');
+    returnUrlWithParams.searchParams.set('open_settings', 'calendar');
+    return NextResponse.redirect(returnUrlWithParams);
   } catch (err) {
     console.error('[Calendar OAuth] Connection failed:', err);
     const errorMessage = err instanceof Error ? err.message : 'connection_failed';
-    return NextResponse.redirect(
-      new URL(`/dashboard?calendar_error=${encodeURIComponent(errorMessage)}`, request.url)
-    );
+    // On error, redirect back to original page or dashboard
+    const errorUrl = new URL(finalReturnUrl, request.url);
+    errorUrl.searchParams.set('calendar_error', errorMessage);
+    return NextResponse.redirect(errorUrl);
   }
 }
 
