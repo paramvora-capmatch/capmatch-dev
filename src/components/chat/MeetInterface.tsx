@@ -748,6 +748,77 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 																	</div>
 																</div>
 
+																{/* Summary - Parse and display structured summary */}
+																{meeting.summary &&
+																	(() => {
+																		try {
+																			const summaryData: MeetingSummary =
+																				typeof meeting.summary ===
+																				"string"
+																					? JSON.parse(
+																							meeting.summary
+																					  )
+																					: meeting.summary;
+
+																			return (
+																				<div className="mb-3">
+																					<p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
+																						<MessageSquare className="w-3 h-3 mr-1" />
+																						Executive
+																						Summary
+																					</p>
+																					<p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
+																						{
+																							summaryData.executive_summary
+																						}
+																					</p>
+																					{(summaryData
+																						.key_points
+																						?.length >
+																						0 ||
+																						summaryData
+																							.action_items
+																							?.length >
+																							0) && (
+																						<Button
+																							variant="ghost"
+																							size="sm"
+																							onClick={() => {
+																								setSelectedSummaryMeeting(
+																									meeting
+																								);
+																								setIsSummaryModalOpen(
+																									true
+																								);
+																							}}
+																							className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 mt-2 p-0"
+																						>
+																							View
+																							Full
+																							Summary
+																							→
+																						</Button>
+																					)}
+																				</div>
+																			);
+																		} catch (error) {
+																			// Fallback for non-JSON summaries
+																			return (
+																				<div className="mb-3">
+																					<p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
+																						<FileText className="w-3 h-3 mr-1" />
+																						Summary
+																					</p>
+																					<p className="text-xs text-gray-600 leading-relaxed">
+																						{
+																							meeting.summary
+																						}
+																					</p>
+																				</div>
+																			);
+																		}
+																	})()}
+
 																{/* RSVP Actions */}
 																{(() => {
 																	const myParticipant =
@@ -893,6 +964,46 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 																		</>
 																	)}
 																</div>
+
+																{/* Transcript and Recording Actions */}
+																{(meeting.transcript_text || meeting.recording_url) && (
+																	<div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+																		{meeting.transcript_text && (
+																			<Button
+																				variant="ghost"
+																				size="sm"
+																				onClick={() => {
+																					setSelectedTranscriptMeeting(
+																						meeting
+																					);
+																					setIsTranscriptModalOpen(
+																						true
+																					);
+																				}}
+																				className="text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
+																			>
+																				<FileText className="w-3 h-3 mr-1" />
+																				Transcript
+																			</Button>
+																		)}
+																		{meeting.recording_url && (
+																			<Button
+																				variant="ghost"
+																				size="sm"
+																				onClick={() => {
+																					window.open(
+																						meeting.recording_url,
+																						"_blank"
+																					);
+																				}}
+																				className="text-xs hover:bg-gray-50 hover:text-gray-700 transition-colors"
+																			>
+																				<Download className="w-3 h-3 mr-1" />
+																				Recording
+																			</Button>
+																		)}
+																	</div>
+																)}
 															</div>
 														</Card>
 													</motion.div>

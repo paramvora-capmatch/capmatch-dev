@@ -35,7 +35,8 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 	const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	/**
-	 * Fetch upcoming meetings (start_time >= now)
+	 * Fetch upcoming meetings (end_time > now AND status != 'cancelled')
+	 * Includes completed meetings if their end_time hasn't passed yet (so transcript/summary can be shown)
 	 */
 	const fetchUpcomingMeetings = useCallback(async () => {
 		if (!user) return;
