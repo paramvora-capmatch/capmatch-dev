@@ -162,7 +162,7 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 			setError("Failed to update response");
 		}
 		},
-		[user, refreshMeetings]
+		[user]
 	);
 
 	/**
