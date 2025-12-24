@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
+import { apiClient } from "@/lib/apiClient";
 import { Meeting, ParticipantResponseStatus } from "@/types/meeting-types";
 import { useAuth } from "./useAuth";
 
@@ -34,7 +35,8 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 	const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	/**
-	 * Fetch upcoming meetings (start_time >= now)
+	 * Fetch upcoming meetings (end_time > now AND status != 'cancelled')
+	 * Includes completed meetings if their end_time hasn't passed yet (so transcript/summary can be shown)
 	 */
 	const fetchUpcomingMeetings = useCallback(async () => {
 		if (!user) return;
@@ -139,24 +141,19 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 	 */
 	const updateParticipantResponse = useCallback(
 		async (meetingId: string, status: ParticipantResponseStatus) => {
-			if (!user) return;
+			if (!user?.id) return;
 
-			try {
-				// Call Edge Function to update DB and sync with Google Calendar
-				const { error: invokeError } = await supabase.functions.invoke(
-					"update-calendar-response",
-					{
-						body: {
-							meeting_id: meetingId,
-							user_id: user.id,
-							status: status,
-						},
-					}
-				);
+		try {
+			// Call FastAPI endpoint to update DB and sync with Google Calendar
+			const { error } = await apiClient.updateCalendarResponse({
+				meeting_id: meetingId,
+				user_id: user.id,
+				status: status,
+			});
 
-				if (invokeError) {
-					throw invokeError;
-				}
+			if (error) {
+				throw error;
+			}
 
 			// We don't need to manually refresh here because the Realtime subscription
 			// will detect the change in 'meeting_participants' and trigger a refresh automatically.
@@ -164,9 +161,9 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 			console.error("Error updating participant response:", err);
 			setError("Failed to update response");
 		}
-	},
-	[user]
-);
+		},
+		[user]
+	);
 
 	/**
 	 * Update participant status in local state without refetching

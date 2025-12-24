@@ -1,6 +1,7 @@
 // src/stores/useChatStore.ts
 import { create } from "zustand";
 import { supabase } from "../../lib/supabaseClient";
+import { apiClient } from "@/lib/apiClient";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface ChatThread {
@@ -218,13 +219,11 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
   createThread: async (projectId: string, topic?: string, participantIds?: string[]) => {
     set({ isLoading: true, error: null });
     try {
-      const { data, error } = await supabase.functions.invoke('manage-chat-thread', {
-        body: {
-          action: 'create',
-          project_id: projectId,
-          topic,
-          participant_ids: participantIds
-        }
+      const { data, error } = await apiClient.manageChatThread({
+        action: 'create',
+        project_id: projectId,
+        topic,
+        participant_ids: participantIds
       });
 
       if (error) throw error;
@@ -299,8 +298,10 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
   addParticipant: async (threadId: string, userIds: string[]) => {
     set({ isLoading: true, error: null });
     try {
-      const { error } = await supabase.functions.invoke('manage-chat-thread', {
-        body: { action: 'add_participant', thread_id: threadId, participant_ids: userIds }
+      const { error } = await apiClient.manageChatThread({
+        action: 'add_participant',
+        thread_id: threadId,
+        participant_ids: userIds
       });
       if (error) throw error;
       await get().loadParticipants(threadId);
@@ -314,8 +315,10 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
   removeParticipant: async (threadId: string, userId: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { error } = await supabase.functions.invoke('manage-chat-thread', {
-        body: { action: 'remove_participant', thread_id: threadId, participant_ids: [userId] }
+      const { error } = await apiClient.manageChatThread({
+        action: 'remove_participant',
+        thread_id: threadId,
+        participant_ids: [userId]
       });
       if (error) throw error;
       await get().loadParticipants(threadId);

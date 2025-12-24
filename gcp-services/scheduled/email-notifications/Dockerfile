@@ -10,7 +10,7 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # 3. Copy dependencies (relative to repo root build context)
-COPY gcp-services/email-notifications/pyproject.toml gcp-services/email-notifications/uv.lock ./
+COPY gcp-services/scheduled/email-notifications/pyproject.toml gcp-services/scheduled/email-notifications/uv.lock ./
 
 # 4. Create venv and install dependencies
 # uv automatically creates .venv in the current directory
@@ -20,8 +20,8 @@ RUN uv sync --frozen --no-install-project
 ENV PATH="/app/.venv/bin:$PATH"
 
 # 6. Copy service code and email template artifacts
-COPY gcp-services/email-notifications/ .
-# Templates are already in gcp-services/email-notifications/email-templates/dist/
+COPY gcp-services/scheduled/email-notifications/ .
+# Templates are already in gcp-services/scheduled/email-notifications/email-templates/dist/
 # so they're included in the COPY above
 
 # Default command - override per entrypoint script

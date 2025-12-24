@@ -124,12 +124,24 @@ export function useCalendarConnections(): UseCalendarConnectionsReturn {
 						);
 
 						if (!response.ok) {
-							console.error("Failed to stop calendar watch");
+							let errorMessage = `Failed to stop calendar watch (${response.status})`;
+							try {
+								const errorData = await response.json();
+								if (errorData.error) {
+									errorMessage += `: ${errorData.error}`;
+								}
+							} catch {
+								// If response isn't JSON, use status text
+								errorMessage += `: ${response.statusText}`;
+							}
+							console.error(errorMessage);
 						}
 					} catch (watchError) {
 						console.error(
 							"Error stopping calendar watch:",
-							watchError
+							watchError instanceof Error
+								? watchError.message
+								: String(watchError)
 						);
 						// Don't fail the disconnect if watch stop fails
 					}
@@ -250,6 +262,10 @@ export function useCalendarConnections(): UseCalendarConnectionsReturn {
 		const baseUrl = window.location.origin;
 		const redirectUri = `${baseUrl}/api/calendar/callback`;
 
+		// Encode return URL in state parameter (format: provider|returnUrl)
+		const returnUrl = window.location.pathname + window.location.search;
+		const state = `${provider}|${encodeURIComponent(returnUrl)}`;
+
 		let authUrl = "";
 
 		switch (provider) {
@@ -264,7 +280,7 @@ export function useCalendarConnections(): UseCalendarConnectionsReturn {
 					)}` +
 					`&access_type=offline` +
 					`&prompt=consent` +
-					`&state=${provider}`;
+					`&state=${encodeURIComponent(state)}`;
 				break;
 
 			default:

@@ -75,7 +75,7 @@ echo ""
 echo "Step 6: Building Docker image..."
 if docker info > /dev/null 2>&1; then
   if [ "$HAS_GIT_ROOT" = true ]; then
-    docker build -f "$REPO_ROOT/gcp-services/email-notifications/Dockerfile" -t capmatch-email-notifications:prod "$REPO_ROOT"
+    docker build -f "$REPO_ROOT/gcp-services/scheduled/email-notifications/Dockerfile" -t capmatch-email-notifications:prod "$REPO_ROOT"
   else
     docker build -f "$SCRIPT_DIR/Dockerfile" -t capmatch-email-notifications:prod "$SCRIPT_DIR"
   fi

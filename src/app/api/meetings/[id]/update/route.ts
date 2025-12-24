@@ -35,6 +35,20 @@ export async function PUT(
       );
     }
 
+    // Check if user has a calendar connection
+    const { data: connections } = await supabaseAdmin
+      .from('calendar_connections')
+      .select('id')
+      .eq('user_id', user.id)
+      .limit(1);
+
+    if (!connections || connections.length === 0) {
+      return NextResponse.json(
+        { error: 'Calendar connection required. Please connect your calendar in settings.' },
+        { status: 403 }
+      );
+    }
+
     // Parse request body
     const body = await request.json();
     const { title, startTime, endTime, participantIds, description } = body;

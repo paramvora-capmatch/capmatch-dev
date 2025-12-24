@@ -1,5 +1,6 @@
 // src/components/chat/MeetInterface.tsx
 import React, { useState, useMemo, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Card } from "../ui/card";
 import { Button } from "../ui/Button";
@@ -29,6 +30,7 @@ import { useProjects } from "@/hooks/useProjects";
 import { useProjectMembers } from "@/hooks/useProjectMembers";
 import { useAuth } from "@/hooks/useAuth";
 import { useMeetings } from "@/hooks/useMeetings";
+import { useCalendarConnections } from "@/hooks/useCalendarConnections";
 import { supabase } from "@/lib/supabaseClient";
 import type { MeetingSummary } from "@/lib/gemini-summarize";
 
@@ -94,6 +96,9 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 	const [updateMeetingError, setUpdateMeetingError] = useState<string | null>(
 		null
 	);
+	const [isCalendarNudgeModalOpen, setIsCalendarNudgeModalOpen] = useState(false);
+	const router = useRouter();
+	const pathname = usePathname();
 
 	// Helper functions for response status styling
 	const getResponseStatusBorder = (responseStatus?: string) => {
@@ -137,6 +142,10 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 		refreshMeetings,
 		updateParticipantResponse,
 	} = useMeetings(projectId);
+
+	// Get calendar connections to check if user has connected calendar
+	const { connections: calendarConnections } = useCalendarConnections();
+	const hasCalendarConnection = calendarConnections.length > 0;
 
 	const activeProject = useMemo(
 		() => projects?.find((p) => p.id === projectId),
@@ -351,7 +360,16 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 
 			if (!response.ok) {
 				const errorData = await response.json();
-				throw new Error(errorData.error || "Failed to create meeting");
+				const errorMessage = errorData.error || "Failed to create meeting";
+				
+				// Check if error is about calendar connection requirement
+				if (response.status === 403 && errorMessage.includes("calendar")) {
+					setIsScheduleModalOpen(false);
+					setIsCalendarNudgeModalOpen(true);
+					return;
+				}
+				
+				throw new Error(errorMessage);
 			}
 
 			const data = await response.json();
@@ -382,6 +400,10 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 
 	// Handle opening edit modal
 	const handleEditMeeting = (meeting: any) => {
+		if (!hasCalendarConnection) {
+			setIsCalendarNudgeModalOpen(true);
+			return;
+		}
 		setEditingMeeting(meeting);
 		setMeetingTitle(meeting.title);
 		setMeetingDuration(meeting.duration_minutes.toString());
@@ -445,7 +467,16 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 
 			if (!response.ok) {
 				const errorData = await response.json();
-				throw new Error(errorData.error || "Failed to update meeting");
+				const errorMessage = errorData.error || "Failed to update meeting";
+				
+				// Check if error is about calendar connection requirement
+				if (response.status === 403 && errorMessage.includes("calendar")) {
+					setIsScheduleModalOpen(false);
+					setIsCalendarNudgeModalOpen(true);
+					return;
+				}
+				
+				throw new Error(errorMessage);
 			}
 
 			// Refresh meetings list
@@ -528,6 +559,10 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 					<Button
 						size="sm"
 						onClick={() => {
+							if (!hasCalendarConnection) {
+								setIsCalendarNudgeModalOpen(true);
+								return;
+							}
 							setEditingMeeting(null);
 							setMeetingTitle("");
 							setMeetingDuration("30");
@@ -713,6 +748,77 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 																	</div>
 																</div>
 
+																{/* Summary - Parse and display structured summary */}
+																{meeting.summary &&
+																	(() => {
+																		try {
+																			const summaryData: MeetingSummary =
+																				typeof meeting.summary ===
+																				"string"
+																					? JSON.parse(
+																							meeting.summary
+																					  )
+																					: meeting.summary;
+
+																			return (
+																				<div className="mb-3">
+																					<p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
+																						<MessageSquare className="w-3 h-3 mr-1" />
+																						Executive
+																						Summary
+																					</p>
+																					<p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
+																						{
+																							summaryData.executive_summary
+																						}
+																					</p>
+																					{(summaryData
+																						.key_points
+																						?.length >
+																						0 ||
+																						summaryData
+																							.action_items
+																							?.length >
+																							0) && (
+																						<Button
+																							variant="ghost"
+																							size="sm"
+																							onClick={() => {
+																								setSelectedSummaryMeeting(
+																									meeting
+																								);
+																								setIsSummaryModalOpen(
+																									true
+																								);
+																							}}
+																							className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 mt-2 p-0"
+																						>
+																							View
+																							Full
+																							Summary
+																							→
+																						</Button>
+																					)}
+																				</div>
+																			);
+																		} catch (error) {
+																			// Fallback for non-JSON summaries
+																			return (
+																				<div className="mb-3">
+																					<p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
+																						<FileText className="w-3 h-3 mr-1" />
+																						Summary
+																					</p>
+																					<p className="text-xs text-gray-600 leading-relaxed">
+																						{
+																							meeting.summary
+																						}
+																					</p>
+																				</div>
+																			);
+																		}
+																	})()}
+
 																{/* RSVP Actions */}
 																{(() => {
 																	const myParticipant =
@@ -858,6 +964,46 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 																		</>
 																	)}
 																</div>
+
+																{/* Transcript and Recording Actions */}
+																{(meeting.transcript_text || meeting.recording_url) && (
+																	<div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+																		{meeting.transcript_text && (
+																			<Button
+																				variant="ghost"
+																				size="sm"
+																				onClick={() => {
+																					setSelectedTranscriptMeeting(
+																						meeting
+																					);
+																					setIsTranscriptModalOpen(
+																						true
+																					);
+																				}}
+																				className="text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
+																			>
+																				<FileText className="w-3 h-3 mr-1" />
+																				Transcript
+																			</Button>
+																		)}
+																		{meeting.recording_url && (
+																			<Button
+																				variant="ghost"
+																				size="sm"
+																				onClick={() => {
+																					window.open(
+																						meeting.recording_url,
+																						"_blank"
+																					);
+																				}}
+																				className="text-xs hover:bg-gray-50 hover:text-gray-700 transition-colors"
+																			>
+																				<Download className="w-3 h-3 mr-1" />
+																				Recording
+																			</Button>
+																		)}
+																	</div>
+																)}
 															</div>
 														</Card>
 													</motion.div>
@@ -2010,6 +2156,50 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 							className="bg-blue-600 hover:bg-blue-700 text-white"
 						>
 							Close
+						</Button>
+					</div>
+				</div>
+			</Modal>
+
+			{/* Calendar Connection Nudge Modal */}
+			<Modal
+				isOpen={isCalendarNudgeModalOpen}
+				onClose={() => setIsCalendarNudgeModalOpen(false)}
+				title="Connect Your Calendar"
+				size="md"
+			>
+				<div className="space-y-4">
+					<div className="flex items-center justify-center">
+						<div className="p-3 bg-blue-100 rounded-full">
+							<Calendar className="w-8 h-8 text-blue-600" />
+						</div>
+					</div>
+					<div className="text-center space-y-2">
+						<p className="text-sm font-medium text-gray-900">
+							Calendar Connection Required
+						</p>
+						<p className="text-sm text-gray-600">
+							To schedule and manage meetings, you need to connect your calendar first. 
+							This allows us to sync your availability and send calendar invites.
+						</p>
+					</div>
+					<div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+						<Button
+							variant="outline"
+							onClick={() => setIsCalendarNudgeModalOpen(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={() => {
+								setIsCalendarNudgeModalOpen(false);
+								// Update current URL with query parameter to open settings modal
+								// DashboardLayout will detect this and open the settings modal
+								router.push(`${pathname}?open_settings=calendar`);
+							}}
+							className="bg-blue-600 hover:bg-blue-700 text-white"
+						>
+							Connect Calendar
 						</Button>
 					</div>
 				</div>

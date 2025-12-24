@@ -1,0 +1,15 @@
+[project]
+name = "capmatch-email-digest"
+version = "1.0.0"
+description = "Daily email digest service for CapMatch"
+requires-python = ">=3.13"
+dependencies = [
+    "supabase>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "resend>=2.19.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
