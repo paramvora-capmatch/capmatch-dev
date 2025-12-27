@@ -12,6 +12,7 @@ CREATE OR REPLACE FUNCTION public.insert_document_uploaded_event(
 ) RETURNS BIGINT
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_event_id BIGINT;
