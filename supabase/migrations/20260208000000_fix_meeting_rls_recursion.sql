@@ -31,7 +31,7 @@ CREATE POLICY "Users can view meeting participants"
   ON meeting_participants FOR SELECT
   USING (
     is_meeting_organizer(meeting_id)
-    OR user_id = auth.uid()
+    OR user_id = (select auth.uid())
   );
 
 -- Only organizers can add participants
@@ -46,11 +46,11 @@ CREATE POLICY "Organizers can add participants"
 CREATE POLICY "Participants can update their response"
   ON meeting_participants FOR UPDATE
   USING (
-    user_id = auth.uid()
+    user_id = (select auth.uid())
     OR is_meeting_organizer(meeting_id)
   )
   WITH CHECK (
-    user_id = auth.uid()
+    user_id = (select auth.uid())
     OR is_meeting_organizer(meeting_id)
   );
 

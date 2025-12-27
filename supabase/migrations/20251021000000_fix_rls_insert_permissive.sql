@@ -25,19 +25,19 @@ WITH CHECK (true);
 -- Step 4: Keep SELECT restricted to resources the user can view
 CREATE POLICY "Users can view resources they have access to" ON public.resources
 FOR SELECT USING (
-  public.can_view(auth.uid(), id)
-  OR public.can_edit(auth.uid(), parent_id)
+  public.can_view((select auth.uid()), id)
+  OR public.can_edit((select auth.uid()), parent_id)
 );
 
 -- Step 5: Keep UPDATE restricted
 CREATE POLICY "Users can update resources they can edit" ON public.resources
-FOR UPDATE USING (public.can_edit(auth.uid(), id))
-WITH CHECK (public.can_edit(auth.uid(), id));
+FOR UPDATE USING (public.can_edit((select auth.uid()), id))
+WITH CHECK (public.can_edit((select auth.uid()), id));
 
 -- Step 6: Keep DELETE restricted
 CREATE POLICY "Users can delete resources they can edit (with safeguards)" ON public.resources
 FOR DELETE USING (
-    public.can_edit(auth.uid(), id) AND
+    public.can_edit((select auth.uid()), id) AND
     resource_type NOT IN ('BORROWER_RESUME', 'PROJECT_RESUME', 'BORROWER_DOCS_ROOT', 'PROJECT_DOCS_ROOT')
 );
 

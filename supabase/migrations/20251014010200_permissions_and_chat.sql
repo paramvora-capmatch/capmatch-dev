@@ -107,7 +107,7 @@ CREATE POLICY "Participants can view chat threads" ON public.chat_threads
 FOR SELECT USING (
   EXISTS (
     SELECT 1 FROM public.chat_thread_participants p
-    WHERE p.thread_id = id AND p.user_id = auth.uid()
+    WHERE p.thread_id = id AND p.user_id = (select auth.uid())
   )
 );
 
@@ -115,7 +115,7 @@ FOR SELECT USING (
 ALTER TABLE public.chat_thread_participants ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view their chat memberships" ON public.chat_thread_participants;
 CREATE POLICY "Users can view their chat memberships" ON public.chat_thread_participants
-FOR SELECT USING (user_id = auth.uid());
+FOR SELECT USING (user_id = (select auth.uid()));
 
 -- project_messages: participants can read/write messages in their threads
 ALTER TABLE public.project_messages ENABLE ROW LEVEL SECURITY;
@@ -125,7 +125,7 @@ CREATE POLICY "Participants can read messages" ON public.project_messages
 FOR SELECT USING (
   EXISTS (
     SELECT 1 FROM public.chat_thread_participants p
-    WHERE p.thread_id = thread_id AND p.user_id = auth.uid()
+    WHERE p.thread_id = thread_id AND p.user_id = (select auth.uid())
   )
 );
 CREATE POLICY "Participants can write messages" ON public.project_messages
@@ -133,7 +133,7 @@ FOR INSERT TO authenticated
 WITH CHECK (
   EXISTS (
     SELECT 1 FROM public.chat_thread_participants p
-    WHERE p.thread_id = thread_id AND p.user_id = auth.uid()
+    WHERE p.thread_id = thread_id AND p.user_id = (select auth.uid())
   )
 );
 
@@ -146,7 +146,7 @@ FOR SELECT USING (
     SELECT 1
     FROM public.project_messages m
     JOIN public.chat_thread_participants p ON p.thread_id = m.thread_id
-    WHERE m.id = message_id AND p.user_id = auth.uid()
+    WHERE m.id = message_id AND p.user_id = (select auth.uid())
   )
 );
 
@@ -155,10 +155,10 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view their notifications" ON public.notifications;
 DROP POLICY IF EXISTS "Users can create their notifications" ON public.notifications;
 CREATE POLICY "Users can view their notifications" ON public.notifications
-FOR SELECT USING (user_id = auth.uid());
+FOR SELECT USING (user_id = (select auth.uid()));
 CREATE POLICY "Users can create their notifications" ON public.notifications
 FOR INSERT TO authenticated
-WITH CHECK (user_id = auth.uid());
+WITH CHECK (user_id = (select auth.uid()));
 
 -- =============================================================================
 -- Core Helper Functions

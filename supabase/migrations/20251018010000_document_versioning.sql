@@ -171,16 +171,16 @@ COMMENT ON FUNCTION public.get_resource_by_storage_path IS 'Finds the resource I
 -- Step 9: Recreate storage policies using the version-aware function
 CREATE POLICY "Users can upload files to folders they can edit" ON storage.objects
 FOR INSERT TO authenticated
-WITH CHECK ( public.can_upload_to_path_for_user(auth.uid(), bucket_id, string_to_array(name,'/')) );
+WITH CHECK ( public.can_upload_to_path_for_user((select auth.uid()), bucket_id, string_to_array(name,'/')) );
 
 CREATE POLICY "Users can view files they have access to" ON storage.objects
 FOR SELECT TO authenticated
 USING (
-  public.can_view(auth.uid(), public.get_resource_by_storage_path(name))
+  public.can_view((select auth.uid()), public.get_resource_by_storage_path(name))
   OR (
     public.get_resource_by_storage_path(name) IS NULL AND EXISTS (
       SELECT 1 FROM public.project_access_grants pag
-      WHERE pag.user_id = auth.uid()
+      WHERE pag.user_id = (select auth.uid())
         AND pag.project_id = (
           CASE WHEN (string_to_array(name,'/'))[1] ~ '^[0-9a-fA-F-]{36}$'
                THEN ((string_to_array(name,'/'))[1])::uuid
@@ -193,11 +193,11 @@ USING (
 
 CREATE POLICY "Users can update files they can edit" ON storage.objects
 FOR UPDATE TO authenticated
-USING ( public.can_edit(auth.uid(), public.get_resource_by_storage_path(name)) );
+USING ( public.can_edit((select auth.uid()), public.get_resource_by_storage_path(name)) );
 
 CREATE POLICY "Users can delete files they can edit" ON storage.objects
 FOR DELETE TO authenticated
-USING ( public.can_edit(auth.uid(), public.get_resource_by_storage_path(name)) );
+USING ( public.can_edit((select auth.uid()), public.get_resource_by_storage_path(name)) );
 
 -- Recreate bucket gate policy to ensure storage engine reaches object policies
 CREATE POLICY "Enable all actions for storage flow on buckets"

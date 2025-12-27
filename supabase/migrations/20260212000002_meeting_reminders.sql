@@ -137,7 +137,7 @@ ALTER TABLE public.meeting_reminders_sent ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own reminder records"
     ON public.meeting_reminders_sent
     FOR SELECT
-    USING (user_id = auth.uid());
+    USING (user_id = (select auth.uid()));
 
 -- Grant permissions
 GRANT SELECT, INSERT ON public.meeting_reminders_sent TO authenticated;

@@ -27,23 +27,23 @@ ALTER TABLE calendar_connections ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own calendar connections"
   ON calendar_connections
   FOR SELECT
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can insert their own calendar connections"
   ON calendar_connections
   FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can update their own calendar connections"
   ON calendar_connections
   FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id)
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can delete their own calendar connections"
   ON calendar_connections
   FOR DELETE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 -- Add updated_at trigger
 CREATE OR REPLACE FUNCTION update_calendar_connections_updated_at()
@@ -94,7 +94,7 @@ CREATE POLICY "Users can view their own calendar events"
     EXISTS (
       SELECT 1 FROM calendar_connections
       WHERE calendar_connections.id = calendar_events.connection_id
-      AND calendar_connections.user_id = auth.uid()
+      AND calendar_connections.user_id = (select auth.uid())
     )
   );
 

@@ -48,10 +48,10 @@ DROP POLICY IF EXISTS "Users can create their notifications" ON public.notificat
 DROP POLICY IF EXISTS "Users can update their notifications" ON public.notifications;
 
 CREATE POLICY "Users can view their notifications" ON public.notifications
-FOR SELECT USING (user_id = auth.uid());
+FOR SELECT USING (user_id = (select auth.uid()));
 
 CREATE POLICY "Users can update their notifications" ON public.notifications
-FOR UPDATE USING (user_id = auth.uid());
+FOR UPDATE USING (user_id = (select auth.uid()));
 
 -- Insert access is intentionally omitted; service role or SECURITY DEFINER
 -- helpers will insert notifications on behalf of users.

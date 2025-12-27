@@ -107,16 +107,16 @@ COMMENT ON FUNCTION public.grant_project_access IS 'Grants a user access to a pr
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view and manage their own profile" ON public.profiles;
 CREATE POLICY "Users can view and manage their own profile" ON public.profiles
-FOR ALL USING (auth.uid() = id);
+FOR ALL USING ((select auth.uid()) = id);
 
 -- Orgs
 ALTER TABLE public.orgs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Members can view their own orgs" ON public.orgs;
 DROP POLICY IF EXISTS "Owners can update their own orgs" ON public.orgs;
 CREATE POLICY "Members can view their own orgs" ON public.orgs
-FOR SELECT USING (EXISTS (SELECT 1 FROM public.org_members WHERE org_id = id AND user_id = auth.uid()));
+FOR SELECT USING (EXISTS (SELECT 1 FROM public.org_members WHERE org_id = id AND user_id = (select auth.uid())));
 CREATE POLICY "Owners can update their own orgs" ON public.orgs
-FOR UPDATE USING (public.is_org_owner(id, auth.uid()));
+FOR UPDATE USING (public.is_org_owner(id, (select auth.uid())));
 
 -- Project Access Grants (New Table)
 ALTER TABLE public.project_access_grants ENABLE ROW LEVEL SECURITY;
@@ -124,10 +124,10 @@ DROP POLICY IF EXISTS "Org owners can manage project access grants" ON public.pr
 DROP POLICY IF EXISTS "Users can view their own project access grants" ON public.project_access_grants;
 CREATE POLICY "Org owners can manage project access grants" ON public.project_access_grants
 FOR ALL USING (
-    public.is_org_owner(org_id, auth.uid())
+    public.is_org_owner(org_id, (select auth.uid()))
 );
 CREATE POLICY "Users can view their own project access grants" ON public.project_access_grants
-FOR SELECT USING (user_id = auth.uid());
+FOR SELECT USING (user_id = (select auth.uid()));
 
 -- Projects (New Policies)
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
@@ -139,29 +139,29 @@ DROP POLICY IF EXISTS "Users can access projects based on resource permissions" 
 -- A user can see a project if they are an org owner OR if they have an explicit grant.
 CREATE POLICY "Users can view projects they have access to" ON public.projects
 FOR SELECT USING (
-    public.is_org_owner(owner_org_id, auth.uid()) OR
+    public.is_org_owner(owner_org_id, (select auth.uid())) OR
     EXISTS (
         SELECT 1 FROM public.project_access_grants
-        WHERE project_id = projects.id AND user_id = auth.uid()
+        WHERE project_id = projects.id AND user_id = (select auth.uid())
     )
 );
 
 -- Only org owners can create new projects.
 CREATE POLICY "Owners can create projects" ON public.projects
 FOR INSERT WITH CHECK (
-    public.is_org_owner(owner_org_id, auth.uid())
+    public.is_org_owner(owner_org_id, (select auth.uid()))
 );
 
 -- Only org owners can update projects.
 CREATE POLICY "Owners can update projects" ON public.projects
 FOR UPDATE USING (
-    public.is_org_owner(owner_org_id, auth.uid())
+    public.is_org_owner(owner_org_id, (select auth.uid()))
 );
 
 -- Only org owners can delete projects.
 CREATE POLICY "Owners can delete projects" ON public.projects
 FOR DELETE USING (
-    public.is_org_owner(owner_org_id, auth.uid())
+    public.is_org_owner(owner_org_id, (select auth.uid()))
 );
 
 -- Org Members RLS (added)
@@ -170,16 +170,16 @@ DROP POLICY IF EXISTS "Users can view their own org membership" ON public.org_me
 DROP POLICY IF EXISTS "Owners can view org membership" ON public.org_members;
 DROP POLICY IF EXISTS "Owners can manage org membership" ON public.org_members;
 CREATE POLICY "Users can view their own org membership" ON public.org_members
-FOR SELECT USING (user_id = auth.uid());
+FOR SELECT USING (user_id = (select auth.uid()));
 CREATE POLICY "Owners can view org membership" ON public.org_members
-FOR SELECT USING (public.is_org_owner(org_id, auth.uid()));
+FOR SELECT USING (public.is_org_owner(org_id, (select auth.uid())));
 CREATE POLICY "Owners can manage org membership" ON public.org_members
-FOR ALL USING (public.is_org_owner(org_id, auth.uid()))
-WITH CHECK (public.is_org_owner(org_id, auth.uid()));
+FOR ALL USING (public.is_org_owner(org_id, (select auth.uid())))
+WITH CHECK (public.is_org_owner(org_id, (select auth.uid())));
 
 -- Invites RLS (added)
 ALTER TABLE public.invites ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Owners can manage invites" ON public.invites;
 CREATE POLICY "Owners can manage invites" ON public.invites
-FOR ALL USING (public.is_org_owner(org_id, auth.uid()))
-WITH CHECK (public.is_org_owner(org_id, auth.uid()));
+FOR ALL USING (public.is_org_owner(org_id, (select auth.uid())))
+WITH CHECK (public.is_org_owner(org_id, (select auth.uid())));

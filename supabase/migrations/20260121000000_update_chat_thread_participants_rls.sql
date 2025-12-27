@@ -33,10 +33,10 @@ COMMENT ON FUNCTION public.is_thread_participant IS
 CREATE POLICY "Users can view participants in their threads" ON public.chat_thread_participants
 FOR SELECT USING (
   -- Allow if this is the user's own record (needed for chat_threads RLS subquery)
-  user_id = auth.uid()
+  user_id = (select auth.uid())
   OR
   -- Allow if user is a participant in the same thread (uses SECURITY DEFINER to avoid recursion)
-  public.is_thread_participant(thread_id, auth.uid())
+  public.is_thread_participant(thread_id, (select auth.uid()))
 );
 
 COMMENT ON POLICY "Users can view participants in their threads" ON public.chat_thread_participants IS 

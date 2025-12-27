@@ -72,29 +72,29 @@ ALTER TABLE meeting_participants ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their meetings"
   ON meetings FOR SELECT
   USING (
-    organizer_id = auth.uid()
+    organizer_id = (select auth.uid())
     OR id IN (
       SELECT meeting_id
       FROM meeting_participants
-      WHERE user_id = auth.uid()
+      WHERE user_id = (select auth.uid())
     )
   );
 
 -- Only organizers can insert meetings
 CREATE POLICY "Users can create meetings"
   ON meetings FOR INSERT
-  WITH CHECK (organizer_id = auth.uid());
+  WITH CHECK (organizer_id = (select auth.uid()));
 
 -- Only organizers can update their meetings
 CREATE POLICY "Organizers can update their meetings"
   ON meetings FOR UPDATE
-  USING (organizer_id = auth.uid())
-  WITH CHECK (organizer_id = auth.uid());
+  USING (organizer_id = (select auth.uid()))
+  WITH CHECK (organizer_id = (select auth.uid()));
 
 -- Only organizers can delete their meetings
 CREATE POLICY "Organizers can delete their meetings"
   ON meetings FOR DELETE
-  USING (organizer_id = auth.uid());
+  USING (organizer_id = (select auth.uid()));
 
 -- RLS Policies for meeting_participants table
 -- Users can view participants of meetings they're part of
@@ -102,9 +102,9 @@ CREATE POLICY "Users can view meeting participants"
   ON meeting_participants FOR SELECT
   USING (
     meeting_id IN (
-      SELECT id FROM meetings WHERE organizer_id = auth.uid()
+      SELECT id FROM meetings WHERE organizer_id = (select auth.uid())
     )
-    OR user_id = auth.uid()
+    OR user_id = (select auth.uid())
   );
 
 -- Only organizers can add participants
@@ -112,7 +112,7 @@ CREATE POLICY "Organizers can add participants"
   ON meeting_participants FOR INSERT
   WITH CHECK (
     meeting_id IN (
-      SELECT id FROM meetings WHERE organizer_id = auth.uid()
+      SELECT id FROM meetings WHERE organizer_id = (select auth.uid())
     )
   );
 
@@ -120,15 +120,15 @@ CREATE POLICY "Organizers can add participants"
 CREATE POLICY "Participants can update their response"
   ON meeting_participants FOR UPDATE
   USING (
-    user_id = auth.uid()
+    user_id = (select auth.uid())
     OR meeting_id IN (
-      SELECT id FROM meetings WHERE organizer_id = auth.uid()
+      SELECT id FROM meetings WHERE organizer_id = (select auth.uid())
     )
   )
   WITH CHECK (
-    user_id = auth.uid()
+    user_id = (select auth.uid())
     OR meeting_id IN (
-      SELECT id FROM meetings WHERE organizer_id = auth.uid()
+      SELECT id FROM meetings WHERE organizer_id = (select auth.uid())
     )
   );
 
@@ -137,7 +137,7 @@ CREATE POLICY "Organizers can remove participants"
   ON meeting_participants FOR DELETE
   USING (
     meeting_id IN (
-      SELECT id FROM meetings WHERE organizer_id = auth.uid()
+      SELECT id FROM meetings WHERE organizer_id = (select auth.uid())
     )
   );
 

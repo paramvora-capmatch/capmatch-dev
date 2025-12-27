@@ -45,15 +45,15 @@ CREATE POLICY "Users can view resources they have access to" ON public.resources
 FOR SELECT USING (
   -- 1. Primary strict check: explicit or correctly inherited permission
   -- This already respects 'none' permissions via get_effective_permission
-  public.can_view(auth.uid(), id)
+  public.can_view((select auth.uid()), id)
   OR
   -- 2. Fallback for upload/creation (only for non-root resources):
   -- If the user has edit rights on the parent (which allows them to create the file),
   -- they should be able to view it, UNLESS they have an explicit 'none' permission.
   (
     parent_id IS NOT NULL
-    AND public.can_edit(auth.uid(), parent_id)
-    AND NOT public.has_explicit_none_permission(auth.uid(), id)
+    AND public.can_edit((select auth.uid()), parent_id)
+    AND NOT public.has_explicit_none_permission((select auth.uid()), id)
   )
 );
 

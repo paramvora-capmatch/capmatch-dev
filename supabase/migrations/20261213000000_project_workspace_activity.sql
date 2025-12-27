@@ -48,18 +48,18 @@ DROP POLICY IF EXISTS "Users can update their workspace activity" ON public.proj
 CREATE POLICY "Users can view their workspace activity"
   ON public.project_workspace_activity
   FOR SELECT
-  USING (user_id = auth.uid());
+  USING (user_id = (select auth.uid()));
 
 CREATE POLICY "Users can insert their workspace activity"
   ON public.project_workspace_activity
   FOR INSERT
-  WITH CHECK (user_id = auth.uid());
+  WITH CHECK (user_id = (select auth.uid()));
 
 CREATE POLICY "Users can update their workspace activity"
   ON public.project_workspace_activity
   FOR UPDATE
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  USING (user_id = (select auth.uid()))
+  WITH CHECK (user_id = (select auth.uid()));
 
 -- No DELETE policy (keep history minimal but stable; can add later if needed).
 

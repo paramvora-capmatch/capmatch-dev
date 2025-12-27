@@ -18,7 +18,7 @@ DROP POLICY IF EXISTS "Users can view resources they have access to" ON public.r
 -- This respects "none" permissions that override parent permissions
 CREATE POLICY "Users can view resources they have access to" ON public.resources
 FOR SELECT USING (
-  public.can_view(auth.uid(), id)
+  public.can_view((select auth.uid()), id)
 );
 
 COMMENT ON POLICY "Users can view resources they have access to" ON public.resources IS 

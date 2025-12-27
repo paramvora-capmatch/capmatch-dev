@@ -39,7 +39,7 @@ ALTER TABLE public.user_notification_preferences ENABLE ROW LEVEL SECURITY;
 
 -- Users can manage their own preferences
 CREATE POLICY "Users can manage their own preferences" ON public.user_notification_preferences
-    FOR ALL USING (user_id = auth.uid());
+    FOR ALL USING (user_id = (select auth.uid()));
 
 -- =============================================================================
 -- 2. Chat Thread Read Status

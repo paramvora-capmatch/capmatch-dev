@@ -153,17 +153,17 @@ DROP POLICY IF EXISTS "Users can access project resumes based on resource permis
 
 -- RLS Policies for `public.resources`
 CREATE POLICY "Users can view resources they have access to" ON public.resources
-FOR SELECT USING (public.can_view(auth.uid(), id));
+FOR SELECT USING (public.can_view((select auth.uid()), id));
 
 CREATE POLICY "Users can create resources in folders they can edit" ON public.resources
-FOR INSERT WITH CHECK (public.can_edit(auth.uid(), parent_id));
+FOR INSERT WITH CHECK (public.can_edit((select auth.uid()), parent_id));
 
 CREATE POLICY "Users can update resources they can edit" ON public.resources
-FOR UPDATE USING (public.can_edit(auth.uid(), id));
+FOR UPDATE USING (public.can_edit((select auth.uid()), id));
 
 CREATE POLICY "Users can delete resources they can edit (with safeguards)" ON public.resources
 FOR DELETE USING (
-    public.can_edit(auth.uid(), id) AND
+    public.can_edit((select auth.uid()), id) AND
     resource_type NOT IN ('BORROWER_RESUME', 'PROJECT_RESUME', 'BORROWER_DOCS_ROOT', 'PROJECT_DOCS_ROOT')
 );
 
@@ -171,26 +171,26 @@ FOR DELETE USING (
 CREATE POLICY "Owners can manage permissions on resources they can edit" ON public.permissions
 FOR ALL USING (
     -- Lock 1: User must have 'edit' rights on the resource.
-    public.can_edit(auth.uid(), resource_id)
+    public.can_edit((select auth.uid()), resource_id)
     AND
     -- Lock 2: User must be a fundamental 'owner' of the resource's org.
     public.is_org_owner(
         (SELECT org_id FROM public.resources WHERE id = resource_id),
-        auth.uid()
+        (select auth.uid())
     )
 );
 
 -- RLS Policies for Resume Tables
 CREATE POLICY "Users can access borrower resumes based on resource permissions" ON public.borrower_resumes
 FOR ALL USING (
-    public.can_view(auth.uid(), public.get_resource_id_from_fk(org_id, 'BORROWER_RESUME'))
+    public.can_view((select auth.uid()), public.get_resource_id_from_fk(org_id, 'BORROWER_RESUME'))
 ) WITH CHECK (
-    public.can_edit(auth.uid(), public.get_resource_id_from_fk(org_id, 'BORROWER_RESUME'))
+    public.can_edit((select auth.uid()), public.get_resource_id_from_fk(org_id, 'BORROWER_RESUME'))
 );
 
 CREATE POLICY "Users can access project resumes based on resource permissions" ON public.project_resumes
 FOR ALL USING (
-    public.can_view(auth.uid(), public.get_resource_id_from_fk(project_id, 'PROJECT_RESUME'))
+    public.can_view((select auth.uid()), public.get_resource_id_from_fk(project_id, 'PROJECT_RESUME'))
 ) WITH CHECK (
-    public.can_edit(auth.uid(), public.get_resource_id_from_fk(project_id, 'PROJECT_RESUME'))
+    public.can_edit((select auth.uid()), public.get_resource_id_from_fk(project_id, 'PROJECT_RESUME'))
 );
