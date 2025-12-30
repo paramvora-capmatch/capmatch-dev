@@ -59,6 +59,7 @@ import { TrackRecordItem, ReferenceItem } from "@/lib/project-queries";
 import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResumeRealtime";
 import { BorrowerResumeView } from "./BorrowerResumeView";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
+import { useAuth } from "@/hooks/useAuth";
 
 interface BorrowerResumeFormProps {
 	projectId: string;
@@ -76,6 +77,8 @@ interface BorrowerResumeFormProps {
 	progressPercent?: number;
 	onProgressChange?: (percent: number) => void;
 	canEdit?: boolean; // Whether the user has edit permission
+	onDirtyChange?: (isDirty: boolean) => void;
+	onRegisterSave?: (saveFn: () => Promise<void>) => void;
 }
 
 const buildWorkspaceStepId = (stepId: string) => `borrower:${stepId}`;
@@ -268,6 +271,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	copyLoading,
 	onProgressChange,
 	canEdit = true, // Default to true for backward compatibility
+	onDirtyChange,
+	onRegisterSave,
 }) => {
 	const {
 		content: borrowerResume,
@@ -276,6 +281,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		reload: reloadBorrowerResume,
 		isRemoteUpdate,
 	} = useProjectBorrowerResumeRealtime(projectId);
+	const { user } = useAuth();
 
 	// State
 	const [isEditing, setIsEditing] = useState(false);
@@ -340,15 +346,39 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			} = await supabase.auth.getUser();
 			if (!user?.id || !projectId) return;
 			const nowIso = new Date().toISOString();
-			const payload: Record<string, any> = {
+
+
+			const insertPayload: Record<string, any> = {
 				project_id: projectId,
 				user_id: user.id,
 				last_visited_at: nowIso,
 			};
-			if (stepId) payload.last_step_id = buildWorkspaceStepId(stepId);
-			await supabase
+			if (stepId) insertPayload.last_step_id = buildWorkspaceStepId(stepId);
+
+			const updatePayload: Record<string, any> = {
+				last_visited_at: nowIso,
+			};
+			if (stepId) updatePayload.last_step_id = buildWorkspaceStepId(stepId);
+
+			// Check if record exists first to avoid ON CONFLICT 400 error
+			const { data: existing } = await supabase
 				.from("project_workspace_activity")
-				.upsert(payload, { onConflict: "project_id,user_id" });
+				.select("id")
+				.eq("project_id", projectId)
+				.eq("user_id", user.id)
+				.maybeSingle();
+
+			if (existing) {
+				await supabase
+				await supabase
+					.from("project_workspace_activity")
+					.update(updatePayload)
+					.eq("id", existing.id);
+			} else {
+				await supabase
+					.from("project_workspace_activity")
+					.insert(insertPayload);
+			}
 		},
 		[projectId]
 	);
@@ -383,32 +413,43 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			if (fieldActivityTimeoutRef.current) {
 				clearTimeout(fieldActivityTimeoutRef.current);
 			}
-			fieldActivityTimeoutRef.current = setTimeout(() => {
-				if (!projectId) return;
+			fieldActivityTimeoutRef.current = setTimeout(async () => {
+				if (!projectId || !user) return;
 				const now = new Date().toISOString();
-				void supabase
-					.rpc("touch_project_workspace_activity", {
-						p_project_id: projectId,
-						p_last_step_id: `borrower:${fieldId}`,
-						p_last_borrower_resume_edit_at: now,
-					})
-					.then(({ error }) => {
-						if (error) {
-							console.warn(
-								"[BorrowerResumeForm] Failed to track field activity:",
-								error
-							);
-						}
-					});
+
+				// Standard table update as fallback for RPC which seems to be failing
+				try {
+					const { data: existing } = await supabase
+						.from("project_workspace_activity")
+						.select("id")
+						.eq("project_id", projectId)
+						.eq("user_id", user.id)
+						.maybeSingle();
+
+					if (existing) {
+						await supabase
+							.from("project_workspace_activity")
+							.update({
+								last_step_id: `borrower:${fieldId}`,
+								last_borrower_resume_edit_at: now,
+								last_visited_at: now
+							})
+							.eq("id", existing.id);
+					}
+				} catch (err) {
+					console.warn("[BorrowerResumeForm] Failed to track field activity:", err);
+				}
 			}, 500);
 		},
-		[projectId]
+		[projectId, user]
 	);
 
-	// Keep fieldMetadata ref in sync for use in effects
+	// Keep state refs in sync for use in async effects and registered callbacks
 	useEffect(() => {
+		stateRef.current.formData = formData;
 		stateRef.current.fieldMetadata = fieldMetadata;
-	}, [fieldMetadata]);
+		stateRef.current.lockedFields = lockedFields;
+	}, [formData, fieldMetadata, lockedFields]);
 
 	const {
 		isAutofilling,
@@ -627,6 +668,62 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		[fieldMetadata, trackFieldActivity]
 	);
 
+	// Calculated dirty state
+	const isDirty = useMemo(() => {
+		if (!initialSnapshotRef.current) return false;
+
+		// Helper to stringify with sorted keys to ensure consistency
+		const stableStringify = (obj: any): string => {
+			if (obj === null || typeof obj !== "object") {
+				return JSON.stringify(obj);
+			}
+			if (Array.isArray(obj)) {
+				return JSON.stringify(obj.map(stableStringify));
+			}
+			const sortedKeys = Object.keys(obj).sort();
+			const result: Record<string, any> = {};
+			sortedKeys.forEach(key => {
+				result[key] = stableStringify(obj[key]);
+			});
+			return JSON.stringify(result);
+		};
+
+		const current = stableStringify(formData);
+		const initial = stableStringify(initialSnapshotRef.current.formData);
+		return current !== initial;
+	}, [formData]);
+
+	// Notify parent of dirty state changes
+	useEffect(() => {
+		onDirtyChange?.(isDirty);
+	}, [isDirty, onDirtyChange]);
+
+	// Warn on page unload if dirty
+	useEffect(() => {
+		if (!isDirty) return;
+
+		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+			e.preventDefault();
+			// Chrome requires returnValue to be set
+			e.returnValue = "";
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+		};
+	}, [isDirty]);
+
+	// Register save function with parent on mount
+	useEffect(() => {
+		if (onRegisterSave) {
+			onRegisterSave(async () => {
+				await handleFormSubmit();
+			});
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [onRegisterSave]);
+
 	// Create debounced sanity checker instance
 	const sanityCheckerRef = useRef<
 		import("@/lib/debouncedSanityCheck").DebouncedSanityChecker | null
@@ -674,30 +771,36 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			// Use current formData and override with the field value
 			const context = { ...formData, [fieldId]: fieldValue };
 
-			// Schedule debounced sanity check
-			sanityCheckerRef.current?.scheduleCheck(
-				fieldId,
-				fieldValue,
-				context,
-				currentMeta,
-				(fieldId, warnings) => {
-					// Update metadata with warnings from sanity check
-					setFieldMetadata((prev) => ({
-						...prev,
-						[fieldId]: {
-							...prev[fieldId],
-							warnings: warnings,
-						},
-					}));
-				},
-				(fieldId, error) => {
-					console.error(
-						`Realtime sanity check failed for ${fieldId}:`,
-						error
-					);
-					// Don't fail if sanity check fails
-				}
-			);
+			// Get current session token asynchronously
+			supabase.auth.getSession().then(({ data: { session } }) => {
+				const authToken = session?.access_token;
+
+				// Schedule debounced sanity check
+				sanityCheckerRef.current?.scheduleCheck(
+					fieldId,
+					fieldValue,
+					context,
+					currentMeta,
+					(fieldId, warnings) => {
+						// Update metadata with warnings from sanity check
+						setFieldMetadata((prev) => ({
+							...prev,
+							[fieldId]: {
+								...prev[fieldId],
+								warnings: warnings,
+							},
+						}));
+					},
+					(fieldId, error) => {
+						console.error(
+							`Realtime sanity check failed for ${fieldId}:`,
+							error
+						);
+						// Don't fail if sanity check fails
+					},
+					authToken // Pass the token here
+				);
+			});
 		},
 		[formData, fieldMetadata, isEditing]
 	);
@@ -824,9 +927,22 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					);
 
 				if (fieldsToCheck.length > 0) {
+					// Get session token for batch check
+					const { data: { session } } = await supabase.auth.getSession();
+					const authToken = session?.access_token;
+
+					if (authToken) {
+						console.log(`[BorrowerResumeForm] Batch validating ${fieldsToCheck.length} fields with token`);
+					} else {
+						console.warn(`[BorrowerResumeForm] Batch validating fields but NO TOKEN found`);
+					}
+
+					// Update fields with token
+					const fieldsWithToken = fieldsToCheck.map(f => ({ ...f, authToken }));
+
 					// Batch check all fields in parallel
 					await sanityCheckerRef.current.batchCheck(
-						fieldsToCheck,
+						fieldsWithToken,
 						(fieldId, warnings) => {
 							// Update metadata with warnings from sanity check
 							setFieldMetadata((prev) => ({
@@ -925,7 +1041,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			finalData: Partial<BorrowerResumeContent>,
 			createNewVersion: boolean
 		) => {
-			if (!hasUnsavedChanges()) {
+			const hasChanges = hasUnsavedChanges();
+			console.log('[BorrowerResumeForm] saveToDatabase called, hasUnsavedChanges:', hasChanges);
+
+			// If called with NO data (e.g. from handleFormSubmit wrapper)
+			// we should use the ref data anyway to ensure we don't save empty
+			const dataToProcess = Object.keys(finalData).length > 3 ? finalData : stateRef.current.formData;
+
+			if (!hasChanges) {
+				console.log('[BorrowerResumeForm] No unsaved changes detected, skipping save');
 				if (typeof window !== "undefined") {
 					localStorage.removeItem(storageKey);
 					setLastSavedAt(null);
@@ -933,6 +1057,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				return;
 			}
 
+			console.log('[BorrowerResumeForm] Proceeding with save with keys:', Object.keys(dataToProcess));
 			setFormSaved(true);
 			isSavingRef.current = true;
 
@@ -947,28 +1072,32 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 			try {
 				const lockedFieldsObj: Record<string, boolean> = {};
-				lockedFields.forEach((id) => (lockedFieldsObj[id] = true));
+				stateRef.current.lockedFields.forEach((id) => (lockedFieldsObj[id] = true));
 
 				// Calculate completeness before saving
 				const completenessPercent =
-					computeBorrowerCompletion(finalData, lockedFieldsObj);
+					computeBorrowerCompletion(dataToProcess, lockedFieldsObj);
 
 				const dataToSave = {
-					...finalData,
-					_metadata: fieldMetadata,
+					...dataToProcess,
+					_metadata: stateRef.current.fieldMetadata,
 					_lockedFields: lockedFieldsObj,
 					completenessPercent,
 				};
 
+				console.log('[BorrowerResumeForm] Calling save() with createNewVersion:', createNewVersion);
 				await save(
 					dataToSave,
 					lockedFieldsObj,
 					undefined,
 					createNewVersion
 				);
+				console.log('[BorrowerResumeForm] save() completed successfully');
 
 				// Reload to get updated content
+				console.log('[BorrowerResumeForm] Reloading borrower resume...');
 				await reloadBorrowerResume();
+				console.log('[BorrowerResumeForm] Reload completed');
 
 				const snapshot = {
 					formData: finalData,
@@ -1011,13 +1140,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 	const handleFormSubmit = useCallback(
 		async (finalData?: Partial<BorrowerResumeContent>) => {
-			const dataToSave = finalData || formData;
+			console.log('[BorrowerResumeForm] handleFormSubmit called');
+			// Use the ref for the most recent state if no finalData is provided (prevents stale closure)
+			const dataToSave = finalData || stateRef.current.formData;
+			console.log('[BorrowerResumeForm] About to call saveToDatabase with keys:', Object.keys(dataToSave));
 			await saveToDatabase(dataToSave, true);
+			console.log('[BorrowerResumeForm] saveToDatabase completed');
 			setIsEditing(false);
 			onComplete?.(dataToSave as BorrowerResumeContent);
 			reloadBorrowerResume();
 		},
-		[formData, saveToDatabase, onComplete, reloadBorrowerResume]
+		[saveToDatabase, onComplete, reloadBorrowerResume]
 	);
 
 	// Warn on close
@@ -1271,8 +1404,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					? "Cannot lock a field with warnings. Please resolve warnings first."
 					: "Cannot lock an empty field. Please fill in a value first."
 				: locked
-				? "Unlock field"
-				: "Lock field";
+					? "Unlock field"
+					: "Lock field";
 
 			return (
 				<div className="flex items-center" title={tooltipTitle}>
@@ -1468,7 +1601,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 			return (
 				<FormGroup key={fieldId}>
-					<AskAIButton id={fieldId} onAskAI={onAskAI || (() => {})}>
+					<AskAIButton id={fieldId} onAskAI={onAskAI || (() => { })}>
 						<div className="relative group/field">
 							{renderFieldLabel(
 								fieldId,
@@ -1540,15 +1673,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												options.length
 													? options
 													: [
-															{
-																label: "Yes",
-																value: true,
-															},
-															{
-																label: "No",
-																value: false,
-															},
-													  ]
+														{
+															label: "Yes",
+															value: true,
+														},
+														{
+															label: "No",
+															value: false,
+														},
+													]
 											}
 											selectedValue={value}
 											onSelect={async (selected) => {
@@ -1591,31 +1724,31 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 								{(controlType === "input" ||
 									controlType === "number") && (
-									<Input
-										id={fieldId}
-										type={
-											controlType === "number"
-												? "number"
-												: "text"
-										}
-										value={value}
-										onChange={(e) =>
-											handleInputChange(
-												fieldId,
+										<Input
+											id={fieldId}
+											type={
 												controlType === "number"
-													? parseFloat(e.target.value)
-													: e.target.value
-											)
-										}
-										onBlur={() => handleBlur(fieldId)}
-										disabled={disabled}
-										className={styling}
-										data-field-id={fieldId}
-										data-field-type={controlType}
-										data-field-section={sectionId}
-										data-field-label={label}
-									/>
-								)}
+													? "number"
+													: "text"
+											}
+											value={value}
+											onChange={(e) =>
+												handleInputChange(
+													fieldId,
+													controlType === "number"
+														? parseFloat(e.target.value)
+														: e.target.value
+												)
+											}
+											onBlur={() => handleBlur(fieldId)}
+											disabled={disabled}
+											className={styling}
+											data-field-id={fieldId}
+											data-field-type={controlType}
+											data-field-section={sectionId}
+											data-field-label={label}
+										/>
+									)}
 							</div>
 						</div>
 					</AskAIButton>
@@ -1872,10 +2005,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								sub.id === "principal-details"
 									? ["principals"]
 									: sub.id === "track-record"
-									? ["trackRecord"]
-									: sub.id === "lender-references"
-									? ["references"]
-									: (sub.fields as string[]);
+										? ["trackRecord"]
+										: sub.id === "lender-references"
+											? ["references"]
+											: (sub.fields as string[]);
 
 							const isLocked =
 								isSubsectionFullyLocked(subsectionFields);
@@ -1883,45 +2016,45 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 							const fieldStates =
 								sub.id === "principal-details"
 									? [
-											{
-												isBlue:
-													Array.isArray(
-														formData.principals
-													) &&
-													(
-														formData.principals as any[]
-													).length > 0 &&
-													!isFieldLocked(
-														"principals",
-														sectionId
-													),
-												isGreen:
-													Array.isArray(
-														formData.principals
-													) &&
-													(
-														formData.principals as any[]
-													).length > 0 &&
-													isFieldLocked(
-														"principals",
-														sectionId
-													),
-												isWhite: isFieldWhite(
-													"principals",
-													sectionId
-												),
-												hasValue: hasCompletePrincipals(
+										{
+											isBlue:
+												Array.isArray(
 													formData.principals
-												),
-												isLocked: isFieldLocked(
+												) &&
+												(
+													formData.principals as any[]
+												).length > 0 &&
+												!isFieldLocked(
 													"principals",
 													sectionId
 												),
-												hasWarnings: false,
-											},
-									  ]
+											isGreen:
+												Array.isArray(
+													formData.principals
+												) &&
+												(
+													formData.principals as any[]
+												).length > 0 &&
+												isFieldLocked(
+													"principals",
+													sectionId
+												),
+											isWhite: isFieldWhite(
+												"principals",
+												sectionId
+											),
+											hasValue: hasCompletePrincipals(
+												formData.principals
+											),
+											isLocked: isFieldLocked(
+												"principals",
+												sectionId
+											),
+											hasWarnings: false,
+										},
+									]
 									: sub.id === "track-record"
-									? [
+										? [
 											{
 												isBlue:
 													Array.isArray(
@@ -1962,80 +2095,80 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												),
 												hasWarnings: false,
 											},
-									  ]
-									: sub.id === "lender-references"
-									? [
-											{
-												isBlue:
-													Array.isArray(
-														formData.references
-													) &&
-													(
-														formData.references as any[]
-													).length > 0 &&
-													!isFieldLocked(
+										]
+										: sub.id === "lender-references"
+											? [
+												{
+													isBlue:
+														Array.isArray(
+															formData.references
+														) &&
+														(
+															formData.references as any[]
+														).length > 0 &&
+														!isFieldLocked(
+															"references",
+															sectionId
+														),
+													isGreen:
+														Array.isArray(
+															formData.references
+														) &&
+														(
+															formData.references as any[]
+														).length > 0 &&
+														isFieldLocked(
+															"references",
+															sectionId
+														),
+													isWhite: isFieldWhite(
 														"references",
 														sectionId
 													),
-												isGreen:
-													Array.isArray(
-														formData.references
-													) &&
-													(
-														formData.references as any[]
-													).length > 0 &&
-													isFieldLocked(
+													hasValue:
+														Array.isArray(
+															formData.references
+														) &&
+														(
+															formData.references as any[]
+														).length > 0,
+													isLocked: isFieldLocked(
 														"references",
 														sectionId
 													),
-												isWhite: isFieldWhite(
-													"references",
-													sectionId
-												),
-												hasValue:
-													Array.isArray(
-														formData.references
-													) &&
-													(
-														formData.references as any[]
-													).length > 0,
-												isLocked: isFieldLocked(
-													"references",
-													sectionId
-												),
-												hasWarnings: false,
-											},
-									  ]
-									: subsectionFields.length > 0
-									? subsectionFields.map((fieldId) => {
-											const meta = fieldMetadata[fieldId];
-											const hasWarnings =
-												meta?.warnings &&
-												meta.warnings.length > 0;
-											return {
-												isBlue: isFieldBlue(
-													fieldId,
-													sectionId
-												),
-												isGreen: isFieldGreen(
-													fieldId,
-													sectionId
-												),
-												isWhite: isFieldWhite(
-													fieldId,
-													sectionId
-												),
-												hasValue: isValueProvided(
-													(formData as any)[fieldId]
-												),
-												isLocked: isFieldLocked(
-													fieldId,
-													sectionId
-												),
-												hasWarnings: hasWarnings,
-											};
-									  })
-									: [];
+													hasWarnings: false,
+												},
+											]
+											: subsectionFields.length > 0
+												? subsectionFields.map((fieldId) => {
+													const meta = fieldMetadata[fieldId];
+													const hasWarnings =
+														meta?.warnings &&
+														meta.warnings.length > 0;
+													return {
+														isBlue: isFieldBlue(
+															fieldId,
+															sectionId
+														),
+														isGreen: isFieldGreen(
+															fieldId,
+															sectionId
+														),
+														isWhite: isFieldWhite(
+															fieldId,
+															sectionId
+														),
+														hasValue: isValueProvided(
+															(formData as any)[fieldId]
+														),
+														isLocked: isFieldLocked(
+															fieldId,
+															sectionId
+														),
+														hasWarnings: hasWarnings,
+													};
+												})
+												: [];
 
 							const allGreen =
 								fieldStates.length > 0 &&
@@ -2143,16 +2276,16 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 														? "cursor-not-allowed bg-gray-50 text-gray-400 border-gray-200"
 														: "cursor-pointer",
 													!subsectionLockDisabled &&
-														(isLocked
-															? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-															: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100")
+													(isLocked
+														? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+														: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100")
 												)}
 												title={
 													subsectionLockDisabled
 														? "Cannot lock subsection because one or more fields are empty. Please fill in all fields first."
 														: isLocked
-														? "Unlock subsection"
-														: "Lock subsection"
+															? "Unlock subsection"
+															: "Lock subsection"
 												}
 											>
 												{isLocked ? (
@@ -2205,7 +2338,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																fieldId="principals"
 																fieldMetadata={
 																	fieldMetadata[
-																		"principals"
+																	"principals"
 																	]
 																}
 															/>
@@ -2266,24 +2399,24 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																				];
 																			const current =
 																				next[
-																					index
+																				index
 																				] ||
 																				({} as Principal);
 																			let value: any =
 																				raw;
 																			if (
 																				key ===
-																					"ownershipPercentage" &&
+																				"ownershipPercentage" &&
 																				typeof raw ===
-																					"string"
+																				"string"
 																			) {
 																				const num =
 																					raw.trim() ===
-																					""
+																						""
 																						? undefined
 																						: Number(
-																								raw
-																						  );
+																							raw
+																						);
 																				value =
 																					Number.isNaN(
 																						num
@@ -2294,10 +2427,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																			next[
 																				index
 																			] =
-																				{
-																					...current,
-																					[key]: value,
-																				};
+																			{
+																				...current,
+																				[key]: value,
+																			};
 																			handleInputChange(
 																				"principals",
 																				next
@@ -2339,7 +2472,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 																	const rowsToRender =
 																		principals.length >
-																		0
+																			0
 																			? principals
 																			: ([] as Principal[]);
 
@@ -2561,7 +2694,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																fieldId="trackRecord"
 																fieldMetadata={
 																	fieldMetadata[
-																		"trackRecord"
+																	"trackRecord"
 																	]
 																}
 															/>
@@ -2624,7 +2757,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																				];
 																			const current =
 																				next[
-																					index
+																				index
 																				] ||
 																				({} as TrackRecordItem);
 																			let value: any =
@@ -2633,15 +2766,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																				(key === "year" ||
 																					key === "units") &&
 																				typeof raw ===
-																					"string"
+																				"string"
 																			) {
 																				const num =
 																					raw.trim() ===
-																					""
+																						""
 																						? undefined
 																						: Number(
-																								raw
-																						  );
+																							raw
+																						);
 																				value =
 																					Number.isNaN(
 																						num
@@ -2652,15 +2785,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																			if (
 																				key === "irr" &&
 																				typeof raw ===
-																					"string"
+																				"string"
 																			) {
 																				const num =
 																					raw.trim() ===
-																					""
+																						""
 																						? undefined
 																						: Number(
-																								raw
-																						  );
+																							raw
+																						);
 																				value =
 																					Number.isNaN(
 																						num
@@ -2704,7 +2837,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 																	const rowsToRender =
 																		trackRecord.length >
-																		0
+																			0
 																			? trackRecord
 																			: ([] as TrackRecordItem[]);
 
@@ -2938,7 +3071,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																fieldId="references"
 																fieldMetadata={
 																	fieldMetadata[
-																		"references"
+																	"references"
 																	]
 																}
 															/>
@@ -2995,7 +3128,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																				];
 																			const current =
 																				next[
-																					index
+																				index
 																				] ||
 																				({} as ReferenceItem);
 																			next[
@@ -3032,7 +3165,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 																	const rowsToRender =
 																		references.length >
-																		0
+																			0
 																			? references
 																			: ([] as ReferenceItem[]);
 
@@ -3360,6 +3493,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					allowSkip
 					variant="tabs"
 					showBottomNav
+					nextButtonLabel="Next"
 					initialStep={initialStepIndex}
 					onStepChange={(stepId) => {
 						void touchWorkspace(stepId);

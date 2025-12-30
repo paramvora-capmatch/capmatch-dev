@@ -21,12 +21,16 @@ export async function POST(req: NextRequest) {
       return new NextResponse(null, { status: 499 });
     }
 
+    // Extract auth token from request headers
+    const authHeader = req.headers.get('authorization');
+
     // Proxy to backend
     const backendUrl = getBackendUrl();
     const backendResponse = await fetch(`${backendUrl}/api/v1/ai/borrower-qa`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(authHeader ? { 'Authorization': authHeader } : {}),
       },
       body: JSON.stringify(body),
       signal: req.signal,
@@ -47,36 +51,36 @@ export async function POST(req: NextRequest) {
     let chunkCount = 0;
     let firstChunkTime: number | null = null;
     let totalBytes = 0;
-    
+
     console.log('[PROXY] Starting to pipe backend response to frontend');
-    
+
     // Pipe the backend response through, chunk by chunk
     (async () => {
       const reader = backendResponse.body?.getReader();
       const writer = writable.getWriter();
-      
+
       if (!reader) {
         console.warn('[PROXY] No response body reader available');
         await writer.close();
         return;
       }
-      
+
       try {
         while (true) {
           const readStart = Date.now();
           const { done, value } = await reader.read();
           const readTime = Date.now() - readStart;
-          
+
           if (done) {
             const elapsed = Date.now() - requestStartTime;
             console.log(`[PROXY] Stream complete: ${chunkCount} chunks, ${totalBytes} bytes, ${elapsed}ms elapsed`);
             break;
           }
-          
+
           chunkCount++;
           totalBytes += value.length;
           const currentTime = Date.now();
-          
+
           if (firstChunkTime === null) {
             firstChunkTime = currentTime;
             const timeToFirstChunk = currentTime - requestStartTime;
@@ -86,7 +90,7 @@ export async function POST(req: NextRequest) {
             const preview = new TextDecoder().decode(value.slice(0, Math.min(50, value.length)));
             console.log(`[PROXY] Chunk #${chunkCount} from backend (time=${timeSinceFirst}ms, size=${value.length} bytes, read_time=${readTime}ms, preview=${JSON.stringify(preview)})`);
           }
-          
+
           const writeStart = Date.now();
           await writer.write(value);
           const writeTime = Date.now() - writeStart;
@@ -126,12 +130,12 @@ export async function POST(req: NextRequest) {
 
     const errorMessage = e?.message || 'Failed to get answer';
     const statusCode = e?.status || e?.statusCode || 500;
-    
+
     return NextResponse.json(
-      { 
+      {
         error: errorMessage,
         ...(process.env.NODE_ENV === 'development' && { details: e?.stack })
-      }, 
+      },
       { status: statusCode }
     );
   }

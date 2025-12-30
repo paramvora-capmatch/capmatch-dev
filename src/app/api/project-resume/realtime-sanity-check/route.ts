@@ -14,13 +14,20 @@ export async function POST(request: Request) {
 			);
 		}
 
+		const authHeader = request.headers.get("Authorization");
+		const headers: HeadersInit = {
+			"Content-Type": "application/json",
+		};
+
+		if (authHeader) {
+			headers["Authorization"] = authHeader;
+		}
+
 		const response = await fetch(
 			`${backendUrl}/api/v1/project-resume/realtime-sanity-check`,
 			{
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
+				headers,
 				body: JSON.stringify(body),
 			}
 		);

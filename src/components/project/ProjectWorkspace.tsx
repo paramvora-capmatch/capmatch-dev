@@ -77,12 +77,16 @@ interface ProjectWorkspaceProps {
 	projectId: string;
 	isBorrowerEditing?: boolean;
 	onBorrowerEditingChange?: (value: boolean) => void;
+	onBorrowerDirtyChange?: (isDirty: boolean) => void;
+	onBorrowerRegisterSave?: (saveFn: () => Promise<void>) => void;
 }
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	projectId,
 	isBorrowerEditing,
 	onBorrowerEditingChange,
+	onBorrowerDirtyChange,
+	onBorrowerRegisterSave,
 }) => {
 	const router = useRouter();
 	const pathname = usePathname();
@@ -197,13 +201,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	// Autofill hook for View OM functionality
 	const projectAddress =
 		activeProject?.propertyAddressStreet &&
-		activeProject?.propertyAddressCity &&
-		activeProject?.propertyAddressState
-			? `${activeProject.propertyAddressStreet} | ${
-					activeProject.propertyAddressCity
-			  } ${activeProject.propertyAddressState}, ${
-					activeProject.propertyAddressZip || ""
-			  }`.trim()
+			activeProject?.propertyAddressCity &&
+			activeProject?.propertyAddressState
+			? `${activeProject.propertyAddressStreet} | ${activeProject.propertyAddressCity
+				} ${activeProject.propertyAddressState}, ${activeProject.propertyAddressZip || ""
+				}`.trim()
 			: undefined;
 	const { isAutofilling, handleAutofill } = useAutofill(projectId, {
 		projectAddress,
@@ -226,8 +228,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				?.completenessPercent;
 			const percent =
 				storedPercent !== undefined &&
-				storedPercent !== null &&
-				typeof storedPercent === "number"
+					storedPercent !== null &&
+					typeof storedPercent === "number"
 					? clampPercentage(storedPercent)
 					: computeBorrowerCompletion(borrowerResumeData);
 			setBorrowerProgress(percent);
@@ -291,16 +293,39 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		const upsertHeartbeat = async (lastStepId?: string | null) => {
 			if (!user?.id || !projectId) return;
 			const nowIso = new Date().toISOString();
-			const payload: Record<string, any> = {
+
+
+			// Separate payloads: full for insert, partial for update (no PKs)
+			const insertPayload: Record<string, any> = {
 				project_id: projectId,
 				user_id: user.id,
 				last_visited_at: nowIso,
 			};
-			if (lastStepId) payload.last_step_id = lastStepId;
+			if (lastStepId) insertPayload.last_step_id = lastStepId;
 
-			await supabase
+			const updatePayload: Record<string, any> = {
+				last_visited_at: nowIso,
+			};
+			if (lastStepId) updatePayload.last_step_id = lastStepId;
+
+			// Check if record exists first to avoid ON CONFLICT 400 error
+			const { data: existing } = await supabase
 				.from("project_workspace_activity")
-				.upsert(payload, { onConflict: "project_id,user_id" });
+				.select("id")
+				.eq("project_id", projectId)
+				.eq("user_id", user.id)
+				.maybeSingle();
+
+			if (existing) {
+				await supabase
+					.from("project_workspace_activity")
+					.update(updatePayload)
+					.eq("id", existing.id);
+			} else {
+				await supabase
+					.from("project_workspace_activity")
+					.insert(insertPayload);
+			}
 		};
 
 		const touch = (stepId?: string | null) => {
@@ -930,7 +955,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 			const needsReload =
 				(borrowerResumeResourceId &&
 					currentPermissions[borrowerResumeResourceId] ===
-						undefined) ||
+					undefined) ||
 				(borrowerDocsResourceId &&
 					currentPermissions[borrowerDocsResourceId] === undefined);
 
@@ -967,16 +992,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	const borrowerResumeProgress = borrowerResumeData
 		? borrowerProgress
 		: clampPercentage(
-				activeProject?.borrowerProgress ?? borrowerProgress ?? 0
-		  );
+			activeProject?.borrowerProgress ?? borrowerProgress ?? 0
+		);
 	const isProjectComplete = projectResumeProgress === 100;
 
 	const projectForProgress = activeProject
 		? {
-				...activeProject,
-				completenessPercent: projectResumeProgress,
-				borrowerProgress: borrowerResumeProgress,
-		  }
+			...activeProject,
+			completenessPercent: projectResumeProgress,
+			borrowerProgress: borrowerResumeProgress,
+		}
 		: null;
 
 	const handleMentionClick = (resourceId: string) => {
@@ -1088,6 +1113,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				copyDisabled={templateOptions.length === 0 || isCopyingBorrower}
 				copyLoading={isCopyingBorrower}
 				canEdit={canEditBorrowerResume}
+				onDirtyChange={onBorrowerDirtyChange}
+				onRegisterSave={onBorrowerRegisterSave}
 			/>
 		</div>
 	);
@@ -1151,8 +1178,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 								>
 									{/* Borrower Documents - Show skeleton or content based on loading state */}
 									{isInitialLoad ||
-									isWaitingForBorrowerDocs ||
-									isLoadingBorrowerDocsPermissions ? (
+										isWaitingForBorrowerDocs ||
+										isLoadingBorrowerDocsPermissions ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
 											animate={{ opacity: 1, y: 0 }}
@@ -1177,8 +1204,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 									) : null}
 									{/* Borrower Resume - Show skeleton or content based on loading state */}
 									{isInitialLoad ||
-									isWaitingForBorrowerResume ||
-									isLoadingBorrowerResumePermissions ? (
+										isWaitingForBorrowerResume ||
+										isLoadingBorrowerResumePermissions ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
 											animate={{ opacity: 1, y: 0 }}
@@ -1243,8 +1270,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 									{/* Project Progress Card - Show skeleton or content based on loading state */}
 									{isInitialLoad ||
-									isWaitingForBorrowerResume ||
-									isWaitingForBorrowerDocs ? (
+										isWaitingForBorrowerResume ||
+										isWaitingForBorrowerDocs ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
 											animate={{ opacity: 1, y: 0 }}
@@ -1257,7 +1284,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 											<ProjectSummaryCardSkeleton />
 										</motion.div>
 									) : canViewBorrowerResume ||
-									  canViewBorrowerDocs ? (
+										canViewBorrowerDocs ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
 											animate={{ opacity: 1, y: 0 }}
@@ -1369,8 +1396,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 									{/* Project Documents - Show skeleton or content based on loading state */}
 									{isInitialLoad ||
-									isWaitingForProjectDocs ||
-									isLoadingProjectDocsPermissions ? (
+										isWaitingForProjectDocs ||
+										isLoadingProjectDocsPermissions ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
 											animate={{ opacity: 1, y: 0 }}
@@ -1414,7 +1441,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 									{/* Project completion progress - Show skeleton or content based on loading state */}
 									{isInitialLoad ||
-									isWaitingForProjectResume ? (
+										isWaitingForProjectResume ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
 											animate={{ opacity: 1, y: 0 }}
@@ -1446,8 +1473,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 									{/* Project Resume (View or Edit) - Show skeleton or content based on loading state */}
 									{isInitialLoad ||
-									isWaitingForProjectResume ||
-									isLoadingProjectResumePermissions ? (
+										isWaitingForProjectResume ||
+										isLoadingProjectResumePermissions ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
 											animate={{ opacity: 1, y: 0 }}

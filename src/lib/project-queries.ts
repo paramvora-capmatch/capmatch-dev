@@ -581,15 +581,15 @@ function buildProjectProfile(
 	// Fall back to calculation only if stored value is missing/invalid
 	const borrowerProgress =
 		borrowerCompletenessPercent !== undefined &&
-		borrowerCompletenessPercent !== null &&
-		typeof borrowerCompletenessPercent === "number"
+			borrowerCompletenessPercent !== null &&
+			typeof borrowerCompletenessPercent === "number"
 			? Math.round(borrowerCompletenessPercent)
 			: Math.round(
-					computeBorrowerCompletion(
-						borrowerResumeContent,
-						borrowerLockedFields
-					)
-			  );
+				computeBorrowerCompletion(
+					borrowerResumeContent,
+					borrowerLockedFields
+				)
+			);
 
 	const combinedProfile: ProjectProfile = {
 		id: project.id,
@@ -1078,9 +1078,9 @@ export const saveProjectResume = async (
 					"source" in existingObj
 						? existingObj.source
 						: Array.isArray(existingObj.sources) &&
-						  existingObj.sources.length > 0
-						? existingObj.sources[0]
-						: undefined;
+							existingObj.sources.length > 0
+							? existingObj.sources[0]
+							: undefined;
 
 				finalContent[key] = {
 					value: currentValue,
@@ -1681,9 +1681,9 @@ export const saveProjectBorrowerResume = async (
 					"source" in existingObj
 						? existingObj.source
 						: Array.isArray(existingObj.sources) &&
-						  existingObj.sources.length > 0
-						? existingObj.sources[0]
-						: undefined;
+							existingObj.sources.length > 0
+							? existingObj.sources[0]
+							: undefined;
 
 				finalContentFlat[key] = {
 					value: currentValue,
@@ -1795,32 +1795,32 @@ export const saveProjectBorrowerResume = async (
 		}
 
 		// Update resource pointer
-		const { error: resourceError } = await supabase
+		// Update resource pointer
+		// Check if resource exists to avoid ON CONFLICT 400 error
+		const { data: existingResource } = await supabase
 			.from("resources")
-			.upsert(
-				{
-					project_id: projectId,
-					resource_type: "BORROWER_RESUME",
-					current_version_id: newResume.id,
-					org_id: (
-						await getProjectWithResume(projectId)
-					).owner_org_id, // need org_id for upsert, or use update logic if exists
-				},
-				{ onConflict: "project_id,resource_type" } as any
-			);
+			.select("id")
+			.eq("project_id", projectId)
+			.eq("resource_type", "BORROWER_RESUME")
+			.maybeSingle();
 
-		// Since we might not have org_id easily without a fetch, try UPDATE first then INSERT if missing?
-		// Or relying on existing project-utils flow: usually resource exists.
-		// Let's use the update pattern from saveProjectResume which assumes resource exists or handles it.
-
-		if (resourceError) {
-			// Fallback: try plain update if upsert failed (e.g. RLS/constraints)
+		if (existingResource) {
 			await supabase
 				.from("resources")
 				.update({ current_version_id: newResume.id })
-				.eq("project_id", projectId)
-				.eq("resource_type", "BORROWER_RESUME");
+				.eq("id", existingResource.id);
+		} else {
+			// Need to fetch org_id for insert
+			const ownerOrgId = (await getProjectWithResume(projectId)).owner_org_id;
+
+			await supabase.from("resources").insert({
+				project_id: projectId,
+				resource_type: "BORROWER_RESUME",
+				current_version_id: newResume.id,
+				org_id: ownerOrgId,
+			});
 		}
+
 
 		// Track activity (non-blocking)
 		const now = new Date().toISOString();
@@ -1841,16 +1841,30 @@ export const saveProjectBorrowerResume = async (
 
 	// Stamp workspace activity for abandonment detection (meaningful edit)
 	if (user?.id) {
-		await supabase
+		const activityPayload = {
+			project_id: projectId,
+			user_id: user.id,
+			last_resume_edit_at: new Date().toISOString(),
+		};
+
+		// Check if record exists first to avoid ON CONFLICT 400 error
+		const { data: existingActivity } = await supabase
 			.from("project_workspace_activity")
-			.upsert(
-				{
-					project_id: projectId,
-					user_id: user.id,
-					last_resume_edit_at: new Date().toISOString(),
-				},
-				{ onConflict: "project_id,user_id" }
-			);
+			.select("id")
+			.eq("project_id", projectId)
+			.eq("user_id", user.id)
+			.maybeSingle();
+
+		if (existingActivity) {
+			await supabase
+				.from("project_workspace_activity")
+				.update({ last_resume_edit_at: activityPayload.last_resume_edit_at })
+				.eq("id", existingActivity.id);
+		} else {
+			await supabase
+				.from("project_workspace_activity")
+				.insert(activityPayload);
+		}
 	}
 };
 

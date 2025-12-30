@@ -1,20 +1,17 @@
 // src/components/project/ProjectWorkspaceBreadcrumb.tsx
 import React from "react";
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 interface ProjectWorkspaceBreadcrumbProps {
   projectName: string;
   isBorrowerEditing: boolean;
   onBack: () => void;
-  onBorrowerEditingChange: (value: boolean) => void;
-  dashboardPath: string;
+  onNavigateToDashboard: () => void;
+  onNavigateToProject: () => void;
 }
 
 export const ProjectWorkspaceBreadcrumb = React.memo<ProjectWorkspaceBreadcrumbProps>(
-  ({ projectName, isBorrowerEditing, onBack, onBorrowerEditingChange, dashboardPath }) => {
-    const router = useRouter();
-
+  ({ projectName, isBorrowerEditing, onBack, onNavigateToDashboard, onNavigateToProject }) => {
     return (
       <nav className="flex items-center space-x-2 text-base mb-2">
         <button
@@ -25,7 +22,7 @@ export const ProjectWorkspaceBreadcrumb = React.memo<ProjectWorkspaceBreadcrumbP
           <ArrowLeft className="h-4 w-4" />
         </button>
         <button
-          onClick={() => router.push(dashboardPath)}
+          onClick={onNavigateToDashboard}
           className="text-gray-500 hover:text-gray-700 font-medium"
         >
           Dashboard
@@ -34,7 +31,7 @@ export const ProjectWorkspaceBreadcrumb = React.memo<ProjectWorkspaceBreadcrumbP
         {isBorrowerEditing ? (
           <>
             <button
-              onClick={() => onBorrowerEditingChange(false)}
+              onClick={onNavigateToProject}
               className="text-gray-500 hover:text-gray-700 font-medium"
             >
               {projectName}

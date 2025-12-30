@@ -150,8 +150,7 @@ export const useProjectBorrowerResumeRealtime = (
 						} else {
 							// Retry after a delay if content is null
 							console.log(
-								`[useProjectBorrowerResumeRealtime] ⏳ Content is null, retrying in ${
-									1000 * attempt
+								`[useProjectBorrowerResumeRealtime] ⏳ Content is null, retrying in ${1000 * attempt
 								}ms...`
 							);
 							setTimeout(
@@ -398,9 +397,13 @@ export const useProjectBorrowerResumeRealtime = (
 			isLocalSaveRef.current = true;
 
 			try {
+				console.log('[useProjectBorrowerResumeRealtime] Updates to save:', updates);
 				// Fetch latest before merging to avoid conflicts (optional but safer)
 				const latest = await getProjectBorrowerResumeContent(projectId);
+				console.log('[useProjectBorrowerResumeRealtime] Latest content from DB:', latest);
+
 				const mergedContent = { ...(latest || {}), ...updates } as any;
+				console.log('[useProjectBorrowerResumeRealtime] Merged content to save:', mergedContent);
 
 				// Pass options to save function
 				const options = {
@@ -414,11 +417,14 @@ export const useProjectBorrowerResumeRealtime = (
 					mergedContent,
 					options
 				);
+				console.log('[useProjectBorrowerResumeRealtime] saveProjectBorrowerResume finished');
 
 				// Reload to get the properly formatted content back
+				console.log('[useProjectBorrowerResumeRealtime] Reloading after save...');
 				const reloaded = await getProjectBorrowerResumeContent(
 					projectId
 				);
+				console.log('[useProjectBorrowerResumeRealtime] Reloaded content:', reloaded);
 				updateContentIfChanged(reloaded);
 			} catch (err) {
 				const message =

@@ -23,6 +23,7 @@ interface FormWizardProps {
   variant?: 'wizard' | 'tabs';
   showBottomNav?: boolean; // When true, show navigation buttons even in tabs variant
   onStepChange?: (stepId: string, stepIndex: number) => void;
+  nextButtonLabel?: string;
 }
 
 export const FormWizard: React.FC<FormWizardProps> = ({
@@ -36,12 +37,13 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   variant = 'wizard',
   showBottomNav = false,
   onStepChange,
+  nextButtonLabel,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(initialStep);
   // Internal completion tracking for visual state
   const [internallyCompletedSteps, setInternallyCompletedSteps] = useState<Record<string, boolean>>({});
   const numSteps = steps.length; // Memoize the number of steps
-  
+
   // Scroll position tracking for tabs variant
   const [showLeftGradient, setShowLeftGradient] = useState(false);
   const [showRightGradient, setShowRightGradient] = useState(false);
@@ -56,10 +58,10 @@ export const FormWizard: React.FC<FormWizardProps> = ({
         initialCompleted[step.id] = true;
       }
     });
-     // Also mark previous steps as complete initially if starting later
-     for (let i = 0; i < initialStep; i++) {
-         initialCompleted[steps[i].id] = true;
-     }
+    // Also mark previous steps as complete initially if starting later
+    for (let i = 0; i < initialStep; i++) {
+      initialCompleted[steps[i].id] = true;
+    }
     setInternallyCompletedSteps(initialCompleted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialStep, numSteps]); // Rerun only if initialStep or number of steps changes
@@ -77,7 +79,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
 
     const { scrollLeft, scrollWidth, clientWidth } = container;
     const isScrollable = scrollWidth > clientWidth;
-    
+
     setShowLeftGradient(isScrollable && scrollLeft > 0);
     setShowRightGradient(isScrollable && scrollLeft < scrollWidth - clientWidth - 1);
   }, [variant]);
@@ -93,7 +95,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
 
     // Listen to scroll events
     container.addEventListener('scroll', updateScrollGradients);
-    
+
     // Listen to resize events (window and container)
     const resizeObserver = new ResizeObserver(() => {
       updateScrollGradients();
@@ -110,7 +112,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   // Auto-scroll to active tab when currentStepIndex changes
   useEffect(() => {
     if (variant !== 'tabs') return;
-    
+
     const activeTabButton = tabButtonRefs.current[currentStepIndex];
     if (!activeTabButton || !scrollContainerRef.current) return;
 
@@ -154,8 +156,8 @@ export const FormWizard: React.FC<FormWizardProps> = ({
       return;
     }
     // Allow navigation only to steps before the current one if they are marked complete
-    if (index < currentStepIndex || internallyCompletedSteps[steps[index-1]?.id] || allowSkip) {
-       setCurrentStepIndex(index);
+    if (index < currentStepIndex || internallyCompletedSteps[steps[index - 1]?.id] || allowSkip) {
+      setCurrentStepIndex(index);
     }
   };
 
@@ -275,17 +277,17 @@ export const FormWizard: React.FC<FormWizardProps> = ({
                 className={cn(
                   "flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all",
                   currentStepIndex === index ? "bg-blue-600 border-blue-600 text-white" :
-                  internallyCompletedSteps[step.id] ? "bg-green-500 border-green-500 text-white" :
-                  index < currentStepIndex ? "bg-white border-blue-600 text-blue-600" : // Completed but not active
-                  "bg-white border-gray-300 text-gray-400", // Upcoming
+                    internallyCompletedSteps[step.id] ? "bg-green-500 border-green-500 text-white" :
+                      index < currentStepIndex ? "bg-white border-blue-600 text-blue-600" : // Completed but not active
+                        "bg-white border-gray-300 text-gray-400", // Upcoming
                   index <= currentStepIndex || allowSkip ? "cursor-pointer" : "cursor-default"
                 )}
                 onClick={() => goToStep(index)}
               >
                 {internallyCompletedSteps[step.id] || index < currentStepIndex ? (
-                    <CheckCircle className="w-5 h-5" />
-                 ) : (
-                    <span className="text-xs font-semibold">{index + 1}</span> // Show number instead of circle icon
+                  <CheckCircle className="w-5 h-5" />
+                ) : (
+                  <span className="text-xs font-semibold">{index + 1}</span> // Show number instead of circle icon
                 )}
               </div>
 
@@ -293,19 +295,19 @@ export const FormWizard: React.FC<FormWizardProps> = ({
               <div className={cn(
                 "mt-2 text-center text-xs md:text-sm font-medium absolute top-full whitespace-nowrap px-1 transition-colors", // Position below, allow wrapping maybe?
                 currentStepIndex === index ? "text-blue-600 font-semibold" :
-                internallyCompletedSteps[step.id] || index < currentStepIndex ? "text-gray-600" :
-                "text-gray-400"
+                  internallyCompletedSteps[step.id] || index < currentStepIndex ? "text-gray-600" :
+                    "text-gray-400"
               )}>
                 {step.title}
               </div>
 
-               {/* Connector Line (Behind Circles) */}
-               {index < steps.length - 1 && (
-                 <div className={cn(
-                     "absolute top-4 left-1/2 w-full h-0.5 z-0", // Position behind circle
-                     internallyCompletedSteps[step.id] || index < currentStepIndex ? "bg-blue-600" : "bg-gray-300"
-                 )} />
-               )}
+              {/* Connector Line (Behind Circles) */}
+              {index < steps.length - 1 && (
+                <div className={cn(
+                  "absolute top-4 left-1/2 w-full h-0.5 z-0", // Position behind circle
+                  internallyCompletedSteps[step.id] || index < currentStepIndex ? "bg-blue-600" : "bg-gray-300"
+                )} />
+              )}
 
             </div>
           ))}
@@ -335,18 +337,18 @@ export const FormWizard: React.FC<FormWizardProps> = ({
           )}
           {/* Show skip button only if allowed and step is optional */}
           {allowSkip && currentStep?.isOptional && !isLastStep && (
-               <Button variant="ghost" onClick={goNext} className="text-sm text-gray-500 hover:text-gray-700">
-                  Skip (Optional)
-               </Button>
+            <Button variant="ghost" onClick={goNext} className="text-sm text-gray-500 hover:text-gray-700">
+              Skip (Optional)
+            </Button>
           )}
           <Button
             variant="outline"
             className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
             rightIcon={!isLastStep ? <ChevronRight size={16} /> : <CheckCircle size={16} />}
             onClick={goNext}
-            // Add validation logic if needed: disabled={!isStepValid}
+          // Add validation logic if needed: disabled={!isStepValid}
           >
-            {isLastStep ? 'Complete' : 'Save and Next'}
+            {isLastStep ? 'Complete' : (nextButtonLabel || 'Save and Next')}
           </Button>
         </div>
       )}

@@ -3,12 +3,15 @@
  * Used when user edits a field to validate the input in realtime
  */
 
+import { supabase } from "@/lib/supabaseClient";
+
 export interface RealtimeSanityCheckRequest {
 	fieldId: string;
 	value: any;
 	resumeType: "project" | "borrower";
 	context?: Record<string, any>;
 	existingFieldData?: Record<string, any>;
+	authToken?: string;
 }
 
 export interface RealtimeSanityCheckResponse {
@@ -29,10 +32,18 @@ export async function checkRealtimeSanity(
 			? "/api/project-resume/realtime-sanity-check"
 			: "/api/borrower-resume/realtime-sanity-check";
 
+	const session = await supabase.auth.getSession();
+	const token = session.data.session?.access_token;
+
+	if (!token) {
+		console.warn("realtimeSanityCheck: No access token found in session");
+	}
+
 	const response = await fetch(endpoint, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
+			...(token ? { Authorization: `Bearer ${token}` } : {}),
 		},
 		body: JSON.stringify({
 			field_id: request.fieldId,

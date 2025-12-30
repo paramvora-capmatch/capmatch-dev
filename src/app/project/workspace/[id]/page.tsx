@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ProjectWorkspace } from "@/components/project/ProjectWorkspace";
@@ -11,6 +11,7 @@ import { useProjects } from "@/hooks/useProjects";
 import { useRouter } from "next/navigation";
 import { useBorrowerViewSync } from "@/hooks/useBorrowerViewSync";
 import { ProjectWorkspaceBreadcrumb } from "@/components/project/ProjectWorkspaceBreadcrumb";
+import { UnsavedChangesModal } from "@/components/ui/UnsavedChangesModal";
 
 export default function ProjectWorkspacePage() {
   const params = useParams();
@@ -27,34 +28,127 @@ export default function ProjectWorkspacePage() {
     handleBorrowerEditingChange,
   } = useBorrowerViewSync();
 
-  // Optimize handleBack callback - only depends on isBorrowerEditing and router
-  const handleBack = useCallback(() => {
-    if (isBorrowerEditing) {
-      handleBorrowerEditingChange(false);
-    } else {
-      router.push("/dashboard");
+  // State for unsaved changes tracking
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const saveFormFnRef = useRef<(() => Promise<void>) | null>(null);
+  const pendingNavigationRef = useRef<(() => void) | null>(null);
+
+  // Handle dirty state changes from BorrowerResumeForm
+  const handleBorrowerDirtyChange = useCallback((isDirty: boolean) => {
+    console.log('[ProjectWorkspacePage] Dirty state changed:', isDirty);
+    setHasUnsavedChanges(isDirty);
+  }, []);
+
+  // Register save function from BorrowerResumeForm
+  const handleBorrowerRegisterSave = useCallback((saveFn: () => Promise<void>) => {
+    console.log('[ProjectWorkspacePage] Save function registered');
+    saveFormFnRef.current = saveFn;
+  }, []);
+
+  // Handle save and exit from modal
+  const handleSaveAndExit = useCallback(async () => {
+    if (!saveFormFnRef.current) {
+      console.error('[ProjectWorkspacePage] No save function registered!');
+      return;
     }
-  }, [isBorrowerEditing, router, handleBorrowerEditingChange]);
+
+    console.log('[ProjectWorkspacePage] Starting save and exit...');
+    setIsSaving(true);
+    try {
+      await saveFormFnRef.current();
+      console.log('[ProjectWorkspacePage] Save completed successfully');
+      setHasUnsavedChanges(false);
+      setShowUnsavedModal(false);
+
+      // Exit borrower editing mode after successful save
+      if (isBorrowerEditing) {
+        console.log('[ProjectWorkspacePage] Exiting borrower editing mode');
+        handleBorrowerEditingChange(false);
+      }
+
+      // Execute pending navigation
+      if (pendingNavigationRef.current) {
+        console.log('[ProjectWorkspacePage] Executing pending navigation');
+        pendingNavigationRef.current();
+        pendingNavigationRef.current = null;
+      }
+    } catch (error) {
+      console.error('[ProjectWorkspacePage] Failed to save form:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [isBorrowerEditing, handleBorrowerEditingChange]);
+
+  // Handle exit without saving from modal
+  const handleExitWithoutSaving = useCallback(() => {
+    setHasUnsavedChanges(false);
+    setShowUnsavedModal(false);
+    // Execute pending navigation
+    if (pendingNavigationRef.current) {
+      pendingNavigationRef.current();
+      pendingNavigationRef.current = null;
+    }
+  }, []);
+
+  // Generic navigation handler with unsaved changes check
+  const handleNavigate = useCallback((navigateAction: () => void) => {
+    // Check if we're in borrower editing mode and have unsaved changes
+    if (isBorrowerEditing && hasUnsavedChanges) {
+      // Store the navigation action and show modal
+      pendingNavigationRef.current = navigateAction;
+      setShowUnsavedModal(true);
+    } else {
+      // No unsaved changes, navigate immediately
+      navigateAction();
+    }
+  }, [isBorrowerEditing, hasUnsavedChanges]);
+
+  // Handler for back button
+  const handleBack = useCallback(() => {
+    handleNavigate(() => {
+      if (isBorrowerEditing) {
+        handleBorrowerEditingChange(false);
+      } else {
+        router.push("/dashboard");
+      }
+    });
+  }, [handleNavigate, isBorrowerEditing, handleBorrowerEditingChange, router]);
+
+  // Handler for Dashboard navigation
+  const handleNavigateToDashboard = useCallback(() => {
+    handleNavigate(() => {
+      router.push("/dashboard");
+    });
+  }, [handleNavigate, router]);
+
+  // Handler for Project navigation (exit borrower editing)
+  const handleNavigateToProject = useCallback(() => {
+    handleNavigate(() => {
+      handleBorrowerEditingChange(false);
+    });
+  }, [handleNavigate, handleBorrowerEditingChange]);
 
   // Memoize breadcrumb component props
   // Show loading state only if activeProject doesn't match projectId
   // Don't rely on global isLoading which can be stuck if loadUserProjects() wasn't called
   const breadcrumb = useMemo(() => {
     const isProjectLoaded = activeProject?.id === projectId;
-    const projectName = isProjectLoaded 
+    const projectName = isProjectLoaded
       ? (activeProject?.projectName || "Project")
       : "Loading Project...";
-    
+
     return (
       <ProjectWorkspaceBreadcrumb
         projectName={projectName}
         isBorrowerEditing={isBorrowerEditing}
         onBack={handleBack}
-        onBorrowerEditingChange={handleBorrowerEditingChange}
-        dashboardPath="/dashboard"
+        onNavigateToDashboard={handleNavigateToDashboard}
+        onNavigateToProject={handleNavigateToProject}
       />
     );
-  }, [activeProject?.id, activeProject?.projectName, projectId, isBorrowerEditing, handleBack, handleBorrowerEditingChange]);
+  }, [activeProject?.id, activeProject?.projectName, projectId, isBorrowerEditing, handleBack, handleNavigateToDashboard, handleNavigateToProject]);
 
   if (!projectId) {
     return (
@@ -74,6 +168,15 @@ export default function ProjectWorkspacePage() {
           projectId={projectId}
           isBorrowerEditing={isBorrowerEditing}
           onBorrowerEditingChange={handleBorrowerEditingChange}
+          onBorrowerDirtyChange={handleBorrowerDirtyChange}
+          onBorrowerRegisterSave={handleBorrowerRegisterSave}
+        />
+        <UnsavedChangesModal
+          isOpen={showUnsavedModal}
+          onClose={() => setShowUnsavedModal(false)}
+          onSaveAndExit={handleSaveAndExit}
+          onExitWithoutSaving={handleExitWithoutSaving}
+          isSaving={isSaving}
         />
       </DashboardLayout>
     </RoleBasedRoute>

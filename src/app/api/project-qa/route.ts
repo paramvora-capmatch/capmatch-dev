@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    
+
     if (!body.fieldContext || !body.projectContext) {
       return NextResponse.json({ error: 'Missing required context' }, { status: 400 });
     }
@@ -21,12 +21,16 @@ export async function POST(req: NextRequest) {
       return new NextResponse(null, { status: 499 });
     }
 
+    // Extract auth token from request headers
+    const authHeader = req.headers.get('authorization');
+
     // Proxy to backend
     const backendUrl = getBackendUrl();
     const backendResponse = await fetch(`${backendUrl}/api/v1/ai/project-qa`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(authHeader ? { 'Authorization': authHeader } : {}),
       },
       body: JSON.stringify(body),
       signal: req.signal,
@@ -43,17 +47,17 @@ export async function POST(req: NextRequest) {
 
     // Create a TransformStream to pipe chunks through immediately
     const { readable, writable } = new TransformStream();
-    
+
     // Pipe the backend response through, chunk by chunk
     (async () => {
       const reader = backendResponse.body?.getReader();
       const writer = writable.getWriter();
-      
+
       if (!reader) {
         await writer.close();
         return;
       }
-      
+
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -91,12 +95,12 @@ export async function POST(req: NextRequest) {
 
     const errorMessage = e?.message || 'Failed to get answer';
     const statusCode = e?.status || e?.statusCode || 500;
-    
+
     return NextResponse.json(
-      { 
+      {
         error: errorMessage,
         ...(process.env.NODE_ENV === 'development' && { details: e?.stack })
-      }, 
+      },
       { status: statusCode }
     );
   }

@@ -17,6 +17,7 @@ interface PendingCheck {
 	context: Record<string, any>;
 	existingFieldData: Record<string, any>;
 	abortController: AbortController;
+	authToken?: string;
 }
 
 export class DebouncedSanityChecker {
@@ -44,7 +45,8 @@ export class DebouncedSanityChecker {
 		context: Record<string, any>,
 		existingFieldData: Record<string, any>,
 		onComplete: (fieldId: string, warnings: string[]) => void,
-		onError?: (fieldId: string, error: Error) => void
+		onError?: (fieldId: string, error: Error) => void,
+		authToken?: string
 	): void {
 		// Cancel any existing pending check for this field
 		this.cancelCheck(fieldId);
@@ -59,6 +61,7 @@ export class DebouncedSanityChecker {
 			context,
 			existingFieldData,
 			abortController,
+			authToken,
 		});
 
 		// Clear any existing timeout
@@ -71,7 +74,7 @@ export class DebouncedSanityChecker {
 		const now = Date.now();
 		const lastCheckTime = this.lastCheckTimes.get(fieldId) || 0;
 		const timeSinceLastCheck = now - lastCheckTime;
-		
+
 		// If checked within last 2 seconds, use longer debounce (2x)
 		// If checked within last 5 seconds, use even longer debounce (3x)
 		let debounceDelay = this.debounceMs;
@@ -107,6 +110,7 @@ export class DebouncedSanityChecker {
 					resumeType: this.resumeType,
 					context: pending.context,
 					existingFieldData: pending.existingFieldData,
+					authToken: pending.authToken,
 				});
 
 				// Check again if aborted during the request
@@ -173,6 +177,7 @@ export class DebouncedSanityChecker {
 			value: any;
 			context: Record<string, any>;
 			existingFieldData: Record<string, any>;
+			authToken?: string;
 		}>,
 		onComplete: (fieldId: string, warnings: string[]) => void,
 		onError?: (fieldId: string, error: Error) => void
@@ -186,7 +191,7 @@ export class DebouncedSanityChecker {
 		// Execute all checks in parallel
 		// Dynamic import to avoid SSR issues
 		const { checkRealtimeSanity } = await import("@/lib/api/realtimeSanityCheck");
-		
+
 		const promises = fields.map(async (field) => {
 			try {
 				// Update last check time for each field
@@ -198,6 +203,7 @@ export class DebouncedSanityChecker {
 					resumeType: this.resumeType,
 					context: field.context,
 					existingFieldData: field.existingFieldData,
+					authToken: field.authToken,
 				});
 
 				onComplete(field.fieldId, result.warnings || []);

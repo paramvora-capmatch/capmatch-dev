@@ -65,7 +65,7 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
   const submit = useCallback(async (body: Record<string, unknown>) => {
     // Abort any previous request
     stop();
-    
+
     // Create new abort controller
     abortControllerRef.current = new AbortController();
 
@@ -74,9 +74,17 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
     setResponse('');
 
     try {
+      // Get auth token
+      const { supabase } = await import('@/lib/supabaseClient');
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
       const res = await fetch(api, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(body),
         signal: abortControllerRef.current.signal,
       });
@@ -96,34 +104,34 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
 
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           break;
         }
 
         buffer += decoder.decode(value, { stream: true });
-        
+
         // Process complete SSE messages (end with \n\n)
         const messages = buffer.split('\n\n');
         buffer = messages.pop() || ''; // Keep incomplete message in buffer
 
         for (const message of messages) {
           if (!message.trim()) continue;
-          
+
           // Parse SSE format: "data: {json}" or "data: [DONE]"
           const lines = message.split('\n');
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
-              
+
               // Check for completion signal
               if (data === '[DONE]') {
                 continue;
               }
-              
+
               try {
                 const parsed: StreamingResponse = JSON.parse(data);
-                
+
                 if (parsed.error) {
                   console.error('[FRONTEND] Error in SSE message:', parsed.error);
                   flushSync(() => {
