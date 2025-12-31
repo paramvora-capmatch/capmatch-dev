@@ -333,19 +333,21 @@ export const useAutofill = (
 
 			// 5. Call Next.js API route (which handles mock/backend logic internally)
 			const {
-				data: { user },
-			} = await supabase.auth.getUser();
+				data: { session },
+			} = await supabase.auth.getSession();
+			const token = session?.access_token;
 
 			const response = await fetch(endpointPath, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
+					...(token && { Authorization: `Bearer ${token}` }),
 				},
 				body: JSON.stringify({
 					project_id: projectId,
 					project_address: projectAddress,
 					document_paths: documentPaths,
-					user_id: user?.id || "unknown",
+					user_id: session?.user?.id || "unknown",
 				}),
 			});
 

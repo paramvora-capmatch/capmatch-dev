@@ -2,6 +2,7 @@
  * API client for realtime sanity checks
  * Used when user edits a field to validate the input in realtime
  */
+import { supabase } from "@/lib/supabaseClient";
 
 export interface RealtimeSanityCheckRequest {
 	fieldId: string;
@@ -29,10 +30,16 @@ export async function checkRealtimeSanity(
 			? "/api/project-resume/realtime-sanity-check"
 			: "/api/borrower-resume/realtime-sanity-check";
 
+	const {
+		data: { session },
+	} = await supabase.auth.getSession();
+	const token = session?.access_token;
+
 	const response = await fetch(endpoint, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
+			...(token && { Authorization: `Bearer ${token}` }),
 		},
 		body: JSON.stringify({
 			field_id: request.fieldId,

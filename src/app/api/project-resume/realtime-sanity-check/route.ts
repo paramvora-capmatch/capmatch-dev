@@ -14,12 +14,16 @@ export async function POST(request: Request) {
 			);
 		}
 
+		// Extract auth token
+		const authHeader = request.headers.get("Authorization");
+
 		const response = await fetch(
 			`${backendUrl}/api/v1/project-resume/realtime-sanity-check`,
 			{
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
+					...(authHeader && { "Authorization": authHeader }),
 				},
 				body: JSON.stringify(body),
 			}
