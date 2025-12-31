@@ -69,6 +69,16 @@ export default function AdvisorProjectWorkspacePage() {
     }
   }, [isBorrowerEditing, router, handleBorrowerEditingChange]);
 
+  // Handler for Dashboard navigation
+  const handleNavigateToDashboard = useCallback(() => {
+    router.push(ADVISOR_DASHBOARD_PATH);
+  }, [router]);
+
+  // Handler for Project navigation (exit borrower editing)
+  const handleNavigateToProject = useCallback(() => {
+    handleBorrowerEditingChange(false);
+  }, [handleBorrowerEditingChange]);
+
   // Memoize project name to avoid unnecessary recalculations
   const projectName = useMemo(
     () => resolveProjectName(activeProject, projectId),
@@ -82,11 +92,11 @@ export default function AdvisorProjectWorkspacePage() {
         projectName={projectName}
         isBorrowerEditing={isBorrowerEditing}
         onBack={handleBack}
-        onBorrowerEditingChange={handleBorrowerEditingChange}
-        dashboardPath={ADVISOR_DASHBOARD_PATH}
+        onNavigateToDashboard={handleNavigateToDashboard}
+        onNavigateToProject={handleNavigateToProject}
       />
     ),
-    [projectName, isBorrowerEditing, handleBack, handleBorrowerEditingChange]
+    [projectName, isBorrowerEditing, handleBack, handleNavigateToDashboard, handleNavigateToProject]
   );
 
   // Show error state if project ID is missing (will redirect via useEffect)
