@@ -1056,7 +1056,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 			setBorrowerDocsRefreshKey((prev) => prev + 1);
 			setCopyModalOpen(false);
 			setCopySourceProjectId("");
-			setBorrowerEditing(false);
 		} catch (err) {
 			setCopyError(
 				err instanceof Error
