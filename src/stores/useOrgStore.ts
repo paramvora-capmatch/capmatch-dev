@@ -269,10 +269,10 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
     set({ error: null });
 
     try {
-      const { error } = await supabase
-        .from("invites")
-        .update({ status: "cancelled" })
-        .eq("id", inviteId);
+      const { currentOrg } = get();
+      if (!currentOrg) throw new Error("No active org");
+
+      const { data, error } = await apiClient.cancelInvite(inviteId, currentOrg.id);
 
       if (error) throw error;
 

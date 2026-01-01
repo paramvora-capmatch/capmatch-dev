@@ -21,12 +21,18 @@ export async function POST(req: NextRequest) {
       return new NextResponse(null, { status: 499 });
     }
 
+    // Get authenticated Supabase client and session
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
     // Proxy to backend
     const backendUrl = getBackendUrl();
     const backendResponse = await fetch(`${backendUrl}/api/v1/ai/project-qa`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }),
       },
       body: JSON.stringify(body),
       signal: req.signal,
