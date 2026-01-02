@@ -3,6 +3,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { flushSync } from 'react-dom';
+import { supabase } from '@/lib/supabaseClient';
 
 interface StreamingResponse {
   text?: string;
@@ -74,9 +75,15 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
     setResponse('');
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
       const res = await fetch(api, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
         body: JSON.stringify(body),
         signal: abortControllerRef.current.signal,
       });
