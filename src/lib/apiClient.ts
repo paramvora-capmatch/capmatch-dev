@@ -418,4 +418,20 @@ export const apiClient = {
       body: JSON.stringify(params),
     });
   },
+
+  /**
+   * Cancel an invitation
+   *
+   * @param inviteId - Invite ID to cancel
+   * @param orgId - Organization ID
+   * @returns Success response
+   */
+  cancelInvite: async (inviteId: string, orgId: string) => {
+    return apiRequest<{
+      success: boolean;
+      message: string;
+    }>(`/api/v1/users/cancel-invite/${inviteId}?org_id=${orgId}`, {
+      method: 'POST',
+    });
+  },
 };

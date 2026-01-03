@@ -53,12 +53,18 @@ export async function POST(req: NextRequest) {
     // Prepare OM data to send to backend
     const omData = prepareOMData();
 
+    // Get authenticated Supabase client and session
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
     // Proxy to backend
     const backendUrl = getBackendUrl();
     const backendResponse = await fetch(`${backendUrl}/api/v1/ai/om-qa`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }),
       },
       body: JSON.stringify({
         question,

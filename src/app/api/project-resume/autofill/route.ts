@@ -29,12 +29,17 @@ export async function POST(request: Request) {
 		// Always proxy to backend - backend will decide whether to use mock or real extraction
 		console.log("[API] Proxying to backend for project-resume autofill");
 		const backendUrl = getBackendUrl();
+		
+		// Extract auth token
+		const authHeader = request.headers.get("Authorization");
+
 		const backendResponse = await fetch(
 			`${backendUrl}/api/v1/project-resume/autofill`,
 			{
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
+					...(authHeader && { "Authorization": authHeader }),
 				},
 				body: JSON.stringify({
 					project_id,

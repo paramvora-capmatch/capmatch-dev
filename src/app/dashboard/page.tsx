@@ -301,7 +301,12 @@ export default function DashboardPage() {
             });
 
             if (error) {
-              console.error(`Failed to load unread counts for project ${project.id}:`, error);
+              console.error(`Failed to load unread counts for project ${project.id}:`, {
+                message: error.message,
+                details: error.details,
+                hint: error.hint,
+                code: error.code
+              });
               return;
             }
 

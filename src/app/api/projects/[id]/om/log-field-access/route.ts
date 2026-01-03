@@ -7,6 +7,13 @@ export async function POST(
 ) {
   try {
     const { id: projectId } = await params;
+    
+    // Check for auth header for security
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     
     // Validate request body

@@ -8,12 +8,15 @@ export async function POST(
   
   try {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+    const authHeader = request.headers.get('Authorization');
+
     const response = await fetch(
       `${backendUrl}/api/v1/projects/${projectId}/om/generate-insights`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(authHeader && { 'Authorization': authHeader }),
         },
       }
     );

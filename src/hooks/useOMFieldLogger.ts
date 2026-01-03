@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 export interface FieldAccessData {
 	fieldId: string;
@@ -36,10 +37,14 @@ export function useOMFieldLogger() {
 		logBuffer.current = [];
 
 		try {
+			const { data: { session } } = await supabase.auth.getSession();
+			const token = session?.access_token;
+
 			await fetch(`/api/projects/${projectId}/om/log-field-access`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
+					...(token && { 'Authorization': `Bearer ${token}` }),
 				},
 				body: JSON.stringify({
 					fields: logsToSend.map((log) => ({

@@ -21,8 +21,10 @@ export async function POST(req: NextRequest) {
       return new NextResponse(null, { status: 499 });
     }
 
-    // Extract auth token from request headers
-    const authHeader = req.headers.get('authorization');
+    // Get authenticated Supabase client and session
+    const { createClient } = await import('@/lib/supabase/server');
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
 
     // Proxy to backend
     const backendUrl = getBackendUrl();
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(authHeader ? { 'Authorization': authHeader } : {}),
+        ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }),
       },
       body: JSON.stringify(body),
       signal: req.signal,

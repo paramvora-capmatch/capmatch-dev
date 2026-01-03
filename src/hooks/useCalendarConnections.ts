@@ -112,12 +112,16 @@ export function useCalendarConnections(): UseCalendarConnectionsReturn {
 				if (connection) {
 					// Stop the calendar watch via API
 					try {
+						const { data: { session } } = await supabase.auth.getSession();
+						const token = session?.access_token;
+
 						const response = await fetch(
 							"/api/calendar/disconnect",
 							{
 								method: "POST",
 								headers: {
 									"Content-Type": "application/json",
+									...(token && { 'Authorization': `Bearer ${token}` }),
 								},
 								body: JSON.stringify({ connectionId }),
 							}

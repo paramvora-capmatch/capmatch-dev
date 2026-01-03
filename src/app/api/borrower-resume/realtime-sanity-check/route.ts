@@ -14,20 +14,17 @@ export async function POST(request: Request) {
 			);
 		}
 
+		// Extract auth token
 		const authHeader = request.headers.get("Authorization");
-		const headers: HeadersInit = {
-			"Content-Type": "application/json",
-		};
-
-		if (authHeader) {
-			headers["Authorization"] = authHeader;
-		}
 
 		const response = await fetch(
 			`${backendUrl}/api/v1/borrower-resume/realtime-sanity-check`,
 			{
 				method: "POST",
-				headers,
+				headers: {
+					"Content-Type": "application/json",
+					...(authHeader && { "Authorization": authHeader }),
+				},
 				body: JSON.stringify(body),
 			}
 		);
