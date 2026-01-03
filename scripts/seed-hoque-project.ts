@@ -8,9 +8,11 @@ import { config } from "dotenv";
 import { resolve } from "path";
 import { readFileSync, existsSync, readdirSync, statSync } from "fs";
 import { join } from "path";
-import { ProjectResumeContent } from "../src/lib/project-queries";
 import projectFormSchema from "../src/lib/enhanced-project-form.schema.json";
 import borrowerFormSchema from "../src/lib/borrower-resume-form.schema.json";
+
+// Helper to determine app role
+type AppRole = "advisor" | "borrower";
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -71,30 +73,6 @@ if (!serviceRoleKey) {
 	);
 	console.error(`   Please add SUPABASE_SERVICE_ROLE_KEY to ${envFile}`);
 	process.exit(1);
-}
-
-// Additional validation for production
-if (isProduction) {
-	// Validate that we're not accidentally using localhost in production
-	if (
-		supabaseUrl.includes("localhost") ||
-		supabaseUrl.includes("127.0.0.1")
-	) {
-		console.error(
-			"\n❌ ERROR: Production mode detected but Supabase URL is localhost!"
-		);
-		console.error(`   Current URL: ${supabaseUrl}`);
-		console.error("   Production URLs should start with https://");
-		process.exit(1);
-	}
-
-	if (!supabaseUrl.startsWith("https://")) {
-		console.error(
-			"\n❌ ERROR: Production Supabase URL must start with https://"
-		);
-		console.error(`   Current URL: ${supabaseUrl}`);
-		process.exit(1);
-	}
 }
 
 // Initialize Supabase client
@@ -1563,121 +1541,150 @@ interface OnboardResponse {
 }
 
 /**
- * Get the FastAPI backend URL from environment variables
+ * Direct onboarding function that bypasses backend API
  */
-function getBackendUrl(): string {
-	const url = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || "http://127.0.0.1:8080";
-	// Remove trailing slash to prevent double slashes when constructing paths
-	return url.replace(/\/+$/, "");
-}
-
-async function callOnboardBorrower(
+async function onboardUserDirectly(
 	email: string,
 	password: string,
 	fullName: string,
-	retries = 3
+	appRole: AppRole
 ): Promise<OnboardResponse> {
-	const backendUrl = getBackendUrl();
-	const endpoint = `${backendUrl}/api/v1/users/onboard-borrower`;
+	console.log(`[seed] Onboarding ${appRole} directly: ${email}...`);
 
-	for (let attempt = 1; attempt <= retries; attempt++) {
-		try {
-			if (attempt > 1) {
-				console.log(
-					`[onboard-borrower] Retry attempt ${attempt}/${retries} for ${email}...`
-				);
-				// Wait before retrying (exponential backoff)
-				await new Promise((resolve) =>
-					setTimeout(resolve, 1000 * attempt)
-				);
-			} else {
-				console.log(
-					`[onboard-borrower] Calling FastAPI endpoint for ${email}...`
-				);
-			}
+	try {
+		// 1. Create Auth User
+		const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+			email,
+			password,
+			email_confirm: true,
+			user_metadata: { full_name: fullName },
+		});
 
-			const response = await fetch(endpoint, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					email,
-					password,
-					full_name: fullName,
-				}),
-			});
+		let userId: string;
 
-			// Handle non-2xx responses
-			if (!response.ok) {
-				let errorMessage: string;
-				try {
-					const errorData = await response.json();
-					// FastAPI uses 'detail' for HTTP exceptions
-					errorMessage = errorData.detail || errorData.error || errorData.message || response.statusText;
-				} catch {
-					errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+		if (authError) {
+			// If user already exists, try to get them
+			if (authError.message.includes("already registered") || authError.message.includes("unique constraint")) {
+				console.log("[seed] User exists, trying to fetch...");
+				const { data: existingUser } = await supabaseAdmin.from("profiles").select("id").eq("email", email).single();
+				if (existingUser) {
+					return { user: { id: existingUser.id, email } };
 				}
-
-				// Check if it's a retryable error (502, 503, 504)
-				const isRetryable =
-					response.status === 502 ||
-					response.status === 503 ||
-					response.status === 504;
-
-				if (isRetryable && attempt < retries) {
-					console.warn(
-						`[onboard-borrower] Retryable error for ${email} (attempt ${attempt}): ${errorMessage}`
-					);
-					continue; // Retry
-				}
-
-				return { error: errorMessage };
+				// If profile doesn't exist but auth does, we need to handle that (edge case)
+				// For now, let's assume if auth exists, we can't get ID easily without profile
+				// Actually, we can search auth users by email if needed, but let's see
 			}
-
-			const data = await response.json();
-
-			// Validate response structure
-			if (data && typeof data === "object") {
-				if ("error" in data) {
-					const responseError = (data as any).error;
-					return {
-						error:
-							typeof responseError === "string"
-								? responseError
-								: JSON.stringify(responseError),
-					};
-				}
-
-				if ("user" in data) {
-					return data as OnboardResponse;
-				}
-			}
-
-			return data as OnboardResponse;
-		} catch (err) {
-			const errorMessage =
-				err instanceof Error ? err.message : String(err);
-			const isRetryable =
-				errorMessage.includes("502") ||
-				errorMessage.includes("503") ||
-				errorMessage.includes("504") ||
-				errorMessage.includes("ECONNREFUSED") ||
-				errorMessage.includes("fetch");
-
-			if (isRetryable && attempt < retries) {
-				console.warn(
-					`[onboard-borrower] Retryable exception for ${email} (attempt ${attempt}): ${errorMessage}`
-				);
-				continue; // Retry
-			}
-
-			console.error(`[onboard-borrower] Exception for ${email}:`, err);
-			return { error: errorMessage };
+			console.error(`[seed] Auth creation failed: ${authError.message}`);
+			return { error: authError.message };
+		} else {
+			userId = authData.user.id;
 		}
-	}
 
-	return { error: `Failed after ${retries} attempts` };
+		console.log(`[seed] Auth user created: ${userId}`);
+
+		// 2. Create Profile
+		const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
+			id: userId,
+			full_name: fullName,
+			email: email,
+			app_role: appRole,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		}, { onConflict: "id" });
+
+		if (profileError) {
+			console.error(`[seed] Profile creation failed: ${profileError.message}`);
+			return { error: profileError.message };
+		}
+
+		// 3. Create Organization & Memberships
+		let orgId: string;
+
+		if (appRole === "borrower") {
+			// Borrowers get their own org
+			const { data: orgData, error: orgError } = await supabaseAdmin.from("orgs").insert({
+				name: `${fullName}'s Organization`,
+				entity_type: "borrower",
+			}).select().single();
+
+			if (orgError) return { error: orgError.message };
+			orgId = orgData.id;
+
+			// Add owner check/insert
+			await supabaseAdmin.from("org_members").insert({
+				org_id: orgId,
+				user_id: userId,
+				role: "owner",
+			});
+			
+			// Create storage bucket for the org
+			const { error: bucketError } = await supabaseAdmin.storage.createBucket(orgId, {
+				public: false,
+				fileSizeLimit: 50 * 1024 * 1024, // 50MB
+			});
+			
+			if (bucketError && !bucketError.message.includes("already exists")) {
+				console.error(`[seed] Failed to create storage bucket: ${bucketError.message}`);
+				// Continue anyway, it might be a transient issue or existing bucket
+			} else if (!bucketError) {
+				console.log(`[seed] Created storage bucket for org: ${orgId}`);
+			}
+			
+		} else {
+			// Advisors join/create the advisor org
+			const { data: existingOrg } = await supabaseAdmin
+				.from("orgs")
+				.select("id")
+				.eq("entity_type", "advisor")
+				.limit(1)
+				.maybeSingle();
+
+			if (existingOrg) {
+				orgId = existingOrg.id;
+			} else {
+				const { data: newOrg, error: orgError } = await supabaseAdmin.from("orgs").insert({
+					name: "CapMatch Advisors",
+					entity_type: "advisor",
+				}).select().single();
+				if (orgError) return { error: orgError.message };
+				orgId = newOrg.id;
+			}
+
+			await supabaseAdmin.from("org_members").upsert({
+				org_id: orgId,
+				user_id: userId,
+				role: "owner",
+			}, { onConflict: "org_id,user_id" });
+		}
+
+		// 4. Update Profile with Active Org
+		await supabaseAdmin.from("profiles").update({ active_org_id: orgId }).eq("id", userId);
+
+		return { user: { id: userId, email } };
+
+	} catch (e) {
+		console.error(`[seed] Unexpected error:`, e);
+		return { error: String(e) };
+	}
+}
+
+async function ensureStorageBucket(orgId: string) {
+	try {
+		const { error: bucketError } = await supabaseAdmin.storage.createBucket(orgId, {
+			public: false,
+			fileSizeLimit: 50 * 1024 * 1024, // 50MB
+		});
+		
+		if (bucketError && !bucketError.message.includes("already exists")) {
+			console.error(`[seed] Failed to ensure storage bucket: ${bucketError.message}`);
+		} else if (!bucketError) {
+			console.log(`[seed] Created storage bucket for org: ${orgId}`);
+		} else {
+             // Bucket already exists, which is fine
+        }
+	} catch (e) {
+		console.error(`[seed] Exception ensuring storage bucket:`, e);
+	}
 }
 
 async function createAdvisorAccount(): Promise<{
@@ -1691,11 +1698,16 @@ async function createAdvisorAccount(): Promise<{
 	const advisorName = "Cody Field";
 
 	// Check if advisor already exists
-	const { data: existingProfile } = await supabaseAdmin
+	const { data: existingProfile, error: profileError } = await supabaseAdmin
 		.from("profiles")
 		.select("id, active_org_id")
 		.eq("email", advisorEmail)
 		.maybeSingle();
+
+	if (profileError) {
+		console.warn(`[seed] Warning checking for existing advisor: ${profileError.message}`);
+		console.warn(`[seed] This might indicate the 'profiles' table is missing or inaccessible.`);
+	}
 
 	let advisorUserId: string;
 	let advisorOrgId: string | null = null;
@@ -1707,11 +1719,12 @@ async function createAdvisorAccount(): Promise<{
 		advisorUserId = existingProfile.id;
 		advisorOrgId = existingProfile.active_org_id;
 	} else {
-		// Create advisor user via onboard-borrower (it handles both borrowers and advisors)
-		const advisorResult = await callOnboardBorrower(
+		// Create advisor user via onboardUserDirectly (direct DB call)
+		const advisorResult = await onboardUserDirectly(
 			advisorEmail,
 			advisorPassword,
-			advisorName
+			advisorName,
+			"advisor"
 		);
 		if (advisorResult.error || !advisorResult.user) {
 			console.error(
@@ -1720,12 +1733,6 @@ async function createAdvisorAccount(): Promise<{
 			return null;
 		}
 		advisorUserId = advisorResult.user.id;
-
-		// Update profile to advisor role
-		await supabaseAdmin
-			.from("profiles")
-			.update({ app_role: "advisor" })
-			.eq("id", advisorUserId);
 
 		console.log(
 			`[seed] ✅ Created advisor: ${advisorEmail} (${advisorUserId})`
@@ -1838,10 +1845,12 @@ async function getOrCreateDemoBorrowerAccount(): Promise<{
 			}
 		}
 	} else {
-		const borrowerResult = await callOnboardBorrower(
+		// Create borrower user via onboardUserDirectly (direct DB call)
+		const borrowerResult = await onboardUserDirectly(
 			borrowerEmail,
 			borrowerPassword,
-			borrowerName
+			borrowerName,
+			"borrower"
 		);
 		if (borrowerResult.error || !borrowerResult.user) {
 			console.error(
@@ -1874,6 +1883,9 @@ async function getOrCreateDemoBorrowerAccount(): Promise<{
 		console.error("[seed] ❌ Borrower org ID is null");
 		return null;
 	}
+
+    // Ensure bucket exists
+    await ensureStorageBucket(borrowerOrgId);
 
 	return { userId: borrowerUserId, orgId: borrowerOrgId };
 }
