@@ -655,7 +655,6 @@ serve(async (req) => {
       old_permission: string;
       new_permission: string;
     }[] = [];
-    const accessRevoked: { project_id: string; old_permission: string }[] = [];
     
     // Check for new grants and changes
     for (const [projectId, newLevel] of afterProjectMap) {
@@ -669,19 +668,11 @@ serve(async (req) => {
       }
     }
     
-    // Check for revoked access
-    for (const [projectId, oldLevel] of beforeProjectMap) {
-      if (!afterProjectMap.has(projectId)) {
-        accessRevoked.push({ project_id: projectId, old_permission: oldLevel });
-      }
-    }
-    
     console.log(
       `[update-member-permissions] [${requestId}] Project access changes detected:`,
       {
       granted: accessGranted.length,
       changed: accessChanged.length,
-      revoked: accessRevoked.length,
       }
     );
 
@@ -908,13 +899,6 @@ serve(async (req) => {
       new_permission: string;
       resource_name: string | null;
     }[] = [];
-    const docRevoked: {
-      resource_id: string;
-      project_id: string | null;
-      old_permission: string;
-      new_permission: string | null;
-      resource_name: string | null;
-    }[] = [];
 
     // Grants and changes
     for (const [resourceId, afterVal] of afterDocMap.entries()) {
@@ -938,18 +922,8 @@ serve(async (req) => {
           resource_name: resourceName,
         });
       } else if (beforeVal.permission_level !== newLevel) {
-        // Permission level changed
-        if (newLevel === 'none') {
-          // Changed to 'none' - treat as revoked (no access)
-          docRevoked.push({
-            resource_id: resourceId,
-            project_id: projectId,
-            old_permission: beforeVal.permission_level,
-            new_permission: null, // 'none' means no access
-            resource_name: resourceName,
-          });
-        } else {
-          // Changed between view/edit
+        // Permission level changed between view/edit (skip 'none' as that's effectively a revoke)
+        if (newLevel !== 'none') {
           docChanged.push({
             resource_id: resourceId,
             project_id: projectId,
@@ -961,25 +935,11 @@ serve(async (req) => {
       }
     }
 
-    // Revokes (documents that were in BEFORE but not in AFTER at all)
-    for (const [resourceId, beforeVal] of beforeDocMap.entries()) {
-      if (!afterDocMap.has(resourceId)) {
-        docRevoked.push({
-          resource_id: resourceId,
-          project_id: beforeVal.project_id,
-          old_permission: beforeVal.permission_level,
-          new_permission: null, // Access removed
-          resource_name: beforeVal.resource_name ?? null,
-        });
-      }
-    }
-
     console.log(
       `[update-member-permissions] [${requestId}] Document access changes detected:`,
       {
         granted: docGranted.length,
         changed: docChanged.length,
-        revoked: docRevoked.length,
       }
     );
     
@@ -1069,14 +1029,6 @@ serve(async (req) => {
         domainEventIds.push(event.id);
         console.log(`[update-member-permissions] [${requestId}] Created project_access_changed event ${event.id} for project ${change.project_id}`);
       }
-    }
-    
-    // Events for access revoked - SKIPPED: No notifications should be sent when access is revoked
-    // Skipping event creation to prevent notifications for access revocation
-    if (accessRevoked.length > 0) {
-      console.log(
-        `[update-member-permissions] [${requestId}] Skipping ${accessRevoked.length} project_access_revoked events - notifications not sent for access revocation`
-      );
     }
     
     // Document-level events: granted
@@ -1170,14 +1122,6 @@ serve(async (req) => {
           `[update-member-permissions] [${requestId}] Created document_permission_changed event ${event.id} for resource ${change.resource_id}`
         );
       }
-    }
-
-    // Document-level events: revoked - SKIPPED: No notifications should be sent when document access is revoked
-    // Skipping event creation to prevent notifications for document permission revocation
-    if (docRevoked.length > 0) {
-      console.log(
-        `[update-member-permissions] [${requestId}] Skipping ${docRevoked.length} document_permission_revoked events - notifications not sent for document access revocation`
-      );
     }
 
     console.log(

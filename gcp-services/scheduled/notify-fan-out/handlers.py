@@ -1169,63 +1169,6 @@ def handle_project_access_changed(db: Database, event: DomainEvent) -> HandlerRe
 
 
 # =============================================================================
-# Handler: Project Access Revoked
-# =============================================================================
-
-
-def handle_project_access_revoked(db: Database, event: DomainEvent) -> HandlerResult:
-    """Handle project_access_revoked event."""
-    logger.info("Processing project_access_revoked event %d", event.id)
-
-    affected_user_id = event.payload.get("affected_user_id")
-    project_id = event.project_id or event.payload.get("project_id")
-    project_name = event.payload.get("project_name", "a project")
-
-    if not affected_user_id:
-        logger.error("Missing affected_user_id for event %d", event.id)
-        return (0, 0)
-
-    # Check if already notified
-    already_notified = db.fetch_existing_recipients(event.id)
-    if affected_user_id in already_notified:
-        return (0, 0)
-
-    # Check preferences
-    is_muted = db.check_user_preference(
-        user_id=affected_user_id,
-        scope_type="global",
-        scope_id="",
-        event_type="project_access_revoked",
-        channel="in_app",
-        project_id="",
-    )
-    if is_muted:
-        return (0, 0)
-
-    # Build notification - link to dashboard since they lost access
-    title = f"Access removed - {project_name}"
-    body = f"Your access to **{project_name}** has been removed"
-    link_url = "/dashboard"
-
-    success = db.create_notification(
-        user_id=affected_user_id,
-        event_id=event.id,
-        title=title,
-        body=body,
-        link_url=link_url,
-        payload={
-            "type": "project_access_revoked",
-            "project_id": project_id,
-            "project_name": project_name,
-        },
-    )
-
-    inserted = 1 if success else 0
-    logger.info("Event %d: created %d notifications", event.id, inserted)
-    return (inserted, 0)
-
-
-# =============================================================================
 # Handler: Document Permission Granted
 # =============================================================================
 

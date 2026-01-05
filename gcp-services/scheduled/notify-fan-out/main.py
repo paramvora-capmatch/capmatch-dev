@@ -43,7 +43,6 @@ def dispatch_event(db: Database, event: DomainEvent) -> tuple[int, int]:
         "invite_accepted": handlers.handle_invite_accepted,
         "project_access_granted": handlers.handle_project_access_granted,
         "project_access_changed": handlers.handle_project_access_changed,
-        "project_access_revoked": handlers.handle_project_access_revoked,
         "document_permission_granted": handlers.handle_document_permission_granted,
         "document_permission_changed": handlers.handle_document_permission_changed,
         "chat_thread_participant_added": handlers.handle_chat_thread_participant_added,
