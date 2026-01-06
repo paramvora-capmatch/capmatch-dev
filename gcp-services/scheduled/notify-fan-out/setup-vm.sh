@@ -8,7 +8,7 @@ echo "Setting up notify-fan-out service..."
 
 # Create log file
 sudo touch /var/log/notify-fan-out.log
-sudo chown "$USER:$USER" /var/log/notify-fan-out.log
+sudo chown "$USER:staff" /var/log/notify-fan-out.log
 echo "✓ Created log file at /var/log/notify-fan-out.log"
 
 # Build Docker image
