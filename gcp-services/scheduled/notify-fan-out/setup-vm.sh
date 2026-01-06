@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 echo "Setting up notify-fan-out service..."
 
@@ -13,7 +13,7 @@ echo "✓ Created log file at /var/log/notify-fan-out.log"
 
 # Build Docker image
 cd "$REPO_ROOT"
-docker build -f gcp-services/notify-fan-out/Dockerfile \
+docker build -f gcp-services/scheduled/notify-fan-out/Dockerfile \
     -t capmatch-notify-fan-out:prod .
 echo "✓ Built Docker image: capmatch-notify-fan-out:prod"
 
