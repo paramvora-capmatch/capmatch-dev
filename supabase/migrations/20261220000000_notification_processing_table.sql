@@ -43,11 +43,10 @@ RETURNS TABLE (
     event_type TEXT,
     actor_id UUID,
     project_id UUID,
-    org_id UUID,
     resource_id UUID,
     thread_id UUID,
     meeting_id UUID,
-    occurred_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ,
     payload JSONB
 ) AS $$
 BEGIN
@@ -57,17 +56,16 @@ BEGIN
         de.event_type,
         de.actor_id,
         de.project_id,
-        de.org_id,
         de.resource_id,
         de.thread_id,
         de.meeting_id,
-        de.occurred_at,
+        de.created_at,
         de.payload
     FROM public.domain_events de
     LEFT JOIN public.notification_processing np ON de.id = np.event_id
     WHERE (np.event_id IS NULL OR np.processing_status = 'failed')
-      AND de.occurred_at > NOW() - INTERVAL '24 hours'
-    ORDER BY de.occurred_at ASC
+      AND de.created_at > NOW() - INTERVAL '24 hours'
+    ORDER BY de.created_at ASC
     LIMIT p_limit;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
