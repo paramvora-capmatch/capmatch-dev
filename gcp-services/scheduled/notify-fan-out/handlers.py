@@ -884,9 +884,10 @@ def handle_invite_accepted(db: Database, event: DomainEvent) -> HandlerResult:
     """Handle invite_accepted event."""
     logger.info("Processing invite_accepted event %d", event.id)
 
-    org_id = event.org_id or event.payload.get("org_id")
+    # Get org_id from payload (always included in invite_accepted events)
+    org_id = event.payload.get("org_id")
     if not org_id:
-        logger.error("Missing org_id for event %d", event.id)
+        logger.error("Missinginals in payload for event %d", event.id)
         return (0, 0)
 
     # Extract payload data

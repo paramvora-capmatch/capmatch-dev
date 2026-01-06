@@ -94,7 +94,7 @@ class Database:
                 "[testing] SKIP_IDEMPOTENCY_CHECK true -> returning all domain events regardless of time"
             )
             query = self.client.table('domain_events').select('*')
-            events_response = query.order('occurred_at', desc=False).execute()
+            events_response = query.order('created_at', desc=False).execute()
             return events_response.data or []
         
         # Use RPC function or LEFT JOIN to filter processed events in SQL
@@ -124,8 +124,8 @@ class Database:
             logger.debug(f"RPC function not available, using fallback method: {e}")
             
             query = self.client.table('domain_events').select('*')
-            query = query.gte('occurred_at', start_time).lt('occurred_at', end_time)
-            events_response = query.order('occurred_at', desc=False).execute()
+            query = query.gte('created_at', start_time).lt('created_at', end_time)
+            events_response = query.order('created_at', desc=False).execute()
             events = events_response.data or []
             
             # Get processed events for this user/date

@@ -23,11 +23,10 @@ class DomainEvent:
     event_type: str
     actor_id: Optional[str]
     project_id: Optional[str]
-    org_id: Optional[str]
     resource_id: Optional[str]
     thread_id: Optional[str]
     meeting_id: Optional[str]
-    occurred_at: str
+    created_at: str
     payload: Dict[str, Any]
 
 
@@ -481,10 +480,9 @@ class Database:
             event_type=row["event_type"],
             actor_id=row.get("actor_id"),
             project_id=row.get("project_id"),
-            org_id=row.get("org_id"),
             resource_id=row.get("resource_id"),
             thread_id=row.get("thread_id"),
             meeting_id=row.get("meeting_id"),
-            occurred_at=row["occurred_at"],
+            created_at=row.get("created_at") or row.get("occurred_at", ""),
             payload=row.get("payload") or {},
         )

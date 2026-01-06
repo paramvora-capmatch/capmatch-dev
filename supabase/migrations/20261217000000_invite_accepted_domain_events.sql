@@ -21,7 +21,7 @@ ALTER TABLE public.domain_events
   ADD COLUMN IF NOT EXISTS org_id UUID REFERENCES public.orgs(id) ON DELETE CASCADE;
 
 CREATE INDEX IF NOT EXISTS idx_domain_events_org_id
-  ON public.domain_events (org_id, occurred_at DESC);
+  ON public.domain_events (org_id, created_at DESC);
 
 COMMENT ON COLUMN public.domain_events.org_id IS 
   'Reference to the org for org-level events (e.g., invite_accepted). NULL for project-scoped events.';
