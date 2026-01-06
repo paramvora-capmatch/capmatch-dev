@@ -11,8 +11,8 @@
 ALTER TABLE public.domain_events
 ADD COLUMN IF NOT EXISTS meeting_id UUID REFERENCES public.meetings(id) ON DELETE CASCADE;
 
-CREATE INDEX IF NOT EXISTS idx_domain_events_meeting_id_occurred_at
-    ON public.domain_events (meeting_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_domain_events_meeting_id_created_at
+    ON public.domain_events (meeting_id, created_at DESC);
 
 COMMENT ON COLUMN public.domain_events.meeting_id IS 'Reference to the meeting for meeting-related events';
 

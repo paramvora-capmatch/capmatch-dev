@@ -176,7 +176,6 @@ def process_resume_nudge(
                     "nudge_tier": nudge_tier,
                     "user_id": user_id,
                 },
-                "occurred_at": datetime.now(timezone.utc).isoformat(),
             }
         )
         .execute()

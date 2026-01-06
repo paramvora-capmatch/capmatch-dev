@@ -295,19 +295,7 @@ def create_test_events(client: Client, sample_ids: Dict[str, Any]) -> None:
             },
         },
 
-        # 11. project_access_revoked events
-        {
-            "event_type": "project_access_revoked",
-            "actor_id": get_user_id(0),
-            "project_id": get_project_id(0),
-            "occurred_at": datetime.now(timezone.utc).isoformat(),
-            "payload": {
-                "affected_user_id": get_user_id(3) if len(sample_ids["user_ids"]) > 3 else get_user_id(0),
-                "project_name": "Downtown Mixed-Use Development",
-            },
-        },
-
-        # 12. document_permission_granted events
+        # 11. document_permission_granted events
         {
             "event_type": "document_permission_granted",
             "actor_id": get_user_id(0),

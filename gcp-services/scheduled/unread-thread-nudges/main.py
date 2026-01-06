@@ -285,7 +285,6 @@ def process_unread_thread_nudges(
                         "anchor_last_read_at": entry["last_read_at"],
                         "unread_count": entry["unread_count"],
                     },
-                    "occurred_at": now.isoformat(),
                 }
             )
             .execute()

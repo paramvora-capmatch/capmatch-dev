@@ -108,7 +108,6 @@ TODO (10 remaining):
 - ⏳ `invite_accepted`
 - ⏳ `project_access_granted`
 - ⏳ `project_access_changed`
-- ⏳ `project_access_revoked`
 - ⏳ `document_permission_granted`
 - ⏳ `document_permission_changed`
 
@@ -158,7 +157,6 @@ This creates realistic test events for:
 - `invite_accepted` (1 event)
 - `project_access_granted` (1 event)
 - `project_access_changed` (1 event)
-- `project_access_revoked` (1 event)
 - `document_permission_granted` (1 event)
 - `document_permission_changed` (1 event)
 

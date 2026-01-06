@@ -98,8 +98,6 @@ serve(async (req) => {
 			return await handleProjectAccessGranted(supabaseAdmin, event);
 		} else if (event.event_type === "project_access_changed") {
 			return await handleProjectAccessChanged(supabaseAdmin, event);
-		} else if (event.event_type === "project_access_revoked") {
-			return await handleProjectAccessRevoked(supabaseAdmin, event);
 		} else if (event.event_type === "thread_unread_stale") {
 			return await handleThreadUnreadStale(supabaseAdmin, event);
 		} else if (event.event_type === "document_permission_granted") {
@@ -1243,78 +1241,6 @@ async function handleProjectAccessChanged(
 
 	console.log(`[notify-fan-out] Created project_access_changed notification for user ${affectedUserId}`);
 	return jsonResponse({ inserted: 1, emails_queued: emailsQueued });
-}
-
-// =============================================================================
-// Handler: Project Access Revoked
-// =============================================================================
-
-async function handleProjectAccessRevoked(
-	supabaseAdmin: SupabaseClient,
-	event: DomainEventRow
-) {
-	console.log("[notify-fan-out] Processing project_access_revoked event:", {
-		eventId: event.id,
-		projectId: event.project_id,
-		payload: event.payload,
-	});
-
-	const affectedUserId = event.payload?.affected_user_id as string | undefined;
-	const projectId = event.project_id || (event.payload?.project_id as string);
-	const projectName = (event.payload?.project_name as string) || "a project";
-
-	if (!affectedUserId) {
-		console.error("[notify-fan-out] Missing affected_user_id for project_access_revoked");
-		return jsonResponse({ inserted: 0, reason: "missing_affected_user_id" });
-	}
-
-	// Check if already notified
-	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
-	if (alreadyNotified.has(affectedUserId)) {
-		return jsonResponse({ inserted: 0, reason: "already_notified" });
-	}
-
-	// Check user preferences
-	const isMuted = await checkUserPreference(supabaseAdmin, affectedUserId, {
-		scopeType: "global",
-		scopeId: "",
-		eventType: "project_access_revoked",
-		channel: "in_app",
-		projectId: "",
-	});
-
-	if (isMuted) {
-		console.log(`[notify-fan-out] User ${affectedUserId} has muted project_access_revoked notifications`);
-		return jsonResponse({ inserted: 0, reason: "user_muted" });
-	}
-
-	// Build notification - link to dashboard since they no longer have project access
-	const title = `Access removed - ${projectName}`;
-	const body = `Your access to **${projectName}** has been removed`;
-	const linkUrl = "/dashboard";
-
-	const { error: insertError } = await supabaseAdmin
-		.from("notifications")
-		.insert({
-			user_id: affectedUserId,
-			event_id: event.id,
-			title,
-			body,
-			link_url: linkUrl,
-			payload: {
-				type: "project_access_revoked",
-				project_id: projectId,
-				project_name: projectName,
-			},
-		});
-
-	if (insertError) {
-		console.error("[notify-fan-out] Failed to insert project_access_revoked notification:", insertError);
-		return jsonResponse({ error: "notification_insert_failed" }, 500);
-	}
-
-	console.log(`[notify-fan-out] Created project_access_revoked notification for user ${affectedUserId}`);
-	return jsonResponse({ inserted: 1 });
 }
 
 // =============================================================================

@@ -72,7 +72,7 @@ class Database:
             resource_id=row.get("resource_id"),
             thread_id=row.get("thread_id"),
             meeting_id=row.get("meeting_id"),
-            occurred_at=row["occurred_at"],
+            created_at=row.get("created_at") or row.get("occurred_at", ""),
             payload=row.get("payload") or {},
         )
 
@@ -119,12 +119,12 @@ class Database:
                 self.client.table("domain_events")
                 .select(
                     "id, event_type, actor_id, project_id, resource_id, "
-                    "thread_id, meeting_id, occurred_at, payload"
+                    "thread_id, meeting_id, created_at, payload"
                 )
-                .gte("occurred_at", window_start.isoformat())
-                .lt("occurred_at", window_end.isoformat())
+                .gte("created_at", window_start.isoformat())
+                .lt("created_at", window_end.isoformat())
                 .in_("event_type", ["document_uploaded", "chat_message_sent"])
-                .order("occurred_at", desc=False)
+                .order("created_at", desc=False)
                 .limit(limit)
                 .execute()
             )
@@ -166,9 +166,9 @@ class Database:
                 self.client.table("domain_events")
                 .select(
                     "id, event_type, actor_id, project_id, resource_id, "
-                    "thread_id, meeting_id, occurred_at, payload"
+                    "thread_id, meeting_id, created_at, payload"
                 )
-                .gte("occurred_at", since.isoformat())
+                .gte("created_at", since.isoformat())
                 .in_(
                     "event_type",
                     [
@@ -177,7 +177,7 @@ class Database:
                         "project_member_added",
                     ],
                 )
-                .order("occurred_at", desc=False)
+                .order("created_at", desc=False)
                 .limit(limit)
                 .execute()
             )
