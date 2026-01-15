@@ -7,12 +7,12 @@ import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { supabase } from "@/lib/supabaseClient";
-import { ChevronLeft, FileText, Building2, MessageSquare } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { BorrowerResumeView } from "@/components/forms/BorrowerResumeView";
-import { ProjectResumeView } from "@/components/project/ProjectResumeView";
-import { ChatInterface } from "@/components/chat/ChatInterface";
 import { ProjectProfile } from "@/types/enhanced-types";
+import { LenderProjectWorkspace } from "@/components/lender/LenderProjectWorkspace";
+import { getProjectWithResume } from "@/lib/project-queries";
+
 
 interface Project {
   id: string;
@@ -21,7 +21,7 @@ interface Project {
   created_at: string;
 }
 
-type Tab = "borrower" | "project" | "chat";
+
 
 export default function LenderProjectViewPage() {
   const router = useRouter();
@@ -33,7 +33,7 @@ export default function LenderProjectViewPage() {
   const [hasAccess, setHasAccess] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("project");
+
   const [borrowerResumeContent, setBorrowerResumeContent] = useState<any>(null);
   const [projectProfile, setProjectProfile] = useState<ProjectProfile | null>(null);
 
@@ -66,57 +66,14 @@ export default function LenderProjectViewPage() {
 
         setHasAccess(true);
 
-        // Fetch project details
-        const { data: projectData, error: projectError } = await supabase
-          .from("projects")
-          .select("id, name, owner_org_id, created_at")
-          .eq("id", projectId)
-          .single();
+        // Fetch project details using the shared utility that handles rich content and merging
+        const projectProfile = await getProjectWithResume(projectId);
 
-        if (projectError) {
-          throw projectError;
-        }
+        // Update states
+        setProject(projectProfile as unknown as Project);
+        setProjectProfile(projectProfile);
+        setBorrowerResumeContent(projectProfile.borrowerSections || {});
 
-        setProject(projectData);
-
-        // Fetch project resume
-        const { data: projectResume, error: projectResumeError } = await supabase
-          .from("project_resumes")
-          .select("content")
-          .eq("project_id", projectId)
-          .single();
-
-        if (projectResumeError && projectResumeError.code !== "PGRST116") {
-          console.error("Error fetching project resume:", projectResumeError);
-        }
-
-        // Build ProjectProfile from project data and resume content
-        const projectProfileData: ProjectProfile = {
-          id: projectData.id,
-          owner_org_id: projectData.owner_org_id,
-          projectName: projectData.name,
-          assetType: "",
-          projectStatus: "",
-          createdAt: projectData.created_at,
-          updatedAt: projectData.created_at,
-          ...(projectResume?.content || {}),
-        };
-        setProjectProfile(projectProfileData);
-
-        // Fetch borrower resume
-        // Note: borrower_resumes are project-scoped, not org-scoped
-        const { data: borrowerResume, error: borrowerResumeError } =
-          await supabase
-            .from("borrower_resumes")
-            .select("content")
-            .eq("project_id", projectId)
-            .single();
-
-        if (borrowerResumeError && borrowerResumeError.code !== "PGRST116") {
-          console.error("Error fetching borrower resume:", borrowerResumeError);
-        }
-
-        setBorrowerResumeContent(borrowerResume?.content || {});
       } catch (err) {
         console.error("Error fetching project:", err);
         setError(
@@ -183,113 +140,21 @@ export default function LenderProjectViewPage() {
 
   return (
     <RoleBasedRoute roles={["lender"]}>
-      <DashboardLayout breadcrumb={breadcrumb}>
-        <div className="max-w-7xl mx-auto py-6">
-          {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-3xl font-bold text-gray-900">
-                {project?.name}
-              </h1>
-              <Button
-                variant="outline"
-                onClick={() => router.push("/lender/dashboard")}
-                leftIcon={<ChevronLeft className="h-4 w-4" />}
-              >
-                Back
-              </Button>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-              <p className="text-sm text-blue-800">
-                <strong>Read-only view:</strong> You're viewing this project as a lender. You can review resumes and participate in chat, but cannot edit project details or access documents.
-              </p>
-            </div>
+      <DashboardLayout
+        breadcrumb={breadcrumb}
+        mainClassName="flex-1 overflow-auto pl-6 pr-3 sm:pr-4 lg:pr-6 pt-2 pb-6"
+      >
+        {projectProfile && borrowerResumeContent ? (
+          <LenderProjectWorkspace
+            project={projectProfile}
+            borrowerResume={borrowerResumeContent}
+            projectId={projectId}
+          />
+        ) : (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
           </div>
-
-          {/* Tabs */}
-          <div className="border-b border-gray-200 mb-6">
-            <nav className="flex space-x-8">
-              <button
-                onClick={() => setActiveTab("project")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === "project"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  <span>Project Resume</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab("borrower")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === "borrower"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  <span>Borrower Resume</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab("chat")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === "chat"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  <span>Chat</span>
-                </div>
-              </button>
-            </nav>
-          </div>
-
-          {/* Tab Content */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            {activeTab === "project" && projectProfile && (
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Project Resume
-                </h2>
-                <ProjectResumeView
-                  project={projectProfile}
-                  onEdit={() => {}}
-                  canEdit={false}
-                />
-              </div>
-            )}
-
-            {activeTab === "borrower" && borrowerResumeContent && projectId && (
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Borrower Resume
-                </h2>
-                <BorrowerResumeView
-                  resume={borrowerResumeContent}
-                  projectId={projectId}
-                  onEdit={() => {}}
-                  canEdit={false}
-                />
-              </div>
-            )}
-
-            {activeTab === "chat" && project && (
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Project Chat
-                </h2>
-                <ChatInterface projectId={project.id} embedded />
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </DashboardLayout>
     </RoleBasedRoute>
   );
