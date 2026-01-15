@@ -207,7 +207,7 @@ export interface Project {
 // New Resume Types
 export interface BorrowerResume {
 	id: string;
-	org_id: string; // FK to orgs.id (1-to-1 with borrower org)
+	project_id: string; // FK to projects.id (1-to-1 with project, was previously org_id)
 	content?: Record<string, unknown>; // JSONB
 	created_at: string;
 	updated_at: string;
@@ -256,7 +256,7 @@ export interface ChatThreadParticipant {
 export interface ProjectMessage {
 	id: number; // BIGSERIAL
 	thread_id: string; // FK to chat_threads.id
-	project_id?: string;
+	project_id?: string; // Not in DB table, populated via join with chat_threads
 	user_id?: string | null; // FK to profiles.id (SET NULL on user delete)
 	content?: string;
 	created_at: string;

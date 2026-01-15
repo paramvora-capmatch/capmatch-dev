@@ -22,6 +22,7 @@ interface InviteMemberModalProps {
     projectGrants: ProjectGrant[],
     orgGrants: null
   ) => Promise<string>;
+  allowProjectInvites?: boolean; // If false, hides project permissions section
 }
 
 const RESOURCE_TYPES = [
@@ -65,6 +66,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   isOpen,
   onClose,
   onInvite,
+  allowProjectInvites = true, // Default to true for backward compatibility
 }) => {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<OrgMemberRole>('member');
@@ -429,12 +431,16 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                   <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                     <p className="text-sm text-blue-800">
                       <strong>Role-based permissions:</strong><br />
-                      • <strong>Owner:</strong> Full access to all projects and documents.<br />
-                      • <strong>Member:</strong> Access is determined by the project selections below.
+                      • <strong>Owner:</strong> Full access to all {allowProjectInvites ? 'projects and documents' : 'organization resources'}.<br />
+                      {allowProjectInvites ? (
+                        <>• <strong>Member:</strong> Access is determined by the project selections below.</>
+                      ) : (
+                        <>• <strong>Member:</strong> Can access organization resources only. Project-level invites are not available.</>
+                      )}
                     </p>
                   </div>
 
-                  {role === 'member' && (
+                  {role === 'member' && allowProjectInvites && (
                     <div className="space-y-3">
                       <label className="block text-base font-medium text-gray-700">
                         Project Access

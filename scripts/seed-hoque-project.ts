@@ -12,7 +12,7 @@ import projectFormSchema from "../src/lib/enhanced-project-form.schema.json";
 import borrowerFormSchema from "../src/lib/borrower-resume-form.schema.json";
 
 // Helper to determine app role
-type AppRole = "advisor" | "borrower";
+type AppRole = "advisor" | "borrower" | "lender";
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -1101,10 +1101,9 @@ const hoqueProjectResumeBase: Record<string, any> = {
 
 	// Additional fields that may be in schema but not in base resume
 	// These are realistic values based on the Hoque/SoGood project
-	// Note: amenitySF is already defined above, so not duplicated here
+	// Note: amenitySF and ltc are already defined above, so not duplicated here
 	irr: 18.5, // Internal Rate of Return - calculated based on 7.6% yield, 7-year hold, PFC benefits
 	equityMultiple: 2.1, // Equity multiple based on $11.8M equity and projected returns
-	ltc: 60.4, // Loan-to-Cost: $18M / $29.8M = 60.4%
 	exitCapRate: 5.5, // Exit cap rate (same as going-in cap rate for conservative projection)
 	distanceToCBD: 0.8, // Miles to Downtown Dallas CBD (site is between Farmers Market and Deep Ellum)
 	distanceToEmployment: 0.6, // Miles to major employment centers
@@ -1630,7 +1629,7 @@ async function onboardUserDirectly(
 				console.log(`[seed] Created storage bucket for org: ${orgId}`);
 			}
 			
-		} else {
+		} else if (appRole === "advisor") {
 			// Advisors join/create the advisor org
 			const { data: existingOrg } = await supabaseAdmin
 				.from("orgs")
@@ -1655,6 +1654,24 @@ async function onboardUserDirectly(
 				user_id: userId,
 				role: "owner",
 			}, { onConflict: "org_id,user_id" });
+		} else if (appRole === "lender") {
+			// Lenders get their own org
+			const { data: orgData, error: orgError } = await supabaseAdmin.from("orgs").insert({
+				name: `${fullName}'s Organization`,
+				entity_type: "lender",
+			}).select().single();
+
+			if (orgError) return { error: orgError.message };
+			orgId = orgData.id;
+
+			// Add owner
+			await supabaseAdmin.from("org_members").insert({
+				org_id: orgId,
+				user_id: userId,
+				role: "owner",
+			});
+		} else {
+			return { error: `Unsupported app_role: ${appRole}` };
 		}
 
 		// 4. Update Profile with Active Org
@@ -1888,6 +1905,78 @@ async function getOrCreateDemoBorrowerAccount(): Promise<{
     await ensureStorageBucket(borrowerOrgId);
 
 	return { userId: borrowerUserId, orgId: borrowerOrgId };
+}
+
+/**
+ * Create lender account (lender@capmatch.com)
+ */
+async function createLenderAccount(): Promise<{
+	userId: string;
+	orgId: string;
+} | null> {
+	console.log("[seed] Setting up lender account (Capital Lending Group)...");
+
+	const lenderEmail = "lender@capmatch.com";
+	const lenderPassword = "password";
+	const lenderName = "Capital Lending Group";
+
+	// Check if lender already exists
+	const { data: existingProfile } = await supabaseAdmin
+		.from("profiles")
+		.select("id, active_org_id")
+		.eq("email", lenderEmail)
+		.maybeSingle();
+
+	let lenderUserId: string;
+	let lenderOrgId: string | null = null;
+
+	if (existingProfile) {
+		console.log(
+			`[seed] Lender already exists: ${lenderEmail} (${existingProfile.id})`
+		);
+		lenderUserId = existingProfile.id;
+		lenderOrgId = existingProfile.active_org_id;
+	} else {
+		// Create lender user via onboardUserDirectly
+		const lenderResult = await onboardUserDirectly(
+			lenderEmail,
+			lenderPassword,
+			lenderName,
+			"lender"
+		);
+		if (lenderResult.error || !lenderResult.user) {
+			console.error(
+				`[seed] ❌ Failed to create lender: ${lenderResult.error}`
+			);
+			return null;
+		}
+		lenderUserId = lenderResult.user.id;
+
+		// Get the org that was created during onboarding
+		const { data: lenderProfile } = await supabaseAdmin
+			.from("profiles")
+			.select("active_org_id")
+			.eq("id", lenderUserId)
+			.single();
+
+		if (!lenderProfile?.active_org_id) {
+			console.error("[seed] ❌ Lender org not found after onboarding");
+			return null;
+		}
+
+		lenderOrgId = lenderProfile.active_org_id;
+		console.log(
+			`[seed] ✅ Created lender: ${lenderEmail} (${lenderUserId})`
+		);
+		console.log(`[seed] ✅ Lender org: ${lenderOrgId}`);
+	}
+
+	if (!lenderOrgId) {
+		console.error("[seed] ❌ Lender org ID is null");
+		return null;
+	}
+
+	return { userId: lenderUserId, orgId: lenderOrgId };
 }
 
 // Helper to safely get service role key
@@ -3553,6 +3642,40 @@ async function seedHoqueProject(): Promise<void> {
 			documents
 		);
 
+		// Step 8: Create lender account and grant access
+		console.log("\n📋 Step 8: Creating lender account and granting project access...");
+		const lenderInfo = await createLenderAccount();
+		if (lenderInfo) {
+			const { userId: lenderUserId, orgId: lenderOrgId } = lenderInfo;
+
+			// Grant lender access to this project
+			try {
+				const { data: accessId, error: grantError } = await supabaseAdmin.rpc(
+					"grant_lender_project_access",
+					{
+						p_lender_org_id: lenderOrgId,
+						p_project_id: projectId,
+						p_granted_by: advisorId, // Advisor grants the access
+					}
+				);
+
+				if (grantError) {
+					console.error(
+						`[seed] ⚠️  Failed to grant lender access:`,
+						grantError.message
+					);
+				} else {
+					console.log(
+						`[seed] ✅ Granted lender access to project (access_id: ${accessId})`
+					);
+				}
+			} catch (err) {
+				console.error(`[seed] ⚠️  Exception granting lender access:`, err);
+			}
+		} else {
+			console.warn("[seed] ⚠️  Lender account creation failed, skipping lender access grant");
+		}
+
 		// Summary
 		console.log(
 			"\n✅ Hoque (SoGood Apartments) complete account seed completed successfully!"
@@ -3562,6 +3685,7 @@ async function seedHoqueProject(): Promise<void> {
 		console.log(
 			`   Project Owner: param.vora@capmatch.com (password: password)`
 		);
+		console.log(`   Lender: lender@capmatch.com (password: password)`);
 		console.log(`   Project: ${HOQUE_PROJECT_NAME} (${projectId})`);
 		console.log(`   Project Resume: ✅ Seeded (100% complete)`);
 		console.log(`   Borrower Resume: ✅ Seeded (100% complete)`);
@@ -3571,6 +3695,7 @@ async function seedHoqueProject(): Promise<void> {
 		);
 		console.log(`   Team Members: ✅ ${memberIds.length} members`);
 		console.log(`   Chat Messages: ✅ Seeded in General and topic threads`);
+		console.log(`   Lender Access: ✅ Capital Lending Group has view access`);
 		console.log(
 			"\n🎉 The Hoque project is now fully seeded in the borrower account!"
 		);
@@ -3594,6 +3719,7 @@ async function cleanupHoqueAccounts(): Promise<void> {
 	try {
 		const borrowerEmail = "param.vora@capmatch.com";
 		const advisorEmail = "cody.field@capmatch.com";
+		const lenderEmail = "lender@capmatch.com";
 		const teamMemberEmails = [
 			"aryan.jain@capmatch.com",
 			"sarthak.karandikar@capmatch.com",
@@ -3615,6 +3741,12 @@ async function cleanupHoqueAccounts(): Promise<void> {
 
 			for (const project of projects) {
 				borrowerOrgId = project.owner_org_id;
+
+				// Delete lender project access grants first
+				await supabaseAdmin
+					.from("lender_project_access")
+					.delete()
+					.eq("project_id", project.id);
 
 				// Delete chat data
 				const { data: threads } = await supabaseAdmin
@@ -3701,9 +3833,18 @@ async function cleanupHoqueAccounts(): Promise<void> {
 		// Step 4: Skip advisor cleanup (advisor is shared with demo script)
 		// Note: We do NOT delete the advisor account (cody.field@capmatch.com) or its org
 		// as it's shared with the demo script and may be used by other projects
-		console.log("\n📋 Step 5: Skipping advisor cleanup...");
+		console.log("\n📋 Step 4: Skipping advisor cleanup...");
 		console.log(
 			`[cleanup] ⚠️  Preserving advisor account (${advisorEmail}) - shared with demo script`
+		);
+
+		// Step 5: Skip lender cleanup (lender might be used by other projects)
+		console.log("\n📋 Step 5: Skipping lender cleanup...");
+		console.log(
+			`[cleanup] ⚠️  Preserving lender account (${lenderEmail}) - may be used by other projects`
+		);
+		console.log(
+			`[cleanup] Note: Lender project access was removed with project deletion`
 		);
 
 		console.log("\n✅ Hoque project cleanup completed!");
@@ -3712,6 +3853,9 @@ async function cleanupHoqueAccounts(): Promise<void> {
 		);
 		console.log(
 			"🌱 Note: This account is shared with the demo script, so it is preserved."
+		);
+		console.log(
+			"🌱 Note: Lender account (lender@capmatch.com) was preserved."
 		);
 		console.log(
 			"🌱 You can now run the seed script again for a fresh start."

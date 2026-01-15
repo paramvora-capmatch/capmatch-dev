@@ -379,6 +379,73 @@ export const apiClient = {
   },
 
   /**
+   * Onboard a new lender user
+   *
+   * @param params - Onboard parameters
+   * @returns User and org data
+   */
+  onboardLender: async (params: {
+    email: string;
+    password?: string;
+    full_name: string;
+    org_name?: string;
+    existing_user?: boolean;
+    user_id?: string;
+  }) => {
+    return apiRequest<{
+      user: {
+        id: string;
+        email: string;
+      };
+      org: {
+        id: string;
+        name: string;
+      };
+    }>('/api/v1/users/onboard-lender', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
+   * Grant lender access to a project (admin/backend only)
+   *
+   * @param params - Grant parameters
+   * @returns Success response
+   */
+  grantLenderAccess: async (params: {
+    lender_org_id: string;
+    project_id: string;
+  }) => {
+    return apiRequest<{
+      access_id: string;
+      message: string;
+    }>('/api/v1/admin/grant-lender-project-access', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
+   * Revoke lender access to a project (admin/backend only)
+   *
+   * @param params - Revoke parameters
+   * @returns Success response
+   */
+  revokeLenderAccess: async (params: {
+    lender_org_id: string;
+    project_id: string;
+  }) => {
+    return apiRequest<{
+      success: boolean;
+      message: string;
+    }>('/api/v1/admin/revoke-lender-project-access', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
    * Update member permissions for a user in an organization
    *
    * @param params - Permission update parameters

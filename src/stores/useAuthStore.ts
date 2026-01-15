@@ -153,12 +153,31 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 throw new Error("Authenticated user has no email");
               }
 
-              const { error: onboardError } = await apiClient.onboardBorrower({
-                existing_user: true,
-                user_id: authUser.id,
-                email: userEmail,
-                full_name: fullName,
-              });
+              // Check if this is a lender user - use onboard-lender instead of onboard-borrower
+              const isLenderEmail = userEmail.includes("lender") || userEmail.endsWith("@lender.com");
+              
+              let onboardError: Error | null = null;
+              
+              if (isLenderEmail) {
+                // Use lender onboarding endpoint
+                const { error } = await apiClient.onboardLender({
+                  existing_user: true,
+                  user_id: authUser.id,
+                  email: userEmail,
+                  full_name: fullName,
+                  org_name: `${fullName}'s Organization`,
+                });
+                onboardError = error;
+              } else {
+                // Use borrower onboarding endpoint
+                const { error } = await apiClient.onboardBorrower({
+                  existing_user: true,
+                  user_id: authUser.id,
+                  email: userEmail,
+                  full_name: fullName,
+                });
+                onboardError = error;
+              }
 
               if (onboardError) {
                 console.error(
@@ -413,12 +432,33 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   if (!userEmail) {
                     throw new Error("Authenticated user has no email");
                   }
-                  const { error: onboardError } = await apiClient.onboardBorrower({
-                    existing_user: true,
-                    user_id: authUser.id,
-                    email: userEmail,
-                    full_name: fullName,
-                  });
+
+                  // Check if this is a lender user - use onboard-lender instead of onboard-borrower
+                  const isLenderEmail = userEmail.includes("lender") || userEmail.endsWith("@lender.com");
+                  
+                  let onboardError: Error | null = null;
+                  
+                  if (isLenderEmail) {
+                    // Use lender onboarding endpoint
+                    const { error } = await apiClient.onboardLender({
+                      existing_user: true,
+                      user_id: authUser.id,
+                      email: userEmail,
+                      full_name: fullName,
+                      org_name: `${fullName}'s Organization`,
+                    });
+                    onboardError = error;
+                  } else {
+                    // Use borrower onboarding endpoint
+                    const { error } = await apiClient.onboardBorrower({
+                      existing_user: true,
+                      user_id: authUser.id,
+                      email: userEmail,
+                      full_name: fullName,
+                    });
+                    onboardError = error;
+                  }
+                  
                   if (onboardError) {
                     console.error("[AuthStore] Onboarding existing user failed:", onboardError);
                     await supabase.auth.signOut();

@@ -10,8 +10,12 @@
     "prune": "ts-prune",
     "seed:demo": "tsx scripts/seed-demo-data.ts",
     "seed:cleanup": "tsx scripts/seed-demo-data.ts cleanup",
+    "seed:hoque": "tsx scripts/seed-hoque-project.ts",
+    "seed:hoque:cleanup": "tsx scripts/seed-hoque-project.ts cleanup",
     "seed:prod": "tsx scripts/seed-production.ts",
-    "seed:prod:cleanup": "tsx scripts/seed-production.ts cleanup"
+    "seed:prod:cleanup": "tsx scripts/seed-production.ts cleanup",
+    "seed:lender": "tsx scripts/seed-lender.ts",
+    "lender:grant": "tsx scripts/grant-lender-access.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.4",

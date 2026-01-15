@@ -83,8 +83,15 @@ export default function TeamPage() {
 
   // Memoized navigation handler
   const handleNavigateToDashboard = useCallback(() => {
-    router.push("/dashboard");
-  }, [router]);
+    // Navigate to appropriate dashboard based on role
+    if (user?.role === "lender") {
+      router.push("/lender/dashboard");
+    } else if (user?.role === "advisor") {
+      router.push("/advisor/dashboard");
+    } else {
+      router.push("/dashboard");
+    }
+  }, [router, user?.role]);
 
   // Memoized breadcrumb
   const breadcrumb = useMemo(
@@ -229,7 +236,7 @@ export default function TeamPage() {
   }, []);
 
   return (
-    <RoleBasedRoute roles={["borrower"]}>
+    <RoleBasedRoute roles={["borrower", "lender"]}>
       <DashboardLayout breadcrumb={breadcrumb} mainClassName="flex-1 overflow-auto">
         {!activeOrg ? (
           <div className="text-center py-8">
@@ -317,6 +324,7 @@ export default function TeamPage() {
                     isOpen={true}
                     onClose={handleCloseModal}
                     onInvite={handleInviteMember}
+                    allowProjectInvites={user?.role !== "lender"}
                   />
                 )}
 
