@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { ChevronDown, ChevronRight, CheckCircle, Circle, Lock, Info, ExternalLink, HelpCircle } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { ChevronDown, ChevronRight, CheckCircle, Circle, ExternalLink, Download } from "lucide-react";
 import { cn } from "@/utils/cn";
-import { Button } from "@/components/ui/Button";
-
-import { supabase } from "@/lib/supabaseClient";
+import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
 
 interface DocItem {
     name: string;
@@ -13,7 +11,7 @@ interface DocItem {
     importance: "High" | "Medium" | "Low" | "Internal";
     rationale?: string;
     examples?: string;
-    url?: string; // Download URL
+    file?: DocumentFile; // Associated file if uploaded
 }
 
 interface StageProps {
@@ -22,6 +20,7 @@ interface StageProps {
     isExpanded: boolean;
     onToggle: () => void;
     docs: DocItem[];
+    onDownload: (file: DocumentFile) => void;
 }
 
 const StageAccordion: React.FC<StageProps> = ({
@@ -30,6 +29,7 @@ const StageAccordion: React.FC<StageProps> = ({
     isExpanded,
     onToggle,
     docs,
+    onDownload
 }) => {
     return (
         <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mb-4 shadow-sm">
@@ -69,16 +69,19 @@ const StageAccordion: React.FC<StageProps> = ({
                                 <tr key={idx} className="hover:bg-gray-50/80 transition-colors group">
                                     <td className="px-4 py-3 align-top">
                                         <div className="font-medium text-gray-900">
-                                            {doc.url ? (
-                                                <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                                            {doc.file ? (
+                                                <button 
+                                                    onClick={() => onDownload(doc.file!)}
+                                                    className="text-blue-600 hover:underline flex items-center gap-1"
+                                                >
                                                     {doc.name}
-                                                    <ExternalLink className="h-3 w-3" />
-                                                </a>
+                                                    <Download className="h-3 w-3" />
+                                                </button>
                                             ) : (
                                                 doc.name
                                             )}
                                         </div>
-                                        {doc.examples && !doc.url && (
+                                        {doc.examples && !doc.file && (
                                             <div className="mt-1 flex items-center gap-1 text-xs text-blue-600 cursor-pointer hover:underline opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <ExternalLink className="h-3 w-3" />
                                                 <span>Example</span>
@@ -130,54 +133,33 @@ const StageAccordion: React.FC<StageProps> = ({
 
 interface UnderwritingVaultProps {
     projectId?: string;
+    orgId?: string; // Optional: needed for lenders to view borrower docs (pass owner_org_id)
 }
 
-export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId }) => {
+export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId, orgId }) => {
     const [expandedStage, setExpandedStage] = useState<string | null>("stage-1");
-    const [fetchedResources, setFetchedResources] = useState<any[]>([]);
     
-    // Map of doc name -> download url
-    const [docUrls, setDocUrls] = useState<Record<string, string>>({});
+    // Leverage the existing document management hook for logic, signing, and downloads
+    const { files, downloadFile } = useDocumentManagement({
+        projectId: projectId || null,
+        orgId: orgId || null,
+        context: 'project',
+        folderId: null // Fetch from root
+    });
 
     const toggleStage = (stageId: string) => {
         setExpandedStage(expandedStage === stageId ? null : stageId);
     };
 
-    // Fetch resources
-    React.useEffect(() => {
-        if (!projectId) return;
-
-        const fetchResources = async () => {
-            const { data: resources } = await supabase
-                .from('resources')
-                .select(`
-                    id, 
-                    name, 
-                    current_version_id,
-                    document_versions!current_version_id (storage_path)
-                `)
-                .eq('project_id', projectId)
-                .eq('resource_type', 'FILE');
-
-            if (resources) {
-                // Generate signed URLs for each
-                const urlMap: Record<string, string> = {};
-                for (const r of resources) {
-                    // @ts-ignore
-                    const storagePath = r.document_versions?.storage_path;
-                    if (storagePath) {
-                        const { data } = await supabase.storage.from('documents').createSignedUrl(storagePath, 3600);
-                        if (data?.signedUrl) {
-                            urlMap[r.name] = data.signedUrl;
-                        }
-                    }
-                }
-                setDocUrls(urlMap);
-            }
-        };
-
-        fetchResources();
-    }, [projectId]);
+    const handleDownload = async (file: DocumentFile) => {
+        try {
+            // DocumentManager hook handles the blob download logic (including signed URLs)
+            // Note: downloadFile takes resourceId in current implementation of hook
+            await downloadFile(file.resource_id);
+        } catch (error) {
+            console.error("Download failed", error);
+        }
+    };
 
     const initialStages = [
         {
@@ -269,16 +251,31 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId 
         },
     ];
 
-    // Merge fetched URLs
-    const stages = initialStages.map(stage => ({
-        ...stage,
-        docs: stage.docs.map(doc => {
-            if (docUrls[doc.name]) {
-                return { ...doc, status: "uploaded", url: docUrls[doc.name] };
-            }
-            return doc;
-        })
-    }));
+    // Merge fetched files into stages
+    const stages = useMemo(() => {
+        // Create a lookup map by name for O(1) access
+        const fileMap = new Map<string, DocumentFile>();
+        if (files) {
+            files.forEach(f => {
+                fileMap.set(f.name, f);
+            });
+        }
+
+        return initialStages.map(stage => ({
+            ...stage,
+            docs: stage.docs.map(doc => {
+                const foundFile = fileMap.get(doc.name);
+                if (foundFile) {
+                    return { 
+                        ...doc, 
+                        status: "uploaded" as const, 
+                        file: foundFile
+                    };
+                }
+                return doc;
+            })
+        }));
+    }, [files]);
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -296,6 +293,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId 
                         isExpanded={expandedStage === stage.id}
                         onToggle={() => toggleStage(stage.id)}
                         docs={stage.docs as DocItem[]}
+                        onDownload={handleDownload}
                     />
                 ))}
             </div>

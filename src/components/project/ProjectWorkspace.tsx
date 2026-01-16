@@ -1205,7 +1205,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 						{viewMode === "underwriting" ? (
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <UnderwritingVault projectId={projectId} />
+                                <UnderwritingVault projectId={projectId} orgId={activeProject?.owner_org_id} />
                             </div>
 						) : (
 							<AnimatePresence mode="wait">
