@@ -194,7 +194,10 @@
 						"relocationCostsLabel",
 						"syndicationCostsLabel",
 						"enviroRemediationLabel",
-						"pfcStructuringFeeLabel"
+						"pfcStructuringFeeLabel",
+                        "acquisitionCosts",
+                        "softCosts",
+                        "payoffExistingDebt"
 					]
 				},
 				{
@@ -211,7 +214,11 @@
 						"loanTypeLabel",
 						"sponsorEquityLabel",
 						"taxCreditEquityLabel",
-						"gapFinancingLabel"
+						"gapFinancingLabel",
+                        "mezzanineDebt",
+                        "sellerFinancing",
+                        "preferredEquity",
+                        "grantsTaxCredits"
 					]
 				},
 				{
@@ -2084,6 +2091,34 @@
 		},
 		"architecturalDiagrams": {
 			"label": "Architectural Diagrams",
+			"required": false
+		},
+        "acquisitionCosts": {
+			"label": "Acquisition Costs",
+			"required": false
+		},
+		"softCosts": {
+			"label": "Soft Costs",
+			"required": false
+		},
+		"payoffExistingDebt": {
+			"label": "Payoff Existing Debt",
+			"required": false
+		},
+		"mezzanineDebt": {
+			"label": "Mezzanine Debt",
+			"required": false
+		},
+		"sellerFinancing": {
+			"label": "Seller Financing",
+			"required": false
+		},
+		"preferredEquity": {
+			"label": "Preferred Equity",
+			"required": false
+		},
+		"grantsTaxCredits": {
+			"label": "Grants / Tax Credits",
 			"required": false
 		}
 	}

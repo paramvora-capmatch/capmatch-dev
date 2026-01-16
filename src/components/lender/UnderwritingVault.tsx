@@ -5,12 +5,15 @@ import { ChevronDown, ChevronRight, CheckCircle, Circle, Lock, Info, ExternalLin
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/Button";
 
+import { supabase } from "@/lib/supabaseClient";
+
 interface DocItem {
     name: string;
     status: "uploaded" | "pending";
     importance: "High" | "Medium" | "Low" | "Internal";
     rationale?: string;
     examples?: string;
+    url?: string; // Download URL
 }
 
 interface StageProps {
@@ -65,8 +68,17 @@ const StageAccordion: React.FC<StageProps> = ({
                             {docs.map((doc, idx) => (
                                 <tr key={idx} className="hover:bg-gray-50/80 transition-colors group">
                                     <td className="px-4 py-3 align-top">
-                                        <div className="font-medium text-gray-900">{doc.name}</div>
-                                        {doc.examples && (
+                                        <div className="font-medium text-gray-900">
+                                            {doc.url ? (
+                                                <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                                                    {doc.name}
+                                                    <ExternalLink className="h-3 w-3" />
+                                                </a>
+                                            ) : (
+                                                doc.name
+                                            )}
+                                        </div>
+                                        {doc.examples && !doc.url && (
                                             <div className="mt-1 flex items-center gap-1 text-xs text-blue-600 cursor-pointer hover:underline opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <ExternalLink className="h-3 w-3" />
                                                 <span>Example</span>
@@ -116,14 +128,58 @@ const StageAccordion: React.FC<StageProps> = ({
     );
 };
 
-export const UnderwritingVault: React.FC = () => {
+interface UnderwritingVaultProps {
+    projectId?: string;
+}
+
+export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId }) => {
     const [expandedStage, setExpandedStage] = useState<string | null>("stage-1");
+    const [fetchedResources, setFetchedResources] = useState<any[]>([]);
+    
+    // Map of doc name -> download url
+    const [docUrls, setDocUrls] = useState<Record<string, string>>({});
 
     const toggleStage = (stageId: string) => {
         setExpandedStage(expandedStage === stageId ? null : stageId);
     };
 
-    const stages = [
+    // Fetch resources
+    React.useEffect(() => {
+        if (!projectId) return;
+
+        const fetchResources = async () => {
+            const { data: resources } = await supabase
+                .from('resources')
+                .select(`
+                    id, 
+                    name, 
+                    current_version_id,
+                    document_versions!current_version_id (storage_path)
+                `)
+                .eq('project_id', projectId)
+                .eq('resource_type', 'FILE');
+
+            if (resources) {
+                // Generate signed URLs for each
+                const urlMap: Record<string, string> = {};
+                for (const r of resources) {
+                    // @ts-ignore
+                    const storagePath = r.document_versions?.storage_path;
+                    if (storagePath) {
+                        const { data } = await supabase.storage.from('documents').createSignedUrl(storagePath, 3600);
+                        if (data?.signedUrl) {
+                            urlMap[r.name] = data.signedUrl;
+                        }
+                    }
+                }
+                setDocUrls(urlMap);
+            }
+        };
+
+        fetchResources();
+    }, [projectId]);
+
+    const initialStages = [
         {
             id: "stage-1",
             title: "Initial Application & Screening",
@@ -135,9 +191,11 @@ export const UnderwritingVault: React.FC = () => {
                 { name: "Tax Returns (2-3 Years)", status: "pending", importance: "High", rationale: "Income Verification: Cross-references PFS." },
                 { name: "Purchase & Sale Agreement (PSA)", status: "pending", importance: "High", rationale: "Cost Basis: Establishes the \"Cost\" in LTC." },
                 { name: "Entity Formation Docs", status: "pending", importance: "High", rationale: "KYC & Authority: Confirms entity exists and signer authority." },
-                { name: "Trailing 12 (T-12) P&L", status: "pending", importance: "High", rationale: "Valuation Baseline: The \"Truth\" of historical performance." },
+                { name: "T12 Financial Statement", status: "pending", importance: "High", rationale: "Valuation Baseline: The \"Truth\" of historical performance." },
                 { name: "Current Rent Roll", status: "pending", importance: "High", rationale: "Revenue Validation: Validates T-12 revenue and occupancy." },
-                { name: "Sources & Uses Statement", status: "pending", importance: "High", rationale: "Deal Math: Proof that the deal works (Loan + Equity = Cost + Fees)." },
+                { name: "Sources & Uses Model", status: "pending", importance: "High", rationale: "Deal Math: Proof that the deal works (Loan + Equity = Cost + Fees)." },
+                { name: "Sources & Uses Report", status: "pending", importance: "High", rationale: "PDF Summary of Sources & Uses." }, 
+                { name: "T12 Summary Report", status: "pending", importance: "High", rationale: "PDF Summary of T12 Financials." },
                 { name: "Credit Authorization & Gov ID", status: "pending", importance: "High", rationale: "Background Check: Mandatory for credit pulls and KYC." },
                 { name: "Bank Statements", status: "pending", importance: "High", rationale: "Liquidity Proof: Proves cash on PFS exists and is liquid." },
                 { name: "Church Financials", status: "pending", importance: "High", rationale: "Donation Stability: Tracks tithes, offerings, and attendance trends." },
@@ -210,6 +268,17 @@ export const UnderwritingVault: React.FC = () => {
             ]
         },
     ];
+
+    // Merge fetched URLs
+    const stages = initialStages.map(stage => ({
+        ...stage,
+        docs: stage.docs.map(doc => {
+            if (docUrls[doc.name]) {
+                return { ...doc, status: "uploaded", url: docUrls[doc.name] };
+            }
+            return doc;
+        })
+    }));
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

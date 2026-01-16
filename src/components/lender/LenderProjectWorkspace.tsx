@@ -152,7 +152,9 @@ export const LenderProjectWorkspace: React.FC<LenderProjectWorkspaceProps> = ({
                                 </div>
                             ) : (
                                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                    <UnderwritingVault />
+                                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <UnderwritingVault projectId={projectId} />
+                                </div>
                                 </div>
                             )}
                         </div>
