@@ -5,9 +5,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
-import { resolve } from "path";
-import { readFileSync, existsSync, readdirSync, statSync } from "fs";
-import { join } from "path";
+import path, { resolve, join } from "path";
+import fs, { readFileSync, existsSync, readdirSync, statSync } from "fs";
+import { fileURLToPath } from "url";
 import projectFormSchema from "../src/lib/enhanced-project-form.schema.json";
 import borrowerFormSchema from "../src/lib/borrower-resume-form.schema.json";
 
@@ -2632,6 +2632,159 @@ async function grantMemberProjectAccess(
 	}
 }
 
+
+// ============================================================================
+// UNDERWRITING DOCS SEEDING
+// ============================================================================
+
+async function seedUnderwritingDocs(
+	projectId: string,
+	orgId: string,
+	creatorId: string // Using advisor ID as creator for underwriting docs
+): Promise<void> {
+	console.log(`[seed] Seeding underwriting documents...`);
+
+	// 1. Get Underwriting Root
+	const { data: uRoot, error: rootError } = await supabaseAdmin
+		.from("resources")
+		.select("id")
+		.eq("project_id", projectId)
+		.eq("resource_type", "UNDERWRITING_DOCS_ROOT")
+		.single();
+
+	if (rootError || !uRoot) {
+		console.error(`[seed] ❌ Failed to find UNDERWRITING_DOCS_ROOT`, rootError);
+		return;
+	}
+
+	const docsToSeed = [
+		{
+			filename: "T12_Statement.xlsx",
+			displayName: "T12 Financial Statement",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		},
+		{
+			filename: "T12_Summary_Report.pdf",
+			displayName: "T12 Summary Report",
+			mimeType: "application/pdf",
+		},
+		{
+			filename: "sources_and_uses_comprehensive.xlsx",
+			displayName: "Sources & Uses Model",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		},
+		{
+			filename: "sources_and_uses_report.pdf",
+			displayName: "Sources & Uses Report",
+			mimeType: "application/pdf",
+		},
+	];
+
+	const basePath = path.join(
+		process.cwd(),
+		"docs/so-good-apartments/underwriting"
+	);
+
+	for (const doc of docsToSeed) {
+		try {
+			const filePath = path.join(basePath, doc.filename);
+			if (!fs.existsSync(filePath)) {
+				console.warn(`[seed] ⚠️ File not found: ${filePath}`);
+				continue;
+			}
+
+			const fileBuffer = fs.readFileSync(filePath);
+			// Use consistent folder name with UnderwritingVault (underwriting-docs)
+			const storagePath = `${projectId}/underwriting-docs/${doc.filename}`;
+
+			// Upload to Storage (use orgId as bucket, same as project docs)
+			const { error: uploadError } = await supabaseAdmin.storage
+				.from(orgId)
+				.upload(storagePath, fileBuffer, {
+					contentType: doc.mimeType,
+					upsert: true,
+				});
+
+			if (uploadError) {
+				console.error(
+					`[seed] ❌ Failed to upload ${doc.filename}:`,
+					uploadError.message
+				);
+				continue;
+			}
+
+			// Create Resource
+			// Check if exists first
+			const { data: existing } = await supabaseAdmin
+				.from("resources")
+				.select("id")
+				.eq("parent_id", uRoot.id)
+				.eq("name", doc.displayName)
+				.single();
+
+			if (!existing) {
+				// 1. Create Resource (without storage_path)
+				const { data: resource, error: resourceError } = await supabaseAdmin
+					.from("resources")
+					.insert({
+						org_id: orgId,
+						project_id: projectId,
+						parent_id: uRoot.id,
+						resource_type: "FILE",
+						name: doc.displayName,
+					})
+					.select("id")
+					.single();
+
+				if (resourceError) {
+					console.error(
+						`[seed] ❌ Failed to create resource record for ${doc.displayName}:`,
+						resourceError.message
+					);
+					continue;
+				}
+
+				// 2. Create Document Version
+				const { data: version, error: versionError } = await supabaseAdmin
+					.from("document_versions")
+					.insert({
+						resource_id: resource.id,
+						version_number: 1,
+						storage_path: storagePath,
+						created_by: creatorId,
+						status: "active",
+						metadata: {
+							size: fs.statSync(filePath).size,
+							mimeType: doc.mimeType,
+						},
+					})
+					.select("id")
+					.single();
+
+				if (versionError) {
+					console.error(
+						`[seed] ❌ Failed to create version for ${doc.displayName}:`,
+						versionError.message
+					);
+					continue;
+				}
+
+				// 3. Update Resource with current_version_id
+				await supabaseAdmin
+					.from("resources")
+					.update({ current_version_id: version.id })
+					.eq("id", resource.id);
+
+				console.log(`[seed] ✅ Seeded underwriting doc: ${doc.displayName}`);
+			} else {
+				console.log(`[seed] ℹ️  Underwriting doc already exists: ${doc.displayName}`);
+			}
+		} catch (err) {
+			console.error(`[seed] ❌ Error seeding ${doc.displayName}:`, err);
+		}
+	}
+}
+
 // ============================================================================
 // MAIN SEEDING FUNCTIONS
 // ============================================================================
@@ -3879,6 +4032,10 @@ async function seedHoqueProject(): Promise<void> {
 		// Step 5.5: Seed images
 		console.log("\n📋 Step 5.5: Seeding images...");
 		await seedImages(projectId, borrowerOrgId);
+
+		// Step 5.6: Seed underwriting documents
+		console.log("\n📋 Step 5.6: Seeding underwriting documents...");
+		await seedUnderwritingDocs(projectId, borrowerOrgId, advisorId);
 
 		// Step 6: Seed team members
 		console.log("\n📋 Step 6: Seeding team members...");
