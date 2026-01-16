@@ -199,13 +199,19 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         try {
             await apiClient.post(`/api/v1/underwriting/generate?project_id=${projectId}`, {});
             
-            // Poll for a bit or just wait
-            setTimeout(() => {
+            // Poll for updates every 2 seconds for 10 seconds
+            const intervalId = setInterval(() => {
                 void refresh();
-            }, 5000);
+            }, 2000);
+
+            // Stop polling after 10 seconds
+            setTimeout(() => {
+                clearInterval(intervalId);
+                setIsGenerating(false);
+            }, 10000);
+
         } catch (error) {
             console.error("Failed to generate docs:", error);
-        } finally {
             setIsGenerating(false);
         }
     };
@@ -307,6 +313,11 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         if (files) {
             files.forEach(f => {
                 fileMap.set(f.name, f);
+                // Also map the name without extension to handle "Current Rent Roll.xlsx" matching "Current Rent Roll"
+                const nameWithoutExt = f.name.replace(/\.[^/.]+$/, "");
+                if (nameWithoutExt !== f.name) {
+                    fileMap.set(nameWithoutExt, f);
+                }
             });
         }
 

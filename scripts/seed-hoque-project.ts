@@ -4034,8 +4034,8 @@ async function seedHoqueProject(): Promise<void> {
 		await seedImages(projectId, borrowerOrgId);
 
 		// Step 5.6: Seed underwriting documents
-		console.log("\n📋 Step 5.6: Seeding underwriting documents...");
-		await seedUnderwritingDocs(projectId, borrowerOrgId, advisorId);
+		// console.log("\n📋 Step 5.6: Seeding underwriting documents...");
+		// await seedUnderwritingDocs(projectId, borrowerOrgId, advisorId);
 
 		// Step 6: Seed team members
 		console.log("\n📋 Step 6: Seeding team members...");
