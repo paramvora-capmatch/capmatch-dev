@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight, CheckCircle, Circle, ExternalLink, Download, Play, Loader2, Lock, Unlock } from "lucide-react";
+import { ChevronDown, ChevronRight, CheckCircle, Circle, ExternalLink, Download, Play, Loader2, Lock, Unlock, FileText } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
 import { apiClient } from "@/lib/apiClient";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
+
+import { AddFromResumeModal } from "@/components/lender/AddFromResumeModal";
 
 interface DocItem {
     name: string;
@@ -23,8 +25,8 @@ interface StageProps {
     onToggle: () => void;
     docs: DocItem[];
     onDownload: (file: DocumentFile) => void;
-    onToggleLock: (file: DocumentFile) => void;
     onClickFile: (file: DocumentFile) => void;
+    onSelectFromResume: (docName: string) => void;
 }
 
 const StageAccordion: React.FC<StageProps> = ({
@@ -34,8 +36,8 @@ const StageAccordion: React.FC<StageProps> = ({
     onToggle,
     docs,
     onDownload,
-    onToggleLock,
-    onClickFile
+    onClickFile,
+    onSelectFromResume
 }) => {
     return (
         <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mb-4 shadow-sm">
@@ -84,25 +86,18 @@ const StageAccordion: React.FC<StageProps> = ({
                                                         {doc.name}
                                                     </button>
                                                     
-                                                    {/* Lock/Unlock Toggle */}
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onToggleLock(doc.file!);
-                                                        }}
-                                                        title={doc.file.is_locked ? "Unlock Document" : "Lock Document"}
-                                                        className={cn(
-                                                            "p-1 rounded-full transition-colors",
-                                                            doc.file.is_locked 
-                                                                ? "text-red-500 hover:bg-red-50" 
-                                                                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                                                        )}
-                                                    >
-                                                        {doc.file.is_locked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-                                                    </button>
                                                 </>
                                             ) : (
-                                                doc.name
+                                                <div className="flex items-center gap-2">
+                                                    <span>{doc.name}</span>
+                                                    <button
+                                                        onClick={() => onSelectFromResume(doc.name)}
+                                                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
+                                                        title="Add from Resume"
+                                                    >
+                                                        <FileText className="h-4 w-4" />
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                         {doc.examples && !doc.file && (
@@ -164,9 +159,11 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     const [expandedStage, setExpandedStage] = useState<string | null>("stage-1");
     const [isGenerating, setIsGenerating] = useState(false);
     const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+    const [showResumeModal, setShowResumeModal] = useState(false);
+    const [targetDocName, setTargetDocName] = useState<string | null>(null);
     
     // Leverage the existing document management hook for logic, signing, and downloads
-    const { files, downloadFile, refresh, toggleLock } = useDocumentManagement({
+    const { files, downloadFile, refresh } = useDocumentManagement({
         projectId: projectId || null,
         orgId: orgId || null,
         context: 'underwriting',
@@ -185,25 +182,22 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         }
     };
 
-    const handleToggleLock = async (file: DocumentFile) => {
-        try {
-            await toggleLock(file.resource_id, !file.is_locked);
-        } catch (error) {
-            console.error("Lock toggle failed", error);
-        }
-    };
+
 
     const handleClickFile = (file: DocumentFile) => {
         setSelectedFileId(file.resource_id);
+    };
+
+    const handleSelectFromResume = (docName: string) => {
+        setTargetDocName(docName);
+        setShowResumeModal(true);
     };
 
     const handleGenerateDocs = async () => {
         if (!projectId) return;
         setIsGenerating(true);
         try {
-            await apiClient.post(`/underwriting/generate`, null, {
-                params: { project_id: projectId }
-            });
+            await apiClient.post(`/api/v1/underwriting/generate?project_id=${projectId}`, {});
             
             // Poll for a bit or just wait
             setTimeout(() => {
@@ -368,8 +362,8 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                         onToggle={() => toggleStage(stage.id)}
                         docs={stage.docs as DocItem[]}
                         onDownload={handleDownload}
-                        onToggleLock={handleToggleLock}
                         onClickFile={handleClickFile}
+                        onSelectFromResume={handleSelectFromResume}
                     />
                 ))}
             </div>
@@ -381,6 +375,19 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     onDeleteSuccess={() => {
                         setSelectedFileId(null);
                         refresh();
+                    }}
+                />
+            )}
+
+            {showResumeModal && projectId && (
+                <AddFromResumeModal
+                    isOpen={showResumeModal}
+                    onClose={() => setShowResumeModal(false)}
+                    projectId={projectId}
+                    renameTo={targetDocName || undefined}
+                    onSuccess={() => {
+                        refresh();
+                        // Toast success?
                     }}
                 />
             )}

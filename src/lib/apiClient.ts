@@ -501,4 +501,14 @@ export const apiClient = {
       method: 'POST',
     });
   },
+
+  /**
+   * Generic POST request
+   */
+  post: async (endpoint: string, data: any) => {
+    return apiRequest<any>(endpoint, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
 };

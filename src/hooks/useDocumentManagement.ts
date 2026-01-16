@@ -14,7 +14,6 @@ export interface DocumentFile {
   created_at: string;
   updated_at: string;
   metadata?: Record<string, unknown>;
-  is_locked?: boolean;
 }
 
 export interface DocumentFolder {
@@ -170,7 +169,6 @@ export const useDocumentManagement = ({
               created_at: currentVersion.created_at,
               updated_at: resource.updated_at,
               metadata: currentVersion.metadata || {},
-              is_locked: resource.is_locked,
             });
           }
         }
@@ -623,24 +621,6 @@ export const useDocumentManagement = ({
     [targetOrgId]
   );
 
-  const toggleLock = useCallback(
-    async (resourceId: string, isLocked: boolean) => {
-      try {
-        const { error } = await supabase
-          .from("resources")
-          .update({ is_locked: isLocked })
-          .eq("id", resourceId);
-
-        if (error) throw error;
-        await listDocuments();
-      } catch (err) {
-        console.error("Error toggling lock:", err);
-        setError(err instanceof Error ? err.message : "Failed to toggle lock");
-        throw err;
-      }
-    },
-    [listDocuments]
-  );
 
   useEffect(() => {
     if (!skipInitialFetch) {
@@ -658,7 +638,7 @@ export const useDocumentManagement = ({
     deleteFile,
     deleteFolder,
     downloadFile,
-    toggleLock,
+    downloadFile,
     refresh: listDocuments,
   };
 };
