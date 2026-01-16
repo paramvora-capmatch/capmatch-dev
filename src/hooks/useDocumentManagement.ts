@@ -52,7 +52,7 @@ export const useDocumentManagement = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user, activeOrg } = useAuthStore();
-  
+
   // Use provided orgId if available, otherwise fall back to activeOrg
   const targetOrgId = orgId || activeOrg?.id;
 
@@ -83,8 +83,7 @@ export const useDocumentManagement = ({
 
       if (error) {
         throw new Error(
-          `Failed to find ${rootResourceType}: ${
-            error.message || JSON.stringify(error)
+          `Failed to find ${rootResourceType}: ${error.message || JSON.stringify(error)
           }`
         );
       }
@@ -92,7 +91,7 @@ export const useDocumentManagement = ({
       if (!root || !root.id) {
         throw new Error(
           `${rootResourceType} not found for project ${projectId}. ` +
-            `This could indicate a provisioning issue or missing permissions.`
+          `This could indicate a provisioning issue or missing permissions.`
         );
       }
 
@@ -157,7 +156,7 @@ export const useDocumentManagement = ({
             const displayName = resource.name.includes('_user') || resource.name.match(/^v\d+_/)
               ? extractOriginalFilename(currentVersion.storage_path)
               : resource.name;
-            
+
             filesList.push({
               id: currentVersion.id,
               resource_id: resource.id,
@@ -323,12 +322,12 @@ export const useDocumentManagement = ({
         await listDocuments();
         return resource;
       } catch (err) {
-        const message = err instanceof Error 
-          ? err.message 
-          : (typeof err === 'object' && err !== null && 'message' in err) 
-            ? (err as any).message 
+        const message = err instanceof Error
+          ? err.message
+          : (typeof err === 'object' && err !== null && 'message' in err)
+            ? (err as any).message
             : JSON.stringify(err);
-            
+
         console.error("Error uploading file:", {
           error: err,
           message,
@@ -340,7 +339,7 @@ export const useDocumentManagement = ({
           projectId,
           activeOrgId: activeOrg?.id
         });
-        
+
         setError(message || "Failed to upload file");
         if (finalStoragePath && targetOrgId)
           await supabase.storage.from(targetOrgId).remove([finalStoragePath]);
@@ -411,7 +410,7 @@ export const useDocumentManagement = ({
   const deleteFile = useCallback(
     async (fileId: string) => {
       if (!targetOrgId) return;
-      
+
       /**
        * Recursively lists all files in a storage folder prefix
        */
@@ -439,7 +438,7 @@ export const useDocumentManagement = ({
         // Process files and folders
         for (const item of files) {
           const itemPath = folderPrefix ? `${folderPrefix}/${item.name}` : item.name;
-          
+
           // In Supabase storage, folders have id === null, files have id !== null
           // Also, folders typically don't have metadata.size
           if (item.id === null || item.metadata === null) {
@@ -467,7 +466,7 @@ export const useDocumentManagement = ({
         // Format: {project_id}/project-docs/{resource_id}/v{version}_{filename}
         // We want: {project_id}/project-docs/{resource_id}/
         let resourceFolderPath: string | null = null;
-        
+
         if (versions && versions.length > 0) {
           const firstPath = versions[0].storage_path;
           if (firstPath && firstPath !== "placeholder") {
@@ -488,12 +487,12 @@ export const useDocumentManagement = ({
         // Delete all files in the resource folder (including artifacts)
         if (resourceFolderPath) {
           console.log(`[deleteFile] Deleting all files in folder: ${resourceFolderPath}`);
-          
+
           // Recursively list all files in the resource folder
           const allFiles = await listAllFilesRecursively(resourceFolderPath);
-          
+
           console.log(`[deleteFile] Found ${allFiles.length} files to delete`);
-          
+
           // Delete all files found
           if (allFiles.length > 0) {
             // Split into batches of 1000 (Supabase storage remove limit)
@@ -578,7 +577,7 @@ export const useDocumentManagement = ({
           .single();
         if (resourceError) throw resourceError;
         if (!resource.current_version_id) throw new Error("File has no current version.");
-        
+
         const { data: version, error: versionError } = await supabase
           .from("document_versions")
           .select("storage_path")
@@ -638,7 +637,7 @@ export const useDocumentManagement = ({
     deleteFile,
     deleteFolder,
     downloadFile,
-    downloadFile,
+
     refresh: listDocuments,
   };
 };

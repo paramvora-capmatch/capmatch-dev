@@ -79,13 +79,13 @@ const StageAccordion: React.FC<StageProps> = ({
                                         <div className="font-medium text-gray-900 flex items-center gap-2">
                                             {doc.file ? (
                                                 <>
-                                                    <button 
+                                                    <button
                                                         onClick={() => onClickFile(doc.file!)}
                                                         className="text-blue-600 hover:underline text-left"
                                                     >
                                                         {doc.name}
                                                     </button>
-                                                    
+
                                                 </>
                                             ) : (
                                                 <div className="flex items-center gap-2">
@@ -155,13 +155,103 @@ interface UnderwritingVaultProps {
     orgId?: string; // Optional: needed for lenders to view borrower docs (pass owner_org_id)
 }
 
+const initialStages = [
+    {
+        id: "stage-1",
+        title: "Initial Application & Screening",
+        description: "The \"Gatekeeper\" phase. Determine creditworthiness and deal fit.",
+        docs: [
+            { name: "Loan Application Form", status: "pending", importance: "High", rationale: "The \"Ask\": Captures loan amount, usage (Acq/Refi), and entity structure." },
+            { name: "Personal Financial Statement (PFS)", status: "pending", importance: "High", rationale: "Guarantor Strength: Verifies Net Worth (> Loan Amt) and Liquidity." },
+            { name: "Schedule of Real Estate Owned (SREO)", status: "pending", importance: "High", rationale: "Global Cash Flow: Analyzes sponsor’s portfolio leverage." },
+            { name: "Tax Returns (2-3 Years)", status: "pending", importance: "High", rationale: "Income Verification: Cross-references PFS." },
+            { name: "Purchase & Sale Agreement (PSA)", status: "pending", importance: "High", rationale: "Cost Basis: Establishes the \"Cost\" in LTC." },
+            { name: "Entity Formation Docs", status: "pending", importance: "High", rationale: "KYC & Authority: Confirms entity exists and signer authority." },
+            { name: "T12 Financial Statement", status: "pending", importance: "High", rationale: "Valuation Baseline: The \"Truth\" of historical performance." },
+            { name: "Current Rent Roll", status: "pending", importance: "High", rationale: "Revenue Validation: Validates T-12 revenue and occupancy." },
+            { name: "Sources & Uses Model", status: "pending", importance: "High", rationale: "Deal Math: Proof that the deal works (Loan + Equity = Cost + Fees)." },
+            { name: "Sources & Uses Report", status: "pending", importance: "High", rationale: "PDF Summary of Sources & Uses." },
+            { name: "T12 Summary Report", status: "pending", importance: "High", rationale: "PDF Summary of T12 Financials." },
+            { name: "Credit Authorization & Gov ID", status: "pending", importance: "High", rationale: "Background Check: Mandatory for credit pulls and KYC." },
+            { name: "Bank Statements", status: "pending", importance: "High", rationale: "Liquidity Proof: Proves cash on PFS exists and is liquid." },
+            { name: "Church Financials", status: "pending", importance: "High", rationale: "Donation Stability: Tracks tithes, offerings, and attendance trends." },
+            { name: "ProForma Cash flow", status: "pending", importance: "High", rationale: "Forecasts future performance." },
+            { name: "CapEx Report", status: "pending", importance: "High", rationale: "Details capital expenditure plans." },
+            { name: "Sponsor Resume / Bio", status: "pending", importance: "Medium", rationale: "Execution Capability: Proves borrower track record." },
+            { name: "Offering Memorandum (OM)", status: "pending", importance: "Medium", rationale: "Context: Narrative, photos, and broker pro-forma." },
+            { name: "Business Plan", status: "pending", importance: "Medium", rationale: "Strategy: Critical for value-add/construction." },
+        ]
+    },
+    {
+        id: "stage-2",
+        title: "Underwriting & Due Diligence",
+        description: "The \"Verification\" phase. Validate value and physical condition.",
+        docs: [
+            { name: "Appraisal Report", status: "pending", importance: "High", rationale: "Valuation Check: Independent verification of As-Is/Stabilized Value." },
+            { name: "Phase I ESA (Environmental)", status: "pending", importance: "High", rationale: "Liability Shield: Checks for contamination." },
+            { name: "Title Commitment / ALTA Survey", status: "pending", importance: "High", rationale: "Lien Position: Ensures valid First Lien position." },
+            { name: "Property Condition Report (PCR)", status: "pending", importance: "High", rationale: "Physical Risk: Identifies repairs and deferred maintenance." },
+            { name: "Insurance Certificates", status: "pending", importance: "High", rationale: "Collateral Protection: Verifies Hazard, Liability, and Flood coverage." },
+            { name: "Renovation Budget / CapEx Schedule", status: "pending", importance: "High", rationale: "Loan Sizing: Validates \"Uses\" of funds." },
+            { name: "Zoning Letter / Report", status: "pending", importance: "High", rationale: "Legality: Confirms legal use." },
+            { name: "Tenant Estoppel Certificates", status: "pending", importance: "High", rationale: "Cash Flow Lock: Tenants confirm rent and no disputes." },
+            { name: "Flood Certification", status: "pending", importance: "High", rationale: "Federal Requirement: Determines if Flood Insurance is mandatory." },
+            { name: "STR Reports", status: "pending", importance: "High", rationale: "Competitiveness: Benchmarks RevPAR and ADR." },
+            { name: "Lease Abstracts / Agreements", status: "pending", importance: "Medium", rationale: "Rollover Risk: Analysis of clauses that kill cash flow." },
+            { name: "Market / Feasibility Study", status: "pending", importance: "Medium", rationale: "Macro Risk: Analysis of supply/demand." },
+            { name: "Franchise Agreement", status: "pending", importance: "Medium", rationale: "Flag Security: Ensures Brand is secured." },
+            { name: "Service Contracts", status: "pending", importance: "Low", rationale: "OpEx Audit: Review of vendor contracts." },
+        ]
+    },
+    {
+        id: "stage-3",
+        title: "Approval & Commitment",
+        description: "The \"Handshake\" phase. Credit Committee approvals and formal offer.",
+        docs: [
+            { name: "Commitment Letter", status: "pending", importance: "High", rationale: "The Contract: Binding agreement terms." },
+            { name: "Term Sheet / LOI", status: "pending", importance: "Medium", rationale: "Negotiation Tool: Non-binding outline." },
+            { name: "Credit Approval Memo", status: "pending", importance: "Internal", rationale: "Internal Governance: Risk/reward sign-off." },
+        ]
+    },
+    {
+        id: "stage-4",
+        title: "Closing & Funding",
+        description: "The \"Papering\" phase. Legal counsel drafts documents to secure the loan.",
+        docs: [
+            { name: "Loan Agreement", status: "pending", importance: "High", rationale: "The Rulebook: Master contract with covenants." },
+            { name: "Promissory Note", status: "pending", importance: "High", rationale: "The I.O.U.: Legal evidence of debt." },
+            { name: "Mortgage / Deed of Trust", status: "pending", importance: "High", rationale: "The Anchor: Secures property as collateral." },
+            { name: "Guarantees (Recourse / Bad Boy)", status: "pending", importance: "High", rationale: "The Hook: Defines personal liability." },
+            { name: "Settlement Statement (HUD-1)", status: "pending", importance: "High", rationale: "The Receipt: Exact accounting of funds." },
+            { name: "Assignment of Leases & Rents", status: "pending", importance: "High", rationale: "Cash Control: Right to collect rent on default." },
+            { name: "Organizational Opinion of Counsel", status: "pending", importance: "Medium", rationale: "Legal Shield: Confirms entity validity." },
+            { name: "Subordination Agreement (SNDA)", status: "pending", importance: "Medium", rationale: "Tenant Control: Tenants recognize Lender." },
+            { name: "UCC-1 Financing Statement", status: "pending", importance: "Medium", rationale: "Chattel Security: Perfects lien on personal property." },
+            { name: "Intercreditor Agreement", status: "pending", importance: "Medium", rationale: "Lender Priority: Defines payment priority." },
+        ]
+    },
+    {
+        id: "stage-5",
+        title: "Post-Closing & Servicing",
+        description: "The \"Monitoring\" phase. Ensure asset doesn't deteriorate.",
+        docs: [
+            { name: "Annual Financials & Tax Returns", status: "pending", importance: "High", rationale: "Covenant Testing: Checks debt support." },
+            { name: "Compliance Certificate", status: "pending", importance: "High", rationale: "Self-Audit: Certifies covenant compliance." },
+            { name: "Updated Rent Rolls", status: "pending", importance: "High", rationale: "Trend Analysis: Check for vacancy spikes." },
+            { name: "Draw Requests", status: "pending", importance: "High", rationale: "Cash Release: Proof of work for construction." },
+            { name: "Insurance Renewals", status: "pending", importance: "High", rationale: "Continuous Protection: Avoid force-placed insurance." },
+            { name: "Comfort Letter", status: "pending", importance: "Medium", rationale: "Brand Continuity: Franchise transfer assurance." },
+        ]
+    },
+];
+
 export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId, orgId }) => {
     const [expandedStage, setExpandedStage] = useState<string | null>("stage-1");
     const [isGenerating, setIsGenerating] = useState(false);
     const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
     const [showResumeModal, setShowResumeModal] = useState(false);
     const [targetDocName, setTargetDocName] = useState<string | null>(null);
-    
+
     // Leverage the existing document management hook for logic, signing, and downloads
     const { files, downloadFile, refresh } = useDocumentManagement({
         projectId: projectId || null,
@@ -198,7 +288,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         setIsGenerating(true);
         try {
             await apiClient.post(`/api/v1/underwriting/generate?project_id=${projectId}`, {});
-            
+
             // Poll for updates every 2 seconds for 10 seconds
             const intervalId = setInterval(() => {
                 void refresh();
@@ -216,95 +306,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         }
     };
 
-    const initialStages = [
-        {
-            id: "stage-1",
-            title: "Initial Application & Screening",
-            description: "The \"Gatekeeper\" phase. Determine creditworthiness and deal fit.",
-            docs: [
-                { name: "Loan Application Form", status: "pending", importance: "High", rationale: "The \"Ask\": Captures loan amount, usage (Acq/Refi), and entity structure." },
-                { name: "Personal Financial Statement (PFS)", status: "pending", importance: "High", rationale: "Guarantor Strength: Verifies Net Worth (> Loan Amt) and Liquidity." },
-                { name: "Schedule of Real Estate Owned (SREO)", status: "pending", importance: "High", rationale: "Global Cash Flow: Analyzes sponsor’s portfolio leverage." },
-                { name: "Tax Returns (2-3 Years)", status: "pending", importance: "High", rationale: "Income Verification: Cross-references PFS." },
-                { name: "Purchase & Sale Agreement (PSA)", status: "pending", importance: "High", rationale: "Cost Basis: Establishes the \"Cost\" in LTC." },
-                { name: "Entity Formation Docs", status: "pending", importance: "High", rationale: "KYC & Authority: Confirms entity exists and signer authority." },
-                { name: "T12 Financial Statement", status: "pending", importance: "High", rationale: "Valuation Baseline: The \"Truth\" of historical performance." },
-                { name: "Current Rent Roll", status: "pending", importance: "High", rationale: "Revenue Validation: Validates T-12 revenue and occupancy." },
-                { name: "Sources & Uses Model", status: "pending", importance: "High", rationale: "Deal Math: Proof that the deal works (Loan + Equity = Cost + Fees)." },
-                { name: "Sources & Uses Report", status: "pending", importance: "High", rationale: "PDF Summary of Sources & Uses." }, 
-                { name: "T12 Summary Report", status: "pending", importance: "High", rationale: "PDF Summary of T12 Financials." },
-                { name: "Credit Authorization & Gov ID", status: "pending", importance: "High", rationale: "Background Check: Mandatory for credit pulls and KYC." },
-                { name: "Bank Statements", status: "pending", importance: "High", rationale: "Liquidity Proof: Proves cash on PFS exists and is liquid." },
-                { name: "Church Financials", status: "pending", importance: "High", rationale: "Donation Stability: Tracks tithes, offerings, and attendance trends." },
-                { name: "ProForma Cash flow", status: "pending", importance: "High", rationale: "Forecasts future performance." },
-                { name: "CapEx Report", status: "pending", importance: "High", rationale: "Details capital expenditure plans." },
-                { name: "Sponsor Resume / Bio", status: "pending", importance: "Medium", rationale: "Execution Capability: Proves borrower track record." },
-                { name: "Offering Memorandum (OM)", status: "pending", importance: "Medium", rationale: "Context: Narrative, photos, and broker pro-forma." },
-                { name: "Business Plan", status: "pending", importance: "Medium", rationale: "Strategy: Critical for value-add/construction." },
-            ]
-        },
-        {
-            id: "stage-2",
-            title: "Underwriting & Due Diligence",
-            description: "The \"Verification\" phase. Validate value and physical condition.",
-            docs: [
-                { name: "Appraisal Report", status: "pending", importance: "High", rationale: "Valuation Check: Independent verification of As-Is/Stabilized Value." },
-                { name: "Phase I ESA (Environmental)", status: "pending", importance: "High", rationale: "Liability Shield: Checks for contamination." },
-                { name: "Title Commitment / ALTA Survey", status: "pending", importance: "High", rationale: "Lien Position: Ensures valid First Lien position." },
-                { name: "Property Condition Report (PCR)", status: "pending", importance: "High", rationale: "Physical Risk: Identifies repairs and deferred maintenance." },
-                { name: "Insurance Certificates", status: "pending", importance: "High", rationale: "Collateral Protection: Verifies Hazard, Liability, and Flood coverage." },
-                { name: "Renovation Budget / CapEx Schedule", status: "pending", importance: "High", rationale: "Loan Sizing: Validates \"Uses\" of funds." },
-                { name: "Zoning Letter / Report", status: "pending", importance: "High", rationale: "Legality: Confirms legal use." },
-                { name: "Tenant Estoppel Certificates", status: "pending", importance: "High", rationale: "Cash Flow Lock: Tenants confirm rent and no disputes." },
-                { name: "Flood Certification", status: "pending", importance: "High", rationale: "Federal Requirement: Determines if Flood Insurance is mandatory." },
-                { name: "STR Reports", status: "pending", importance: "High", rationale: "Competitiveness: Benchmarks RevPAR and ADR." },
-                { name: "Lease Abstracts / Agreements", status: "pending", importance: "Medium", rationale: "Rollover Risk: Analysis of clauses that kill cash flow." },
-                { name: "Market / Feasibility Study", status: "pending", importance: "Medium", rationale: "Macro Risk: Analysis of supply/demand." },
-                { name: "Franchise Agreement", status: "pending", importance: "Medium", rationale: "Flag Security: Ensures Brand is secured." },
-                { name: "Service Contracts", status: "pending", importance: "Low", rationale: "OpEx Audit: Review of vendor contracts." },
-            ]
-        },
-        {
-            id: "stage-3",
-            title: "Approval & Commitment",
-            description: "The \"Handshake\" phase. Credit Committee approvals and formal offer.",
-            docs: [
-                { name: "Commitment Letter", status: "pending", importance: "High", rationale: "The Contract: Binding agreement terms." },
-                { name: "Term Sheet / LOI", status: "pending", importance: "Medium", rationale: "Negotiation Tool: Non-binding outline." },
-                { name: "Credit Approval Memo", status: "pending", importance: "Internal", rationale: "Internal Governance: Risk/reward sign-off." },
-            ]
-        },
-        {
-            id: "stage-4",
-            title: "Closing & Funding",
-            description: "The \"Papering\" phase. Legal counsel drafts documents to secure the loan.",
-            docs: [
-                { name: "Loan Agreement", status: "pending", importance: "High", rationale: "The Rulebook: Master contract with covenants." },
-                { name: "Promissory Note", status: "pending", importance: "High", rationale: "The I.O.U.: Legal evidence of debt." },
-                { name: "Mortgage / Deed of Trust", status: "pending", importance: "High", rationale: "The Anchor: Secures property as collateral." },
-                { name: "Guarantees (Recourse / Bad Boy)", status: "pending", importance: "High", rationale: "The Hook: Defines personal liability." },
-                { name: "Settlement Statement (HUD-1)", status: "pending", importance: "High", rationale: "The Receipt: Exact accounting of funds." },
-                { name: "Assignment of Leases & Rents", status: "pending", importance: "High", rationale: "Cash Control: Right to collect rent on default." },
-                { name: "Organizational Opinion of Counsel", status: "pending", importance: "Medium", rationale: "Legal Shield: Confirms entity validity." },
-                { name: "Subordination Agreement (SNDA)", status: "pending", importance: "Medium", rationale: "Tenant Control: Tenants recognize Lender." },
-                { name: "UCC-1 Financing Statement", status: "pending", importance: "Medium", rationale: "Chattel Security: Perfects lien on personal property." },
-                { name: "Intercreditor Agreement", status: "pending", importance: "Medium", rationale: "Lender Priority: Defines payment priority." },
-            ]
-        },
-        {
-            id: "stage-5",
-            title: "Post-Closing & Servicing",
-            description: "The \"Monitoring\" phase. Ensure asset doesn't deteriorate.",
-            docs: [
-                { name: "Annual Financials & Tax Returns", status: "pending", importance: "High", rationale: "Covenant Testing: Checks debt support." },
-                { name: "Compliance Certificate", status: "pending", importance: "High", rationale: "Self-Audit: Certifies covenant compliance." },
-                { name: "Updated Rent Rolls", status: "pending", importance: "High", rationale: "Trend Analysis: Check for vacancy spikes." },
-                { name: "Draw Requests", status: "pending", importance: "High", rationale: "Cash Release: Proof of work for construction." },
-                { name: "Insurance Renewals", status: "pending", importance: "High", rationale: "Continuous Protection: Avoid force-placed insurance." },
-                { name: "Comfort Letter", status: "pending", importance: "Medium", rationale: "Brand Continuity: Franchise transfer assurance." },
-            ]
-        },
-    ];
+
 
     // Merge fetched files into stages
     const stages = useMemo(() => {
@@ -326,9 +328,9 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             docs: stage.docs.map(doc => {
                 const foundFile = fileMap.get(doc.name);
                 if (foundFile) {
-                    return { 
-                        ...doc, 
-                        status: "uploaded" as const, 
+                    return {
+                        ...doc,
+                        status: "uploaded" as const,
                         file: foundFile
                     };
                 }

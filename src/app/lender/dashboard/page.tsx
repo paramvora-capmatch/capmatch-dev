@@ -203,7 +203,7 @@ export default function LenderDashboardPage() {
                 No Projects Yet
               </h3>
               <p className="text-gray-600 max-w-md mx-auto">
-                You don't have access to any projects yet. Projects will appear
+                You don&apos;t have access to any projects yet. Projects will appear
                 here once an advisor grants you access.
               </p>
             </div>
