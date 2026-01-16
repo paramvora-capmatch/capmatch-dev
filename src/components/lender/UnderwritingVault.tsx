@@ -126,7 +126,7 @@ export const UnderwritingVault: React.FC = () => {
     const stages = [
         {
             id: "stage-1",
-            title: "Stage 1: Initial Application & Screening",
+            title: "Initial Application & Screening",
             description: "The \"Gatekeeper\" phase. Determine creditworthiness and deal fit.",
             docs: [
                 { name: "Loan Application Form", status: "pending", importance: "High", rationale: "The \"Ask\": Captures loan amount, usage (Acq/Refi), and entity structure." },
@@ -150,7 +150,7 @@ export const UnderwritingVault: React.FC = () => {
         },
         {
             id: "stage-2",
-            title: "Stage 2: Underwriting & Due Diligence",
+            title: "Underwriting & Due Diligence",
             description: "The \"Verification\" phase. Validate value and physical condition.",
             docs: [
                 { name: "Appraisal Report", status: "pending", importance: "High", rationale: "Valuation Check: Independent verification of As-Is/Stabilized Value." },
@@ -171,7 +171,7 @@ export const UnderwritingVault: React.FC = () => {
         },
         {
             id: "stage-3",
-            title: "Stage 3: Approval & Commitment",
+            title: "Approval & Commitment",
             description: "The \"Handshake\" phase. Credit Committee approvals and formal offer.",
             docs: [
                 { name: "Commitment Letter", status: "pending", importance: "High", rationale: "The Contract: Binding agreement terms." },
@@ -181,7 +181,7 @@ export const UnderwritingVault: React.FC = () => {
         },
         {
             id: "stage-4",
-            title: "Stage 4: Closing & Funding",
+            title: "Closing & Funding",
             description: "The \"Papering\" phase. Legal counsel drafts documents to secure the loan.",
             docs: [
                 { name: "Loan Agreement", status: "pending", importance: "High", rationale: "The Rulebook: Master contract with covenants." },
@@ -198,7 +198,7 @@ export const UnderwritingVault: React.FC = () => {
         },
         {
             id: "stage-5",
-            title: "Stage 5: Post-Closing & Servicing",
+            title: "Post-Closing & Servicing",
             description: "The \"Monitoring\" phase. Ensure asset doesn't deteriorate.",
             docs: [
                 { name: "Annual Financials & Tax Returns", status: "pending", importance: "High", rationale: "Covenant Testing: Checks debt support." },

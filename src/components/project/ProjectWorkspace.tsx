@@ -49,6 +49,9 @@ import { usePermissionStore } from "@/stores/usePermissionStore";
 import { usePermissions } from "@/hooks/usePermissions";
 import { generateOMInsights } from "@/lib/om-insights";
 import { apiClient } from "@/lib/apiClient";
+import { UnderwritingVault } from "../lender/UnderwritingVault";
+import { FileText, ShieldCheck } from "lucide-react";
+import { cn } from "@/utils/cn";
 
 const unwrapValue = (val: any) => {
 	if (val && typeof val === "object" && "value" in val) {
@@ -124,6 +127,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	const [isEditing, setIsEditing] = useState(false);
+	const [viewMode, setViewMode] = useState<"resume" | "underwriting">("resume");
 	const [initialProjectStepId, setInitialProjectStepId] = useState<
 		string | null
 	>(null);
@@ -1165,8 +1169,47 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				<div className="flex-1 relative z-[1] min-w-0">
 					{/* Content with padding */}
 					<div className="relative p-6 min-w-0">
-						<AnimatePresence mode="wait">
-							{borrowerEditing ? (
+						{/* Advisor-only Mode Switcher */}
+						{user?.role === "advisor" && (
+							<div className="mb-6 flex justify-center">
+								<div className="flex bg-gray-100 p-1 rounded-lg shadow-sm border border-gray-200">
+									<button
+										onClick={() => setViewMode("resume")}
+										className={cn(
+											"flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+											viewMode === "resume"
+												? "bg-white text-blue-600 shadow-sm"
+												: "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+										)}
+									>
+										<FileText className="h-4 w-4" />
+										Resume View
+									</button>
+									<button
+										onClick={() =>
+											setViewMode("underwriting")
+										}
+										className={cn(
+											"flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+											viewMode === "underwriting"
+												? "bg-white text-blue-600 shadow-sm"
+												: "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+										)}
+									>
+										<ShieldCheck className="h-4 w-4" />
+										Underwriting Mode
+									</button>
+								</div>
+							</div>
+						)}
+
+						{viewMode === "underwriting" ? (
+							<div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+								<UnderwritingVault />
+							</div>
+						) : (
+							<AnimatePresence mode="wait">
+								{borrowerEditing ? (
 								<motion.div
 									key="borrower-view"
 									initial={{ opacity: 0 }}
@@ -1611,6 +1654,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 								</motion.div>
 							)}
 						</AnimatePresence>
+						)}
 					</div>
 				</div>
 
