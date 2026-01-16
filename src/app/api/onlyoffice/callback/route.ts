@@ -116,13 +116,22 @@ export async function POST(request: NextRequest) {
       // 1. Get info about the resource being saved
       const { data: resource, error: resourceError } = await supabase
         .from("resources")
-        .select("org_id, project_id, name, parent_id")
+        .select("org_id, project_id, name, parent_id, is_locked")
         .eq("id", resourceId)
         .single();
       if (resourceError)
         throw new Error(
           `Failed to find resource ${resourceId}: ${resourceError.message}`
         );
+
+      // Check if resource is locked
+      if (resource.is_locked) {
+        console.warn(`[OnlyOffice Callback] Attempt to save locked resource ${resourceId}. Rejecting.`);
+        return NextResponse.json(
+          { error: 1, message: "Resource is locked and cannot be modified." },
+          { status: 403 } // 403 Forbidden
+        );
+      }
 
       // Determine which subdirectory to use by checking the previous version's storage path
       // or by tracing up the parent chain to find the root type

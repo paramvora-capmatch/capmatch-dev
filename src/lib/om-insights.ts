@@ -23,6 +23,21 @@ export async function generateOMInsights(projectId: string): Promise<void> {
     const error = await response.json().catch(() => ({ error: 'Failed to generate insights' }));
     throw new Error(error.error || error.detail || 'Failed to generate insights');
   }
+
+  // Also trigger underwriting document generation (fire and forget / non-blocking)
+  // We don't await this to avoid delaying the UI response, or we await it but don't block on error.
+  // User requested "generation ... to also happen".
+  try {
+      fetch(`/api/v1/underwriting/generate?project_id=${projectId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+          },
+      }).catch(err => console.error("Failed to trigger underwriting docs:", err));
+  } catch (e) {
+      console.error("Failed to initiate underwriting docs generation:", e);
+  }
   
   // Backend handles storing insights in DB via sync_to_om()
   return;

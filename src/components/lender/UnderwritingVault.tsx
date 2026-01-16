@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight, CheckCircle, Circle, ExternalLink, Download } from "lucide-react";
+import { ChevronDown, ChevronRight, CheckCircle, Circle, ExternalLink, Download, Play, Loader2, Lock, Unlock } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
+import { apiClient } from "@/lib/apiClient";
+import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 
 interface DocItem {
     name: string;
@@ -21,6 +23,8 @@ interface StageProps {
     onToggle: () => void;
     docs: DocItem[];
     onDownload: (file: DocumentFile) => void;
+    onToggleLock: (file: DocumentFile) => void;
+    onClickFile: (file: DocumentFile) => void;
 }
 
 const StageAccordion: React.FC<StageProps> = ({
@@ -29,7 +33,9 @@ const StageAccordion: React.FC<StageProps> = ({
     isExpanded,
     onToggle,
     docs,
-    onDownload
+    onDownload,
+    onToggleLock,
+    onClickFile
 }) => {
     return (
         <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mb-4 shadow-sm">
@@ -68,15 +74,33 @@ const StageAccordion: React.FC<StageProps> = ({
                             {docs.map((doc, idx) => (
                                 <tr key={idx} className="hover:bg-gray-50/80 transition-colors group">
                                     <td className="px-4 py-3 align-top">
-                                        <div className="font-medium text-gray-900">
+                                        <div className="font-medium text-gray-900 flex items-center gap-2">
                                             {doc.file ? (
-                                                <button 
-                                                    onClick={() => onDownload(doc.file!)}
-                                                    className="text-blue-600 hover:underline flex items-center gap-1"
-                                                >
-                                                    {doc.name}
-                                                    <Download className="h-3 w-3" />
-                                                </button>
+                                                <>
+                                                    <button 
+                                                        onClick={() => onClickFile(doc.file!)}
+                                                        className="text-blue-600 hover:underline text-left"
+                                                    >
+                                                        {doc.name}
+                                                    </button>
+                                                    
+                                                    {/* Lock/Unlock Toggle */}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onToggleLock(doc.file!);
+                                                        }}
+                                                        title={doc.file.is_locked ? "Unlock Document" : "Lock Document"}
+                                                        className={cn(
+                                                            "p-1 rounded-full transition-colors",
+                                                            doc.file.is_locked 
+                                                                ? "text-red-500 hover:bg-red-50" 
+                                                                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                                                        )}
+                                                    >
+                                                        {doc.file.is_locked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                                                    </button>
+                                                </>
                                             ) : (
                                                 doc.name
                                             )}
@@ -138,12 +162,14 @@ interface UnderwritingVaultProps {
 
 export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId, orgId }) => {
     const [expandedStage, setExpandedStage] = useState<string | null>("stage-1");
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
     
     // Leverage the existing document management hook for logic, signing, and downloads
-    const { files, downloadFile } = useDocumentManagement({
+    const { files, downloadFile, refresh, toggleLock } = useDocumentManagement({
         projectId: projectId || null,
         orgId: orgId || null,
-        context: 'project',
+        context: 'underwriting',
         folderId: null // Fetch from root
     });
 
@@ -153,11 +179,40 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
     const handleDownload = async (file: DocumentFile) => {
         try {
-            // DocumentManager hook handles the blob download logic (including signed URLs)
-            // Note: downloadFile takes resourceId in current implementation of hook
             await downloadFile(file.resource_id);
         } catch (error) {
             console.error("Download failed", error);
+        }
+    };
+
+    const handleToggleLock = async (file: DocumentFile) => {
+        try {
+            await toggleLock(file.resource_id, !file.is_locked);
+        } catch (error) {
+            console.error("Lock toggle failed", error);
+        }
+    };
+
+    const handleClickFile = (file: DocumentFile) => {
+        setSelectedFileId(file.resource_id);
+    };
+
+    const handleGenerateDocs = async () => {
+        if (!projectId) return;
+        setIsGenerating(true);
+        try {
+            await apiClient.post(`/underwriting/generate`, null, {
+                params: { project_id: projectId }
+            });
+            
+            // Poll for a bit or just wait
+            setTimeout(() => {
+                void refresh();
+            }, 5000);
+        } catch (error) {
+            console.error("Failed to generate docs:", error);
+        } finally {
+            setIsGenerating(false);
         }
     };
 
@@ -279,9 +334,28 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Underwriting Vault</h2>
-                <p className="text-gray-500 mt-1">Manage and review underwriting documents by stage.</p>
+            <div className="mb-6 flex items-center justify-between">
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900">Underwriting Vault</h2>
+                    <p className="text-gray-500 mt-1">Manage and review underwriting documents by stage.</p>
+                </div>
+                <button
+                    onClick={handleGenerateDocs}
+                    disabled={isGenerating}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                >
+                    {isGenerating ? (
+                        <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Generating...
+                        </>
+                    ) : (
+                        <>
+                            <Play className="h-4 w-4 fill-current" />
+                            Generate Documents
+                        </>
+                    )}
+                </button>
             </div>
 
             <div className="space-y-4">
@@ -294,9 +368,22 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                         onToggle={() => toggleStage(stage.id)}
                         docs={stage.docs as DocItem[]}
                         onDownload={handleDownload}
+                        onToggleLock={handleToggleLock}
+                        onClickFile={handleClickFile}
                     />
                 ))}
             </div>
+
+            {selectedFileId && (
+                <DocumentPreviewModal
+                    resourceId={selectedFileId}
+                    onClose={() => setSelectedFileId(null)}
+                    onDeleteSuccess={() => {
+                        setSelectedFileId(null);
+                        refresh();
+                    }}
+                />
+            )}
         </div>
     );
 };

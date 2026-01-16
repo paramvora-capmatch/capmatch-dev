@@ -39,7 +39,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
 
-  const { activeOrg, currentOrgRole } = useAuthStore();
+  const { activeOrg, currentOrgRole, user } = useAuthStore();
   const docContext = resource?.storage_path?.includes('/borrower-docs/')
     ? 'borrower'
     : 'project';
@@ -191,7 +191,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             <Button variant="outline" onClick={handleDownload} leftIcon={<Download size={16}/>}>Download</Button>
             {canEdit && (
               <>
-                {currentOrgRole === 'owner' && (
+                {(currentOrgRole === 'owner' || user?.role === 'advisor') && (
                   <Button variant="outline" onClick={() => setIsSharing(true)} leftIcon={<Share2 size={16}/>}>Share</Button>
                 )}
                 <Button variant="danger" onClick={handleDelete} leftIcon={<Trash2 size={16}/>}>Delete</Button>

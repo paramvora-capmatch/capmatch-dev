@@ -14,6 +14,7 @@ export interface DocumentFile {
   created_at: string;
   updated_at: string;
   metadata?: Record<string, unknown>;
+  is_locked?: boolean;
 }
 
 export interface DocumentFolder {
@@ -26,16 +27,17 @@ export interface DocumentFolder {
   children?: (DocumentFile | DocumentFolder)[];
 }
 
-const STORAGE_SUBDIR: Record<'project' | 'borrower', string> = {
+const STORAGE_SUBDIR: Record<'project' | 'borrower' | 'underwriting', string> = {
   project: 'project-docs',
   borrower: 'borrower-docs',
+  underwriting: 'underwriting-docs',
 };
 
 interface UseDocumentManagementOptions {
   projectId: string | null;
   folderId?: string | null;
   orgId?: string | null;
-  context?: 'project' | 'borrower';
+  context?: 'project' | 'borrower' | 'underwriting';
   skipInitialFetch?: boolean;
 }
 
@@ -71,7 +73,7 @@ export const useDocumentManagement = ({
     try {
 
       const rootResourceType =
-        context === "borrower" ? "BORROWER_DOCS_ROOT" : "PROJECT_DOCS_ROOT";
+        context === "borrower" ? "BORROWER_DOCS_ROOT" : context === "underwriting" ? "UNDERWRITING_DOCS_ROOT" : "PROJECT_DOCS_ROOT";
 
       const { data: root, error } = await supabase
         .from("resources")
@@ -168,6 +170,7 @@ export const useDocumentManagement = ({
               created_at: currentVersion.created_at,
               updated_at: resource.updated_at,
               metadata: currentVersion.metadata || {},
+              is_locked: resource.is_locked,
             });
           }
         }
@@ -208,7 +211,7 @@ export const useDocumentManagement = ({
         }
 
         const rootResourceType =
-          context === "borrower" ? "BORROWER_DOCS_ROOT" : "PROJECT_DOCS_ROOT";
+          context === "borrower" ? "BORROWER_DOCS_ROOT" : context === "underwriting" ? "UNDERWRITING_DOCS_ROOT" : "PROJECT_DOCS_ROOT";
 
         const { data: root, error: rootError } = await supabase
           .from("resources")
@@ -365,7 +368,7 @@ export const useDocumentManagement = ({
         }
 
         const rootResourceType =
-          context === "borrower" ? "BORROWER_DOCS_ROOT" : "PROJECT_DOCS_ROOT";
+          context === "borrower" ? "BORROWER_DOCS_ROOT" : context === "underwriting" ? "UNDERWRITING_DOCS_ROOT" : "PROJECT_DOCS_ROOT";
 
         const { data: root, error: rootError } = await supabase
           .from("resources")
@@ -620,6 +623,25 @@ export const useDocumentManagement = ({
     [targetOrgId]
   );
 
+  const toggleLock = useCallback(
+    async (resourceId: string, isLocked: boolean) => {
+      try {
+        const { error } = await supabase
+          .from("resources")
+          .update({ is_locked: isLocked })
+          .eq("id", resourceId);
+
+        if (error) throw error;
+        await listDocuments();
+      } catch (err) {
+        console.error("Error toggling lock:", err);
+        setError(err instanceof Error ? err.message : "Failed to toggle lock");
+        throw err;
+      }
+    },
+    [listDocuments]
+  );
+
   useEffect(() => {
     if (!skipInitialFetch) {
       listDocuments();
@@ -636,6 +658,7 @@ export const useDocumentManagement = ({
     deleteFile,
     deleteFolder,
     downloadFile,
+    toggleLock,
     refresh: listDocuments,
   };
 };

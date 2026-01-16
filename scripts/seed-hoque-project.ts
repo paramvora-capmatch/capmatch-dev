@@ -664,9 +664,12 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	contingency: 847500,
 	ffe: 580000,
 	constructionFees: 174000,
+	constructionManagementFee: 174000, // Alias for S&U generator
 	aeFees: 859800,
 	thirdPartyReports: 50000,
 	legalAndOrg: 50000,
+	acquisitionCosts: 50000, // For S&U generator
+	payoffExistingDebt: 0, // For S&U generator
 	titleAndRecording: 75000,
 	taxesDuringConstruction: 20000,
 	workingCapital: 1900000,
@@ -709,6 +712,10 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	sponsorEquity: 11800000,
 	taxCreditEquity: 0, // Not utilizing tax credits for this project
 	gapFinancing: 0, // No gap financing required - fully capitalized
+	mezzanineDebt: 0, // For S&U generator
+	sellerFinancing: 0, // For S&U generator
+	preferredEquity: 0, // For S&U generator
+	grantsTaxCredits: 0, // For S&U generator
 	equityCommittedPercent: 39.6,
 	equityContribution: 39.6, // Same as equityCommittedPercent
 	equityContributionDescription:
@@ -798,8 +805,226 @@ const hoqueProjectResumeBase: Record<string, any> = {
 		{ quarter: "Q1 2027", units: 0 },
 		{ quarter: "Q2 2027", units: 0 },
 		{ quarter: "Q3 2027", units: 29 },
-		{ quarter: "Q4 2027", units: 58 },
-		{ quarter: "Q1 2028", units: 29 },
+		{ quarter: "Q4 2027", units: 87 },
+	],
+	// T12 Financials (Mock Data for Generator)
+	t12_financials: [
+		{
+			"month": "Jan-25",
+			"grossPotentialRent": 150000,
+			"concessions": 2000,
+			"badDebt": 1500,
+			"otherIncome": 7500,
+			"utilities": 12000,
+			"repairsMaintenance": 4500,
+			"makeReady": 1500,
+			"payroll": 22000,
+			"managementFee": 4000,
+			"marketing": 2500,
+			"generalAdmin": 1200,
+			"contractServices": 3500,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 0
+		},
+		{
+			"month": "Feb-25",
+			"grossPotentialRent": 150000,
+			"concessions": 1500,
+			"badDebt": 1000,
+			"otherIncome": 7200,
+			"utilities": 11500,
+			"repairsMaintenance": 3800,
+			"makeReady": 1200,
+			"payroll": 22000,
+			"managementFee": 4000,
+			"marketing": 2000,
+			"generalAdmin": 1100,
+			"contractServices": 3500,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 5000
+		},
+		{
+			"month": "Mar-25",
+			"grossPotentialRent": 152000,
+			"concessions": 1000,
+			"badDebt": 1200,
+			"otherIncome": 7800,
+			"utilities": 11000,
+			"repairsMaintenance": 5000,
+			"makeReady": 2000,
+			"payroll": 22000,
+			"managementFee": 4100,
+			"marketing": 2500,
+			"generalAdmin": 1300,
+			"contractServices": 3500,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 0
+		},
+		{
+			"month": "Apr-25",
+			"grossPotentialRent": 152000,
+			"concessions": 500,
+			"badDebt": 1000,
+			"otherIncome": 8000,
+			"utilities": 10500,
+			"repairsMaintenance": 4200,
+			"makeReady": 1800,
+			"payroll": 22500,
+			"managementFee": 4100,
+			"marketing": 2500,
+			"generalAdmin": 1200,
+			"contractServices": 3800,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 0
+		},
+		{
+			"month": "May-25",
+			"grossPotentialRent": 154000,
+			"concessions": 500,
+			"badDebt": 800,
+			"otherIncome": 8200,
+			"utilities": 11000,
+			"repairsMaintenance": 4000,
+			"makeReady": 1500,
+			"payroll": 22500,
+			"managementFee": 4200,
+			"marketing": 3000,
+			"generalAdmin": 1250,
+			"contractServices": 3800,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 12000
+		},
+		{
+			"month": "Jun-25",
+			"grossPotentialRent": 155000,
+			"concessions": 0,
+			"badDebt": 500,
+			"otherIncome": 8500,
+			"utilities": 14000,
+			"repairsMaintenance": 4500,
+			"makeReady": 2200,
+			"payroll": 22500,
+			"managementFee": 4250,
+			"marketing": 3000,
+			"generalAdmin": 1300,
+			"contractServices": 3800,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 0
+		},
+		{
+			"month": "Jul-25",
+			"grossPotentialRent": 156000,
+			"concessions": 0,
+			"badDebt": 600,
+			"otherIncome": 9000,
+			"utilities": 15000,
+			"repairsMaintenance": 5200,
+			"makeReady": 2500,
+			"payroll": 23000,
+			"managementFee": 4300,
+			"marketing": 2500,
+			"generalAdmin": 1400,
+			"contractServices": 4000,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 2500
+		},
+		{
+			"month": "Aug-25",
+			"grossPotentialRent": 156000,
+			"concessions": 1000,
+			"badDebt": 1200,
+			"otherIncome": 8800,
+			"utilities": 15500,
+			"repairsMaintenance": 4800,
+			"makeReady": 2000,
+			"payroll": 23000,
+			"managementFee": 4300,
+			"marketing": 2500,
+			"generalAdmin": 1350,
+			"contractServices": 4000,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 0
+		},
+		{
+			"month": "Sep-25",
+			"grossPotentialRent": 157000,
+			"concessions": 500,
+			"badDebt": 1500,
+			"otherIncome": 8500,
+			"utilities": 13000,
+			"repairsMaintenance": 4500,
+			"makeReady": 1800,
+			"payroll": 23000,
+			"managementFee": 4350,
+			"marketing": 2000,
+			"generalAdmin": 1300,
+			"contractServices": 4000,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 0
+		},
+		{
+			"month": "Oct-25",
+			"grossPotentialRent": 158000,
+			"concessions": 500,
+			"badDebt": 1000,
+			"otherIncome": 8200,
+			"utilities": 12000,
+			"repairsMaintenance": 4200,
+			"makeReady": 1500,
+			"payroll": 23500,
+			"managementFee": 4400,
+			"marketing": 2000,
+			"generalAdmin": 1250,
+			"contractServices": 3800,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 8000
+		},
+		{
+			"month": "Nov-25",
+			"grossPotentialRent": 158000,
+			"concessions": 0,
+			"badDebt": 800,
+			"otherIncome": 8000,
+			"utilities": 11500,
+			"repairsMaintenance": 4000,
+			"makeReady": 1200,
+			"payroll": 23500,
+			"managementFee": 4400,
+			"marketing": 2000,
+			"generalAdmin": 1200,
+			"contractServices": 3800,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 0
+		},
+		{
+			"month": "Dec-25",
+			"grossPotentialRent": 160000,
+			"concessions": 2000,
+			"badDebt": 1000,
+			"otherIncome": 8500,
+			"utilities": 13000,
+			"repairsMaintenance": 5000,
+			"makeReady": 2500,
+			"payroll": 24000,
+			"managementFee": 4500,
+			"marketing": 2500,
+			"generalAdmin": 1500,
+			"contractServices": 3800,
+			"realEstateTaxes": 12500,
+			"insurance": 4200,
+			"capex": 0
+		}
 	],
 	// sensitivityAnalysis: Sensitivity analysis data (used by ReturnsCharts component)
 	sensitivityAnalysis: {
@@ -3336,6 +3561,37 @@ async function createProject(
 			});
 		}
 
+		// 10. Create UNDERWRITING_DOCS_ROOT resource and grant access
+		const { data: underwritingDocsRoot, error: underwritingError } =
+			await supabaseAdmin
+				.from("resources")
+				.insert({
+					org_id: ownerOrgId,
+					project_id: projectId,
+					resource_type: "UNDERWRITING_DOCS_ROOT",
+					name: "Underwriting Documents",
+				})
+				.select()
+				.single();
+
+		if (underwritingError) {
+			console.error(
+				`[seed] Failed to create UNDERWRITING_DOCS_ROOT resource:`,
+				underwritingError
+			);
+		} else if (underwritingDocsRoot?.id) {
+			// Grant ADVISOR edit permission
+			// Borrowers (creator) explicitly get NO access to underwriting docs
+			if (assignedAdvisorId) {
+				await supabaseAdmin.from("permissions").upsert({
+					resource_id: underwritingDocsRoot.id,
+					user_id: assignedAdvisorId,
+					permission: "edit",
+					granted_by: creatorId,
+				});
+			}
+		}
+
 		// 9. Create default chat thread
 		const { data: chatThread, error: chatThreadError } = await supabaseAdmin
 			.from("chat_threads")
@@ -3668,6 +3924,26 @@ async function seedHoqueProject(): Promise<void> {
 					console.log(
 						`[seed] ✅ Granted lender access to project (access_id: ${accessId})`
 					);
+
+					// Also explicit grant VIEW permission on UNDERWRITING_DOCS_ROOT
+					const { data: uRoot } = await supabaseAdmin
+						.from("resources")
+						.select("id")
+						.eq("project_id", projectId)
+						.eq("resource_type", "UNDERWRITING_DOCS_ROOT")
+						.single();
+
+					if (uRoot) {
+						await supabaseAdmin.from("permissions").upsert({
+							resource_id: uRoot.id,
+							user_id: lenderUserId,
+							permission: "view",
+							granted_by: advisorId,
+						});
+						console.log(
+							`[seed] ✅ Granted lender VIEW access to UNDERWRITING_DOCS_ROOT`
+						);
+					}
 				}
 			} catch (err) {
 				console.error(`[seed] ⚠️  Exception granting lender access:`, err);
