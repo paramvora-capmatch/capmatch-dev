@@ -66,9 +66,7 @@ const StageAccordion: React.FC<StageProps> = ({
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
                             <tr>
-                                <th className="px-4 py-3 font-medium w-1/3 min-w-[200px]">Document Name</th>
-                                <th className="px-4 py-3 font-medium w-[100px]">Priority</th>
-                                <th className="px-4 py-3 font-medium min-w-[250px]">Description / Rationale</th>
+                                <th className="px-4 py-3 font-medium min-w-[400px]">Document Name</th>
                                 <th className="px-4 py-3 font-medium w-[120px]">Status</th>
                             </tr>
                         </thead>
@@ -105,25 +103,6 @@ const StageAccordion: React.FC<StageProps> = ({
                                                 <ExternalLink className="h-3 w-3" />
                                                 <span>Example</span>
                                             </div>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 align-top">
-                                        <span className={cn(
-                                            "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border",
-                                            doc.importance === "High" ? "bg-red-50 text-red-700 border-red-100" :
-                                                doc.importance === "Medium" ? "bg-blue-50 text-blue-700 border-blue-100" :
-                                                    "bg-gray-100 text-gray-600 border-gray-200"
-                                        )}>
-                                            {doc.importance}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 align-top">
-                                        {doc.rationale ? (
-                                            <div className="text-gray-600 text-xs leading-relaxed">
-                                                {doc.rationale}
-                                            </div>
-                                        ) : (
-                                            <span className="text-gray-300">-</span>
                                         )}
                                     </td>
                                     <td className="px-4 py-3 align-top">
