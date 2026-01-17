@@ -789,6 +789,13 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Currency",
 		section: "financial-details",
 	},
+	t12MonthlyData: {
+		fieldId: "t12MonthlyData",
+		description: "Monthly T-12 financial operating data.",
+		expectedValue: "Table/Array of monthly financial objects",
+		dataType: "Table",
+		section: "financial-details",
+	},
 	yieldOnCost: {
 		fieldId: "yieldOnCost",
 		description: "Yield on Cost (NOI / TDC).",
