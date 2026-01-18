@@ -16,6 +16,8 @@ interface DocItem {
     rationale?: string;
     examples?: string;
     file?: DocumentFile; // Associated file if uploaded
+    canGenerate?: boolean;
+    addFromResume?: boolean;
 }
 
 interface StageProps {
@@ -27,6 +29,9 @@ interface StageProps {
     onDownload: (file: DocumentFile) => void;
     onClickFile: (file: DocumentFile) => void;
     onSelectFromResume: (docName: string) => void;
+    onGenerate: (docName: string) => void;
+    isGenerating: (docName: string) => boolean;
+    onViewTemplate: (docName: string) => void;
 }
 
 const StageAccordion: React.FC<StageProps> = ({
@@ -37,7 +42,10 @@ const StageAccordion: React.FC<StageProps> = ({
     docs,
     onDownload,
     onClickFile,
-    onSelectFromResume
+    onSelectFromResume,
+    onGenerate,
+    isGenerating,
+    onViewTemplate
 }) => {
     return (
         <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mb-4 shadow-sm">
@@ -66,7 +74,8 @@ const StageAccordion: React.FC<StageProps> = ({
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
                             <tr>
-                                <th className="px-4 py-3 font-medium min-w-[400px]">Document Name</th>
+                                <th className="px-4 py-3 font-medium min-w-[300px]">Document Name</th>
+                                <th className="px-4 py-3 font-medium w-[180px]">Actions</th>
                                 <th className="px-4 py-3 font-medium w-[120px]">Status</th>
                             </tr>
                         </thead>
@@ -76,35 +85,69 @@ const StageAccordion: React.FC<StageProps> = ({
                                     <td className="px-4 py-3 align-top">
                                         <div className="font-medium text-gray-900 flex items-center gap-2">
                                             {doc.file ? (
-                                                <>
-                                                    <button
-                                                        onClick={() => onClickFile(doc.file!)}
-                                                        className="text-blue-600 hover:underline text-left"
-                                                    >
-                                                        {doc.name}
-                                                    </button>
-
-                                                </>
+                                                <button
+                                                    onClick={() => onClickFile(doc.file!)}
+                                                    className="text-blue-600 hover:underline text-left"
+                                                >
+                                                    {doc.name}
+                                                </button>
                                             ) : (
-                                                <div className="flex items-center gap-2">
-                                                    <span>{doc.name}</span>
-                                                    <button
-                                                        onClick={() => onSelectFromResume(doc.name)}
-                                                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
-                                                        title="Add from Resume"
-                                                    >
-                                                        <FileText className="h-4 w-4" />
-                                                    </button>
-                                                </div>
+                                                <span>{doc.name}</span>
                                             )}
                                         </div>
-                                        {doc.examples && !doc.file && (
-                                            <div className="mt-1 flex items-center gap-1 text-xs text-blue-600 cursor-pointer hover:underline opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <ExternalLink className="h-3 w-3" />
-                                                <span>Example</span>
-                                            </div>
-                                        )}
+                                        {/* Template Link */}
+                                        <div className="mt-1">
+                                            <button 
+                                                onClick={() => onViewTemplate(doc.name)}
+                                                className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors"
+                                            >
+                                                <FileText className="h-3 w-3" />
+                                                View Template
+                                            </button>
+                                        </div>
                                     </td>
+                                    
+                                    <td className="px-4 py-3 align-top">
+                                        <div className="flex gap-2">
+                                            {/* Generate Button */}
+                                            {doc.canGenerate && !doc.file && (
+                                                <button
+                                                    onClick={() => onGenerate(doc.name)}
+                                                    disabled={isGenerating(doc.name)}
+                                                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                                >
+                                                    {isGenerating(doc.name) ? (
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                    ) : (
+                                                        <Play className="h-3 w-3 fill-current" />
+                                                    )}
+                                                    Generate
+                                                </button>
+                                            )}
+
+                                            {/* Add from Resume Button */}
+                                            {(doc.addFromResume || (!doc.file && !doc.canGenerate)) && !doc.file && (
+                                                <button
+                                                    onClick={() => onSelectFromResume(doc.name)}
+                                                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded hover:bg-gray-200 transition-colors"
+                                                >
+                                                    <ExternalLink className="h-3 w-3" />
+                                                    Add from Resume
+                                                </button>
+                                            )}
+                                            
+                                            {/* Re-Generate (if file exists) */}
+                                            {doc.file && doc.canGenerate && (
+                                                 <button
+                                                    onClick={() => onGenerate(doc.name)}
+                                                    className="opacity-0 group-hover:opacity-100 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-all"
+                                                 >
+                                                    Regenerate
+                                                 </button>
+                                            )}
+                                        </div>
+                                    </td>
+
                                     <td className="px-4 py-3 align-top">
                                         <div className="flex items-center">
                                             {doc.status === "uploaded" && (
@@ -142,25 +185,26 @@ const initialStages = [
         docs: [
             { name: "Loan Application Form", status: "pending", importance: "High", rationale: "The \"Ask\": Captures loan amount, usage (Acq/Refi), and entity structure." },
             { name: "Personal Financial Statement (PFS)", status: "pending", importance: "High", rationale: "Guarantor Strength: Verifies Net Worth (> Loan Amt) and Liquidity." },
-            { name: "Schedule of Real Estate Owned (SREO)", status: "pending", importance: "High", rationale: "Global Cash Flow: Analyzes sponsor’s portfolio leverage." },
-            { name: "Tax Returns (2-3 Years)", status: "pending", importance: "High", rationale: "Income Verification: Cross-references PFS." },
-            { name: "Purchase & Sale Agreement (PSA)", status: "pending", importance: "High", rationale: "Cost Basis: Establishes the \"Cost\" in LTC." },
-            { name: "Entity Formation Docs", status: "pending", importance: "High", rationale: "KYC & Authority: Confirms entity exists and signer authority." },
-            { name: "T12 Financial Statement", status: "pending", importance: "High", rationale: "Valuation Baseline: The \"Truth\" of historical performance." },
-            { name: "Current Rent Roll", status: "pending", importance: "High", rationale: "Revenue Validation: Validates T-12 revenue and occupancy." },
-            { name: "Sources & Uses Model", status: "pending", importance: "High", rationale: "Deal Math: Proof that the deal works (Loan + Equity = Cost + Fees)." },
+            { name: "Schedule of Real Estate Owned (SREO)", status: "pending", importance: "High", rationale: "Global Cash Flow: Analyzes sponsor’s portfolio leverage.", canGenerate: true },
+            { name: "Tax Returns (2-3 Years)", status: "pending", importance: "High", rationale: "Income Verification: Cross-references PFS.", addFromResume: true },
+            { name: "Purchase & Sale Agreement (PSA)", status: "pending", importance: "High", rationale: "Cost Basis: Establishes the \"Cost\" in LTC.", addFromResume: true },
+            { name: "Entity Formation Docs", status: "pending", importance: "High", rationale: "KYC & Authority: Confirms entity exists and signer authority.", addFromResume: true },
+            { name: "T12 Financial Statement", status: "pending", importance: "High", rationale: "Valuation Baseline: The \"Truth\" of historical performance.", canGenerate: true },
+            { name: "Current Rent Roll", status: "pending", importance: "High", rationale: "Revenue Validation: Validates T-12 revenue and occupancy.", canGenerate: true },
+            { name: "Sources & Uses Model", status: "pending", importance: "High", rationale: "Deal Math: Proof that the deal works (Loan + Equity = Cost + Fees).", canGenerate: true },
             { name: "Sources & Uses Report", status: "pending", importance: "High", rationale: "PDF Summary of Sources & Uses." },
             { name: "T12 Summary Report", status: "pending", importance: "High", rationale: "PDF Summary of T12 Financials." },
-            { name: "Credit Authorization & Gov ID", status: "pending", importance: "High", rationale: "Background Check: Mandatory for credit pulls and KYC." },
-            { name: "Bank Statements", status: "pending", importance: "High", rationale: "Liquidity Proof: Proves cash on PFS exists and is liquid." },
-            { name: "Church Financials", status: "pending", importance: "High", rationale: "Donation Stability: Tracks tithes, offerings, and attendance trends." },
-            { name: "ProForma Cash flow", status: "pending", importance: "High", rationale: "Forecasts future performance." },
-            { name: "CapEx Report", status: "pending", importance: "High", rationale: "Details capital expenditure plans." },
-            { name: "Sponsor Resume / Bio", status: "pending", importance: "Medium", rationale: "Execution Capability: Proves borrower track record." },
-            { name: "Offering Memorandum (OM)", status: "pending", importance: "Medium", rationale: "Context: Narrative, photos, and broker pro-forma." },
-            { name: "Business Plan", status: "pending", importance: "Medium", rationale: "Strategy: Critical for value-add/construction." },
+            { name: "Credit Authorization & Gov ID", status: "pending", importance: "High", rationale: "Background Check: Mandatory for credit pulls and KYC.", addFromResume: true },
+            { name: "Bank Statements", status: "pending", importance: "High", rationale: "Liquidity Proof: Proves cash on PFS exists and is liquid.", addFromResume: true },
+            { name: "Church Financials", status: "pending", importance: "High", rationale: "Donation Stability: Tracks tithes, offerings, and attendance trends.", addFromResume: true },
+            { name: "ProForma Cash flow", status: "pending", importance: "High", rationale: "Forecasts future performance.", addFromResume: true },
+            { name: "CapEx Report", status: "pending", importance: "High", rationale: "Details capital expenditure plans.", addFromResume: true },
+            { name: "Sponsor Resume / Bio", status: "pending", importance: "Medium", rationale: "Execution Capability: Proves borrower track record.", addFromResume: true },
+            { name: "Offering Memorandum (OM)", status: "pending", importance: "Medium", rationale: "Context: Narrative, photos, and broker pro-forma.", addFromResume: true },
+            { name: "Business Plan", status: "pending", importance: "Medium", rationale: "Strategy: Critical for value-add/construction.", addFromResume: true },
         ]
     },
+    // ... other stages remain same
     {
         id: "stage-2",
         title: "Underwriting & Due Diligence",
@@ -226,10 +270,34 @@ const initialStages = [
 
 export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId, orgId }) => {
     const [expandedStage, setExpandedStage] = useState<string | null>("stage-1");
-    const [isGenerating, setIsGenerating] = useState(false);
+    // const [isGenerating, setIsGenerating] = useState(false); // Global generation disabled for generic button
+    const [generatingDocs, setGeneratingDocs] = useState<Set<string>>(new Set());
     const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
     const [showResumeModal, setShowResumeModal] = useState(false);
     const [targetDocName, setTargetDocName] = useState<string | null>(null);
+    const [templatesMap, setTemplatesMap] = useState<Record<string, string>>({});
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+
+    // Fetch available templates on mount
+    React.useEffect(() => {
+        const fetchTemplates = async () => {
+             if (!projectId) return;
+             
+            try {
+                const response = await apiClient.get<Array<{name: string, resource_id: string}>>(`/api/v1/underwriting/templates?project_id=${projectId}`);
+                const map: Record<string, string> = {};
+                if (response.data) {
+                    response.data.forEach(t => {
+                        map[t.name] = t.resource_id;
+                    });
+                }
+                setTemplatesMap(map);
+            } catch (err) {
+                console.warn("Failed to fetch templates list:", err);
+            }
+        };
+        fetchTemplates();
+    }, [projectId]);
 
     // Leverage the existing document management hook for logic, signing, and downloads
     const { files, downloadFile, refresh } = useDocumentManagement({
@@ -251,8 +319,6 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         }
     };
 
-
-
     const handleClickFile = (file: DocumentFile) => {
         setSelectedFileId(file.resource_id);
     };
@@ -261,31 +327,52 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         setTargetDocName(docName);
         setShowResumeModal(true);
     };
-
-    const handleGenerateDocs = async () => {
+    
+    // Individual Generation Logic
+    const handleGenerateDoc = async (docName: string) => {
         if (!projectId) return;
-        setIsGenerating(true);
+        setGeneratingDocs(prev => new Set(prev).add(docName));
+        
         try {
-            await apiClient.post(`/api/v1/underwriting/generate?project_id=${projectId}`, {});
+            // Updated endpoint to generate specific document
+            await apiClient.post(`/api/v1/underwriting/generate-single`, {
+                project_id: projectId,
+                document_name: docName
+            });
 
-            // Poll for updates every 2 seconds for 10 seconds
+            // Quick poll
             const intervalId = setInterval(() => {
                 void refresh();
             }, 2000);
-
-            // Stop polling after 10 seconds
             setTimeout(() => {
                 clearInterval(intervalId);
-                setIsGenerating(false);
-            }, 10000);
+                setGeneratingDocs(prev => {
+                    const next = new Set(prev);
+                    next.delete(docName);
+                    return next;
+                });
+            }, 8000);
 
         } catch (error) {
-            console.error("Failed to generate docs:", error);
-            setIsGenerating(false);
+            console.error("Generate failed:", error);
+            setGeneratingDocs(prev => {
+                const next = new Set(prev);
+                next.delete(docName);
+                return next;
+            });
         }
     };
-
-
+    
+    // View Template logic - Opens preview modal
+    const handleViewTemplate = async (docName: string) => {
+        const resourceId = templatesMap[docName];
+        if (resourceId) {
+            setSelectedTemplateId(resourceId);
+        } else {
+            console.warn(`Template not found for: ${docName}`);
+            alert("Template not available for preview yet.");
+        }
+    };
 
     // Merge fetched files into stages
     const stages = useMemo(() => {
@@ -323,25 +410,8 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             <div className="mb-6 flex items-center justify-between">
                 <div>
                     <h2 className="text-xl font-bold text-gray-900">Underwriting Vault</h2>
-                    <p className="text-gray-500 mt-1">Manage and review underwriting documents by stage.</p>
+                    <p className="text-gray-500 mt-1">Manage, generate, and review underwriting documents.</p>
                 </div>
-                <button
-                    onClick={handleGenerateDocs}
-                    disabled={isGenerating}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
-                >
-                    {isGenerating ? (
-                        <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Generating...
-                        </>
-                    ) : (
-                        <>
-                            <Play className="h-4 w-4 fill-current" />
-                            Generate Documents
-                        </>
-                    )}
-                </button>
             </div>
 
             <div className="space-y-4">
@@ -356,10 +426,14 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                         onDownload={handleDownload}
                         onClickFile={handleClickFile}
                         onSelectFromResume={handleSelectFromResume}
+                        onGenerate={handleGenerateDoc}
+                        isGenerating={(name) => generatingDocs.has(name)}
+                        onViewTemplate={handleViewTemplate}
                     />
                 ))}
             </div>
-
+            
+            {/* Modals ... */}
             {selectedFileId && (
                 <DocumentPreviewModal
                     resourceId={selectedFileId}
@@ -379,8 +453,14 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     renameTo={targetDocName || undefined}
                     onSuccess={() => {
                         refresh();
-                        // Toast success?
                     }}
+                />
+            )}
+            {selectedTemplateId && (
+                <DocumentPreviewModal
+                    resourceId={selectedTemplateId}
+                    onClose={() => setSelectedTemplateId(null)}
+                    openVersionsDefault={false}
                 />
             )}
         </div>

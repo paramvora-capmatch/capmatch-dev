@@ -4314,6 +4314,111 @@ async function seedHoqueProject(): Promise<void> {
 		console.log("\n📋 Step 5.6: Seeding underwriting documents...");
 		await seedUnderwritingDocs(projectId, borrowerOrgId, advisorId);
 
+		// Step 5.7: Seed Underwriting Templates (Project Specific)
+		console.log("\n📋 Step 5.7: Seeding underwriting templates (Project Specific)...");
+        
+        // Create Template Root
+		const { data: templatesRoot } = await supabaseAdmin
+			.from("resources")
+			.upsert(
+				{
+					project_id: projectId,
+					resource_type: "UNDERWRITING_TEMPLATES_ROOT",
+					name: "Underwriting Templates",
+                    org_id: borrowerOrgId
+				},
+				{ onConflict: "project_id,resource_type" }
+			)
+			.select()
+			.single();
+            
+        if (templatesRoot && assignedAdvisorId) {
+             await supabaseAdmin.from("permissions").upsert({
+                resource_id: templatesRoot.id,
+                user_id: assignedAdvisorId,
+                permission: "edit",
+                granted_by: advisorId, // Advisor grants to himself? Or creator grants? Creator is borrower (owner).
+                // In this script context, we are admin. 
+                // Let's rely on standard logic - advisor should edit.
+            });
+        }
+
+		const templateDir = path.join(__dirname, "../../Backend/storage/templates");
+		const templatesToSeed = [
+			{ name: "Sources & Uses Model", filename: "sources_uses_template.xlsx" },
+			{ name: "Schedule of Real Estate Owned (SREO)", filename: "sreo_template.xlsx" },
+			{ name: "T12 Financial Statement", filename: "t12_template.xlsx" },
+			{ name: "Current Rent Roll", filename: "rent_roll_template.xlsx" },
+		];
+
+		for (const tmpl of templatesToSeed) {
+			const filePath = path.join(templateDir, tmpl.filename);
+			if (fs.existsSync(filePath)) {
+				const fileBuffer = fs.readFileSync(filePath);
+				const storagePath = `${projectId}/underwriting-templates/${tmpl.filename}`;
+
+				// Upload
+				await supabaseAdmin.storage
+					.from(borrowerOrgId)
+					.upload(storagePath, fileBuffer, {
+						contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+						upsert: true
+					});
+
+				// Resource
+                // Check if exists first to avoid dupes on re-run
+                const { data: existingRes } = await supabaseAdmin
+                    .from("resources")
+                    .select("id")
+                    .eq("project_id", projectId)
+                    .eq("name", tmpl.name)
+                    .maybeSingle();
+
+                if (!existingRes) {
+                    const { data: res } = await supabaseAdmin
+                        .from("resources")
+                        .insert({
+                            project_id: projectId,
+                            org_id: borrowerOrgId,
+                            resource_type: "FILE",
+                            name: tmpl.name,
+                            parent_id: templatesRoot?.id // Use Root as Parent
+                        })
+                        .select()
+                        .single();
+
+                    if (res) {
+                        const { data: ver } = await supabaseAdmin
+                            .from("document_versions")
+                            .insert({
+                                resource_id: res.id,
+                                version_number: 1,
+                                storage_path: storagePath,
+                                status: "active",
+                                created_by: advisorId, 
+                                metadata: {
+                                    size: fileBuffer.length,
+                                    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    bucket: borrowerOrgId
+                                }
+                            })
+                            .select()
+                            .single();
+                        
+                        if (ver) {
+                            await supabaseAdmin
+                                .from("resources")
+                                .update({ current_version_id: ver.id })
+                                .eq("id", res.id);
+                        }
+                    }
+                }
+				console.log(`[seed]   - Seeded ${tmpl.name}`);
+			} else {
+				console.warn(`[seed] ⚠️  Template file missing: ${filePath}`);
+			}
+		}
+
 		// Step 6: Seed team members
 		console.log("\n📋 Step 6: Seeding team members...");
 		const memberIds = await seedTeamMembers(
