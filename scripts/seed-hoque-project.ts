@@ -3008,30 +3008,42 @@ async function seedUnderwritingDocs(
 
 	const docsToSeed = [
 		{
-			filename: "T12_Statement.xlsx",
+			filename: "underwriting/T12_Statement.xlsx",
 			displayName: "T12 Financial Statement",
 			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		},
 		{
-			filename: "T12_Summary_Report.pdf",
+			filename: "underwriting/T12_Summary_Report.pdf",
 			displayName: "T12 Summary Report",
 			mimeType: "application/pdf",
 		},
 		{
-			filename: "sources_and_uses_comprehensive.xlsx",
+			filename: "underwriting/sources_and_uses_comprehensive.xlsx",
 			displayName: "Sources & Uses Model",
 			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		},
 		{
-			filename: "sources_and_uses_report.pdf",
+			filename: "underwriting/sources_and_uses_report.pdf",
 			displayName: "Sources & Uses Report",
 			mimeType: "application/pdf",
 		},
+		// NEW: PFS and Sponsor Bio (from borrower docs)
+		{
+			filename: "borrower/personal_financial_statement.xlsx",
+			displayName: "Personal Financial Statement",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		},
+		{
+			filename: "borrower/principals.docx",
+			displayName: "Sponsor Bio",
+			mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		},
 	];
 
+	// Point to the parent "docs/so-good-apartments" directory so we can access subfolders
 	const basePath = path.join(
 		process.cwd(),
-		"docs/so-good-apartments/underwriting"
+		"docs/so-good-apartments"
 	);
 
 	for (const doc of docsToSeed) {
@@ -3078,10 +3090,11 @@ async function seedUnderwritingDocs(
 
 			const fileBuffer = fs.readFileSync(filePath);
 			const fileSize = fs.statSync(filePath).size;
+			const fileNameOnly = path.basename(doc.filename);
 
 			// Construct Deep Path
 			// {ProjectId}/underwriting-docs/{ResourceId}/v1_user{CreatorId}_{Filename}
-			const storagePath = `${projectId}/underwriting-docs/${resource.id}/v1_user${creatorId}_${doc.filename}`;
+			const storagePath = `${projectId}/underwriting-docs/${resource.id}/v1_user${creatorId}_${fileNameOnly}`;
 
 			// 2. Upload to Storage
 			const { error: uploadError } = await supabaseAdmin.storage
@@ -3113,6 +3126,8 @@ async function seedUnderwritingDocs(
 					metadata: {
 						size: fileSize,
 						mimeType: doc.mimeType,
+						source: "generated", // Marked as generated per requirements
+						isGenerated: true,   // Explicit flag
 					},
 				})
 				.select("id")
@@ -4439,6 +4454,9 @@ async function seedHoqueProject(): Promise<void> {
 			{ name: "Schedule of Real Estate Owned (SREO)", filename: "sreo_template.xlsx" },
 			{ name: "T12 Financial Statement", filename: "t12_template.xlsx" },
 			{ name: "Current Rent Roll", filename: "rent_roll_template.xlsx" },
+			// NEW: PFS and Sponsor Bio Templates
+			{ name: "Personal Financial Statement", filename: "pfs_template.xlsx" },
+			{ name: "Sponsor Bio", filename: "sponsor_bio_template.docx" },
 		];
 
 		for (const tmpl of templatesToSeed) {
