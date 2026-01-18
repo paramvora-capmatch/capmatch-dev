@@ -430,13 +430,11 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 	// Use the shared autofill hook
 	const projectAddress =
 		project.propertyAddressStreet &&
-		project.propertyAddressCity &&
-		project.propertyAddressState
-			? `${project.propertyAddressStreet} | ${
-					project.propertyAddressCity
-			  } ${project.propertyAddressState}, ${
-					project.propertyAddressZip || ""
-			  }`.trim()
+			project.propertyAddressCity &&
+			project.propertyAddressState
+			? `${project.propertyAddressStreet} | ${project.propertyAddressCity
+				} ${project.propertyAddressState}, ${project.propertyAddressZip || ""
+				}`.trim()
 			: undefined;
 	const { isAutofilling, showSparkles, handleAutofill } = useAutofill(
 		project.id,
@@ -449,7 +447,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 			return JSON.parse(
 				typeof window !== "undefined"
 					? localStorage.getItem(`resumeCollapsed:${project.id}`) ||
-							"true"
+					"true"
 					: "true"
 			);
 		} catch {
@@ -463,7 +461,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 				`resumeCollapsed:${project.id}`,
 				JSON.stringify(collapsed)
 			);
-		} catch {}
+		} catch { }
 	}, [collapsed, project?.id]);
 
 	const handleVersionHistoryOpen = useCallback(() => {
@@ -599,12 +597,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 													scale: 0,
 												}}
 												animate={{
-													x: `${
-														Math.random() * 100
-													}%`,
-													y: `${
-														Math.random() * 100
-													}%`,
+													x: `${Math.random() * 100
+														}%`,
+													y: `${Math.random() * 100
+														}%`,
 													opacity: [1, 1, 0],
 													scale: [0, 1.5, 0],
 												}}
@@ -659,7 +655,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 									const IconComponent =
 										(step.icon &&
 											sectionIconComponents[
-												step.icon as string
+											step.icon as string
 											]) ||
 										MapPin;
 
@@ -792,17 +788,17 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 														// Skip special table fields - they're checked separately
 														if (
 															fieldId ===
-																"drawSchedule" ||
+															"drawSchedule" ||
 															fieldId ===
-																"residentialUnitMix" ||
+															"residentialUnitMix" ||
 															fieldId ===
-																"commercialSpaceMix" ||
+															"commercialSpaceMix" ||
 															fieldId ===
-																"rentComps" ||
+															"rentComps" ||
 															fieldId ===
-																"deliveryByQuarter" ||
+															"deliveryByQuarter" ||
 															fieldId ===
-																"majorEmployers"
+															"majorEmployers"
 														) {
 															return false;
 														}
@@ -817,12 +813,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 														) {
 															return (
 																value !==
-																	undefined &&
+																undefined &&
 																(hasValue(
 																	value
 																) ||
 																	value ===
-																		false)
+																	false)
 															);
 														}
 														return hasValue(value);
@@ -854,7 +850,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 											</h3>
 
 											{Array.isArray(step.subsections) &&
-											step.subsections.length > 0 ? (
+												step.subsections.length > 0 ? (
 												<div className="space-y-4">
 													{step.subsections.map(
 														(subsection: any) => {
@@ -869,7 +865,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	.map(
 																		(id) =>
 																			projectResumeFieldMetadata[
-																				id
+																			id
 																			]
 																	)
 																	.filter(
@@ -892,9 +888,9 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																			// Special-case: residentialUnitMix and commercialSpaceMix are rendered as tables
 																			if (
 																				field.fieldId ===
-																					"residentialUnitMix" ||
+																				"residentialUnitMix" ||
 																				field.fieldId ===
-																					"commercialSpaceMix"
+																				"commercialSpaceMix"
 																			) {
 																				return false;
 																			}
@@ -908,30 +904,30 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																			// Special-case: deliveryByQuarter and majorEmployers are rendered as tables
 																			if (
 																				field.fieldId ===
-																					"deliveryByQuarter" ||
+																				"deliveryByQuarter" ||
 																				field.fieldId ===
-																					"majorEmployers"
+																				"majorEmployers"
 																			) {
 																				return false;
 																			}
 																			// Special-case: financial table fields are rendered as tables later
 																			if (
 																				field.fieldId ===
-																					"fiveYearCashFlow" ||
+																				"fiveYearCashFlow" ||
 																				field.fieldId ===
-																					"returnsBreakdown" ||
+																				"returnsBreakdown" ||
 																				field.fieldId ===
-																					"quarterlyDeliverySchedule" ||
+																				"quarterlyDeliverySchedule" ||
 																				field.fieldId ===
-																					"sensitivityAnalysis" ||
+																				"sensitivityAnalysis" ||
 																				field.fieldId ===
-																					"capitalUseTiming" ||
+																				"capitalUseTiming" ||
 																				field.fieldId ===
-																					"riskHigh" ||
+																				"riskHigh" ||
 																				field.fieldId ===
-																					"riskMedium" ||
+																				"riskMedium" ||
 																				field.fieldId ===
-																					"riskLow"
+																				"riskLow"
 																			) {
 																				return false;
 																			}
@@ -946,12 +942,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																			) {
 																				return (
 																					value !==
-																						undefined &&
+																					undefined &&
 																					(hasValue(
 																						value
 																					) ||
 																						value ===
-																							false)
+																						false)
 																				);
 																			}
 																			return hasValue(
@@ -1072,15 +1068,15 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																					);
 																				const isFullWidth =
 																					field.dataType ===
-																						"Textarea" ||
+																					"Textarea" ||
 																					field.fieldId ===
-																						"projectDescription" ||
+																					"projectDescription" ||
 																					field.fieldId ===
-																						"businessPlanSummary" ||
+																					"businessPlanSummary" ||
 																					field.fieldId ===
-																						"marketOverviewSummary" ||
+																					"marketOverviewSummary" ||
 																					field.fieldId ===
-																						"contactInfo";
+																					"contactInfo";
 
 																				return (
 																					<KeyValueDisplay
@@ -1108,192 +1104,192 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 													{/* Special tables within sections */}
 													{sectionId ===
 														"property-specs" && (
-														<>
-															{(() => {
-																const unitMix =
-																	getFieldValue(
-																		project,
-																		"residentialUnitMix"
-																	);
-																if (
-																	!hasValue(
-																		unitMix
-																	) ||
-																	!Array.isArray(
-																		unitMix
-																	) ||
-																	unitMix.length ===
+															<>
+																{(() => {
+																	const unitMix =
+																		getFieldValue(
+																			project,
+																			"residentialUnitMix"
+																		);
+																	if (
+																		!hasValue(
+																			unitMix
+																		) ||
+																		!Array.isArray(
+																			unitMix
+																		) ||
+																		unitMix.length ===
 																		0
-																)
-																	return null;
+																	)
+																		return null;
 
-																return (
-																	<div className="mt-4">
-																		<h4 className="text-sm font-semibold text-gray-600 mb-2">
-																			Residential
-																			Unit
-																			Mix
-																		</h4>
-																		<div className="overflow-x-auto">
-																			<table className="min-w-full divide-y divide-gray-200 text-sm">
-																				<thead className="bg-gray-50">
-																					<tr>
-																						<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																							Unit
-																							Type
-																						</th>
-																						<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																							Count
-																						</th>
-																						<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																							Avg
-																							SF
-																						</th>
-																						<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																							Monthly
-																							Rent
-																						</th>
-																						<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																							Total
-																							SF
-																						</th>
-																					</tr>
-																				</thead>
-																				<tbody className="bg-white divide-y divide-gray-200">
-																					{unitMix.map(
-																						(
-																							unit: any,
-																							idx: number
-																						) => (
-																							<tr
-																								key={
-																									idx
-																								}
-																							>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{unit.unitType ||
-																										"N/A"}
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{unit.unitCount?.toLocaleString() ||
-																										"N/A"}
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{unit.avgSF?.toLocaleString() ||
-																										"N/A"}
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{formatCurrency(
-																										unit.monthlyRent
-																									)}
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{unit.totalSF?.toLocaleString() ||
-																										"N/A"}
-																								</td>
-																							</tr>
-																						)
-																					)}
-																				</tbody>
-																			</table>
+																	return (
+																		<div className="mt-4">
+																			<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																				Residential
+																				Unit
+																				Mix
+																			</h4>
+																			<div className="overflow-x-auto">
+																				<table className="min-w-full divide-y divide-gray-200 text-sm">
+																					<thead className="bg-gray-50">
+																						<tr>
+																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																								Unit
+																								Type
+																							</th>
+																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																								Count
+																							</th>
+																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																								Avg
+																								SF
+																							</th>
+																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																								Monthly
+																								Rent
+																							</th>
+																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																								Total
+																								SF
+																							</th>
+																						</tr>
+																					</thead>
+																					<tbody className="bg-white divide-y divide-gray-200">
+																						{unitMix.map(
+																							(
+																								unit: any,
+																								idx: number
+																							) => (
+																								<tr
+																									key={
+																										idx
+																									}
+																								>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{unit.unitType ||
+																											"N/A"}
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{unit.unitCount?.toLocaleString() ||
+																											"N/A"}
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{unit.avgSF?.toLocaleString() ||
+																											"N/A"}
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{formatCurrency(
+																											unit.monthlyRent
+																										)}
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{unit.totalSF?.toLocaleString() ||
+																											"N/A"}
+																									</td>
+																								</tr>
+																							)
+																						)}
+																					</tbody>
+																				</table>
+																			</div>
 																		</div>
-																	</div>
-																);
-															})()}
-
-															{(() => {
-																const spaceMix =
-																	getFieldValue(
-																		project,
-																		"commercialSpaceMix"
 																	);
-																if (
-																	!hasValue(
-																		spaceMix
-																	) ||
-																	!Array.isArray(
-																		spaceMix
-																	) ||
-																	spaceMix.length ===
-																		0
-																)
-																	return null;
+																})()}
 
-																return (
-																	<div className="mt-4">
-																		<h4 className="text-sm font-semibold text-gray-600 mb-2">
-																			Commercial
-																			Space
-																			Mix
-																		</h4>
-																		<div className="overflow-x-auto">
-																			<table className="min-w-full divide-y divide-gray-200 text-sm">
-																				<thead className="bg-gray-50">
-																					<tr>
-																						<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																							Space
-																							Type
-																						</th>
-																						<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																							Square
-																							Footage
-																						</th>
-																						<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																							Tenant
-																						</th>
-																						<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																							Lease
-																							Term
-																						</th>
-																						<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																							Annual
-																							Rent
-																						</th>
-																					</tr>
-																				</thead>
-																				<tbody className="bg-white divide-y divide-gray-200">
-																					{spaceMix.map(
-																						(
-																							space: any,
-																							idx: number
-																						) => (
-																							<tr
-																								key={
-																									idx
-																								}
-																							>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{space.spaceType ||
-																										"N/A"}
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{space.squareFootage?.toLocaleString() ||
-																										"N/A"}
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{space.tenant ||
-																										"N/A"}
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{space.leaseTerm ||
-																										"N/A"}
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{formatCurrency(
-																										space.annualRent
-																									)}
-																								</td>
-																							</tr>
-																						)
-																					)}
-																				</tbody>
-																			</table>
+																{(() => {
+																	const spaceMix =
+																		getFieldValue(
+																			project,
+																			"commercialSpaceMix"
+																		);
+																	if (
+																		!hasValue(
+																			spaceMix
+																		) ||
+																		!Array.isArray(
+																			spaceMix
+																		) ||
+																		spaceMix.length ===
+																		0
+																	)
+																		return null;
+
+																	return (
+																		<div className="mt-4">
+																			<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																				Commercial
+																				Space
+																				Mix
+																			</h4>
+																			<div className="overflow-x-auto">
+																				<table className="min-w-full divide-y divide-gray-200 text-sm">
+																					<thead className="bg-gray-50">
+																						<tr>
+																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																								Space
+																								Type
+																							</th>
+																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																								Square
+																								Footage
+																							</th>
+																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																								Tenant
+																							</th>
+																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																								Lease
+																								Term
+																							</th>
+																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																								Annual
+																								Rent
+																							</th>
+																						</tr>
+																					</thead>
+																					<tbody className="bg-white divide-y divide-gray-200">
+																						{spaceMix.map(
+																							(
+																								space: any,
+																								idx: number
+																							) => (
+																								<tr
+																									key={
+																										idx
+																									}
+																								>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{space.spaceType ||
+																											"N/A"}
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{space.squareFootage?.toLocaleString() ||
+																											"N/A"}
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{space.tenant ||
+																											"N/A"}
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{space.leaseTerm ||
+																											"N/A"}
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{formatCurrency(
+																											space.annualRent
+																										)}
+																									</td>
+																								</tr>
+																							)
+																						)}
+																					</tbody>
+																				</table>
+																			</div>
 																		</div>
-																	</div>
-																);
-															})()}
-														</>
-													)}
+																	);
+																})()}
+															</>
+														)}
 
 													{sectionId ===
 														"financial-details" &&
@@ -1420,6 +1416,17 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 													{sectionId ===
 														"financial-details" &&
 														(() => {
+															// Rent Roll Table
+															const rentRollUnits = getFieldValue(
+																project,
+																"rentRollUnits"
+															);
+															const rentRollData = Array.isArray(
+																rentRollUnits
+															)
+																? rentRollUnits
+																: null;
+
 															// Five Year Cash Flow Table
 															const fiveYearCashFlow =
 																getFieldValue(
@@ -1441,11 +1448,11 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																);
 															const returnsData =
 																returnsBreakdown &&
-																typeof returnsBreakdown ===
+																	typeof returnsBreakdown ===
 																	"object" &&
-																!Array.isArray(
-																	returnsBreakdown
-																)
+																	!Array.isArray(
+																		returnsBreakdown
+																	)
 																	? returnsBreakdown
 																	: null;
 
@@ -1470,11 +1477,11 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																);
 															const sensitivityData =
 																sensitivityAnalysis &&
-																typeof sensitivityAnalysis ===
+																	typeof sensitivityAnalysis ===
 																	"object" &&
-																!Array.isArray(
-																	sensitivityAnalysis
-																)
+																	!Array.isArray(
+																		sensitivityAnalysis
+																	)
 																	? sensitivityAnalysis
 																	: null;
 
@@ -1486,15 +1493,16 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																);
 															const timingData =
 																capitalUseTiming &&
-																typeof capitalUseTiming ===
+																	typeof capitalUseTiming ===
 																	"object" &&
-																!Array.isArray(
-																	capitalUseTiming
-																)
+																	!Array.isArray(
+																		capitalUseTiming
+																	)
 																	? capitalUseTiming
 																	: null;
 
 															if (
+																!rentRollData &&
 																!cashFlowArray &&
 																!returnsData &&
 																!quarterlyData &&
@@ -1506,10 +1514,97 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 
 															return (
 																<div className="mt-4 space-y-6">
+																	{/* Rent Roll Table */}
+																	{rentRollData &&
+																		rentRollData.length >
+																		0 && (() => {
+																			const totalUnits = rentRollData.length;
+																			const occupied = rentRollData.filter((u: any) => u.status === 'Occupied').length;
+																			const vacant = rentRollData.filter((u: any) => u.status === 'Vacant').length;
+																			const occupancy = totalUnits > 0 ? (occupied / totalUnits) * 100 : 0;
+																			const totalRent = rentRollData.reduce((acc: number, u: any) => acc + (u.monthlyRent || 0), 0);
+																			const avgRent = totalUnits > 0 ? totalRent / totalUnits : 0;
+
+																			return (
+																				<div>
+																					<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																						Rent Roll (Unit Level)
+																					</h4>
+
+																					{/* Summary Cards */}
+																					<div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4">
+																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Total Units</div>
+																							<div className="text-sm font-bold text-gray-700">{totalUnits}</div>
+																						</div>
+																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Occupied</div>
+																							<div className="text-sm font-bold text-gray-700">{occupied}</div>
+																						</div>
+																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Vacant</div>
+																							<div className="text-sm font-bold text-gray-700">{vacant}</div>
+																						</div>
+																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Occupancy</div>
+																							<div className="text-sm font-bold text-gray-700">{occupancy.toFixed(1)}%</div>
+																						</div>
+																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Total Rent</div>
+																							<div className="text-sm font-bold text-gray-700">{formatCurrency(totalRent)}</div>
+																						</div>
+																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Avg Rent</div>
+																							<div className="text-sm font-bold text-gray-700">{formatCurrency(avgRent)}</div>
+																						</div>
+																					</div>
+
+																					<div className="overflow-x-auto">
+																						<table className="min-w-full divide-y divide-gray-200 text-sm">
+																							<thead className="bg-gray-50">
+																								<tr>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Unit # </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Type </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Beds/Baths </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> SF </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Status </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Tenant </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Lease Term </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Monthly Rent </th>
+																								</tr>
+																							</thead>
+																							<tbody className="bg-white divide-y divide-gray-200">
+																								{rentRollData.map(
+																									(
+																										unit: any,
+																										idx: number
+																									) => (
+																										<tr
+																											key={
+																												idx
+																											}
+																										>
+																											<td className="px-3 py-2 whitespace-nowrap"> {unit.unitNumber || "N/A"} </td>
+																											<td className="px-3 py-2 whitespace-nowrap"> {unit.unitType || "N/A"} </td>
+																											<td className="px-3 py-2 whitespace-nowrap"> {unit.beds ?? "N/A"}/{unit.baths ?? "N/A"} </td>
+																											<td className="px-3 py-2 whitespace-nowrap"> {unit.sf?.toLocaleString() || "N/A"} </td>
+																											<td className="px-3 py-2 whitespace-nowrap"> {unit.status || "N/A"} </td>
+																											<td className="px-3 py-2 whitespace-nowrap"> {unit.tenantName || "N/A"} </td>
+																											<td className="px-3 py-2 whitespace-nowrap text-xs"> {unit.leaseStart || "N/A"} - {unit.leaseEnd || "N/A"} </td>
+																											<td className="px-3 py-2 whitespace-nowrap"> {formatCurrency(unit.monthlyRent)} </td>
+																										</tr>
+																									)
+																								)}
+																							</tbody>
+																						</table>
+																					</div>
+																				</div>
+																			);
+																		})()}
 																	{/* Five Year Cash Flow */}
 																	{cashFlowArray &&
 																		cashFlowArray.length >
-																			0 && (
+																		0 && (
 																			<div>
 																				<h4 className="text-sm font-semibold text-gray-600 mb-2">
 																					Five
@@ -1582,63 +1677,63 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																					<tbody className="bg-white divide-y divide-gray-200">
 																						{returnsData.cashFlow !=
 																							null && (
-																							<tr>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									Cash
-																									Flow
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{formatPercent(
-																										returnsData.cashFlow,
-																										1
-																									)}
-																								</td>
-																							</tr>
-																						)}
+																								<tr>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										Cash
+																										Flow
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{formatPercent(
+																											returnsData.cashFlow,
+																											1
+																										)}
+																									</td>
+																								</tr>
+																							)}
 																						{returnsData.assetAppreciation !=
 																							null && (
-																							<tr>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									Asset
-																									Appreciation
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{formatPercent(
-																										returnsData.assetAppreciation,
-																										1
-																									)}
-																								</td>
-																							</tr>
-																						)}
+																								<tr>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										Asset
+																										Appreciation
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{formatPercent(
+																											returnsData.assetAppreciation,
+																											1
+																										)}
+																									</td>
+																								</tr>
+																							)}
 																						{returnsData.taxBenefits !=
 																							null && (
-																							<tr>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									Tax
-																									Benefits
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{formatPercent(
-																										returnsData.taxBenefits,
-																										1
-																									)}
-																								</td>
-																							</tr>
-																						)}
+																								<tr>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										Tax
+																										Benefits
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{formatPercent(
+																											returnsData.taxBenefits,
+																											1
+																										)}
+																									</td>
+																								</tr>
+																							)}
 																						{returnsData.leverage !=
 																							null && (
-																							<tr>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									Leverage
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{formatPercent(
-																										returnsData.leverage,
-																										1
-																									)}
-																								</td>
-																							</tr>
-																						)}
+																								<tr>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										Leverage
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{formatPercent(
+																											returnsData.leverage,
+																											1
+																										)}
+																									</td>
+																								</tr>
+																							)}
 																					</tbody>
 																				</table>
 																			</div>
@@ -1648,7 +1743,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	{/* Quarterly Delivery Schedule */}
 																	{quarterlyData &&
 																		quarterlyData.length >
-																			0 && (
+																		0 && (
 																			<div>
 																				<h4 className="text-sm font-semibold text-gray-600 mb-2">
 																					Quarterly
@@ -1680,24 +1775,22 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																									>
 																										<td className="px-3 py-2 whitespace-nowrap">
 																											{item.quarter ||
-																												`Q${
-																													(index %
-																														4) +
-																													1
-																												} 202${
-																													5 +
-																													Math.floor(
-																														index /
-																															4
-																													)
+																												`Q${(index %
+																													4) +
+																												1
+																												} 202${5 +
+																												Math.floor(
+																													index /
+																													4
+																												)
 																												}`}
 																										</td>
 																										<td className="px-3 py-2 whitespace-nowrap">
 																											{typeof item.units ===
-																											"number"
+																												"number"
 																												? item.units.toLocaleString()
 																												: item.units ||
-																												  "N/A"}
+																												"N/A"}
 																										</td>
 																									</tr>
 																								)
@@ -1724,7 +1817,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																					sensitivityData
 																						.rentGrowthImpact
 																						.length >
-																						0 && (
+																					0 && (
 																						<div>
 																							<h5 className="text-xs font-medium text-gray-700 mb-2">
 																								Rent
@@ -1760,13 +1853,13 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																													</td>
 																													<td className="px-3 py-2 whitespace-nowrap">
 																														{typeof item.irr ===
-																														"number"
+																															"number"
 																															? formatPercent(
-																																	item.irr,
-																																	1
-																															  )
+																																item.irr,
+																																1
+																															)
 																															: item.irr ||
-																															  "N/A"}
+																															"N/A"}
 																													</td>
 																												</tr>
 																											)
@@ -1785,7 +1878,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																					sensitivityData
 																						.constructionCostImpact
 																						.length >
-																						0 && (
+																					0 && (
 																						<div>
 																							<h5 className="text-xs font-medium text-gray-700 mb-2">
 																								Construction
@@ -1822,13 +1915,13 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																													</td>
 																													<td className="px-3 py-2 whitespace-nowrap">
 																														{typeof item.irr ===
-																														"number"
+																															"number"
 																															? formatPercent(
-																																	item.irr,
-																																	1
-																															  )
+																																item.irr,
+																																1
+																															)
 																															: item.irr ||
-																															  "N/A"}
+																															"N/A"}
 																													</td>
 																												</tr>
 																											)
@@ -1848,7 +1941,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																			timingData
 																		)
 																			.length >
-																			0 && (
+																		0 && (
 																			<div>
 																				<h4 className="text-sm font-semibold text-gray-600 mb-2">
 																					Capital
@@ -1876,9 +1969,9 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																									useType,
 																									timing,
 																								]: [
-																									string,
-																									any
-																								]) => {
+																										string,
+																										any
+																									]) => {
 																									// Format use type name: convert camelCase to Title Case
 																									const formattedUseType =
 																										useType
@@ -1907,12 +2000,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																											</td>
 																											<td className="px-3 py-2 whitespace-nowrap">
 																												{typeof timing ===
-																												"string"
+																													"string"
 																													? timing
 																													: String(
-																															timing ||
-																																"N/A"
-																													  )}
+																														timing ||
+																														"N/A"
+																													)}
 																											</td>
 																										</tr>
 																									);
@@ -2029,11 +2122,11 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 
 															if (
 																highRisks.length ===
-																	0 &&
+																0 &&
 																mediumRisks.length ===
-																	0 &&
+																0 &&
 																lowRisks.length ===
-																	0
+																0
 															) {
 																return null;
 															}
@@ -2048,92 +2141,92 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																		{/* High Risk Items */}
 																		{highRisks.length >
 																			0 && (
-																			<div>
-																				<h5 className="text-xs font-medium text-red-700 mb-2">
-																					High
-																					Risk
-																					Items
-																				</h5>
-																				<ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-																					{highRisks.map(
-																						(
-																							risk,
-																							index
-																						) => (
-																							<li
-																								key={
-																									index
-																								}
-																							>
-																								{
-																									risk
-																								}
-																							</li>
-																						)
-																					)}
-																				</ul>
-																			</div>
-																		)}
+																				<div>
+																					<h5 className="text-xs font-medium text-red-700 mb-2">
+																						High
+																						Risk
+																						Items
+																					</h5>
+																					<ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+																						{highRisks.map(
+																							(
+																								risk,
+																								index
+																							) => (
+																								<li
+																									key={
+																										index
+																									}
+																								>
+																									{
+																										risk
+																									}
+																								</li>
+																							)
+																						)}
+																					</ul>
+																				</div>
+																			)}
 
 																		{/* Medium Risk Items */}
 																		{mediumRisks.length >
 																			0 && (
-																			<div>
-																				<h5 className="text-xs font-medium text-yellow-700 mb-2">
-																					Medium
-																					Risk
-																					Items
-																				</h5>
-																				<ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-																					{mediumRisks.map(
-																						(
-																							risk,
-																							index
-																						) => (
-																							<li
-																								key={
-																									index
-																								}
-																							>
-																								{
-																									risk
-																								}
-																							</li>
-																						)
-																					)}
-																				</ul>
-																			</div>
-																		)}
+																				<div>
+																					<h5 className="text-xs font-medium text-yellow-700 mb-2">
+																						Medium
+																						Risk
+																						Items
+																					</h5>
+																					<ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+																						{mediumRisks.map(
+																							(
+																								risk,
+																								index
+																							) => (
+																								<li
+																									key={
+																										index
+																									}
+																								>
+																									{
+																										risk
+																									}
+																								</li>
+																							)
+																						)}
+																					</ul>
+																				</div>
+																			)}
 
 																		{/* Low Risk Items */}
 																		{lowRisks.length >
 																			0 && (
-																			<div>
-																				<h5 className="text-xs font-medium text-green-700 mb-2">
-																					Low
-																					Risk
-																					Items
-																				</h5>
-																				<ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-																					{lowRisks.map(
-																						(
-																							risk,
-																							index
-																						) => (
-																							<li
-																								key={
-																									index
-																								}
-																							>
-																								{
-																									risk
-																								}
-																							</li>
-																						)
-																					)}
-																				</ul>
-																			</div>
-																		)}
+																				<div>
+																					<h5 className="text-xs font-medium text-green-700 mb-2">
+																						Low
+																						Risk
+																						Items
+																					</h5>
+																					<ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+																						{lowRisks.map(
+																							(
+																								risk,
+																								index
+																							) => (
+																								<li
+																									key={
+																										index
+																									}
+																								>
+																									{
+																										risk
+																									}
+																								</li>
+																							)
+																						)}
+																					</ul>
+																				</div>
+																			)}
 																	</div>
 																</div>
 															);
@@ -2154,7 +2247,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	drawSchedule
 																) ||
 																drawSchedule.length ===
-																	0
+																0
 															) {
 																return null;
 															}
@@ -2199,18 +2292,18 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																							</td>
 																							<td className="px-3 py-2 whitespace-nowrap">
 																								{typeof row.percentComplete ===
-																								"number"
+																									"number"
 																									? `${row.percentComplete.toFixed(
-																											0
-																									  )}%`
+																										0
+																									)}%`
 																									: "N/A"}
 																							</td>
 																							<td className="px-3 py-2 whitespace-nowrap">
 																								{typeof row.amount ===
-																								"number"
+																									"number"
 																									? formatCurrency(
-																											row.amount
-																									  )
+																										row.amount
+																									)
 																									: "N/A"}
 																							</td>
 																						</tr>
@@ -2239,7 +2332,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	rentComps
 																) ||
 																rentComps.length ===
-																	0
+																0
 															)
 																return null;
 
@@ -2303,10 +2396,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																							</td>
 																							<td className="px-3 py-2 whitespace-nowrap">
 																								{typeof comp.distance ===
-																								"number"
+																									"number"
 																									? `${comp.distance.toFixed(
-																											2
-																									  )} mi`
+																										2
+																									)} mi`
 																									: "N/A"}
 																							</td>
 																							<td className="px-3 py-2 whitespace-nowrap">
@@ -2319,10 +2412,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																							</td>
 																							<td className="px-3 py-2 whitespace-nowrap">
 																								{typeof comp.occupancyPercent ===
-																								"number"
+																									"number"
 																									? `${comp.occupancyPercent.toFixed(
-																											1
-																									  )}%`
+																										1
+																									)}%`
 																									: "N/A"}
 																							</td>
 																							<td className="px-3 py-2 whitespace-nowrap">
@@ -2332,10 +2425,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																							</td>
 																							<td className="px-3 py-2 whitespace-nowrap">
 																								{typeof comp.rentPSF ===
-																								"number"
+																									"number"
 																									? `$${comp.rentPSF.toFixed(
-																											2
-																									  )}`
+																										2
+																									)}`
 																									: "N/A"}
 																							</td>
 																						</tr>
@@ -2365,7 +2458,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	deliveryByQuarter
 																) ||
 																deliveryByQuarter.length ===
-																	0
+																0
 															)
 																return null;
 
@@ -2405,10 +2498,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																							</td>
 																							<td className="px-3 py-2 whitespace-nowrap">
 																								{typeof quarter.units ===
-																								"number"
+																									"number"
 																									? quarter.units.toLocaleString()
 																									: quarter.units ||
-																									  "N/A"}
+																									"N/A"}
 																							</td>
 																						</tr>
 																					)
@@ -2437,7 +2530,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	majorEmployers
 																) ||
 																majorEmployers.length ===
-																	0
+																0
 															)
 																return null;
 
@@ -2483,10 +2576,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																							</td>
 																							<td className="px-3 py-2 whitespace-nowrap">
 																								{typeof employer.employees ===
-																								"number"
+																									"number"
 																									? employer.employees.toLocaleString()
 																									: employer.employees ||
-																									  "N/A"}
+																									"N/A"}
 																							</td>
 																							<td className="px-3 py-2 whitespace-nowrap">
 																								{employer.growth ||
@@ -2514,33 +2607,33 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 															// Exclude special table fields
 															if (
 																field.fieldId ===
-																	"drawSchedule" ||
+																"drawSchedule" ||
 																field.fieldId ===
-																	"residentialUnitMix" ||
+																"residentialUnitMix" ||
 																field.fieldId ===
-																	"commercialSpaceMix" ||
+																"commercialSpaceMix" ||
 																field.fieldId ===
-																	"rentComps" ||
+																"rentComps" ||
 																field.fieldId ===
-																	"fiveYearCashFlow" ||
+																"fiveYearCashFlow" ||
 																field.fieldId ===
-																	"returnsBreakdown" ||
+																"returnsBreakdown" ||
 																field.fieldId ===
-																	"quarterlyDeliverySchedule" ||
+																"quarterlyDeliverySchedule" ||
 																field.fieldId ===
-																	"sensitivityAnalysis" ||
+																"sensitivityAnalysis" ||
 																field.fieldId ===
-																	"capitalUseTiming" ||
+																"capitalUseTiming" ||
 																field.fieldId ===
-																	"riskHigh" ||
+																"riskHigh" ||
 																field.fieldId ===
-																	"riskMedium" ||
+																"riskMedium" ||
 																field.fieldId ===
-																	"riskLow" ||
+																"riskLow" ||
 																field.fieldId ===
-																	"deliveryByQuarter" ||
+																"deliveryByQuarter" ||
 																field.fieldId ===
-																	"majorEmployers"
+																"majorEmployers"
 															) {
 																return false;
 															}
@@ -2555,12 +2648,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 															) {
 																return (
 																	value !==
-																		undefined &&
+																	undefined &&
 																	(hasValue(
 																		value
 																	) ||
 																		value ===
-																			false)
+																		false)
 																);
 															}
 															return hasValue(
@@ -2584,15 +2677,15 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	);
 																const isFullWidth =
 																	field.dataType ===
-																		"Textarea" ||
+																	"Textarea" ||
 																	field.fieldId ===
-																		"projectDescription" ||
+																	"projectDescription" ||
 																	field.fieldId ===
-																		"businessPlanSummary" ||
+																	"businessPlanSummary" ||
 																	field.fieldId ===
-																		"marketOverviewSummary" ||
+																	"marketOverviewSummary" ||
 																	field.fieldId ===
-																		"contactInfo";
+																	"contactInfo";
 
 																return (
 																	<KeyValueDisplay

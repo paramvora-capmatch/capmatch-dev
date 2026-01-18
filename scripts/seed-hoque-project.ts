@@ -142,6 +142,7 @@ function getDefaultValueForProjectField(fieldId: string): any {
 		"siteImages",
 		"architecturalDiagrams",
 		"t12MonthlyData",
+		"rentRollUnits",
 	];
 	if (arrayFields.includes(fieldId)) {
 		return [];
@@ -875,6 +876,68 @@ const hoqueProjectResumeBase: Record<string, any> = {
 			realEstateTaxes: 12500,
 			insurance: 4200,
 			capex: 0,
+		},
+	],
+	rentRollUnits: [
+		{
+			unitNumber: "101",
+			unitType: "1B/1B",
+			beds: 1,
+			baths: 1,
+			sf: 750,
+			status: "Occupied",
+			tenantName: "John Smith",
+			leaseStart: "2024-01-15",
+			leaseEnd: "2025-01-14",
+			monthlyRent: 2100,
+		},
+		{
+			unitNumber: "102",
+			unitType: "2B/2B",
+			beds: 2,
+			baths: 2,
+			sf: 1100,
+			status: "Occupied",
+			tenantName: "Jane Doe",
+			leaseStart: "2024-03-01",
+			leaseEnd: "2025-02-28",
+			monthlyRent: 3400,
+		},
+		{
+			unitNumber: "103",
+			unitType: "1B/1B",
+			beds: 1,
+			baths: 1,
+			sf: 750,
+			status: "Occupied",
+			tenantName: "Bob Johnson",
+			leaseStart: "2024-06-01",
+			leaseEnd: "2025-05-31",
+			monthlyRent: 2150,
+		},
+		{
+			unitNumber: "104",
+			unitType: "2B/1B",
+			beds: 2,
+			baths: 1,
+			sf: 950,
+			status: "Vacant",
+			tenantName: "",
+			leaseStart: "",
+			leaseEnd: "",
+			monthlyRent: 0,
+		},
+		{
+			unitNumber: "105",
+			unitType: "Studio",
+			beds: 0,
+			baths: 1,
+			sf: 500,
+			status: "Occupied",
+			tenantName: "Alice Brown",
+			leaseStart: "2024-02-01",
+			leaseEnd: "2025-01-31",
+			monthlyRent: 1650,
 		},
 	],
 
@@ -2117,20 +2180,20 @@ async function onboardUserDirectly(
 				user_id: userId,
 				role: "owner",
 			});
-			
+
 			// Create storage bucket for the org
 			const { error: bucketError } = await supabaseAdmin.storage.createBucket(orgId, {
 				public: false,
 				fileSizeLimit: 50 * 1024 * 1024, // 50MB
 			});
-			
+
 			if (bucketError && !bucketError.message.includes("already exists")) {
 				console.error(`[seed] Failed to create storage bucket: ${bucketError.message}`);
 				// Continue anyway, it might be a transient issue or existing bucket
 			} else if (!bucketError) {
 				console.log(`[seed] Created storage bucket for org: ${orgId}`);
 			}
-			
+
 		} else if (appRole === "advisor") {
 			// Advisors join/create the advisor org
 			const { data: existingOrg } = await supabaseAdmin
@@ -2193,14 +2256,14 @@ async function ensureStorageBucket(orgId: string) {
 			public: false,
 			fileSizeLimit: 50 * 1024 * 1024, // 50MB
 		});
-		
+
 		if (bucketError && !bucketError.message.includes("already exists")) {
 			console.error(`[seed] Failed to ensure storage bucket: ${bucketError.message}`);
 		} else if (!bucketError) {
 			console.log(`[seed] Created storage bucket for org: ${orgId}`);
 		} else {
-             // Bucket already exists, which is fine
-        }
+			// Bucket already exists, which is fine
+		}
 	} catch (e) {
 		console.error(`[seed] Exception ensuring storage bucket:`, e);
 	}
@@ -2403,8 +2466,8 @@ async function getOrCreateDemoBorrowerAccount(): Promise<{
 		return null;
 	}
 
-    // Ensure bucket exists
-    await ensureStorageBucket(borrowerOrgId);
+	// Ensure bucket exists
+	await ensureStorageBucket(borrowerOrgId);
 
 	return { userId: borrowerUserId, orgId: borrowerOrgId };
 }
@@ -3599,11 +3662,9 @@ async function seedChatMessages(
 		// Initial project kickoff
 		{
 			userId: borrowerId,
-			content: `Hi @[Cody Field](user:${advisorId})! Excited to work with you on SoGood Apartments Building B. I've uploaded the key documents including the @[Term Sheet](doc:${
-				termSheetId || ""
-			}) and @[Sources & Uses](doc:${
-				sourcesUsesId || ""
-			}) which have all the key details for our 116-unit mixed-use development. This is Building B in the SoGood master plan, located between the Dallas Farmers Market and Deep Ellum.`,
+			content: `Hi @[Cody Field](user:${advisorId})! Excited to work with you on SoGood Apartments Building B. I've uploaded the key documents including the @[Term Sheet](doc:${termSheetId || ""
+				}) and @[Sources & Uses](doc:${sourcesUsesId || ""
+				}) which have all the key details for our 116-unit mixed-use development. This is Building B in the SoGood master plan, located between the Dallas Farmers Market and Deep Ellum.`,
 			resourceIds: [termSheetId, sourcesUsesId].filter(Boolean),
 		},
 		{
@@ -3613,9 +3674,8 @@ async function seedChatMessages(
 		},
 		{
 			userId: borrowerId,
-			content: `We're targeting Q1 2025 for debt marketing kickoff. Site control and PFC approval are complete as of July 2024. I've also uploaded the @[Market Study](doc:${
-				marketStudyId || ""
-			}) so you can see the market context. Groundbreaking is scheduled for August 2025.`,
+			content: `We're targeting Q1 2025 for debt marketing kickoff. Site control and PFC approval are complete as of July 2024. I've also uploaded the @[Market Study](doc:${marketStudyId || ""
+				}) so you can see the market context. Groundbreaking is scheduled for August 2025.`,
 			resourceIds: marketStudyId ? [marketStudyId] : [],
 		},
 
@@ -3634,9 +3694,8 @@ async function seedChatMessages(
 		// Financial discussion
 		{
 			userId: advisorId,
-			content: `I've been reviewing the @[Operating Pro Forma](doc:${
-				proFormaId || ""
-			}) - $18M loan request against $29.8M TDC is 60% LTC, which is reasonable for construction. Your base case shows 7.6% yield on cost with 44% LTV at stabilization. The partial recourse structure should help with pricing.`,
+			content: `I've been reviewing the @[Operating Pro Forma](doc:${proFormaId || ""
+				}) - $18M loan request against $29.8M TDC is 60% LTC, which is reasonable for construction. Your base case shows 7.6% yield on cost with 44% LTV at stabilization. The partial recourse structure should help with pricing.`,
 			resourceIds: proFormaId ? [proFormaId] : [],
 		},
 		{
@@ -3648,11 +3707,9 @@ async function seedChatMessages(
 		// Design and site discussion
 		{
 			userId: advisorId,
-			content: `The location between Farmers Market and Deep Ellum is excellent. I've looked at the @[Site Plan Abstract](doc:${
-				sitePlanId || ""
-			}) - the site access from Hickory St and Ferris St works well. The @[Architectural Plan Abstract](doc:${
-				architecturalPlanId || ""
-			}) shows a solid 6-story podium design with good amenity spaces.`,
+			content: `The location between Farmers Market and Deep Ellum is excellent. I've looked at the @[Site Plan Abstract](doc:${sitePlanId || ""
+				}) - the site access from Hickory St and Ferris St works well. The @[Architectural Plan Abstract](doc:${architecturalPlanId || ""
+				}) shows a solid 6-story podium design with good amenity spaces.`,
 			resourceIds: [sitePlanId, architecturalPlanId].filter(Boolean),
 		},
 		{
@@ -3715,18 +3772,16 @@ async function seedChatMessages(
 			const constructionMessages = [
 				{
 					userId: borrowerId,
-					content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Architectural Plan Abstract](doc:${
-						architecturalPlanId || ""
-					}) shows the full scope - 6-story podium with structured parking.`,
+					content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Architectural Plan Abstract](doc:${architecturalPlanId || ""
+						}) shows the full scope - 6-story podium with structured parking.`,
 					resourceIds: architecturalPlanId
 						? [architecturalPlanId]
 						: [],
 				},
 				{
 					userId: advisorId,
-					content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan Abstract](doc:${
-						sitePlanId || ""
-					}) shows good site access - that should help with construction logistics.`,
+					content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan Abstract](doc:${sitePlanId || ""
+						}) shows good site access - that should help with construction logistics.`,
 					resourceIds: sitePlanId ? [sitePlanId] : [],
 				},
 				{
@@ -3757,11 +3812,9 @@ async function seedChatMessages(
 			const financingMessages = [
 				{
 					userId: advisorId,
-					content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Term Sheet](doc:${
-						termSheetId || ""
-					}) and @[Sources & Uses](doc:${
-						sourcesUsesId || ""
-					}) are comprehensive - I'll use these for initial outreach. Target list coming next week.`,
+					content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Term Sheet](doc:${termSheetId || ""
+						}) and @[Sources & Uses](doc:${sourcesUsesId || ""
+						}) are comprehensive - I'll use these for initial outreach. Target list coming next week.`,
 					resourceIds: [termSheetId, sourcesUsesId].filter(Boolean),
 				},
 				{
@@ -3776,9 +3829,8 @@ async function seedChatMessages(
 				},
 				{
 					userId: borrowerId,
-					content: `Sounds good. The @[Operating Pro Forma](doc:${
-						proFormaId || ""
-					}) shows strong returns - 7.6% yield on cost with multiple exit scenarios. That should help with lender underwriting.`,
+					content: `Sounds good. The @[Operating Pro Forma](doc:${proFormaId || ""
+						}) shows strong returns - 7.6% yield on cost with multiple exit scenarios. That should help with lender underwriting.`,
 					resourceIds: proFormaId ? [proFormaId] : [],
 				},
 			];

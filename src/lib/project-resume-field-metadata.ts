@@ -796,6 +796,13 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Table",
 		section: "financial-details",
 	},
+	rentRollUnits: {
+		fieldId: "rentRollUnits",
+		description: "Detailed, unit-level rent roll information.",
+		expectedValue: "Table/Array of unit-level rent roll objects",
+		dataType: "Table",
+		section: "financial-details",
+	},
 	yieldOnCost: {
 		fieldId: "yieldOnCost",
 		description: "Yield on Cost (NOI / TDC).",

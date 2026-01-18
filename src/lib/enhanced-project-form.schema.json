@@ -195,9 +195,9 @@
 						"syndicationCostsLabel",
 						"enviroRemediationLabel",
 						"pfcStructuringFeeLabel",
-                        "acquisitionCosts",
-                        "softCosts",
-                        "payoffExistingDebt"
+						"acquisitionCosts",
+						"softCosts",
+						"payoffExistingDebt"
 					]
 				},
 				{
@@ -215,10 +215,10 @@
 						"sponsorEquityLabel",
 						"taxCreditEquityLabel",
 						"gapFinancingLabel",
-                        "mezzanineDebt",
-                        "sellerFinancing",
-                        "preferredEquity",
-                        "grantsTaxCredits"
+						"mezzanineDebt",
+						"sellerFinancing",
+						"preferredEquity",
+						"grantsTaxCredits"
 					]
 				},
 				{
@@ -308,7 +308,18 @@
 				{
 					"id": "risk-analysis",
 					"title": "3.6 Risk Analysis",
-					"fields": ["riskHigh", "riskMedium", "riskLow"]
+					"fields": [
+						"riskHigh",
+						"riskMedium",
+						"riskLow"
+					]
+				},
+				{
+					"id": "rent-roll",
+					"title": "3.7 Rent Roll",
+					"fields": [
+						"rentRollUnits"
+					]
 				}
 			],
 			"fields": [
@@ -433,7 +444,8 @@
 				"sensitivityAnalysis",
 				"riskHigh",
 				"riskMedium",
-				"riskLow"
+				"riskLow",
+				"rentRollUnits"
 			]
 		},
 		{
@@ -753,12 +765,18 @@
 				{
 					"id": "infrastructure-utilities",
 					"title": "7.4 Infrastructure & Utilities",
-					"fields": ["utilityAvailability", "easements"]
+					"fields": [
+						"utilityAvailability",
+						"easements"
+					]
 				},
 				{
 					"id": "project-media",
 					"title": "7.5 Project Media (Site Images & Plans)",
-					"fields": ["siteImages", "architecturalDiagrams"]
+					"fields": [
+						"siteImages",
+						"architecturalDiagrams"
+					]
 				}
 			],
 			"fields": [
@@ -826,7 +844,10 @@
 				{
 					"id": "financial-strength",
 					"title": "8.3 Financial Strength",
-					"fields": ["netWorth", "guarantorLiquidity"]
+					"fields": [
+						"netWorth",
+						"guarantorLiquidity"
+					]
 				}
 			],
 			"fields": [
@@ -2093,7 +2114,7 @@
 			"label": "Architectural Diagrams",
 			"required": false
 		},
-        "acquisitionCosts": {
+		"acquisitionCosts": {
 			"label": "Acquisition Costs",
 			"required": false
 		},
