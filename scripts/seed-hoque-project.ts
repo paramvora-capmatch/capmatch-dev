@@ -4414,10 +4414,10 @@ async function seedHoqueProject(): Promise<void> {
              }
         }
             
-        if (templatesRoot && assignedAdvisorId) {
+        if (templatesRoot && advisorId) {
              const { error: permError } = await supabaseAdmin.from("permissions").upsert({
                 resource_id: templatesRoot.id,
-                user_id: assignedAdvisorId,
+                user_id: advisorId,
                 permission: "edit",
                 granted_by: advisorId, 
             });
@@ -4592,15 +4592,45 @@ async function seedHoqueProject(): Promise<void> {
 						.single();
 
 					if (uRoot) {
-						await supabaseAdmin.from("permissions").upsert({
+						const { error: permError } = await supabaseAdmin.from("permissions").upsert({
 							resource_id: uRoot.id,
 							user_id: lenderUserId,
 							permission: "view",
 							granted_by: advisorId,
 						});
-						console.log(
-							`[seed] ✅ Granted lender VIEW access to UNDERWRITING_DOCS_ROOT`
-						);
+                        
+                        if (permError) {
+                             console.error(`[seed] ❌ Failed to grant permission on UNDERWRITING_DOCS_ROOT:`, permError);
+                        } else {
+    						console.log(
+    							`[seed] ✅ Granted lender VIEW access to UNDERWRITING_DOCS_ROOT`
+    						);
+                        }
+                        
+                        // Grant lender VIEW access to UNDERWRITING_TEMPLATES_ROOT
+                        const { data: uTemplatesRoot } = await supabaseAdmin
+                            .from("resources")
+                            .select("id")
+                            .eq("project_id", projectId)
+                            .eq("resource_type", "UNDERWRITING_TEMPLATES_ROOT")
+                            .maybeSingle();
+
+                        if (uTemplatesRoot) {
+                            const { error: tmplPermError } = await supabaseAdmin.from("permissions").upsert({
+                                resource_id: uTemplatesRoot.id,
+                                user_id: lenderUserId,
+                                permission: "view",
+                                granted_by: advisorId, 
+                            });
+                            
+                            if (tmplPermError) {
+                                console.error(`[seed] ❌ Failed to grant permission on UNDERWRITING_TEMPLATES_ROOT:`, tmplPermError);
+                            } else {
+                                console.log(
+                                    `[seed] ✅ Granted lender VIEW access to UNDERWRITING_TEMPLATES_ROOT`
+                                );
+                            }
+                        }
 					}
 				}
 			} catch (err) {
