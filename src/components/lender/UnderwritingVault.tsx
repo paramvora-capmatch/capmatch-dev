@@ -31,7 +31,8 @@ interface StageProps {
     onSelectFromResume: (docName: string) => void;
     onGenerate: (docName: string) => void;
     isGenerating: (docName: string) => boolean;
-    onViewTemplate: (docName: string) => void;
+    onViewTemplate: (docName: string) => void; 
+    onGenerateStage: (docs: DocItem[]) => void;
 }
 
 const StageAccordion: React.FC<StageProps> = ({
@@ -45,127 +46,158 @@ const StageAccordion: React.FC<StageProps> = ({
     onSelectFromResume,
     onGenerate,
     isGenerating,
-    onViewTemplate
+    onViewTemplate,
+    onGenerateStage
 }) => {
+    // Count docs that can be generated but haven't been yet
+    const pendingGenerationDocs = docs.filter(d => d.canGenerate && !d.file);
+    const hasPendingGenerators = pendingGenerationDocs.length > 0;
+
     return (
-        <div className="border border-gray-200 rounded-lg overflow-hidden bg-white mb-4 shadow-sm">
+        <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50/50 mb-4 shadow-sm">
             <button
                 onClick={onToggle}
-                className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                className="w-full flex items-center justify-between p-4 bg-white hover:bg-gray-50 transition-colors text-left border-b border-gray-100"
             >
                 <div className="flex items-center gap-3">
-                    {isExpanded ? (
-                        <ChevronDown className="h-5 w-5 text-gray-500" />
-                    ) : (
-                        <ChevronRight className="h-5 w-5 text-gray-500" />
-                    )}
+                    <div className={cn("p-1 rounded-md transition-colors", isExpanded ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-500")}>
+                         {isExpanded ? (
+                            <ChevronDown className="h-5 w-5" />
+                        ) : (
+                            <ChevronRight className="h-5 w-5" />
+                        )}
+                    </div>
+                   
                     <div>
-                        <h3 className="font-semibold text-gray-900">{title}</h3>
+                        <h3 className="font-bold text-gray-900 text-base">{title}</h3>
                         <p className="text-sm text-gray-500">{description}</p>
                     </div>
                 </div>
-                <div className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full border border-blue-100">
-                    {docs.length} Documents
+                
+                <div className="flex items-center gap-3">
+                    {hasPendingGenerators && (
+                        <div 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onGenerateStage(pendingGenerationDocs);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors mr-2 cursor-pointer border border-blue-100"
+                        >
+                            <Play className="h-3.5 w-3.5 fill-current" />
+                            Generate Docs
+                        </div>
+                    )}
+                    <div className="text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                        {docs.length} Documents
+                    </div>
                 </div>
             </button>
 
             {isExpanded && (
-                <div className="border-t border-gray-200 bg-white overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
-                            <tr>
-                                <th className="px-4 py-3 font-medium min-w-[300px]">Document Name</th>
-                                <th className="px-4 py-3 font-medium w-[180px]">Actions</th>
-                                <th className="px-4 py-3 font-medium w-[120px]">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {docs.map((doc, idx) => (
-                                <tr key={idx} className="hover:bg-gray-50/80 transition-colors group">
-                                    <td className="px-4 py-3 align-top">
-                                        <div className="font-medium text-gray-900 flex items-center gap-2">
-                                            {doc.file ? (
-                                                <button
-                                                    onClick={() => onClickFile(doc.file!)}
-                                                    className="text-blue-600 hover:underline text-left"
-                                                >
-                                                    {doc.name}
-                                                </button>
-                                            ) : (
-                                                <span>{doc.name}</span>
-                                            )}
-                                        </div>
-                                        {/* Template Link */}
-                                        <div className="mt-1">
-                                            <button 
-                                                onClick={() => onViewTemplate(doc.name)}
-                                                className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors"
+                <div className="p-4 space-y-3 bg-gray-50/50">
+                    {docs.map((doc, idx) => (
+                        <div key={idx} className="group bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[72px]">
+                            
+                            {/* Left Section: Name + Hover Status */}
+                            <div className="flex flex-col justify-center min-w-0 flex-1 mr-4">
+                                <h4 className="font-bold text-gray-900 text-sm truncate" title={doc.name}>
+                                    {doc.name}
+                                </h4>
+                                
+                                {/* Status Badge - Appears on Hover */}
+                                <div className="hidden group-hover:flex items-center gap-2 mt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                     {doc.status === "uploaded" ? (
+                                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-50 px-2 py-0.5 rounded-sm border border-green-200">
+                                            Uploaded
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-sm border border-amber-200">
+                                            Missing
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Right Section: Status (Default) vs Actions (Hover) */}
+                            <div className="flex items-center justify-end shrink-0">
+                                
+                                {/* Default View: Status Badge */}
+                                <div className="group-hover:hidden flex items-center">
+                                     {doc.status === "uploaded" ? (
+                                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-50 px-2 py-0.5 rounded-sm border border-green-200">
+                                            Uploaded
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-sm border border-amber-200">
+                                            Missing
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Hover View: Actions */}
+                                <div className="hidden group-hover:flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-200">
+                                     {/* View Template Action */}
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); onViewTemplate(doc.name); }}
+                                        className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 transition-all"
+                                    >
+                                        <FileText className="h-3.5 w-3.5 text-gray-500" />
+                                        <span>Template</span>
+                                    </button>
+
+                                     {/* Document Actions */}
+                                    {doc.file ? (
+                                        <>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onClickFile(doc.file!); }}
+                                                className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-white border border-blue-200 rounded-md shadow-sm hover:bg-blue-50 transition-all"
                                             >
-                                                <FileText className="h-3 w-3" />
-                                                View Template
+                                                <FileText className="h-3.5 w-3.5" />
+                                                View Document
                                             </button>
-                                        </div>
-                                    </td>
-                                    
-                                    <td className="px-4 py-3 align-top">
-                                        <div className="flex gap-2">
-                                            {/* Generate Button */}
-                                            {doc.canGenerate && !doc.file && (
+                                            
+                                            {doc.canGenerate && (
                                                 <button
-                                                    onClick={() => onGenerate(doc.name)}
+                                                     onClick={(e) => { e.stopPropagation(); onGenerate(doc.name); }}
+                                                     className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all"
+                                                >
+                                                    <Play className="h-3.5 w-3.5 text-gray-500" />
+                                                    Regenerate
+                                                </button>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                             {doc.canGenerate && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onGenerate(doc.name); }}
                                                     disabled={isGenerating(doc.name)}
-                                                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                                    className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all"
                                                 >
                                                     {isGenerating(doc.name) ? (
-                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                     ) : (
-                                                        <Play className="h-3 w-3 fill-current" />
+                                                        <Play className="h-3.5 w-3.5 fill-current" />
                                                     )}
                                                     Generate
                                                 </button>
                                             )}
 
-                                            {/* Add from Resume Button */}
-                                            {(doc.addFromResume || (!doc.file && !doc.canGenerate)) && !doc.file && (
+                                            {(doc.addFromResume || !doc.canGenerate) && (
                                                 <button
-                                                    onClick={() => onSelectFromResume(doc.name)}
-                                                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded hover:bg-gray-200 transition-colors"
+                                                    onClick={(e) => { e.stopPropagation(); onSelectFromResume(doc.name); }}
+                                                    className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 transition-all"
                                                 >
-                                                    <ExternalLink className="h-3 w-3" />
-                                                    Add from Resume
+                                                    <ExternalLink className="h-3.5 w-3.5" />
+                                                    Copy from Resume
                                                 </button>
                                             )}
-                                            
-                                            {/* Re-Generate (if file exists) */}
-                                            {doc.file && doc.canGenerate && (
-                                                 <button
-                                                    onClick={() => onGenerate(doc.name)}
-                                                    className="opacity-0 group-hover:opacity-100 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-all"
-                                                 >
-                                                    Regenerate
-                                                 </button>
-                                            )}
-                                        </div>
-                                    </td>
-
-                                    <td className="px-4 py-3 align-top">
-                                        <div className="flex items-center">
-                                            {doc.status === "uploaded" && (
-                                                <span className="flex items-center text-xs text-green-700 font-medium bg-green-50 px-2 py-1 rounded-full border border-green-200">
-                                                    <CheckCircle className="h-3 w-3 mr-1.5" /> Uploaded
-                                                </span>
-                                            )}
-                                            {doc.status === "pending" && (
-                                                <span className="flex items-center text-xs text-amber-700 font-medium bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
-                                                    <Circle className="h-3 w-3 mr-1.5" /> Pending
-                                                </span>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             )}
         </div>
@@ -192,8 +224,6 @@ const initialStages = [
             { name: "T12 Financial Statement", status: "pending", importance: "High", rationale: "Valuation Baseline: The \"Truth\" of historical performance.", canGenerate: true },
             { name: "Current Rent Roll", status: "pending", importance: "High", rationale: "Revenue Validation: Validates T-12 revenue and occupancy.", canGenerate: true },
             { name: "Sources & Uses Model", status: "pending", importance: "High", rationale: "Deal Math: Proof that the deal works (Loan + Equity = Cost + Fees).", canGenerate: true },
-            { name: "Sources & Uses Report", status: "pending", importance: "High", rationale: "PDF Summary of Sources & Uses." },
-            { name: "T12 Summary Report", status: "pending", importance: "High", rationale: "PDF Summary of T12 Financials." },
             { name: "Credit Authorization & Gov ID", status: "pending", importance: "High", rationale: "Background Check: Mandatory for credit pulls and KYC.", addFromResume: true },
             { name: "Bank Statements", status: "pending", importance: "High", rationale: "Liquidity Proof: Proves cash on PFS exists and is liquid.", addFromResume: true },
             { name: "Church Financials", status: "pending", importance: "High", rationale: "Donation Stability: Tracks tithes, offerings, and attendance trends.", addFromResume: true },
@@ -373,6 +403,14 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             alert("Template not available for preview yet.");
         }
     };
+    
+    const handleGenerateStage = (docs: DocItem[]) => {
+        docs.forEach(doc => {
+            if (doc.canGenerate && !doc.file) {
+                handleGenerateDoc(doc.name);
+            }
+        });
+    };
 
     // Merge fetched files into stages
     const stages = useMemo(() => {
@@ -429,6 +467,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                         onGenerate={handleGenerateDoc}
                         isGenerating={(name) => generatingDocs.has(name)}
                         onViewTemplate={handleViewTemplate}
+                        onGenerateStage={handleGenerateStage}
                     />
                 ))}
             </div>
