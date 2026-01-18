@@ -4414,10 +4414,10 @@ async function seedHoqueProject(): Promise<void> {
              }
         }
             
-        if (templatesRoot && assignedAdvisorId) {
+        if (templatesRoot && advisorId) {
              const { error: permError } = await supabaseAdmin.from("permissions").upsert({
                 resource_id: templatesRoot.id,
-                user_id: assignedAdvisorId,
+                user_id: advisorId,
                 permission: "edit",
                 granted_by: advisorId, 
             });
