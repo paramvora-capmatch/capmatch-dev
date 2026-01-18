@@ -511,6 +511,7 @@ function convertToRichFormat(
 	return richFormat;
 }
 
+
 // Base Hoque project resume – only fields from the schema
 const hoqueProjectResumeBase: Record<string, any> = {
 	projectName: "SoGood Apartments",
@@ -1786,6 +1787,14 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 	bankruptcyHistory: false,
 	foreclosureHistory: false,
 	litigationHistory: false,
+	// New fields for Sponsor Resume & PFS
+	totalAUM: "$150,000,000",
+	totalSqFtManaged: "350,000",
+	totalAssets: 9000000,
+	totalLiabilities: 2000000,
+	netWorth: 7000000,
+	totalLiquidAssets: 5000000,
+	contingentLiabilities: 500000,
 	linkedinUrl: "https://www.linkedin.com/company/hoque-global",
 	websiteUrl: "https://www.hoqueglobal.com",
 	// Principals array - this is the primary data structure for multiple principals
@@ -3033,7 +3042,7 @@ async function seedUnderwritingDocs(
 				continue;
 			}
 
-            // Check if resource already exists to avoid duplicates
+			// Check if resource already exists to avoid duplicates
 			const { data: existing } = await supabaseAdmin
 				.from("resources")
 				.select("id")
@@ -3043,34 +3052,34 @@ async function seedUnderwritingDocs(
 
 			if (existing) {
 				console.log(`[seed] ℹ️  Underwriting doc already exists: ${doc.displayName}`);
-                continue;
+				continue;
 			}
 
 			// 1. Create Resource First (to get ID for path)
-            const { data: resource, error: resourceError } = await supabaseAdmin
-                .from("resources")
-                .insert({
-                    org_id: orgId,
-                    project_id: projectId,
-                    parent_id: uRoot.id,
-                    resource_type: "FILE",
-                    name: doc.displayName,
-                })
-                .select("id")
-                .single();
+			const { data: resource, error: resourceError } = await supabaseAdmin
+				.from("resources")
+				.insert({
+					org_id: orgId,
+					project_id: projectId,
+					parent_id: uRoot.id,
+					resource_type: "FILE",
+					name: doc.displayName,
+				})
+				.select("id")
+				.single();
 
-            if (resourceError) {
-                console.error(
-                    `[seed] ❌ Failed to create resource record for ${doc.displayName}:`,
-                    resourceError.message
-                );
-                continue;
-            }
+			if (resourceError) {
+				console.error(
+					`[seed] ❌ Failed to create resource record for ${doc.displayName}:`,
+					resourceError.message
+				);
+				continue;
+			}
 
-            const fileBuffer = fs.readFileSync(filePath);
-            const fileSize = fs.statSync(filePath).size;
-			
-            // Construct Deep Path
+			const fileBuffer = fs.readFileSync(filePath);
+			const fileSize = fs.statSync(filePath).size;
+
+			// Construct Deep Path
 			// {ProjectId}/underwriting-docs/{ResourceId}/v1_user{CreatorId}_{Filename}
 			const storagePath = `${projectId}/underwriting-docs/${resource.id}/v1_user${creatorId}_${doc.filename}`;
 
@@ -3087,8 +3096,8 @@ async function seedUnderwritingDocs(
 					`[seed] ❌ Failed to upload ${doc.filename}:`,
 					uploadError.message
 				);
-                // Cleanup resource if upload failed
-                await supabaseAdmin.from("resources").delete().eq("id", resource.id);
+				// Cleanup resource if upload failed
+				await supabaseAdmin.from("resources").delete().eq("id", resource.id);
 				continue;
 			}
 
@@ -3124,7 +3133,7 @@ async function seedUnderwritingDocs(
 				.eq("id", resource.id);
 
 			console.log(`[seed] ✅ Seeded underwriting doc: ${doc.displayName}`);
-			
+
 		} catch (err) {
 			console.error(`[seed] ❌ Error seeding ${doc.displayName}:`, err);
 		}
@@ -4374,29 +4383,29 @@ async function seedHoqueProject(): Promise<void> {
 
 		// Step 5.7: Seed Underwriting Templates (Project Specific)
 		console.log("\n📋 Step 5.7: Seeding underwriting templates (Project Specific)...");
-        
+
 		// Create Template Root
-        // User reports missing unique constraint on (project_id, resource_type), so we use check-then-insert
-        let templatesRoot: any = null;
-        
-        const { data: existingRoot, error: findRootError } = await supabaseAdmin
-            .from("resources")
-            .select("*")
-            .eq("project_id", projectId)
-            .eq("resource_type", "UNDERWRITING_TEMPLATES_ROOT")
-            .maybeSingle();
+		// User reports missing unique constraint on (project_id, resource_type), so we use check-then-insert
+		let templatesRoot: any = null;
 
-        if (findRootError) {
-             console.error("[seed] ❌ Failed to query UNDERWRITING_TEMPLATES_ROOT:", findRootError);
-        }
+		const { data: existingRoot, error: findRootError } = await supabaseAdmin
+			.from("resources")
+			.select("*")
+			.eq("project_id", projectId)
+			.eq("resource_type", "UNDERWRITING_TEMPLATES_ROOT")
+			.maybeSingle();
 
-        if (existingRoot) {
-            templatesRoot = existingRoot;
-            console.log(`[seed] ✅ Found existing Template Root: ${templatesRoot.id}`);
-        } else {
-             const { data: newRoot, error: createRootError } = await supabaseAdmin
-                .from("resources")
-                .insert({
+		if (findRootError) {
+			console.error("[seed] ❌ Failed to query UNDERWRITING_TEMPLATES_ROOT:", findRootError);
+		}
+
+		if (existingRoot) {
+			templatesRoot = existingRoot;
+			console.log(`[seed] ✅ Found existing Template Root: ${templatesRoot.id}`);
+		} else {
+			const { data: newRoot, error: createRootError } = await supabaseAdmin
+				.from("resources")
+				.insert({
 					project_id: projectId,
 					resource_type: "UNDERWRITING_TEMPLATES_ROOT",
 					name: "Underwriting Templates",
@@ -4436,103 +4445,103 @@ async function seedHoqueProject(): Promise<void> {
 			const filePath = path.join(templateDir, tmpl.filename);
 			if (fs.existsSync(filePath)) {
 				// Check if resource exists
-                const { data: existingRes } = await supabaseAdmin
-                    .from("resources")
-                    .select("*")
-                    .eq("project_id", projectId)
-                    .eq("name", tmpl.name)
-                    .eq("resource_type", "FILE") 
-                    .maybeSingle();
+				const { data: existingRes } = await supabaseAdmin
+					.from("resources")
+					.select("*")
+					.eq("project_id", projectId)
+					.eq("name", tmpl.name)
+					.eq("resource_type", "FILE")
+					.maybeSingle();
 
-                if (existingRes) {
-                     // Update existing to ensure parent is correct
-                    if (templatesRoot?.id && existingRes.parent_id !== templatesRoot.id) {
-                         console.log(`[seed]   - Updating parent_id for existing resource ${tmpl.name}`);
-                         await supabaseAdmin
-                            .from("resources")
-                            .update({ parent_id: templatesRoot.id })
-                            .eq("id", existingRes.id);
-                    } else {
-                        console.log(`[seed]   - Resource correctly exists for ${tmpl.name}`);
-                    }
-                    continue;
-                }
+				if (existingRes) {
+					// Update existing to ensure parent is correct
+					if (templatesRoot?.id && existingRes.parent_id !== templatesRoot.id) {
+						console.log(`[seed]   - Updating parent_id for existing resource ${tmpl.name}`);
+						await supabaseAdmin
+							.from("resources")
+							.update({ parent_id: templatesRoot.id })
+							.eq("id", existingRes.id);
+					} else {
+						console.log(`[seed]   - Resource correctly exists for ${tmpl.name}`);
+					}
+					continue;
+				}
 
-                // Create new resource
-                if (!templatesRoot?.id) {
-                        console.error(`[seed] ❌ Cannot create ${tmpl.name} because Template Root ID is missing.`);
-                        continue;
-                }
+				// Create new resource
+				if (!templatesRoot?.id) {
+					console.error(`[seed] ❌ Cannot create ${tmpl.name} because Template Root ID is missing.`);
+					continue;
+				}
 
-                const { data: res, error: resError } = await supabaseAdmin
-                    .from("resources")
-                    .insert({
-                        project_id: projectId,
-                        org_id: borrowerOrgId,
-                        resource_type: "FILE",
-                        name: tmpl.name,
-                        parent_id: templatesRoot.id
-                    })
-                    .select()
-                    .single();
-                
-                if (resError) {
-                        console.error(`[seed] ❌ Failed to create resource for ${tmpl.name}:`, resError);
-                        continue;
-                }
+				const { data: res, error: resError } = await supabaseAdmin
+					.from("resources")
+					.insert({
+						project_id: projectId,
+						org_id: borrowerOrgId,
+						resource_type: "FILE",
+						name: tmpl.name,
+						parent_id: templatesRoot.id
+					})
+					.select()
+					.single();
 
-                if (res) {
-                    const fileBuffer = fs.readFileSync(filePath);
-    				// Construct Deep Path for Templates
-                    // {ProjectId}/underwriting-templates/{ResourceId}/v1_user{AdvisorId}_{Filename}
-    				const storagePath = `${projectId}/underwriting-templates/${res.id}/v1_user${advisorId}_${tmpl.filename}`;
+				if (resError) {
+					console.error(`[seed] ❌ Failed to create resource for ${tmpl.name}:`, resError);
+					continue;
+				}
 
-    				// Upload
-    				const { error: uploadError } = await supabaseAdmin.storage
-    					.from(borrowerOrgId)
-    					.upload(storagePath, fileBuffer, {
-    						contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    						upsert: true
-    					});
-                    
-                    if (uploadError) {
-                        console.error(`[seed] ❌ Failed to upload ${tmpl.name}:`, uploadError);
-                        // cleanup
-                         await supabaseAdmin.from("resources").delete().eq("id", res.id);
-                        continue;
-                    } 
-                    
-                    console.log(`[seed] ✅ Uploaded ${tmpl.name} to storage`);
+				if (res) {
+					const fileBuffer = fs.readFileSync(filePath);
+					// Construct Deep Path for Templates
+					// {ProjectId}/underwriting-templates/{ResourceId}/v1_user{AdvisorId}_{Filename}
+					const storagePath = `${projectId}/underwriting-templates/${res.id}/v1_user${advisorId}_${tmpl.filename}`;
 
-                    const { data: ver, error: verError } = await supabaseAdmin
-                        .from("document_versions")
-                        .insert({
-                            resource_id: res.id,
-                            version_number: 1,
-                            storage_path: storagePath,
-                            status: "active",
-                            created_by: advisorId, 
-                            metadata: {
-                                size: fileBuffer.length,
-                                mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                bucket: borrowerOrgId
-                            }
-                        })
-                        .select()
-                        .single();
-                    
-                        if (verError) {
-                            console.error(`[seed] ❌ Failed to create version for ${tmpl.name}:`, verError);
-                        }
-                    
-                    if (ver) {
-                        await supabaseAdmin
-                            .from("resources")
-                            .update({ current_version_id: ver.id })
-                            .eq("id", res.id);
-                    }
-                    console.log(`[seed]   - Registered Resource & Version for ${tmpl.name}`);
-                }
+					// Upload
+					const { error: uploadError } = await supabaseAdmin.storage
+						.from(borrowerOrgId)
+						.upload(storagePath, fileBuffer, {
+							contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+							upsert: true
+						});
+
+					if (uploadError) {
+						console.error(`[seed] ❌ Failed to upload ${tmpl.name}:`, uploadError);
+						// cleanup
+						await supabaseAdmin.from("resources").delete().eq("id", res.id);
+						continue;
+					}
+
+					console.log(`[seed] ✅ Uploaded ${tmpl.name} to storage`);
+
+					const { data: ver, error: verError } = await supabaseAdmin
+						.from("document_versions")
+						.insert({
+							resource_id: res.id,
+							version_number: 1,
+							storage_path: storagePath,
+							status: "active",
+							created_by: advisorId,
+							metadata: {
+								size: fileBuffer.length,
+								mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+								bucket: borrowerOrgId
+							}
+						})
+						.select()
+						.single();
+
+					if (verError) {
+						console.error(`[seed] ❌ Failed to create version for ${tmpl.name}:`, verError);
+					}
+
+					if (ver) {
+						await supabaseAdmin
+							.from("resources")
+							.update({ current_version_id: ver.id })
+							.eq("id", res.id);
+					}
+					console.log(`[seed]   - Registered Resource & Version for ${tmpl.name}`);
+				}
 			} else {
 				console.warn(`[seed] ⚠️  Template file missing: ${filePath}`);
 			}
