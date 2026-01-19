@@ -76,16 +76,23 @@ const StageAccordion: React.FC<StageProps> = ({
                 
                 <div className="flex items-center gap-3">
                     {hasPendingGenerators && (
-                        <div 
+                        <button 
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onGenerateStage(pendingGenerationDocs);
+                                if (!docs.some(d => isGenerating(d.name))) {
+                                    onGenerateStage(pendingGenerationDocs);
+                                }
                             }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors mr-2 cursor-pointer border border-blue-100"
+                            disabled={docs.some(d => isGenerating(d.name))}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors mr-2 cursor-pointer border border-blue-100 disabled:opacity-50"
                         >
-                            <Play className="h-3.5 w-3.5 fill-current" />
-                            Generate Docs
-                        </div>
+                            {docs.some(d => isGenerating(d.name)) ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                                <Play className="h-3.5 w-3.5 fill-current" />
+                            )}
+                            {docs.some(d => isGenerating(d.name)) ? "Generating..." : "Generate Docs"}
+                        </button>
                     )}
                     <div className="text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shadow-sm">
                         {docs.length} Documents
