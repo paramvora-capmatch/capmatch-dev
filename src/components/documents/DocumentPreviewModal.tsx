@@ -11,6 +11,7 @@ import { ShareModal } from "./ShareModal";
 import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePermissions } from "@/hooks/usePermissions";
+import { usePermissionStore } from "@/stores/usePermissionStore";
 import { extractOriginalFilename } from "@/utils/documentUtils";
 import { Loader2, Download, Edit, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -49,14 +50,28 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     context: docContext,
     skipInitialFetch: true,
   });
-  const { canEdit } = usePermissions(resourceId);
+  const { canEdit, canView, isLoading: isPermissionsLoading } = usePermissions(resourceId);
   
   const isEditableInOffice = useMemo(() => {
     if (!resource) return false;
     // Check name first, then storage path
-    const hasExtension = (str: string) => /\.(docx|xlsx|pptx|pdf)$/i.test(str);
+    const hasExtension = (str: string) => /\.(docx|xlsx|pptx|pptm|xlsm|xls)$/i.test(str);
     return hasExtension(resource.name) || hasExtension(resource.storage_path);
   }, [resource]);
+  
+  // Reload permissions if missing (e.g. newly created/copied file)
+  useEffect(() => {
+    const checkPermissions = async () => {
+      // Only reload if we have a resource, we are NOT loading resource details,
+      // the permission store is NOT currently loading, and we have NO permissions (view or edit)
+      if (resource?.project_id && !isLoading && !isPermissionsLoading && canEdit === false && canView === false) {
+          console.log('[DocumentPreviewModal] Permission missing for resource, reloading permissions...');
+          await usePermissionStore.getState().loadPermissionsForProject(resource.project_id, true);
+      }
+    };
+    
+    checkPermissions();
+  }, [resource?.project_id, resourceId, isLoading, isPermissionsLoading, canEdit, canView]);
 
 
 
