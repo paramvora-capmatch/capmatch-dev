@@ -3096,6 +3096,11 @@ async function seedUnderwritingDocs(
             filename: "sreo_filled.xlsx",
             displayName: "Schedule of Real Estate Owned (SREO)",
             mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+            filename: "capex_report_filled.xlsx",
+            displayName: "CapEx Report",
+            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         }
 	];
 
@@ -4515,6 +4520,7 @@ async function seedHoqueProject(): Promise<void> {
 			{ name: "Current Rent Roll", filename: "rent_roll_template.xlsx" },
 			{ name: "Personal Financial Statement", filename: "pfs_template.xlsx" },
 			{ name: "Sponsor Bio", filename: "sponsor_bio_template.docx" },
+			{ name: "CapEx Report", filename: "capex_report_template.xlsx" },
 		];
 
 		for (const tmpl of templatesToSeed) {
