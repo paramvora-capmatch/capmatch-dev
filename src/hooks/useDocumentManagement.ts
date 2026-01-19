@@ -175,6 +175,16 @@ export const useDocumentManagement = ({
 
       setFiles(filesList);
       setFolders(foldersList);
+      
+      console.log("[DocumentManagement] Fetch complete:", {
+          context,
+          rootId: root.id,
+          parentId,
+          resourcesFound: resources?.length,
+          filesList: filesList.map(f => f.name),
+          foldersList: foldersList.map(f => f.name)
+      });
+
     } catch (err) {
       console.error("[DocumentManagement] Error listing documents:", err);
       if (err instanceof Error) {

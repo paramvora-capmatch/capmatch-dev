@@ -229,7 +229,7 @@ const initialStages = [
             { name: "Church Financials", status: "pending", importance: "High", rationale: "Donation Stability: Tracks tithes, offerings, and attendance trends.", addFromResume: true },
             { name: "ProForma Cash flow", status: "pending", importance: "High", rationale: "Forecasts future performance.", addFromResume: true },
             { name: "CapEx Report", status: "pending", importance: "High", rationale: "Details capital expenditure plans.", addFromResume: true },
-            { name: "Sponsor Resume / Bio", status: "pending", importance: "Medium", rationale: "Execution Capability: Proves borrower track record.", addFromResume: true },
+            { name: "Sponsor Bio", status: "pending", importance: "Medium", rationale: "Execution Capability: Proves borrower track record.", addFromResume: true },
             { name: "Offering Memorandum (OM)", status: "pending", importance: "Medium", rationale: "Context: Narrative, photos, and broker pro-forma.", addFromResume: true },
             { name: "Business Plan", status: "pending", importance: "Medium", rationale: "Strategy: Critical for value-add/construction.", addFromResume: true },
         ]
@@ -414,6 +414,9 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
     // Merge fetched files into stages
     const stages = useMemo(() => {
+        console.log("UnderwritingVault: received files:", files);
+        console.log("UnderwritingVault: templatesMap:", templatesMap);
+
         // Create a lookup map by name for O(1) access
         const fileMap = new Map<string, DocumentFile>();
         if (files) {
@@ -426,22 +429,30 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 }
             });
         }
+        
+        console.log("UnderwritingVault: fileMap keys:", Array.from(fileMap.keys()));
 
         return initialStages.map(stage => ({
             ...stage,
             docs: stage.docs.map(doc => {
                 const foundFile = fileMap.get(doc.name);
                 if (foundFile) {
+                    console.log(`UnderwritingVault: Matched doc '${doc.name}' with file '${foundFile.name}'`);
                     return {
                         ...doc,
                         status: "uploaded" as const,
                         file: foundFile
                     };
+                } else {
+                     // Debug why it's not matching
+                     if (files && files.some(f => f.name.includes(doc.name))) {
+                         console.warn(`UnderwritingVault: Potential partial match ignored for '${doc.name}'`);
+                     }
                 }
                 return doc;
             })
         }));
-    }, [files]);
+    }, [files, templatesMap]);
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

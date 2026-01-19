@@ -3008,42 +3008,41 @@ async function seedUnderwritingDocs(
 
 	const docsToSeed = [
 		{
-			filename: "underwriting/T12_Statement.xlsx",
+			filename: "t12_filled.xlsx",
 			displayName: "T12 Financial Statement",
 			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		},
 		{
-			filename: "underwriting/T12_Summary_Report.pdf",
-			displayName: "T12 Summary Report",
-			mimeType: "application/pdf",
-		},
-		{
-			filename: "underwriting/sources_and_uses_comprehensive.xlsx",
+			filename: "sources_uses_filled.xlsx",
 			displayName: "Sources & Uses Model",
 			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		},
 		{
-			filename: "underwriting/sources_and_uses_report.pdf",
-			displayName: "Sources & Uses Report",
-			mimeType: "application/pdf",
-		},
-		// NEW: PFS and Sponsor Bio (from borrower docs)
-		{
-			filename: "borrower/personal_financial_statement.xlsx",
+			filename: "pfs_filled.xlsx",
 			displayName: "Personal Financial Statement",
 			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		},
 		{
-			filename: "borrower/principals.docx",
+			filename: "sponsor_resume_filled.docx",
 			displayName: "Sponsor Bio",
 			mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 		},
+        {
+            filename: "rent_roll_filled.xlsx",
+            displayName: "Current Rent Roll",
+            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+            filename: "sreo_filled.xlsx",
+            displayName: "Schedule of Real Estate Owned (SREO)",
+            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        }
 	];
 
-	// Point to the parent "docs/so-good-apartments" directory so we can access subfolders
+	// Point to the parent "docs/so-good-apartments/underwriting-docs" directory
 	const basePath = path.join(
 		process.cwd(),
-		"docs/so-good-apartments"
+		"docs/so-good-apartments/underwriting-docs"
 	);
 
 	for (const doc of docsToSeed) {
@@ -4448,13 +4447,12 @@ async function seedHoqueProject(): Promise<void> {
             if (permError) console.error("[seed] ❌ Failed to grant root permissions:", permError);
         }
 
-		const templateDir = path.join(__dirname, "../../Backend/storage/templates");
+		const templateDir = path.join(process.cwd(), "docs/so-good-apartments/underwriting-templates");
 		const templatesToSeed = [
 			{ name: "Sources & Uses Model", filename: "sources_uses_template.xlsx" },
 			{ name: "Schedule of Real Estate Owned (SREO)", filename: "sreo_template.xlsx" },
 			{ name: "T12 Financial Statement", filename: "t12_template.xlsx" },
 			{ name: "Current Rent Roll", filename: "rent_roll_template.xlsx" },
-			// NEW: PFS and Sponsor Bio Templates
 			{ name: "Personal Financial Statement", filename: "pfs_template.xlsx" },
 			{ name: "Sponsor Bio", filename: "sponsor_bio_template.docx" },
 		];
@@ -4462,26 +4460,23 @@ async function seedHoqueProject(): Promise<void> {
 		for (const tmpl of templatesToSeed) {
 			const filePath = path.join(templateDir, tmpl.filename);
 			if (fs.existsSync(filePath)) {
-				// Check if resource exists
-				const { data: existingRes } = await supabaseAdmin
-					.from("resources")
-					.select("*")
-					.eq("project_id", projectId)
-					.eq("name", tmpl.name)
-					.eq("resource_type", "FILE")
-					.maybeSingle();
+				// Check if resource exists - STRICTLY checking within the templates root
+				let existingRes = null;
+				
+				if (templatesRoot?.id) {
+					const { data } = await supabaseAdmin
+						.from("resources")
+						.select("*")
+						.eq("project_id", projectId)
+						.eq("parent_id", templatesRoot.id)
+						.eq("name", tmpl.name)
+						.eq("resource_type", "FILE")
+						.maybeSingle();
+					existingRes = data;
+				}
 
 				if (existingRes) {
-					// Update existing to ensure parent is correct
-					if (templatesRoot?.id && existingRes.parent_id !== templatesRoot.id) {
-						console.log(`[seed]   - Updating parent_id for existing resource ${tmpl.name}`);
-						await supabaseAdmin
-							.from("resources")
-							.update({ parent_id: templatesRoot.id })
-							.eq("id", existingRes.id);
-					} else {
-						console.log(`[seed]   - Resource correctly exists for ${tmpl.name}`);
-					}
+					console.log(`[seed]   - Template correctly exists for ${tmpl.name}`);
 					continue;
 				}
 
