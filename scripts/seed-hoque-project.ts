@@ -142,7 +142,9 @@ function getDefaultValueForProjectField(fieldId: string): any {
 		"siteImages",
 		"architecturalDiagrams",
 		"t12MonthlyData",
+		"t12MonthlyData",
 		"rentRollUnits",
+		"capexItems",
 	];
 	if (arrayFields.includes(fieldId)) {
 		return [];
@@ -940,6 +942,64 @@ const hoqueProjectResumeBase: Record<string, any> = {
 			leaseEnd: "2025-01-31",
 			monthlyRent: 1650,
 		},
+	],
+	capexItems: [
+		{
+			"item": "Roof Replacement (TPO System)",
+			"category": "Structural",
+			"cost": 150000,
+			"priority": "Critical",
+			"condition": "Poor - End of Life",
+			"usefulLife": 20,
+			"startDate": "2026-04-01",
+			"status": "Planned",
+			"notes": "Current roof has multiple active leaks. Quote from Apex Roofing."
+		},
+		{
+			"item": "Parking Lot Resurfacing & Striping",
+			"category": "Site Work",
+			"cost": 45000,
+			"priority": "Medium",
+			"condition": "Fair",
+			"usefulLife": 10,
+			"startDate": "2026-06-15",
+			"status": "Planned",
+			"notes": "Fill cracks and sealcoat. Add accessible spaces."
+		},
+		{
+			"item": "Unit Renovations (Phase 1 - 20 Units)",
+			"category": "Interiors",
+			"cost": 240000,
+			"priority": "High",
+			"condition": "Dated",
+			"usefulLife": 15,
+			"startDate": "2026-02-01",
+			"completionDate": "2026-08-01",
+			"status": "In Progress",
+			"vendor": "Creative Interiors LLC",
+			"notes": "New LVP flooring, stainless appliances, quartz countertops. Expected $250 premium/unit."
+		},
+		{
+			"item": "Boiler System Replacement",
+			"category": "Mechanical",
+			"cost": 85000,
+			"priority": "Critical",
+			"condition": "Poor",
+			"usefulLife": 25,
+			"startDate": "2026-09-01",
+			"status": "Planned",
+			"notes": "Original 1990 system. Efficiency rating < 80%."
+		},
+		{
+			"item": "Common Area LED Lighting Retrofit",
+			"category": "Electrical",
+			"cost": 12000,
+			"priority": "Low",
+			"condition": "Functional",
+			"startDate": "2026-03-01",
+			"status": "Planned",
+			"notes": "Energy saving initiative. Estimated 1.5 year payback."
+		}
 	],
 
 	// Financial Details - Development Budget

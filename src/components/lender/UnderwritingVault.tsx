@@ -228,7 +228,7 @@ const initialStages = [
             { name: "Bank Statements", status: "pending", importance: "High", rationale: "Liquidity Proof: Proves cash on PFS exists and is liquid.", addFromResume: true },
             { name: "Church Financials", status: "pending", importance: "High", rationale: "Donation Stability: Tracks tithes, offerings, and attendance trends.", addFromResume: true },
             { name: "ProForma Cash flow", status: "pending", importance: "High", rationale: "Forecasts future performance.", addFromResume: true },
-            { name: "CapEx Report", status: "pending", importance: "High", rationale: "Details capital expenditure plans.", addFromResume: true },
+            { name: "CapEx Report", status: "pending", importance: "High", rationale: "Details capital expenditure plans.", addFromResume: true, canGenerate: true },
             { name: "Sponsor Bio", status: "pending", importance: "Medium", rationale: "Execution Capability: Proves borrower track record.", addFromResume: true, canGenerate: true },
             { name: "Offering Memorandum (OM)", status: "pending", importance: "Medium", rationale: "Context: Narrative, photos, and broker pro-forma.", addFromResume: true },
             { name: "Business Plan", status: "pending", importance: "Medium", rationale: "Strategy: Critical for value-add/construction.", addFromResume: true },
