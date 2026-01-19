@@ -49,9 +49,12 @@ const StageAccordion: React.FC<StageProps> = ({
     onViewTemplate,
     onGenerateStage
 }) => {
-    // Count docs that can be generated but haven't been yet
-    const pendingGenerationDocs = docs.filter(d => d.canGenerate && !d.file);
-    const hasPendingGenerators = pendingGenerationDocs.length > 0;
+    // Use all generateable docs for the stage action, supporting regeneration
+    const generateableDocs = docs.filter(d => d.canGenerate);
+
+    console.log(generateableDocs)
+    // Button is visible if there are ANY generateable docs (not just missing ones)
+    const canGenerateAny = generateableDocs.length > 0;
 
     return (
         <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50/50 mb-4 shadow-sm">
@@ -75,12 +78,13 @@ const StageAccordion: React.FC<StageProps> = ({
                 </div>
                 
                 <div className="flex items-center gap-3">
-                    {hasPendingGenerators && (
+                    {canGenerateAny && (
                         <button 
                             onClick={(e) => {
                                 e.stopPropagation();
                                 if (!docs.some(d => isGenerating(d.name))) {
-                                    onGenerateStage(pendingGenerationDocs);
+                                    // Trigger generation for ALL generateable docs in this stage
+                                    onGenerateStage(generateableDocs);
                                 }
                             }}
                             disabled={docs.some(d => isGenerating(d.name))}
@@ -382,7 +386,11 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     
     // Individual Generation Logic
     const handleGenerateDoc = async (docName: string) => {
-        if (!projectId) return;
+        console.log(`[UnderwritingVault] Requesting generation for: ${docName}`);
+        if (!projectId) {
+            console.error("[UnderwritingVault] Missing projectId, aborting generation.");
+            return;
+        }
         setGeneratingDocs(prev => new Set(prev).add(docName));
         
         try {
@@ -428,7 +436,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     
     const handleGenerateStage = (docs: DocItem[]) => {
         docs.forEach(doc => {
-            if (doc.canGenerate && !doc.file) {
+            if (doc.canGenerate) {
                 handleGenerateDoc(doc.name);
             }
         });
