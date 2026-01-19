@@ -159,10 +159,25 @@ const StageAccordion: React.FC<StageProps> = ({
                                             {doc.canGenerate && (
                                                 <button
                                                      onClick={(e) => { e.stopPropagation(); onGenerate(doc.name); }}
-                                                     className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all"
+                                                     disabled={isGenerating(doc.name)}
+                                                     className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50"
                                                 >
-                                                    <Play className="h-3.5 w-3.5 text-gray-500" />
-                                                    Regenerate
+                                                    {isGenerating(doc.name) ? (
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                    ) : (
+                                                        <Play className="h-3.5 w-3.5 text-gray-500" />
+                                                    )}
+                                                    {isGenerating(doc.name) ? "Regenerating..." : "Regenerate"}
+                                                </button>
+                                            )}
+
+                                            {doc.addFromResume && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onSelectFromResume(doc.name); }}
+                                                    className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all"
+                                                >
+                                                    <ExternalLink className="h-3.5 w-3.5 text-gray-500" />
+                                                    Change Document
                                                 </button>
                                             )}
                                         </>
@@ -179,7 +194,7 @@ const StageAccordion: React.FC<StageProps> = ({
                                                     ) : (
                                                         <Play className="h-3.5 w-3.5 fill-current" />
                                                     )}
-                                                    Generate
+                                                    {isGenerating(doc.name) ? "Generating..." : "Generate"}
                                                 </button>
                                             )}
 

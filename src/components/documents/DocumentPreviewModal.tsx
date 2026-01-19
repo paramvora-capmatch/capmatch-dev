@@ -1,7 +1,7 @@
 // src/components/documents/DocumentPreviewModal.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
@@ -14,6 +14,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { extractOriginalFilename } from "@/utils/documentUtils";
 import { Loader2, Download, Edit, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface DocumentPreviewModalProps {
   resourceId: string;
@@ -50,7 +51,14 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   });
   const { canEdit } = usePermissions(resourceId);
   
-  const isEditableInOffice = resource && /\.(docx|xlsx|pptx|pdf)$/i.test(resource.name);
+  const isEditableInOffice = useMemo(() => {
+    if (!resource) return false;
+    // Check name first, then storage path
+    const hasExtension = (str: string) => /\.(docx|xlsx|pptx|pdf)$/i.test(str);
+    return hasExtension(resource.name) || hasExtension(resource.storage_path);
+  }, [resource]);
+
+
 
   const fetchResourceDetails = useCallback(async () => {
     if (!resourceId) return;
@@ -162,6 +170,8 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     }
   };
 
+  const pathname = usePathname();
+
   return (
     <>
       <Modal 
@@ -181,7 +191,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             )}
             {canEdit && isEditableInOffice && (
               <Link
-                href={`/documents/edit?bucket=${activeOrg?.id}&path=${encodeURIComponent(resource.storage_path)}`}
+                href={`/documents/edit?bucket=${resource.org_id}&path=${encodeURIComponent(resource.storage_path)}&returnUrl=${encodeURIComponent(`${pathname}?step=project:underwriting&resourceId=${resourceId}`)}`}
                 className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-md text-sm px-4 py-2"
               >
                 <Edit size={16} className="mr-2" />
