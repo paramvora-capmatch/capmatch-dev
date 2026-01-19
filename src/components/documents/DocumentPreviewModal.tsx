@@ -44,9 +44,12 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const { activeOrg, currentOrgRole, user } = useAuthStore();
   const docContext = resource?.storage_path?.includes('/borrower-docs/')
     ? 'borrower'
+    : resource?.storage_path?.includes('/underwriting-docs/')
+    ? 'underwriting'
     : 'project';
   const { deleteFile, downloadFile } = useDocumentManagement({
     projectId: resource?.project_id || null,
+    orgId: resource?.org_id || null, // Pass the resource's org_id to use correct storage bucket
     context: docContext,
     skipInitialFetch: true,
   });

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
 // Initialize Supabase admin client
 const supabase = createClient(
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
       // First, try to get the previous version's storage path to extract the subdirectory
       const { data: previousVersion } = await supabase
         .from("document_versions")
-        .select("storage_path")
+        .select("storage_path, metadata")
         .eq("resource_id", resourceId)
         .neq("storage_path", "placeholder")
         .order("version_number", { ascending: false })
@@ -144,7 +145,8 @@ export async function POST(request: NextRequest) {
         const pathParts = previousVersion.storage_path.split("/");
         if (pathParts.length >= 2) {
           const subdir = pathParts[1];
-          if (subdir === "borrower-docs" || subdir === "project-docs") {
+          // Allow underwriting-docs to be preserved
+          if (subdir === "borrower-docs" || subdir === "project-docs" || subdir === "underwriting-docs") {
             storageSubdir = subdir;
           }
         }
@@ -170,6 +172,9 @@ export async function POST(request: NextRequest) {
             break;
           } else if (parent.resource_type === "PROJECT_DOCS_ROOT") {
             storageSubdir = "project-docs";
+            break;
+          } else if (parent.resource_type === "UNDERWRITING_DOCS_ROOT") {
+            storageSubdir = "underwriting-docs";
             break;
           }
           
@@ -229,6 +234,20 @@ export async function POST(request: NextRequest) {
         );
       }
       const fileBuffer = await response.arrayBuffer();
+      
+      // Calculate hash to detect duplicates
+      const fileBufferNode = Buffer.from(fileBuffer);
+      const fileHash = crypto.createHash('sha256').update(fileBufferNode).digest('hex');
+
+      // Check if content is identical to the previous version
+      if (previousVersion && (previousVersion as any).metadata) {
+          const prevMeta = (previousVersion as any).metadata;
+          if (prevMeta.hash && prevMeta.hash === fileHash) {
+              console.log("[OnlyOffice Callback] Content identical to previous version, skipping save.");
+              return NextResponse.json({ error: 0 });
+          }
+      }
+
       const contentType =
         response.headers.get("content-type") || "application/octet-stream";
 
@@ -237,6 +256,7 @@ export async function POST(request: NextRequest) {
         size: fileBuffer.byteLength,
         mimeType: contentType,
         downloadedAt: new Date().toISOString(),
+        hash: fileHash
       };
 
       // 4. Upload the new version to Supabase Storage
