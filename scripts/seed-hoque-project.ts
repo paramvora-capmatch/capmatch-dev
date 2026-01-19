@@ -3079,7 +3079,7 @@ async function seedUnderwritingDocs(
 		},
 		{
 			filename: "pfs_filled.xlsx",
-			displayName: "Personal Financial Statement",
+			displayName: "Personal Financial Statement (PFS)",
 			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		},
 		{
@@ -4518,7 +4518,7 @@ async function seedHoqueProject(): Promise<void> {
 			{ name: "Schedule of Real Estate Owned (SREO)", filename: "sreo_template.xlsx" },
 			{ name: "T12 Financial Statement", filename: "t12_template.xlsx" },
 			{ name: "Current Rent Roll", filename: "rent_roll_template.xlsx" },
-			{ name: "Personal Financial Statement", filename: "pfs_template.xlsx" },
+			{ name: "Personal Financial Statement (PFS)", filename: "pfs_template.xlsx" },
 			{ name: "Sponsor Bio", filename: "sponsor_bio_template.docx" },
 			{ name: "CapEx Report", filename: "capex_report_template.xlsx" },
 		];
