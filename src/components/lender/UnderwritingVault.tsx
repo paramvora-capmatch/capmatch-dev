@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { ChevronDown, ChevronRight, CheckCircle, Circle, ExternalLink, Download, Play, Loader2, Lock, Unlock, FileText } from "lucide-react";
+import { toast, Toaster } from "sonner";
 import { cn } from "@/utils/cn";
 import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
 import { apiClient } from "@/lib/apiClient";
@@ -384,14 +385,51 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         setShowResumeModal(true);
     };
     
+    // Reliable polling function
+    const waitForGeneration = async (docName: string, maxAttempts = 60, intervalMs = 3000): Promise<boolean> => {
+        let attempts = 0;
+        const initialFile = files?.find(f => f.name === docName || f.name.replace(/\.[^/.]+$/, "") === docName);
+        const initialVersion = initialFile?.version_number;
+
+        return new Promise((resolve) => {
+            const poll = setInterval(async () => {
+                attempts++;
+                const currentFiles = await refresh(true); // Force fetch
+                
+                const currentFile = currentFiles?.find(f => f.name === docName || f.name.replace(/\.[^/.]+$/, "") === docName);
+                
+                // Success conditions:
+                // 1. File didn't exist before, now it does.
+                // 2. File existed before, now version number is higher.
+                // 3. File existed before, now updated_at is more recent (if version logic fails).
+
+                const isNew = !initialFile && currentFile;
+                const isUpdated = initialFile && currentFile && (currentFile.version_number > (initialVersion || 0));
+                
+                if (isNew || isUpdated) {
+                    clearInterval(poll);
+                    resolve(true);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(poll);
+                    resolve(false);
+                }
+            }, intervalMs);
+        });
+    };
+
     // Individual Generation Logic
     const handleGenerateDoc = async (docName: string) => {
         console.log(`[UnderwritingVault] Requesting generation for: ${docName}`);
         if (!projectId) {
             console.error("[UnderwritingVault] Missing projectId, aborting generation.");
+            toast.error("Missing Project ID");
             return;
         }
+
+        if (generatingDocs.has(docName)) return; // Prevent double click
+
         setGeneratingDocs(prev => new Set(prev).add(docName));
+        const toastId = toast.loading(`Generating ${docName}...`);
         
         try {
             // Updated endpoint to generate specific document
@@ -400,22 +438,20 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 document_name: docName
             });
 
-            // Quick poll
-            const intervalId = setInterval(() => {
-                void refresh();
-            }, 2000);
-            setTimeout(() => {
-                clearInterval(intervalId);
-                setGeneratingDocs(prev => {
-                    const next = new Set(prev);
-                    next.delete(docName);
-                    return next;
-                });
-            }, 8000);
+            // Poll for completion - wait up to 3 minutes (60 * 3s)
+            const success = await waitForGeneration(docName);
+
+            if (success) {
+                toast.success(`${docName} generated successfully!`, { id: toastId });
+            } else {
+                 toast.warning(`${docName} generation is taking longer than expected. It will appear here soon.`, { id: toastId, duration: 5000 });
+            }
 
         } catch (error) {
             console.error("Generate failed:", error);
-            setGeneratingDocs(prev => {
+            toast.error(`Failed to generate ${docName}`, { id: toastId });
+        } finally {
+             setGeneratingDocs(prev => {
                 const next = new Set(prev);
                 next.delete(docName);
                 return next;
@@ -430,13 +466,14 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             setSelectedTemplateId(resourceId);
         } else {
             console.warn(`Template not found for: ${docName}`);
-            alert("Template not available for preview yet.");
+            toast.error("Template not available for preview yet.");
         }
     };
     
     const handleGenerateStage = (docs: DocItem[]) => {
+        toast.info(`Starting batch generation for ${docs.length} documents...`);
         docs.forEach(doc => {
-            if (doc.canGenerate) {
+            if (doc.canGenerate && !generatingDocs.has(doc.name)) {
                 handleGenerateDoc(doc.name);
             }
         });
@@ -532,6 +569,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     projectId={projectId}
                     renameTo={targetDocName || undefined}
                     onSuccess={() => {
+                        toast.success("Document copied successfully");
                         refresh();
                     }}
                 />
@@ -543,6 +581,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     openVersionsDefault={false}
                 />
             )}
+            <Toaster position="bottom-right" richColors />
         </div>
     );
 };

@@ -4513,7 +4513,7 @@ async function seedHoqueProject(): Promise<void> {
 			{ name: "Personal Financial Statement (PFS) Template", filename: "pfs_template.xlsx" },
 			{ name: "Sponsor Bio Template", filename: "sponsor_bio_template.docx" },
 			{ name: "CapEx Report Template", filename: "capex_report_template.xlsx" },
-			{ name: "ProForma Cash flow", filename: "pro_forma_template.xlsx" },
+			{ name: "ProForma Cash flow Template", filename: "pro_forma_template.xlsx" },
 		];
 
 		for (const tmpl of templatesToSeed) {
