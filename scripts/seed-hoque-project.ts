@@ -1717,6 +1717,7 @@ const hoqueProjectResume: Record<string, any> = (() => {
 		"riskLevelUpside",
 		"riskLevelBase",
 		"riskLevelDownside",
+		"t12MonthlyData", // T12 financial data for document generation
 	]);
 	for (const key of Object.keys(result)) {
 		if (
@@ -3974,21 +3975,7 @@ async function createProject(
 		const projectId = project.id;
 		console.log(`[seed] ✅ Created project record: ${projectId}`);
 
-		// 2. Create empty project resume (will be updated later)
-		const { error: resumeError } = await supabaseAdmin
-			.from("project_resumes")
-			.insert({ project_id: projectId, content: {} });
-
-		if (resumeError) {
-			console.error(
-				`[seed] Failed to create project resume:`,
-				resumeError
-			);
-			await supabaseAdmin.from("projects").delete().eq("id", projectId);
-			return null;
-		}
-
-		// 3. Create storage folders (project root, architectural-diagrams, site-images)
+		// 2. Create storage folders (project root, architectural-diagrams, site-images)
 		const { error: storageError } = await supabaseAdmin.storage
 			.from(ownerOrgId)
 			.upload(
@@ -4051,7 +4038,7 @@ async function createProject(
 			);
 		}
 
-		// 4. Create PROJECT_RESUME resource
+		// 3. Create PROJECT_RESUME resource
 		const { data: projectResumeResource, error: resumeResourceError } =
 			await supabaseAdmin
 				.from("resources")
@@ -4071,7 +4058,7 @@ async function createProject(
 			);
 		}
 
-		// 5. Create PROJECT_DOCS_ROOT resource
+		// 4. Create PROJECT_DOCS_ROOT resource
 		const { data: projectDocsRootResource, error: docsRootError } =
 			await supabaseAdmin
 				.from("resources")
@@ -4091,7 +4078,7 @@ async function createProject(
 			);
 		}
 
-		// 6. Ensure borrower root resources
+		// 5. Ensure borrower root resources
 		const { error: borrowerRootError } = await supabaseAdmin.rpc(
 			"ensure_project_borrower_roots",
 			{
@@ -4106,7 +4093,7 @@ async function createProject(
 			);
 		}
 
-		// 7. Grant creator access
+		// 6. Grant creator access
 		const { error: grantError } = await supabaseAdmin
 			.from("project_access_grants")
 			.insert({
@@ -4519,14 +4506,13 @@ async function seedHoqueProject(): Promise<void> {
 
 		const templateDir = path.join(process.cwd(), "docs/so-good-apartments/underwriting-templates");
 		const templatesToSeed = [
-			{ name: "Sources & Uses Model", filename: "sources_uses_template.xlsx" },
-			{ name: "Schedule of Real Estate Owned (SREO)", filename: "sreo_template.xlsx" },
-			{ name: "T12 Financial Statement", filename: "t12_template.xlsx" },
-			{ name: "Current Rent Roll", filename: "rent_roll_template.xlsx" },
-			{ name: "Personal Financial Statement (PFS)", filename: "pfs_template.xlsx" },
-			{ name: "Sponsor Bio", filename: "sponsor_bio_template.docx" },
-			{ name: "CapEx Report", filename: "capex_report_template.xlsx" },
-			{ name: "ProForma Cash flow", filename: "pro_forma_template.xlsx" },
+			{ name: "Sources & Uses Model Template", filename: "sources_uses_template.xlsx" },
+			{ name: "Schedule of Real Estate Owned (SREO) Template", filename: "sreo_template.xlsx" },
+			{ name: "T12 Financial Statement Template", filename: "t12_template.xlsx" },
+			{ name: "Current Rent Roll Template", filename: "rent_roll_template.xlsx" },
+			{ name: "Personal Financial Statement (PFS) Template", filename: "pfs_template.xlsx" },
+			{ name: "Sponsor Bio Template", filename: "sponsor_bio_template.docx" },
+			{ name: "CapEx Report Template", filename: "capex_report_template.xlsx" },
 		];
 
 		for (const tmpl of templatesToSeed) {
