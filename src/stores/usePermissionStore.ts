@@ -14,7 +14,7 @@ interface PermissionState {
   error: string | null;
   currentProjectId: string | null; // Track which project's permissions are loaded
   loadingProjectId: string | null; // Track which project is currently loading
-  loadPermissionsForProject: (projectId: string) => Promise<void>;
+  loadPermissionsForProject: (projectId: string, force?: boolean) => Promise<void>;
   getPermission: (resourceId: string | null | undefined) => Permission | null;
   resetPermissions: () => void;
 }

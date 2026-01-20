@@ -207,7 +207,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 defaultOpen={openVersionsDefault} 
               />
             )}
-            {canEdit && isEditableInOffice && (
+            {canEdit && isEditableInOffice && resource && (
               <Link
                 href={`/documents/edit?bucket=${resource.org_id}&path=${encodeURIComponent(resource.storage_path)}&returnUrl=${encodeURIComponent(`${pathname}?step=project:underwriting&resourceId=${resourceId}`)}`}
                 className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-md text-sm px-4 py-2"

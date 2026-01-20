@@ -394,7 +394,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         return new Promise((resolve) => {
             const poll = setInterval(async () => {
                 attempts++;
-                const result = await refresh(true); // Force fetch
+                const result = await refresh(); // Force fetch
                 const currentFiles = result?.files || [];
                 
                 const currentFile = currentFiles?.find(f => f.name === docName || f.name.replace(/\.[^/.]+$/, "") === docName);
