@@ -642,10 +642,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				return false;
 			}
 
-			const bucketId = project.owner_org_id;
+			const bucketId = project.owner_org_id || useAuthStore.getState().activeOrg?.id;
 			if (!bucketId) {
 				console.error(
-					`[ProjectStore] Project ${id} has no owner_org_id`
+					`[ProjectStore] Project ${id} has no owner_org_id and no active org`
 				);
 				return false;
 			}
