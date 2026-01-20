@@ -2293,20 +2293,8 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Integer",
 		section: "site-context",
 	},
-	topEmployers: {
-		fieldId: "topEmployers",
-		description: "Major employers near the site.",
-		expectedValue: "Text, e.g., 'Hospital, University'",
-		dataType: "Text",
-		section: "market-context",
-	},
-	infrastructureProject: {
-		fieldId: "infrastructureProject",
-		description: "Major nearby infrastructure project.",
-		expectedValue: "Text",
-		dataType: "Text",
-		section: "market-context",
-	},
+
+
 	infraCompletion: {
 		fieldId: "infraCompletion",
 		description: "Completion date for infrastructure project.",

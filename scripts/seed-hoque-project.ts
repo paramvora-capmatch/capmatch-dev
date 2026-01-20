@@ -3101,7 +3101,12 @@ async function seedUnderwritingDocs(
             filename: "capex_report_filled.xlsx",
             displayName: "CapEx Report",
             mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        }
+		},
+		{
+			filename: "pro_forma_filled.xlsx",
+			displayName: "ProForma Cash flow",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		}
 	];
 
 	// Point to the parent "docs/so-good-apartments/underwriting-docs" directory
@@ -4521,6 +4526,7 @@ async function seedHoqueProject(): Promise<void> {
 			{ name: "Personal Financial Statement (PFS)", filename: "pfs_template.xlsx" },
 			{ name: "Sponsor Bio", filename: "sponsor_bio_template.docx" },
 			{ name: "CapEx Report", filename: "capex_report_template.xlsx" },
+			{ name: "ProForma Cash flow", filename: "pro_forma_template.xlsx" },
 		];
 
 		for (const tmpl of templatesToSeed) {

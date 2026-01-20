@@ -488,6 +488,8 @@
 						"submarketName",
 						"walkabilityScore",
 						"infrastructureCatalyst",
+						"infraCompletion",
+						"projectBudget",
 						"broadbandSpeed",
 						"distanceToCBD",
 						"distanceToEmployment",
@@ -743,6 +745,7 @@
 						"currentSiteStatus",
 						"topography",
 						"soilConditions",
+						"geotechSoilsRep",
 						"accessPoints",
 						"siteAccess",
 						"proximityShopping",
@@ -767,6 +770,7 @@
 					"title": "7.4 Infrastructure & Utilities",
 					"fields": [
 						"utilityAvailability",
+						"utilityCapacity",
 						"easements"
 					]
 				},
@@ -799,6 +803,7 @@
 				"zoningCompliant",
 				"currentSiteStatus",
 				"topography",
+				"geotechSoilsRep",
 				"soilConditions",
 				"accessPoints",
 				"siteAccess",
@@ -812,6 +817,7 @@
 				"phaseIESAFinding",
 				"noiseFactors",
 				"utilityAvailability",
+				"utilityCapacity",
 				"easements"
 			]
 		},
@@ -2112,6 +2118,22 @@
 		},
 		"architecturalDiagrams": {
 			"label": "Architectural Diagrams",
+			"required": false
+		},
+		"infraCompletion": {
+			"label": "Infra. Completion Date",
+			"required": false
+		},
+		"projectBudget": {
+			"label": "Project Budget ($)",
+			"required": false
+		},
+		"utilityCapacity": {
+			"label": "Utility Capacity",
+			"required": false
+		},
+		"geotechSoilsRep": {
+			"label": "Geotech/Soils Report",
 			"required": false
 		},
 		"acquisitionCosts": {

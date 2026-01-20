@@ -96,6 +96,13 @@
 						"foreclosureHistory",
 						"litigationHistory"
 					]
+				},
+				{
+					"id": "real-estate-owned",
+					"title": "3.3 Real Estate Owned",
+					"fields": [
+						"scheduleOfRealEstateOwned"
+					]
 				}
 			],
 			"fields": [
@@ -104,7 +111,8 @@
 				"liquidityRange",
 				"bankruptcyHistory",
 				"foreclosureHistory",
-				"litigationHistory"
+				"litigationHistory",
+				"scheduleOfRealEstateOwned"
 			]
 		},
 		{
@@ -296,6 +304,10 @@
 		},
 		"references": {
 			"label": "Lender References",
+			"required": false
+		},
+		"scheduleOfRealEstateOwned": {
+			"label": "Schedule of Real Estate Owned",
 			"required": false
 		}
 	}
