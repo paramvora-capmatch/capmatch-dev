@@ -145,8 +145,8 @@ export async function POST(request: NextRequest) {
         const pathParts = previousVersion.storage_path.split("/");
         if (pathParts.length >= 2) {
           const subdir = pathParts[1];
-          // Allow underwriting-docs to be preserved
-          if (subdir === "borrower-docs" || subdir === "project-docs" || subdir === "underwriting-docs") {
+          // Allow underwriting-docs and underwriting-templates to be preserved
+          if (subdir === "borrower-docs" || subdir === "project-docs" || subdir === "underwriting-docs" || subdir === "underwriting-templates") {
             storageSubdir = subdir;
           }
         }
@@ -175,6 +175,9 @@ export async function POST(request: NextRequest) {
             break;
           } else if (parent.resource_type === "UNDERWRITING_DOCS_ROOT") {
             storageSubdir = "underwriting-docs";
+            break;
+          } else if (parent.resource_type === "UNDERWRITING_TEMPLATES_ROOT") {
+            storageSubdir = "underwriting-templates";
             break;
           }
           
