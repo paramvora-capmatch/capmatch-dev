@@ -185,6 +185,8 @@ export const useDocumentManagement = ({
           foldersList: foldersList.map(f => f.name)
       });
 
+      return { files: filesList, folders: foldersList };
+
     } catch (err) {
       console.error("[DocumentManagement] Error listing documents:", err);
       if (err instanceof Error) {
@@ -199,6 +201,7 @@ export const useDocumentManagement = ({
       console.error("[DocumentManagement] Target org:", targetOrgId);
       console.error("[DocumentManagement] Active org:", activeOrg?.id);
       console.error("[DocumentManagement] Project ID:", projectId);
+      return { files: [], folders: [] };
     } finally {
       setIsLoading(false);
     }
