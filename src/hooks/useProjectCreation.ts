@@ -39,6 +39,9 @@ export const useProjectCreation = (): UseProjectCreationReturn => {
       }
 
       for (const [memberId, grant] of Object.entries(selections)) {
+        // Skip if this is the current user (creator), as backend grants access automatically
+        if (memberId === user.id) continue;
+
         // Skip if no permissions are set
         if (!grant.permissions || grant.permissions.length === 0) {
           continue;
