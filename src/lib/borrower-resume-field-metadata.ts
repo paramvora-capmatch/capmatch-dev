@@ -243,6 +243,17 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Boolean",
 		section: "borrower-financials",
 	} as any,
+	scheduleOfRealEstateOwned: {
+		value: null,
+		source: null,
+		warnings: [],
+		fieldId: "scheduleOfRealEstateOwned",
+		description: "Schedule of Real Estate Owned (SREO) detailing other properties owned.",
+		backupSource: "Document (SREO)",
+		expectedValue: "Array of Property objects",
+		dataType: "Table",
+		section: "borrower-financials",
+	} as any,
 
 	// Section 4: Online Presence
 	linkedinUrl: {

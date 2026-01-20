@@ -1,7 +1,7 @@
 // src/components/documents/DocumentPreviewModal.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
@@ -11,9 +11,11 @@ import { ShareModal } from "./ShareModal";
 import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePermissions } from "@/hooks/usePermissions";
+import { usePermissionStore } from "@/stores/usePermissionStore";
 import { extractOriginalFilename } from "@/utils/documentUtils";
 import { Loader2, Download, Edit, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface DocumentPreviewModalProps {
   resourceId: string;
@@ -42,15 +44,39 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const { activeOrg, currentOrgRole, user } = useAuthStore();
   const docContext = resource?.storage_path?.includes('/borrower-docs/')
     ? 'borrower'
+    : resource?.storage_path?.includes('/underwriting-docs/')
+    ? 'underwriting'
     : 'project';
   const { deleteFile, downloadFile } = useDocumentManagement({
     projectId: resource?.project_id || null,
+    orgId: resource?.org_id || null, // Pass the resource's org_id to use correct storage bucket
     context: docContext,
     skipInitialFetch: true,
   });
-  const { canEdit } = usePermissions(resourceId);
+  const { canEdit, canView, isLoading: isPermissionsLoading } = usePermissions(resourceId);
   
-  const isEditableInOffice = resource && /\.(docx|xlsx|pptx|pdf)$/i.test(resource.name);
+  const isEditableInOffice = useMemo(() => {
+    if (!resource) return false;
+    // Check name first, then storage path
+    const hasExtension = (str: string) => /\.(docx|xlsx|pptx|pptm|xlsm|xls)$/i.test(str);
+    return hasExtension(resource.name) || hasExtension(resource.storage_path);
+  }, [resource]);
+  
+  // Reload permissions if missing (e.g. newly created/copied file)
+  useEffect(() => {
+    const checkPermissions = async () => {
+      // Only reload if we have a resource, we are NOT loading resource details,
+      // the permission store is NOT currently loading, and we have NO permissions (view or edit)
+      if (resource?.project_id && !isLoading && !isPermissionsLoading && canEdit === false && canView === false) {
+          console.log('[DocumentPreviewModal] Permission missing for resource, reloading permissions...');
+          await usePermissionStore.getState().loadPermissionsForProject(resource.project_id, true);
+      }
+    };
+    
+    checkPermissions();
+  }, [resource?.project_id, resourceId, isLoading, isPermissionsLoading, canEdit, canView]);
+
+
 
   const fetchResourceDetails = useCallback(async () => {
     if (!resourceId) return;
@@ -162,6 +188,8 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     }
   };
 
+  const pathname = usePathname();
+
   return (
     <>
       <Modal 
@@ -179,9 +207,9 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 defaultOpen={openVersionsDefault} 
               />
             )}
-            {canEdit && isEditableInOffice && (
+            {canEdit && isEditableInOffice && resource && (
               <Link
-                href={`/documents/edit?bucket=${activeOrg?.id}&path=${encodeURIComponent(resource.storage_path)}`}
+                href={`/documents/edit?bucket=${resource.org_id}&path=${encodeURIComponent(resource.storage_path)}&returnUrl=${encodeURIComponent(`${pathname}?step=project:underwriting&resourceId=${resourceId}`)}`}
                 className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-md text-sm px-4 py-2"
               >
                 <Edit size={16} className="mr-2" />

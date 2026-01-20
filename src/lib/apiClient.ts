@@ -503,6 +503,15 @@ export const apiClient = {
   },
 
   /**
+   * Generic GET request
+   */
+  get: async <T>(endpoint: string) => {
+    return apiRequest<T>(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
    * Generic POST request
    */
   post: async (endpoint: string, data: any) => {

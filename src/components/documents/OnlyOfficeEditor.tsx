@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import Script from "next/script";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { extractOriginalFilename } from "@/utils/documentUtils";
 
 interface OnlyOfficeEditorProps {
@@ -213,6 +213,9 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
   }, []); // Empty dependency array means this runs once on mount and cleans up on unmount
 
   // Conditional logic after all hooks have been called
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl");
+
   const onlyofficeUrl = process.env.NEXT_PUBLIC_ONLYOFFICE_URL;
   if (!onlyofficeUrl) {
     return (
@@ -253,7 +256,13 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
           <header className="relative bg-white shadow-sm p-3 flex justify-between items-center z-10 flex-shrink-0 border-b border-blue-200">
             <Button
               variant="outline"
-              onClick={() => router.back()}
+              onClick={() => {
+                if (returnUrl) {
+                  router.push(returnUrl);
+                } else {
+                  router.back();
+                }
+              }}
               leftIcon={<ArrowLeft size={16} />}
             >
               Back

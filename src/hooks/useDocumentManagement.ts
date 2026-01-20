@@ -175,6 +175,18 @@ export const useDocumentManagement = ({
 
       setFiles(filesList);
       setFolders(foldersList);
+      
+      console.log("[DocumentManagement] Fetch complete:", {
+          context,
+          rootId: root.id,
+          parentId,
+          resourcesFound: resources?.length,
+          filesList: filesList.map(f => f.name),
+          foldersList: foldersList.map(f => f.name)
+      });
+
+      return { files: filesList, folders: foldersList };
+
     } catch (err) {
       console.error("[DocumentManagement] Error listing documents:", err);
       if (err instanceof Error) {
@@ -189,6 +201,7 @@ export const useDocumentManagement = ({
       console.error("[DocumentManagement] Target org:", targetOrgId);
       console.error("[DocumentManagement] Active org:", activeOrg?.id);
       console.error("[DocumentManagement] Project ID:", projectId);
+      return { files: [], folders: [] };
     } finally {
       setIsLoading(false);
     }
@@ -418,6 +431,7 @@ export const useDocumentManagement = ({
         folderPrefix: string,
         allFiles: string[] = []
       ): Promise<string[]> => {
+        console.log(`[listAllFilesRecursively] Attempting to list bucket=${targetOrgId}, prefix=${folderPrefix}`);
         const { data: files, error } = await supabase.storage
           .from(targetOrgId)
           .list(folderPrefix, {
@@ -427,8 +441,14 @@ export const useDocumentManagement = ({
 
         if (error) {
           // Folder might not exist, return what we have
-          console.warn(`Error listing folder ${folderPrefix}:`, error);
+          console.warn(`[listAllFilesRecursively] Error listing folder ${folderPrefix}:`, error);
+          console.warn(`[listAllFilesRecursively] Error details:`, JSON.stringify(error, null, 2));
           return allFiles;
+        }
+
+        console.log(`[listAllFilesRecursively] Listing ${folderPrefix} returned ${files?.length || 0} items`);
+        if (files && files.length > 0) {
+          console.log(`[listAllFilesRecursively] First few items:`, files.slice(0, 3).map(f => ({ name: f.name, id: f.id })))
         }
 
         if (!files || files.length === 0) {
@@ -439,10 +459,18 @@ export const useDocumentManagement = ({
         for (const item of files) {
           const itemPath = folderPrefix ? `${folderPrefix}/${item.name}` : item.name;
 
-          // In Supabase storage, folders have id === null, files have id !== null
-          // Also, folders typically don't have metadata.size
-          if (item.id === null || item.metadata === null) {
+          // Debug log to inspect item structure
+          console.log(`[listAllFilesRecursively] Item: ${item.name}, id: ${item.id}, hasMetadata: ${!!item.metadata}`);
+
+          // In Supabase storage, folders have id === null, files have id !== null.
+          // We rely primarily on 'id' being present to identify a file.
+          // If id is present, it's definitely a file.
+          // If id is null, it's likely a folder placeholder.
+          const isFile = !!item.id; 
+          
+          if (!isFile) {
             // This is a folder, recurse into it
+            console.log(`[listAllFilesRecursively] Recursing into folder: ${itemPath}`);
             const subFiles = await listAllFilesRecursively(itemPath, []);
             allFiles.push(...subFiles);
           } else {
@@ -462,36 +490,41 @@ export const useDocumentManagement = ({
           .eq("resource_id", fileId);
         if (versionsError) throw versionsError;
 
-        // Extract the resource folder path from the first version's storage_path
-        // Format: {project_id}/project-docs/{resource_id}/v{version}_{filename}
-        // We want: {project_id}/project-docs/{resource_id}/
-        let resourceFolderPath: string | null = null;
+        // Collect all unique resource folder paths from all versions
+        // This handles cases where different versions might exist in different folders
+        // (e.g., due to migration from project-docs to underwriting-docs)
+        const resourceFolderPaths = new Set<string>();
 
         if (versions && versions.length > 0) {
-          const firstPath = versions[0].storage_path;
-          if (firstPath && firstPath !== "placeholder") {
-            // Split path and reconstruct up to resource_id folder
-            const pathParts = firstPath.split('/');
-            // Path format: [project_id, project-docs, resource_id, ...]
-            if (pathParts.length >= 3) {
-              resourceFolderPath = pathParts.slice(0, 3).join('/');
+          versions.forEach((v) => {
+            const path = v.storage_path;
+            if (path && path !== "placeholder") {
+              const pathParts = path.split('/');
+              // Path format: [project_id, folder_type, resource_id, ...]
+              if (pathParts.length >= 3) {
+                resourceFolderPaths.add(pathParts.slice(0, 3).join('/'));
+              }
             }
-          }
+          });
         }
 
-        // If we couldn't extract from versions, try to get it from the resource's project_id
-        if (!resourceFolderPath && projectId) {
-          resourceFolderPath = `${projectId}/${STORAGE_SUBDIR[context]}/${fileId}`;
+        // Always add the current expected path for this context as a fallback/safety
+        if (projectId) {
+          resourceFolderPaths.add(`${projectId}/${STORAGE_SUBDIR[context]}/${fileId}`);
         }
 
-        // Delete all files in the resource folder (including artifacts)
-        if (resourceFolderPath) {
-          console.log(`[deleteFile] Deleting all files in folder: ${resourceFolderPath}`);
+        console.log(`[deleteFile] Found ${resourceFolderPaths.size} folder paths to check for deletion:`, Array.from(resourceFolderPaths));
+
+        // Iterate through all identified folder paths and delete contents
+        for (const folderPath of Array.from(resourceFolderPaths)) {
+          if (!folderPath) continue;
+          
+          console.log(`[deleteFile] Checking/Deleting files in folder: ${folderPath}`);
 
           // Recursively list all files in the resource folder
-          const allFiles = await listAllFilesRecursively(resourceFolderPath);
+          const allFiles = await listAllFilesRecursively(folderPath);
 
-          console.log(`[deleteFile] Found ${allFiles.length} files to delete`);
+          console.log(`[deleteFile] Found ${allFiles.length} files to delete in ${folderPath}`);
 
           // Delete all files found
           if (allFiles.length > 0) {
@@ -503,24 +536,11 @@ export const useDocumentManagement = ({
                 .from(targetOrgId)
                 .remove(batch);
               if (removeError) {
-                console.error(`[deleteFile] Error removing batch ${i / batchSize + 1}:`, removeError);
-                throw removeError;
+                console.error(`[deleteFile] Error removing batch ${i / batchSize + 1} from ${folderPath}:`, removeError);
+                // Continue with other batches/folders even if one fails
               }
             }
-            console.log(`[deleteFile] Successfully deleted ${allFiles.length} files from storage`);
-          }
-        } else {
-          // Fallback: delete only the version files if we can't determine the folder
-          console.warn(`[deleteFile] Could not determine resource folder, deleting version files only`);
-          const filePaths = (versions || [])
-            .map((v) => v.storage_path)
-            .filter((path): path is string => Boolean(path) && path !== "placeholder");
-
-          if (filePaths.length > 0) {
-            const { error: removeError } = await supabase.storage
-              .from(targetOrgId)
-              .remove(filePaths);
-            if (removeError) throw removeError;
+            console.log(`[deleteFile] Successfully deleted ${allFiles.length} files from ${folderPath}`);
           }
         }
 

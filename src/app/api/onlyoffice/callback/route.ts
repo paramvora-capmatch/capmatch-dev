@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
 // Initialize Supabase admin client
 const supabase = createClient(
@@ -116,22 +117,13 @@ export async function POST(request: NextRequest) {
       // 1. Get info about the resource being saved
       const { data: resource, error: resourceError } = await supabase
         .from("resources")
-        .select("org_id, project_id, name, parent_id, is_locked")
+        .select("org_id, project_id, name, parent_id")
         .eq("id", resourceId)
         .single();
       if (resourceError)
         throw new Error(
           `Failed to find resource ${resourceId}: ${resourceError.message}`
         );
-
-      // Check if resource is locked
-      if (resource.is_locked) {
-        console.warn(`[OnlyOffice Callback] Attempt to save locked resource ${resourceId}. Rejecting.`);
-        return NextResponse.json(
-          { error: 1, message: "Resource is locked and cannot be modified." },
-          { status: 403 } // 403 Forbidden
-        );
-      }
 
       // Determine which subdirectory to use by checking the previous version's storage path
       // or by tracing up the parent chain to find the root type
@@ -140,7 +132,7 @@ export async function POST(request: NextRequest) {
       // First, try to get the previous version's storage path to extract the subdirectory
       const { data: previousVersion } = await supabase
         .from("document_versions")
-        .select("storage_path")
+        .select("storage_path, metadata")
         .eq("resource_id", resourceId)
         .neq("storage_path", "placeholder")
         .order("version_number", { ascending: false })
@@ -153,7 +145,8 @@ export async function POST(request: NextRequest) {
         const pathParts = previousVersion.storage_path.split("/");
         if (pathParts.length >= 2) {
           const subdir = pathParts[1];
-          if (subdir === "borrower-docs" || subdir === "project-docs") {
+          // Allow underwriting-docs and underwriting-templates to be preserved
+          if (subdir === "borrower-docs" || subdir === "project-docs" || subdir === "underwriting-docs" || subdir === "underwriting-templates") {
             storageSubdir = subdir;
           }
         }
@@ -179,6 +172,12 @@ export async function POST(request: NextRequest) {
             break;
           } else if (parent.resource_type === "PROJECT_DOCS_ROOT") {
             storageSubdir = "project-docs";
+            break;
+          } else if (parent.resource_type === "UNDERWRITING_DOCS_ROOT") {
+            storageSubdir = "underwriting-docs";
+            break;
+          } else if (parent.resource_type === "UNDERWRITING_TEMPLATES_ROOT") {
+            storageSubdir = "underwriting-templates";
             break;
           }
           
@@ -214,7 +213,21 @@ export async function POST(request: NextRequest) {
         );
 
       // 3. Construct the new storage path with the correct subdirectory
-      const newStoragePath = `${resource.project_id}/${storageSubdir}/${resourceId}/v${newVersion.version_number}_user${userId}_${resource.name}`;
+      // 3. Construct the new storage path with the correct subdirectory
+      let newFilename = resource.name;
+      
+      // Check if filename is missing an extension
+      if (!/\.[a-zA-Z0-9]+$/.test(newFilename)) {
+          // Try to get extension from previous version
+          if (previousVersion?.storage_path) {
+              const prevExtension = previousVersion.storage_path.split('.').pop();
+              if (prevExtension && prevExtension !== previousVersion.storage_path) {
+                  newFilename = `${newFilename}.${prevExtension}`;
+              }
+          }
+      }
+
+      const newStoragePath = `${resource.project_id}/${storageSubdir}/${resourceId}/v${newVersion.version_number}_user${userId}_${newFilename}`;
 
       // Download the updated document from OnlyOffice server
       const response = await fetch(url);
@@ -224,6 +237,20 @@ export async function POST(request: NextRequest) {
         );
       }
       const fileBuffer = await response.arrayBuffer();
+      
+      // Calculate hash to detect duplicates
+      const fileBufferNode = Buffer.from(fileBuffer);
+      const fileHash = crypto.createHash('sha256').update(fileBufferNode).digest('hex');
+
+      // Check if content is identical to the previous version
+      if (previousVersion && (previousVersion as any).metadata) {
+          const prevMeta = (previousVersion as any).metadata;
+          if (prevMeta.hash && prevMeta.hash === fileHash) {
+              console.log("[OnlyOffice Callback] Content identical to previous version, skipping save.");
+              return NextResponse.json({ error: 0 });
+          }
+      }
+
       const contentType =
         response.headers.get("content-type") || "application/octet-stream";
 
@@ -232,6 +259,7 @@ export async function POST(request: NextRequest) {
         size: fileBuffer.byteLength,
         mimeType: contentType,
         downloadedAt: new Date().toISOString(),
+        hash: fileHash
       };
 
       // 4. Upload the new version to Supabase Storage

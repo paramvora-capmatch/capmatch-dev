@@ -14,7 +14,7 @@ interface PermissionState {
   error: string | null;
   currentProjectId: string | null; // Track which project's permissions are loaded
   loadingProjectId: string | null; // Track which project is currently loading
-  loadPermissionsForProject: (projectId: string) => Promise<void>;
+  loadPermissionsForProject: (projectId: string, force?: boolean) => Promise<void>;
   getPermission: (resourceId: string | null | undefined) => Permission | null;
   resetPermissions: () => void;
 }
@@ -26,7 +26,7 @@ export const usePermissionStore = create<PermissionState>((set, get) => ({
   currentProjectId: null,
   loadingProjectId: null,
 
-  loadPermissionsForProject: async (projectId: string) => {
+  loadPermissionsForProject: async (projectId: string, force: boolean = false) => {
     const state = get();
     
     // Skip if already loading for this project
@@ -35,13 +35,13 @@ export const usePermissionStore = create<PermissionState>((set, get) => ({
       return;
     }
     
-    // Skip if permissions are already loaded for this project and not currently loading
-    if (state.currentProjectId === projectId && !state.isLoading) {
+    // Skip if permissions are already loaded for this project and not currently loading, unless forced
+    if (!force && state.currentProjectId === projectId && !state.isLoading) {
       console.log(`[PermissionStore] Permissions already loaded for project: ${projectId}, skipping duplicate call`);
       return;
     }
     
-    console.log(`[PermissionStore] Loading permissions for project: ${projectId}`);
+    console.log(`[PermissionStore] Loading permissions for project: ${projectId} (force=${force})`);
     set({ isLoading: true, error: null, loadingProjectId: projectId });
 
     try {

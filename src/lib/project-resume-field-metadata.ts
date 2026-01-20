@@ -789,6 +789,20 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Currency",
 		section: "financial-details",
 	},
+	t12MonthlyData: {
+		fieldId: "t12MonthlyData",
+		description: "Monthly T-12 financial operating data.",
+		expectedValue: "Table/Array of monthly financial objects",
+		dataType: "Table",
+		section: "financial-details",
+	},
+	rentRollUnits: {
+		fieldId: "rentRollUnits",
+		description: "Detailed, unit-level rent roll information.",
+		expectedValue: "Table/Array of unit-level rent roll objects",
+		dataType: "Table",
+		section: "financial-details",
+	},
 	yieldOnCost: {
 		fieldId: "yieldOnCost",
 		description: "Yield on Cost (NOI / TDC).",
@@ -2279,20 +2293,8 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Integer",
 		section: "site-context",
 	},
-	topEmployers: {
-		fieldId: "topEmployers",
-		description: "Major employers near the site.",
-		expectedValue: "Text, e.g., 'Hospital, University'",
-		dataType: "Text",
-		section: "market-context",
-	},
-	infrastructureProject: {
-		fieldId: "infrastructureProject",
-		description: "Major nearby infrastructure project.",
-		expectedValue: "Text",
-		dataType: "Text",
-		section: "market-context",
-	},
+
+
 	infraCompletion: {
 		fieldId: "infraCompletion",
 		description: "Completion date for infrastructure project.",

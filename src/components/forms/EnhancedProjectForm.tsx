@@ -40,6 +40,7 @@ import {
 	ChevronRight,
 	Upload,
 	X,
+	Plus,
 	FileText as FileTextIcon,
 } from "lucide-react";
 import {
@@ -450,7 +451,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 						if (
 							!existingSiteImages ||
 							JSON.stringify(existingSiteImages) !==
-								JSON.stringify(siteImagesMetadata)
+							JSON.stringify(siteImagesMetadata)
 						) {
 							(updated as any).siteImages = siteImagesMetadata;
 						}
@@ -464,7 +465,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 						if (
 							!existingDiagrams ||
 							JSON.stringify(existingDiagrams) !==
-								JSON.stringify(diagramsMetadata)
+							JSON.stringify(diagramsMetadata)
 						) {
 							(updated as any).architecturalDiagrams =
 								diagramsMetadata;
@@ -610,8 +611,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 
 		if (
 			!confirm(
-				`Delete ${fileNames.length} ${
-					fileNames.length === 1 ? "image" : "images"
+				`Delete ${fileNames.length} ${fileNames.length === 1 ? "image" : "images"
 				}?`
 			)
 		)
@@ -640,8 +640,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 					error
 				);
 				alert(
-					`Failed to delete files: ${
-						(error as any).message || JSON.stringify(error)
+					`Failed to delete files: ${(error as any).message || JSON.stringify(error)
 					}`
 				);
 				setDeleting(false);
@@ -705,8 +704,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 				error
 			);
 			alert(
-				`Failed to delete files: ${
-					error instanceof Error ? error.message : "Unknown error"
+				`Failed to delete files: ${error instanceof Error ? error.message : "Unknown error"
 				}`
 			);
 		} finally {
@@ -829,7 +827,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 									className="text-xs text-blue-600 hover:text-blue-700"
 								>
 									{selectedSiteImages.size ===
-									siteImages.length
+										siteImages.length
 										? "Deselect All"
 										: "Select All"}
 								</button>
@@ -852,7 +850,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 										className={cn(
 											"text-xs text-red-600 hover:text-red-700 font-medium",
 											deleting &&
-												"opacity-50 cursor-not-allowed"
+											"opacity-50 cursor-not-allowed"
 										)}
 									>
 										{deleting
@@ -886,7 +884,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 							(disabled ||
 								uploadingSite ||
 								isFieldLocked("siteImages", "site-context")) &&
-								"opacity-50 cursor-not-allowed"
+							"opacity-50 cursor-not-allowed"
 						)}
 					>
 						<Upload className="h-8 w-8 text-gray-400 mb-2" />
@@ -1054,7 +1052,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 									className="text-xs text-blue-600 hover:text-blue-700"
 								>
 									{selectedDiagrams.size ===
-									architecturalDiagrams.length
+										architecturalDiagrams.length
 										? "Deselect All"
 										: "Select All"}
 								</button>
@@ -1081,7 +1079,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 													"architecturalDiagrams",
 													"site-context"
 												)) &&
-												"opacity-50 cursor-not-allowed"
+											"opacity-50 cursor-not-allowed"
 										)}
 									>
 										{deleting
@@ -1124,7 +1122,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 									"architecturalDiagrams",
 									"site-context"
 								)) &&
-								"opacity-50 cursor-not-allowed"
+							"opacity-50 cursor-not-allowed"
 						)}
 					>
 						<Upload className="h-8 w-8 text-gray-400 mb-2" />
@@ -2228,8 +2226,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					? "Cannot lock a field with warnings. Please resolve warnings first."
 					: "Cannot lock an empty field. Please fill in a value first."
 				: locked
-				? "Unlock field"
-				: "Lock field";
+					? "Unlock field"
+					: "Lock field";
 
 			return (
 				<div className="flex items-center" title={tooltipTitle}>
@@ -2300,7 +2298,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						<div className="ml-auto flex items-center gap-1">
 							<button
 								type="button"
-								onClick={() => (onAskAI || (() => {}))(fieldId)}
+								onClick={() => (onAskAI || (() => { }))(fieldId)}
 								className="px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md text-xs font-medium text-blue-600 opacity-0 group-hover/field:opacity-100 transition-opacity"
 							>
 								Ask AI
@@ -2599,8 +2597,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					Array.isArray(current) && current.length > 0
 						? current.join(", ")
 						: typeof current === "string"
-						? current
-						: null;
+							? current
+							: null;
 				if (currentStr !== (derived ?? null)) {
 					(next as any).incentiveStacking =
 						derived === null ? undefined : derived;
@@ -2692,7 +2690,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					if (!matcher(name)) continue;
 					const count =
 						typeof row.unitCount === "number" &&
-						!Number.isNaN(row.unitCount)
+							!Number.isNaN(row.unitCount)
 							? row.unitCount
 							: 1;
 					total += count;
@@ -2947,6 +2945,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				fieldId === "quarterlyDeliverySchedule" ||
 				fieldId === "sensitivityAnalysis" ||
 				fieldId === "capitalUseTiming" ||
+				fieldId === "rentRollUnits" ||
 				// Risk fields rendered as editable lists below
 				fieldId === "riskHigh" ||
 				fieldId === "riskMedium" ||
@@ -3090,8 +3089,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						// them back to abbreviations when possible.
 						const effectiveValue =
 							value &&
-							typeof value === "string" &&
-							value.length > 2
+								typeof value === "string" &&
+								value.length > 2
 								? STATE_REVERSE_MAP[value] || value
 								: value || "";
 						return (
@@ -3143,11 +3142,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 				const inputType =
 					controlKind === "number" ||
-					["Currency", "Integer", "Numeric"].includes(dataType ?? "")
+						["Currency", "Integer", "Numeric"].includes(dataType ?? "")
 						? "number"
 						: dataType?.toLowerCase() === "date"
-						? "date"
-						: "text";
+							? "date"
+							: "text";
 
 				const handleChange = (
 					e: React.ChangeEvent<HTMLInputElement>
@@ -3189,7 +3188,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 			return (
 				<FormGroup key={fieldId}>
-					<AskAIButton id={fieldId} onAskAI={onAskAI || (() => {})}>
+					<AskAIButton id={fieldId} onAskAI={onAskAI || (() => { })}>
 						<div className="relative group/field">
 							{renderFieldLabel(
 								fieldId,
@@ -3395,20 +3394,20 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				const fieldStates =
 					allFieldIds.length > 0
 						? allFieldIds.map((fieldId) => {
-								const meta = fieldMetadata[fieldId];
-								const hasWarnings =
-									meta?.warnings && meta.warnings.length > 0;
-								return {
-									isBlue: isFieldBlue(fieldId, sectionId),
-									isGreen: isFieldGreen(fieldId, sectionId),
-									isWhite: isFieldWhite(fieldId, sectionId),
-									hasValue: isProjectValueProvided(
-										(formData as any)[fieldId]
-									),
-									isLocked: isFieldLocked(fieldId, sectionId),
-									hasWarnings: hasWarnings,
-								};
-						  })
+							const meta = fieldMetadata[fieldId];
+							const hasWarnings =
+								meta?.warnings && meta.warnings.length > 0;
+							return {
+								isBlue: isFieldBlue(fieldId, sectionId),
+								isGreen: isFieldGreen(fieldId, sectionId),
+								isWhite: isFieldWhite(fieldId, sectionId),
+								hasValue: isProjectValueProvided(
+									(formData as any)[fieldId]
+								),
+								isLocked: isFieldLocked(fieldId, sectionId),
+								hasWarnings: hasWarnings,
+							};
+						})
 						: [];
 
 				const allGreen =
@@ -3456,8 +3455,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				const subsectionLockTitle = subsectionLockDisabled
 					? "Cannot lock subsection because one or more fields are empty. Please fill in all fields first."
 					: subsectionLocked
-					? "Unlock subsection"
-					: "Lock subsection";
+						? "Unlock subsection"
+						: "Lock subsection";
 
 				// Remove leading numbers (e.g., "1.1 ", "2.3 ") from subsection titles
 				const cleanTitle = subsection.title.replace(/^\d+\.\d+\s*/, "");
@@ -3495,9 +3494,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											? "cursor-not-allowed bg-gray-50 text-gray-400 border-gray-200"
 											: "cursor-pointer",
 										!subsectionLockDisabled &&
-											(subsectionLocked
-												? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-												: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100")
+										(subsectionLocked
+											? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+											: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100")
 									)}
 									title={subsectionLockTitle}
 								>
@@ -3544,37 +3543,37 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												// Filter out financial table fields that are rendered as special tables
 												!(
 													sectionId ===
-														"financial-details" &&
+													"financial-details" &&
 													(fieldId ===
 														"fiveYearCashFlow" ||
 														fieldId ===
-															"returnsBreakdown" ||
+														"returnsBreakdown" ||
 														fieldId ===
-															"quarterlyDeliverySchedule" ||
+														"quarterlyDeliverySchedule" ||
 														fieldId ===
-															"sensitivityAnalysis" ||
+														"sensitivityAnalysis" ||
 														fieldId ===
-															"capitalUseTiming")
+														"capitalUseTiming")
 												) &&
 												// Filter out risk fields that are rendered as editable lists
 												!(
 													sectionId ===
-														"financial-details" &&
+													"financial-details" &&
 													subsectionId ===
-														"risk-analysis" &&
+													"risk-analysis" &&
 													(fieldId === "riskHigh" ||
 														fieldId ===
-															"riskMedium" ||
+														"riskMedium" ||
 														fieldId === "riskLow")
 												) &&
 												// Filter out market context table fields that are rendered as special tables
 												!(
 													sectionId ===
-														"market-context" &&
+													"market-context" &&
 													(fieldId ===
 														"majorEmployers" ||
 														fieldId ===
-															"deliveryByQuarter" ||
+														"deliveryByQuarter" ||
 														fieldId === "rentComps")
 												)
 										)
@@ -3617,15 +3616,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														{isFieldRequiredFromSchema(
 															"residentialUnitMix"
 														) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
+																<span className="text-red-500 ml-1">
+																	*
+																</span>
+															)}
 														<FieldHelpTooltip
 															fieldId="residentialUnitMix"
 															fieldMetadata={
 																fieldMetadata[
-																	"residentialUnitMix"
+																"residentialUnitMix"
 																]
 															}
 														/>
@@ -3693,7 +3692,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			];
 																		const current =
 																			next[
-																				index
+																			index
 																			] ||
 																			{};
 																		let v: any =
@@ -3710,11 +3709,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		) {
 																			v =
 																				raw.trim() ===
-																				""
+																					""
 																					? undefined
 																					: Number(
-																							raw
-																					  );
+																						raw
+																					);
 																			if (
 																				Number.isNaN(
 																					v
@@ -3781,7 +3780,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 																const displayRows =
 																	rows.length >
-																	0
+																		0
 																		? rows
 																		: [{}];
 
@@ -3942,7 +3941,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																							disabled={
 																								isLocked ||
 																								rows.length <=
-																									1
+																								1
 																							}
 																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																						>
@@ -4002,15 +4001,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														{isFieldRequiredFromSchema(
 															"commercialSpaceMix"
 														) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
+																<span className="text-red-500 ml-1">
+																	*
+																</span>
+															)}
 														<FieldHelpTooltip
 															fieldId="commercialSpaceMix"
 															fieldMetadata={
 																fieldMetadata[
-																	"commercialSpaceMix"
+																"commercialSpaceMix"
 																]
 															}
 														/>
@@ -4079,7 +4078,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			];
 																		const current =
 																			next[
-																				index
+																			index
 																			] ||
 																			{};
 																		let v: any =
@@ -4094,11 +4093,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		) {
 																			v =
 																				raw.trim() ===
-																				""
+																					""
 																					? undefined
 																					: Number(
-																							raw
-																					  );
+																						raw
+																					);
 																			if (
 																				Number.isNaN(
 																					v
@@ -4165,7 +4164,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 																const displayRows =
 																	rows.length >
-																	0
+																		0
 																		? rows
 																		: [{}];
 
@@ -4320,7 +4319,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																							disabled={
 																								isLocked ||
 																								rows.length <=
-																									1
+																								1
 																							}
 																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																						>
@@ -4366,7 +4365,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 								{sectionId === "timeline" &&
 									subsectionId ===
-										"construction-lease-up-status" && (
+									"construction-lease-up-status" && (
 										<div
 											className={cn(
 												getTableWrapperClasses(
@@ -4384,15 +4383,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													{isFieldRequiredFromSchema(
 														"drawSchedule"
 													) && (
-														<span className="text-red-500 ml-1">
-															*
-														</span>
-													)}
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
 													<FieldHelpTooltip
 														fieldId="drawSchedule"
 														fieldMetadata={
 															fieldMetadata[
-																"drawSchedule"
+															"drawSchedule"
 															]
 														}
 													/>
@@ -4451,15 +4450,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		];
 																	const current =
 																		next[
-																			index
+																		index
 																		] || {};
 																	let v: any =
 																		raw.trim() ===
-																		""
+																			""
 																			? undefined
 																			: Number(
-																					raw
-																			  );
+																				raw
+																			);
 																	if (
 																		Number.isNaN(
 																			v
@@ -4643,7 +4642,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																						disabled={
 																							isLocked ||
 																							rows.length <=
-																								1
+																							1
 																						}
 																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																					>
@@ -4705,15 +4704,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													{isFieldRequiredFromSchema(
 														"rentComps"
 													) && (
-														<span className="text-red-500 ml-1">
-															*
-														</span>
-													)}
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
 													<FieldHelpTooltip
 														fieldId="rentComps"
 														fieldMetadata={
 															fieldMetadata[
-																"rentComps"
+															"rentComps"
 															]
 														}
 													/>
@@ -4792,7 +4791,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		];
 																	const current =
 																		next[
-																			index
+																		index
 																		] || {};
 																	let v: any =
 																		raw;
@@ -4810,11 +4809,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	) {
 																		v =
 																			raw.trim() ===
-																			""
+																				""
 																				? undefined
 																				: Number(
-																						raw
-																				  );
+																					raw
+																				);
 																		if (
 																			Number.isNaN(
 																				v
@@ -5124,7 +5123,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																						disabled={
 																							isLocked ||
 																							rows.length <=
-																								1
+																							1
 																						}
 																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																					>
@@ -5187,15 +5186,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													{isFieldRequiredFromSchema(
 														"majorEmployers"
 													) && (
-														<span className="text-red-500 ml-1">
-															*
-														</span>
-													)}
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
 													<FieldHelpTooltip
 														fieldId="majorEmployers"
 														fieldMetadata={
 															fieldMetadata[
-																"majorEmployers"
+															"majorEmployers"
 															]
 														}
 													/>
@@ -5258,7 +5257,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		];
 																	const current =
 																		next[
-																			index
+																		index
 																		] || {};
 																	let v: any =
 																		raw;
@@ -5268,11 +5267,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	) {
 																		v =
 																			raw.trim() ===
-																			""
+																				""
 																				? undefined
 																				: Number(
-																						raw
-																				  );
+																					raw
+																				);
 																		if (
 																			Number.isNaN(
 																				v
@@ -5336,15 +5335,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																rows.length > 0
 																	? rows
 																	: [
-																			{
-																				name: "",
-																				employees:
-																					undefined,
-																				growth: "",
-																				distance:
-																					"",
-																			},
-																	  ];
+																		{
+																			name: "",
+																			employees:
+																				undefined,
+																			growth: "",
+																			distance:
+																				"",
+																		},
+																	];
 
 															return (
 																<>
@@ -5474,7 +5473,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																						disabled={
 																							isLocked ||
 																							rows.length <=
-																								1
+																							1
 																						}
 																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																					>
@@ -5537,15 +5536,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													{isFieldRequiredFromSchema(
 														"deliveryByQuarter"
 													) && (
-														<span className="text-red-500 ml-1">
-															*
-														</span>
-													)}
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
 													<FieldHelpTooltip
 														fieldId="deliveryByQuarter"
 														fieldMetadata={
 															fieldMetadata[
-																"deliveryByQuarter"
+															"deliveryByQuarter"
 															]
 														}
 													/>
@@ -5600,7 +5599,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		];
 																	const current =
 																		next[
-																			index
+																		index
 																		] || {};
 																	let v: any =
 																		raw;
@@ -5610,11 +5609,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	) {
 																		v =
 																			raw.trim() ===
-																			""
+																				""
 																				? undefined
 																				: Number(
-																						raw
-																				  );
+																					raw
+																				);
 																		if (
 																			Number.isNaN(
 																				v
@@ -5675,12 +5674,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																rows.length > 0
 																	? rows
 																	: [
-																			{
-																				quarter:
-																					"",
-																				units: undefined,
-																			},
-																	  ];
+																		{
+																			quarter:
+																				"",
+																			units: undefined,
+																		},
+																	];
 
 															return (
 																<>
@@ -5760,7 +5759,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																						disabled={
 																							isLocked ||
 																							rows.length <=
-																								1
+																							1
 																						}
 																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																					>
@@ -5806,7 +5805,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								{/* Financial Table Fields - Investment Metrics & Exit */}
 								{sectionId === "financial-details" &&
 									subsectionId ===
-										"investment-metrics-exit" && (
+									"investment-metrics-exit" && (
 										<>
 											{/* Five Year Cash Flow */}
 											<div
@@ -5826,15 +5825,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														{isFieldRequiredFromSchema(
 															"fiveYearCashFlow"
 														) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
+																<span className="text-red-500 ml-1">
+																	*
+																</span>
+															)}
 														<FieldHelpTooltip
 															fieldId="fiveYearCashFlow"
 															fieldMetadata={
 																fieldMetadata[
-																	"fiveYearCashFlow"
+																"fiveYearCashFlow"
 																]
 															}
 														/>
@@ -5887,11 +5886,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			];
 																		const v =
 																			raw.trim() ===
-																			""
+																				""
 																				? undefined
 																				: Number(
-																						raw
-																				  );
+																					raw
+																				);
 																		if (
 																			index >=
 																			next.length
@@ -5954,11 +5953,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 																const displayRows =
 																	rows.length >
-																	0
+																		0
 																		? rows
 																		: [
-																				undefined,
-																		  ];
+																			undefined,
+																		];
 
 																return (
 																	<>
@@ -6021,7 +6020,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																							disabled={
 																								isLocked ||
 																								rows.length <=
-																									1
+																								1
 																							}
 																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																						>
@@ -6081,15 +6080,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														{isFieldRequiredFromSchema(
 															"returnsBreakdown"
 														) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
+																<span className="text-red-500 ml-1">
+																	*
+																</span>
+															)}
 														<FieldHelpTooltip
 															fieldId="returnsBreakdown"
 															fieldMetadata={
 																fieldMetadata[
-																	"returnsBreakdown"
+																"returnsBreakdown"
 																]
 															}
 														/>
@@ -6121,11 +6120,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	.returnsBreakdown;
 																const data =
 																	value &&
-																	typeof value ===
+																		typeof value ===
 																		"object" &&
-																	!Array.isArray(
-																		value
-																	)
+																		!Array.isArray(
+																			value
+																		)
 																		? value
 																		: {};
 																const isLocked =
@@ -6141,20 +6140,20 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	) => {
 																		const v =
 																			raw.trim() ===
-																			""
+																				""
 																				? undefined
 																				: Number(
-																						raw
-																				  );
+																					raw
+																				);
 																		const updated =
-																			{
-																				...data,
-																				[key]: Number.isNaN(
-																					v
-																				)
-																					? undefined
-																					: v,
-																			};
+																		{
+																			...data,
+																			[key]: Number.isNaN(
+																				v
+																			)
+																				? undefined
+																				: v,
+																		};
 																		handleInputChange(
 																			"returnsBreakdown",
 																			updated
@@ -6353,15 +6352,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														{isFieldRequiredFromSchema(
 															"quarterlyDeliverySchedule"
 														) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
+																<span className="text-red-500 ml-1">
+																	*
+																</span>
+															)}
 														<FieldHelpTooltip
 															fieldId="quarterlyDeliverySchedule"
 															fieldMetadata={
 																fieldMetadata[
-																	"quarterlyDeliverySchedule"
+																"quarterlyDeliverySchedule"
 																]
 															}
 														/>
@@ -6417,7 +6416,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			];
 																		const current =
 																			next[
-																				index
+																			index
 																			] ||
 																			{};
 																		let v: any =
@@ -6428,11 +6427,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		) {
 																			v =
 																				raw.trim() ===
-																				""
+																					""
 																					? undefined
 																					: Number(
-																							raw
-																					  );
+																						raw
+																					);
 																			if (
 																				Number.isNaN(
 																					v
@@ -6493,15 +6492,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 																const displayRows =
 																	rows.length >
-																	0
+																		0
 																		? rows
 																		: [
-																				{
-																					quarter:
-																						"",
-																					units: undefined,
-																				},
-																		  ];
+																			{
+																				quarter:
+																					"",
+																				units: undefined,
+																			},
+																		];
 
 																return (
 																	<>
@@ -6580,7 +6579,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																							disabled={
 																								isLocked ||
 																								rows.length <=
-																									1
+																								1
 																							}
 																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																						>
@@ -6640,15 +6639,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														{isFieldRequiredFromSchema(
 															"sensitivityAnalysis"
 														) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
+																<span className="text-red-500 ml-1">
+																	*
+																</span>
+															)}
 														<FieldHelpTooltip
 															fieldId="sensitivityAnalysis"
 															fieldMetadata={
 																fieldMetadata[
-																	"sensitivityAnalysis"
+																"sensitivityAnalysis"
 																]
 															}
 														/>
@@ -6687,11 +6686,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																				.sensitivityAnalysis;
 																		const data =
 																			value &&
-																			typeof value ===
+																				typeof value ===
 																				"object" &&
-																			!Array.isArray(
-																				value
-																			)
+																				!Array.isArray(
+																					value
+																				)
 																				? value
 																				: {};
 																		const rows: any[] =
@@ -6720,7 +6719,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																					];
 																				const current =
 																					next[
-																						index
+																					index
 																					] ||
 																					{};
 																				let v: any =
@@ -6731,11 +6730,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																				) {
 																					v =
 																						raw.trim() ===
-																						""
+																							""
 																							? undefined
 																							: Number(
-																									raw
-																							  );
+																								raw
+																							);
 																					if (
 																						Number.isNaN(
 																							v
@@ -6748,10 +6747,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																				next[
 																					index
 																				] =
-																					{
-																						...current,
-																						[key]: v,
-																					};
+																				{
+																					...current,
+																					[key]: v,
+																				};
 																				handleInputChange(
 																					"sensitivityAnalysis",
 																					{
@@ -6808,14 +6807,14 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 																		const displayRows =
 																			rows.length >
-																			0
+																				0
 																				? rows
 																				: [
-																						{
-																							growth: "",
-																							irr: undefined,
-																						},
-																				  ];
+																					{
+																						growth: "",
+																						irr: undefined,
+																					},
+																				];
 
 																		return (
 																			<>
@@ -6897,7 +6896,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																									disabled={
 																										isLocked ||
 																										rows.length <=
-																											1
+																										1
 																									}
 																									className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																								>
@@ -6967,11 +6966,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																				.sensitivityAnalysis;
 																		const data =
 																			value &&
-																			typeof value ===
+																				typeof value ===
 																				"object" &&
-																			!Array.isArray(
-																				value
-																			)
+																				!Array.isArray(
+																					value
+																				)
 																				? value
 																				: {};
 																		const rows: any[] =
@@ -7000,7 +6999,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																					];
 																				const current =
 																					next[
-																						index
+																					index
 																					] ||
 																					{};
 																				let v: any =
@@ -7011,11 +7010,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																				) {
 																					v =
 																						raw.trim() ===
-																						""
+																							""
 																							? undefined
 																							: Number(
-																									raw
-																							  );
+																								raw
+																							);
 																					if (
 																						Number.isNaN(
 																							v
@@ -7028,10 +7027,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																				next[
 																					index
 																				] =
-																					{
-																						...current,
-																						[key]: v,
-																					};
+																				{
+																					...current,
+																					[key]: v,
+																				};
 																				handleInputChange(
 																					"sensitivityAnalysis",
 																					{
@@ -7088,14 +7087,14 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 																		const displayRows =
 																			rows.length >
-																			0
+																				0
 																				? rows
 																				: [
-																						{
-																							cost: "",
-																							irr: undefined,
-																						},
-																				  ];
+																					{
+																						cost: "",
+																						irr: undefined,
+																					},
+																				];
 
 																		return (
 																			<>
@@ -7177,7 +7176,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																									disabled={
 																										isLocked ||
 																										rows.length <=
-																											1
+																										1
 																									}
 																									className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																								>
@@ -7243,15 +7242,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													{isFieldRequiredFromSchema(
 														"capitalUseTiming"
 													) && (
-														<span className="text-red-500 ml-1">
-															*
-														</span>
-													)}
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
 													<FieldHelpTooltip
 														fieldId="capitalUseTiming"
 														fieldMetadata={
 															fieldMetadata[
-																"capitalUseTiming"
+															"capitalUseTiming"
 															]
 														}
 													/>
@@ -7282,11 +7281,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 															).capitalUseTiming;
 															const data =
 																value &&
-																typeof value ===
+																	typeof value ===
 																	"object" &&
-																!Array.isArray(
-																	value
-																)
+																	!Array.isArray(
+																		value
+																	)
 																	? value
 																	: {};
 															const isLocked =
@@ -7329,12 +7328,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	raw: string
 																) => {
 																	const updated =
-																		{
-																			...data,
-																			[useType]:
-																				raw.trim() ||
-																				undefined,
-																		};
+																	{
+																		...data,
+																		[useType]:
+																			raw.trim() ||
+																			undefined,
+																	};
 																	handleInputChange(
 																		"capitalUseTiming",
 																		updated
@@ -7373,9 +7372,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	useType: string
 																) => {
 																	const updated =
-																		{
-																			...data,
-																		};
+																	{
+																		...data,
+																	};
 																	delete updated[
 																		useType
 																	];
@@ -7387,25 +7386,25 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 															const displayRows =
 																useTypes.length >
-																0
+																	0
 																	? useTypes.map(
-																			(
+																		(
+																			type
+																		) => ({
+																			useType:
+																				type,
+																			timing: data[
 																				type
-																			) => ({
-																				useType:
-																					type,
-																				timing: data[
-																					type
-																				],
-																			})
-																	  )
+																			],
+																		})
+																	)
 																	: [
-																			{
-																				useType:
-																					"",
-																				timing: "",
-																			},
-																	  ];
+																		{
+																			useType:
+																				"",
+																			timing: "",
+																		},
+																	];
 
 															return (
 																<>
@@ -7458,9 +7457,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																										newType
 																									) {
 																										const updated =
-																											{
-																												...data,
-																											};
+																										{
+																											...data,
+																										};
 																										if (
 																											row.useType
 																										) {
@@ -7499,7 +7498,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																												data
 																											) ||
 																											type ===
-																												row.useType
+																											row.useType
 																									)
 																									.map(
 																										(
@@ -7577,7 +7576,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																								isLocked ||
 																								!row.useType ||
 																								useTypes.length <=
-																									1
+																								1
 																							}
 																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																						>
@@ -7605,7 +7604,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																				disabled={
 																					isLocked ||
 																					useTypes.length >=
-																						allUseTypes.length
+																					allUseTypes.length
 																				}
 																				className="text-xs px-3 py-1"
 																			>
@@ -7646,15 +7645,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														{isFieldRequiredFromSchema(
 															"riskHigh"
 														) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
+																<span className="text-red-500 ml-1">
+																	*
+																</span>
+															)}
 														<FieldHelpTooltip
 															fieldId="riskHigh"
 															fieldMetadata={
 																fieldMetadata[
-																	"riskHigh"
+																"riskHigh"
 																]
 															}
 														/>
@@ -7673,34 +7672,34 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													const items: string[] =
 														Array.isArray(value)
 															? value.map(
-																	(item) => {
-																		// If item is an object, extract the 'risk' property
-																		if (
-																			item &&
-																			typeof item ===
-																				"object" &&
-																			!Array.isArray(
+																(item) => {
+																	// If item is an object, extract the 'risk' property
+																	if (
+																		item &&
+																		typeof item ===
+																		"object" &&
+																		!Array.isArray(
+																			item
+																		)
+																	) {
+																		return (
+																			item.risk ||
+																			item.text ||
+																			item.value ||
+																			JSON.stringify(
 																				item
 																			)
-																		) {
-																			return (
-																				item.risk ||
-																				item.text ||
-																				item.value ||
-																				JSON.stringify(
-																					item
-																				)
-																			);
-																		}
-																		return String(
-																			item
 																		);
 																	}
-															  )
+																	return String(
+																		item
+																	);
+																}
+															)
 															: value &&
-															  typeof value ===
-																	"string"
-															? value
+																typeof value ===
+																"string"
+																? value
 																	.split(
 																		/[,\n]/
 																	)
@@ -7713,7 +7712,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	.filter(
 																		Boolean
 																	)
-															: [];
+																: [];
 													const isLocked =
 														isFieldLocked(
 															"riskHigh",
@@ -7791,10 +7790,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			}
 																			placeholder="Enter risk item"
 																		/>
-																		<Button
+																		<button
 																			type="button"
-																			variant="ghost"
-																			size="sm"
 																			onClick={() =>
 																				handleRemoveItem(
 																					idx
@@ -7803,29 +7800,27 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			disabled={
 																				isLocked ||
 																				items.length <=
-																					1
+																				1
 																			}
 																			className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																		>
 																			Remove
-																		</Button>
+																		</button>
 																	</div>
 																)
 															)}
-															<Button
+															<button
 																type="button"
-																variant="outline"
-																size="sm"
 																onClick={
 																	handleAddItem
 																}
 																disabled={
 																	isLocked
 																}
-																className="text-xs px-3 py-1"
+																className="text-xs px-3 py-1 border border-gray-200 rounded-md hover:bg-gray-50"
 															>
 																Add Item
-															</Button>
+															</button>
 														</div>
 													);
 												})()}
@@ -7849,15 +7844,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														{isFieldRequiredFromSchema(
 															"riskMedium"
 														) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
+																<span className="text-red-500 ml-1">
+																	*
+																</span>
+															)}
 														<FieldHelpTooltip
 															fieldId="riskMedium"
 															fieldMetadata={
 																fieldMetadata[
-																	"riskMedium"
+																"riskMedium"
 																]
 															}
 														/>
@@ -7876,34 +7871,34 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													const items: string[] =
 														Array.isArray(value)
 															? value.map(
-																	(item) => {
-																		// If item is an object, extract the 'risk' property
-																		if (
-																			item &&
-																			typeof item ===
-																				"object" &&
-																			!Array.isArray(
+																(item) => {
+																	// If item is an object, extract the 'risk' property
+																	if (
+																		item &&
+																		typeof item ===
+																		"object" &&
+																		!Array.isArray(
+																			item
+																		)
+																	) {
+																		return (
+																			item.risk ||
+																			item.text ||
+																			item.value ||
+																			JSON.stringify(
 																				item
 																			)
-																		) {
-																			return (
-																				item.risk ||
-																				item.text ||
-																				item.value ||
-																				JSON.stringify(
-																					item
-																				)
-																			);
-																		}
-																		return String(
-																			item
 																		);
 																	}
-															  )
+																	return String(
+																		item
+																	);
+																}
+															)
 															: value &&
-															  typeof value ===
-																	"string"
-															? value
+																typeof value ===
+																"string"
+																? value
 																	.split(
 																		/[,\n]/
 																	)
@@ -7916,7 +7911,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	.filter(
 																		Boolean
 																	)
-															: [];
+																: [];
 													const isLocked =
 														isFieldLocked(
 															"riskMedium",
@@ -7994,10 +7989,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			}
 																			placeholder="Enter risk item"
 																		/>
-																		<Button
+																		<button
 																			type="button"
-																			variant="ghost"
-																			size="sm"
 																			onClick={() =>
 																				handleRemoveItem(
 																					idx
@@ -8006,29 +7999,27 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			disabled={
 																				isLocked ||
 																				items.length <=
-																					1
+																				1
 																			}
 																			className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																		>
 																			Remove
-																		</Button>
+																		</button>
 																	</div>
 																)
 															)}
-															<Button
+															<button
 																type="button"
-																variant="outline"
-																size="sm"
 																onClick={
 																	handleAddItem
 																}
 																disabled={
 																	isLocked
 																}
-																className="text-xs px-3 py-1"
+																className="text-xs px-3 py-1 border border-gray-200 rounded-md hover:bg-gray-50"
 															>
 																Add Item
-															</Button>
+															</button>
 														</div>
 													);
 												})()}
@@ -8052,15 +8043,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														{isFieldRequiredFromSchema(
 															"riskLow"
 														) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
+																<span className="text-red-500 ml-1">
+																	*
+																</span>
+															)}
 														<FieldHelpTooltip
 															fieldId="riskLow"
 															fieldMetadata={
 																fieldMetadata[
-																	"riskLow"
+																"riskLow"
 																]
 															}
 														/>
@@ -8079,34 +8070,34 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													const items: string[] =
 														Array.isArray(value)
 															? value.map(
-																	(item) => {
-																		// If item is an object, extract the 'risk' property
-																		if (
-																			item &&
-																			typeof item ===
-																				"object" &&
-																			!Array.isArray(
+																(item) => {
+																	// If item is an object, extract the 'risk' property
+																	if (
+																		item &&
+																		typeof item ===
+																		"object" &&
+																		!Array.isArray(
+																			item
+																		)
+																	) {
+																		return (
+																			item.risk ||
+																			item.text ||
+																			item.value ||
+																			JSON.stringify(
 																				item
 																			)
-																		) {
-																			return (
-																				item.risk ||
-																				item.text ||
-																				item.value ||
-																				JSON.stringify(
-																					item
-																				)
-																			);
-																		}
-																		return String(
-																			item
 																		);
 																	}
-															  )
+																	return String(
+																		item
+																	);
+																}
+															)
 															: value &&
-															  typeof value ===
-																	"string"
-															? value
+																typeof value ===
+																"string"
+																? value
 																	.split(
 																		/[,\n]/
 																	)
@@ -8119,7 +8110,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	.filter(
 																		Boolean
 																	)
-															: [];
+																: [];
 													const isLocked =
 														isFieldLocked(
 															"riskLow",
@@ -8209,7 +8200,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			disabled={
 																				isLocked ||
 																				items.length <=
-																					1
+																				1
 																			}
 																			className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
 																		>
@@ -8235,6 +8226,584 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														</div>
 													);
 												})()}
+											</div>
+										</div>
+									)}
+
+								{/* Rent Roll Table */}
+								{sectionId === "financial-details" &&
+									subsectionId === "rent-roll" && (
+										<div
+											className={cn(
+												getTableWrapperClasses(
+													"rentRollUnits",
+													sectionId
+												),
+												"p-4"
+											)}
+										>
+											<div className="mb-3 flex items-center justify-between">
+												<div className="flex items-center gap-2">
+													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+														Rent Roll (Unit Level)
+													</h4>
+													{isFieldRequiredFromSchema(
+														"rentRollUnits"
+													) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
+													<FieldHelpTooltip
+														fieldId="rentRollUnits"
+														fieldMetadata={
+															fieldMetadata[
+															"rentRollUnits"
+															]
+														}
+													/>
+												</div>
+												<div className="flex items-center gap-1">
+													{renderFieldLockButton(
+														"rentRollUnits",
+														sectionId
+													)}
+												</div>
+											</div>
+
+											{/* Summary Metrics */}
+											{(() => {
+												const value = (formData as any).rentRollUnits;
+												const rows: any[] = Array.isArray(value) ? value : [];
+												const totalUnits = rows.length;
+												const occupied = rows.filter((u: any) => u.status === 'Occupied').length;
+												const vacant = rows.filter((u: any) => u.status === 'Vacant').length;
+												const occupancy = totalUnits > 0 ? (occupied / totalUnits) * 100 : 0;
+												const totalRent = rows.reduce((acc: number, u: any) => {
+													const rent = typeof u.monthlyRent === 'string'
+														? parseFloat(u.monthlyRent.replace(/[^0-9.]/g, ''))
+														: (u.monthlyRent || 0);
+													return acc + (isNaN(rent) ? 0 : rent);
+												}, 0);
+												const avgRent = totalUnits > 0 ? totalRent / totalUnits : 0;
+
+												return (
+													<div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">
+														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+															<div className="text-[10px] text-gray-400 uppercase font-semibold">Total Units</div>
+															<div className="text-sm font-bold text-gray-700">{totalUnits}</div>
+														</div>
+														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+															<div className="text-[10px] text-gray-400 uppercase font-semibold">Occupied</div>
+															<div className="text-sm font-bold text-gray-700">{occupied}</div>
+														</div>
+														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+															<div className="text-[10px] text-gray-400 uppercase font-semibold">Vacant</div>
+															<div className="text-sm font-bold text-gray-700">{vacant}</div>
+														</div>
+														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+															<div className="text-[10px] text-gray-400 uppercase font-semibold">Occupancy</div>
+															<div className="text-sm font-bold text-gray-700">{occupancy.toFixed(1)}%</div>
+														</div>
+														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+															<div className="text-[10px] text-gray-400 uppercase font-semibold">Total Rent</div>
+															<div className="text-sm font-bold text-gray-700">${totalRent.toLocaleString()}</div>
+														</div>
+														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+															<div className="text-[10px] text-gray-400 uppercase font-semibold">Avg Rent</div>
+															<div className="text-sm font-bold text-gray-700">${avgRent.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+														</div>
+													</div>
+												);
+											})()}
+											<div className="overflow-x-auto">
+												<table className="min-w-full divide-y divide-gray-200 text-sm">
+													<thead className="bg-gray-50">
+														<tr>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Unit #
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Type
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Beds / Baths
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																SF
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Status
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Tenant
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Rent
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Lease Term
+															</th>
+															<th className="px-3 py-2"></th>
+														</tr>
+													</thead>
+													<tbody className="bg-white divide-y divide-gray-100">
+														{(() => {
+															const value = (
+																formData as any
+															).rentRollUnits;
+															const rows: any[] =
+																Array.isArray(
+																	value
+																)
+																	? value
+																	: [];
+															const isLocked =
+																isFieldLocked(
+																	"rentRollUnits",
+																	sectionId
+																);
+
+															const handleRowChange =
+																(
+																	index: number,
+																	key: string,
+																	raw: string
+																) => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	const current =
+																		next[
+																		index
+																		] || {};
+																	let v: any =
+																		raw;
+																	if (
+																		[
+																			"beds",
+																			"baths",
+																			"sf",
+																			"monthlyRent",
+																		].includes(
+																			key
+																		)
+																	) {
+																		v =
+																			raw.trim() ===
+																				""
+																				? undefined
+																				: Math.max(0, Number(
+																					raw
+																				));
+																		if (
+																			Number.isNaN(
+																				v
+																			)
+																		) {
+																			v =
+																				undefined;
+																		}
+																	}
+																	next[
+																		index
+																	] = {
+																		...current,
+																		[key]: v,
+																	};
+																	handleInputChange(
+																		"rentRollUnits",
+																		next
+																	);
+																};
+
+															const handleAddRow =
+																() => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	next.push({
+																		unitNumber:
+																			"",
+																		unitType:
+																			"",
+																		beds: undefined,
+																		baths: undefined,
+																		sf: undefined,
+																		status: "",
+																		tenantName:
+																			"",
+																		monthlyRent:
+																			undefined,
+																		leaseStart:
+																			"",
+																		leaseEnd:
+																			"",
+																	});
+																	handleInputChange(
+																		"rentRollUnits",
+																		next
+																	);
+																};
+
+															const handleRemoveRow =
+																(
+																	index: number
+																) => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	next.splice(
+																		index,
+																		1
+																	);
+																	handleInputChange(
+																		"rentRollUnits",
+																		next
+																	);
+																};
+
+															const displayRows =
+																rows.length > 0
+																	? rows
+																	: [{}];
+
+															return (
+																<>
+																	{displayRows.map(
+																		(
+																			row,
+																			idx
+																		) => (
+																			<tr
+																				key={
+																					idx
+																				}
+																			>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="text"
+																						className="w-16 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																						value={
+																							row.unitNumber ||
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"unitNumber",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																						placeholder="101"
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="text"
+																						className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																						value={
+																							row.unitType ||
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"unitType",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																						placeholder="1B/1B"
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<div className="flex items-center gap-1">
+																						<input
+																							type="number"
+																							className="w-12 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																							value={
+																								row.beds ??
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleRowChange(
+																									idx,
+																									"beds",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																							placeholder="Beds"
+																						/>
+																						<span className="text-gray-400">
+																							/
+																						</span>
+																						<input
+																							type="number"
+																							className="w-12 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																							value={
+																								row.baths ??
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleRowChange(
+																									idx,
+																									"baths",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																							placeholder="Baths"
+																						/>
+																					</div>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="number"
+																						className="w-16 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																						value={
+																							row.sf ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"sf",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																						placeholder="SF"
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<select
+																						className="rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																						value={
+																							row.status ||
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"status",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					>
+																						<option value="">
+																							Select
+																						</option>
+																						<option value="Occupied">
+																							Occupied
+																						</option>
+																						<option value="Vacant">
+																							Vacant
+																						</option>
+																						<option value="Model">
+																							Model
+																						</option>
+																						<option value="Down">
+																							Down
+																						</option>
+																					</select>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="text"
+																						className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																						value={
+																							row.tenantName ||
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"tenantName",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																						placeholder="Tenant Name"
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<div className="flex items-center gap-1">
+																						<span className="text-gray-500">
+																							$
+																						</span>
+																						<input
+																							type="number"
+																							className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																							value={
+																								row.monthlyRent ??
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleRowChange(
+																									idx,
+																									"monthlyRent",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																							placeholder="Rent"
+																						/>
+																					</div>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<div className="flex flex-col gap-1">
+																						<input
+																							type="date"
+																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																							value={
+																								row.leaseStart ||
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleRowChange(
+																									idx,
+																									"leaseStart",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																						<input
+																							type="date"
+																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																							value={
+																								row.leaseEnd ||
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleRowChange(
+																									idx,
+																									"leaseEnd",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</div>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle text-right">
+																					<Button
+																						type="button"
+																						variant="ghost"
+																						size="sm"
+																						onClick={() =>
+																							handleRemoveRow(
+																								idx
+																							)
+																						}
+																						disabled={
+																							isLocked ||
+																							rows.length <=
+																							1
+																						}
+																						className="text-red-500 hover:text-red-700 disabled:opacity-30 p-1 h-auto"
+																					>
+																						<X className="h-4 w-4" />
+																					</Button>
+																				</td>
+																			</tr>
+																		)
+																	)}
+																	{!isLocked && (
+																		<tr>
+																			<td
+																				colSpan={
+																					9
+																				}
+																				className="px-3 py-3"
+																			>
+																				<Button
+																					type="button"
+																					variant="ghost"
+																					size="sm"
+																					onClick={
+																						handleAddRow
+																					}
+																					className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 p-0 h-auto"
+																				>
+																					<Plus className="h-4 w-4" />
+																					Add Unit
+																				</Button>
+																			</td>
+																		</tr>
+																	)}
+																</>
+															);
+														})()}
+													</tbody>
+												</table>
 											</div>
 										</div>
 									)}
@@ -8276,7 +8845,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							</h2>
 						</div>
 						{Array.isArray(subsections) &&
-						subsections.length > 0 ? (
+							subsections.length > 0 ? (
 							<div className="space-y-4">
 								{subsections.map((subsection: any) =>
 									renderSubsection(subsection)

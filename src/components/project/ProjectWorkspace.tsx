@@ -1205,7 +1205,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 						{viewMode === "underwriting" ? (
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <UnderwritingVault projectId={projectId} orgId={activeProject?.owner_org_id} />
+                                {isInitialLoad || !activeProject?.owner_org_id ? (
+                                    <div className="flex items-center justify-center p-8">
+                                        <div className="text-gray-500">Loading underwriting vault...</div>
+                                    </div>
+                                ) : (
+                                    <UnderwritingVault projectId={projectId} orgId={activeProject.owner_org_id} />
+                                )}
                             </div>
 						) : (
 							<AnimatePresence mode="wait">

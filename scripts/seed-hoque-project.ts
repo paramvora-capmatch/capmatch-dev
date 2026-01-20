@@ -77,7 +77,7 @@ if (!serviceRoleKey) {
 
 // Initialize Supabase client
 const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-	auth: {
+		auth: {
 		autoRefreshToken: false,
 		persistSession: false,
 	},
@@ -141,6 +141,10 @@ function getDefaultValueForProjectField(fieldId: string): any {
 		"majorEmployers",
 		"siteImages",
 		"architecturalDiagrams",
+		"t12MonthlyData",
+		"t12MonthlyData",
+		"rentRollUnits",
+		"capexItems",
 	];
 	if (arrayFields.includes(fieldId)) {
 		return [];
@@ -509,6 +513,7 @@ function convertToRichFormat(
 	return richFormat;
 }
 
+
 // Base Hoque project resume – only fields from the schema
 const hoqueProjectResumeBase: Record<string, any> = {
 	projectName: "SoGood Apartments",
@@ -656,6 +661,345 @@ const hoqueProjectResumeBase: Record<string, any> = {
 			leaseTerm: "To be leased",
 			annualRent: 0,
 		},
+	],
+
+	t12MonthlyData: [
+		{
+			month: "Jan-25",
+			grossPotentialRent: 150000,
+			concessions: 2000,
+			badDebt: 1500,
+			otherIncome: 7500,
+			utilities: 12000,
+			repairsMaintenance: 4500,
+			makeReady: 1500,
+			payroll: 22000,
+			managementFee: 4000,
+			marketing: 2500,
+			generalAdmin: 1200,
+			contractServices: 3500,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 0,
+		},
+		{
+			month: "Feb-25",
+			grossPotentialRent: 150000,
+			concessions: 1500,
+			badDebt: 1000,
+			otherIncome: 7200,
+			utilities: 11500,
+			repairsMaintenance: 3800,
+			makeReady: 1200,
+			payroll: 22000,
+			managementFee: 4000,
+			marketing: 2000,
+			generalAdmin: 1100,
+			contractServices: 3500,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 5000,
+		},
+		{
+			month: "Mar-25",
+			grossPotentialRent: 152000,
+			concessions: 1000,
+			badDebt: 1200,
+			otherIncome: 7800,
+			utilities: 11000,
+			repairsMaintenance: 5000,
+			makeReady: 2000,
+			payroll: 22000,
+			managementFee: 4100,
+			marketing: 2500,
+			generalAdmin: 1300,
+			contractServices: 3500,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 0,
+		},
+		{
+			month: "Apr-25",
+			grossPotentialRent: 152000,
+			concessions: 500,
+			badDebt: 1000,
+			otherIncome: 8000,
+			utilities: 10500,
+			repairsMaintenance: 4200,
+			makeReady: 1800,
+			payroll: 22500,
+			managementFee: 4100,
+			marketing: 2500,
+			generalAdmin: 1200,
+			contractServices: 3800,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 0,
+		},
+		{
+			month: "May-25",
+			grossPotentialRent: 154000,
+			concessions: 500,
+			badDebt: 800,
+			otherIncome: 8200,
+			utilities: 11000,
+			repairsMaintenance: 4000,
+			makeReady: 1500,
+			payroll: 22500,
+			managementFee: 4200,
+			marketing: 3000,
+			generalAdmin: 1250,
+			contractServices: 3800,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 12000,
+		},
+		{
+			month: "Jun-25",
+			grossPotentialRent: 155000,
+			concessions: 0,
+			badDebt: 500,
+			otherIncome: 8500,
+			utilities: 14000,
+			repairsMaintenance: 4500,
+			makeReady: 2200,
+			payroll: 22500,
+			managementFee: 4250,
+			marketing: 3000,
+			generalAdmin: 1300,
+			contractServices: 3800,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 0,
+		},
+		{
+			month: "Jul-25",
+			grossPotentialRent: 156000,
+			concessions: 0,
+			badDebt: 600,
+			otherIncome: 9000,
+			utilities: 15000,
+			repairsMaintenance: 5200,
+			makeReady: 2500,
+			payroll: 23000,
+			managementFee: 4300,
+			marketing: 2500,
+			generalAdmin: 1400,
+			contractServices: 4000,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 2500,
+		},
+		{
+			month: "Aug-25",
+			grossPotentialRent: 156000,
+			concessions: 1000,
+			badDebt: 1200,
+			otherIncome: 8800,
+			utilities: 15500,
+			repairsMaintenance: 4800,
+			makeReady: 2000,
+			payroll: 23000,
+			managementFee: 4300,
+			marketing: 2500,
+			generalAdmin: 1350,
+			contractServices: 4000,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 0,
+		},
+		{
+			month: "Sep-25",
+			grossPotentialRent: 157000,
+			concessions: 500,
+			badDebt: 1500,
+			otherIncome: 8500,
+			utilities: 13000,
+			repairsMaintenance: 4500,
+			makeReady: 1800,
+			payroll: 23000,
+			managementFee: 4350,
+			marketing: 2000,
+			generalAdmin: 1300,
+			contractServices: 4000,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 0,
+		},
+		{
+			month: "Oct-25",
+			grossPotentialRent: 158000,
+			concessions: 500,
+			badDebt: 1000,
+			otherIncome: 8200,
+			utilities: 12000,
+			repairsMaintenance: 4200,
+			makeReady: 1500,
+			payroll: 23500,
+			managementFee: 4400,
+			marketing: 2000,
+			generalAdmin: 1250,
+			contractServices: 3800,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 8000,
+		},
+		{
+			month: "Nov-25",
+			grossPotentialRent: 158000,
+			concessions: 0,
+			badDebt: 800,
+			otherIncome: 8000,
+			utilities: 11500,
+			repairsMaintenance: 4000,
+			makeReady: 1200,
+			payroll: 23500,
+			managementFee: 4400,
+			marketing: 2000,
+			generalAdmin: 1200,
+			contractServices: 3800,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 0,
+		},
+		{
+			month: "Dec-25",
+			grossPotentialRent: 160000,
+			concessions: 2000,
+			badDebt: 1000,
+			otherIncome: 8500,
+			utilities: 13000,
+			repairsMaintenance: 5000,
+			makeReady: 2500,
+			payroll: 24000,
+			managementFee: 4500,
+			marketing: 2500,
+			generalAdmin: 1500,
+			contractServices: 3800,
+			realEstateTaxes: 12500,
+			insurance: 4200,
+			capex: 0,
+		},
+	],
+	rentRollUnits: [
+		{
+			unitNumber: "101",
+			unitType: "1B/1B",
+			beds: 1,
+			baths: 1,
+			sf: 750,
+			status: "Occupied",
+			tenantName: "John Smith",
+			leaseStart: "2024-01-15",
+			leaseEnd: "2025-01-14",
+			monthlyRent: 2100,
+		},
+		{
+			unitNumber: "102",
+			unitType: "2B/2B",
+			beds: 2,
+			baths: 2,
+			sf: 1100,
+			status: "Occupied",
+			tenantName: "Jane Doe",
+			leaseStart: "2024-03-01",
+			leaseEnd: "2025-02-28",
+			monthlyRent: 3400,
+		},
+		{
+			unitNumber: "103",
+			unitType: "1B/1B",
+			beds: 1,
+			baths: 1,
+			sf: 750,
+			status: "Occupied",
+			tenantName: "Bob Johnson",
+			leaseStart: "2024-06-01",
+			leaseEnd: "2025-05-31",
+			monthlyRent: 2150,
+		},
+		{
+			unitNumber: "104",
+			unitType: "2B/1B",
+			beds: 2,
+			baths: 1,
+			sf: 950,
+			status: "Vacant",
+			tenantName: "",
+			leaseStart: "",
+			leaseEnd: "",
+			monthlyRent: 0,
+		},
+		{
+			unitNumber: "105",
+			unitType: "Studio",
+			beds: 0,
+			baths: 1,
+			sf: 500,
+			status: "Occupied",
+			tenantName: "Alice Brown",
+			leaseStart: "2024-02-01",
+			leaseEnd: "2025-01-31",
+			monthlyRent: 1650,
+		},
+	],
+	capexItems: [
+		{
+			"item": "Roof Replacement (TPO System)",
+			"category": "Structural",
+			"cost": 150000,
+			"priority": "Critical",
+			"condition": "Poor - End of Life",
+			"usefulLife": 20,
+			"startDate": "2026-04-01",
+			"status": "Planned",
+			"notes": "Current roof has multiple active leaks. Quote from Apex Roofing."
+		},
+		{
+			"item": "Parking Lot Resurfacing & Striping",
+			"category": "Site Work",
+			"cost": 45000,
+			"priority": "Medium",
+			"condition": "Fair",
+			"usefulLife": 10,
+			"startDate": "2026-06-15",
+			"status": "Planned",
+			"notes": "Fill cracks and sealcoat. Add accessible spaces."
+		},
+		{
+			"item": "Unit Renovations (Phase 1 - 20 Units)",
+			"category": "Interiors",
+			"cost": 240000,
+			"priority": "High",
+			"condition": "Dated",
+			"usefulLife": 15,
+			"startDate": "2026-02-01",
+			"completionDate": "2026-08-01",
+			"status": "In Progress",
+			"vendor": "Creative Interiors LLC",
+			"notes": "New LVP flooring, stainless appliances, quartz countertops. Expected $250 premium/unit."
+		},
+		{
+			"item": "Boiler System Replacement",
+			"category": "Mechanical",
+			"cost": 85000,
+			"priority": "Critical",
+			"condition": "Poor",
+			"usefulLife": 25,
+			"startDate": "2026-09-01",
+			"status": "Planned",
+			"notes": "Original 1990 system. Efficiency rating < 80%."
+		},
+		{
+			"item": "Common Area LED Lighting Retrofit",
+			"category": "Electrical",
+			"cost": 12000,
+			"priority": "Low",
+			"condition": "Functional",
+			"startDate": "2026-03-01",
+			"status": "Planned",
+			"notes": "Energy saving initiative. Estimated 1.5 year payback."
+		}
 	],
 
 	// Financial Details - Development Budget
@@ -1373,6 +1717,7 @@ const hoqueProjectResume: Record<string, any> = (() => {
 		"riskLevelUpside",
 		"riskLevelBase",
 		"riskLevelDownside",
+		"t12MonthlyData", // T12 financial data for document generation
 	]);
 	for (const key of Object.keys(result)) {
 		if (
@@ -1503,6 +1848,14 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 	bankruptcyHistory: false,
 	foreclosureHistory: false,
 	litigationHistory: false,
+	// New fields for Sponsor Resume & PFS
+	totalAUM: "$150,000,000",
+	totalSqFtManaged: "350,000",
+	totalAssets: 9000000,
+	totalLiabilities: 2000000,
+	netWorth: 7000000,
+	totalLiquidAssets: 5000000,
+	contingentLiabilities: 500000,
 	linkedinUrl: "https://www.linkedin.com/company/hoque-global",
 	websiteUrl: "https://www.hoqueglobal.com",
 	// Principals array - this is the primary data structure for multiple principals
@@ -1656,6 +2009,56 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 			contact: "PFC Program Director (pfc@dhfc.org)",
 		},
 	],
+	scheduleOfRealEstateOwned: [
+		{
+			propertyAddress: "123 Main St, Springfield, IL",
+			propertyType: "Multifamily",
+			ownershipPercentage: 100,
+			dateAcquired: "2020-01-15",
+			originalCost: 5000000,
+			currentMarketValue: 6500000,
+			lenderName: "First Bank",
+			currentLoanBalance: 4000000,
+			interestRate: 5.0,
+			maturityDate: "2030-01-15",
+			monthlyPayment: 21000,
+			recourse: "Yes",
+			grossRentalIncome: 600000,
+			operatingExpenses: 200000
+		},
+		{
+			propertyAddress: "456 Oak Ave, Metropolis, NY",
+			propertyType: "Retail",
+			ownershipPercentage: 50,
+			dateAcquired: "2018-06-01",
+			originalCost: 10000000,
+			currentMarketValue: 12000000,
+			lenderName: "City Finance",
+			currentLoanBalance: 7000000,
+			interestRate: 6.0,
+			maturityDate: "2028-06-01",
+			monthlyPayment: 42000,
+			recourse: "No",
+			grossRentalIncome: 1100000,
+			operatingExpenses: 400000
+		},
+		{
+			propertyAddress: "789 Pine Ln, Gotham, NJ",
+			propertyType: "Office",
+			ownershipPercentage: 100,
+			dateAcquired: "2022-03-10",
+			originalCost: 8000000,
+			currentMarketValue: 7500000,
+			lenderName: "Gotham Credit",
+			currentLoanBalance: 5000000,
+			interestRate: 7.0,
+			maturityDate: "2027-03-10",
+			monthlyPayment: 33000,
+			recourse: "Yes",
+			grossRentalIncome: 700000,
+			operatingExpenses: 300000
+		}
+	],
 };
 
 /**
@@ -1682,7 +2085,12 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 	// Remove any fields not in the schema
 	// But preserve special array fields that the frontend expects (principals, trackRecord)
 	const schemaFieldSet = new Set(BORROWER_SCHEMA_FIELD_IDS);
-	const preserveFields = new Set(["principals", "trackRecord", "references"]);
+	const preserveFields = new Set([
+		"principals",
+		"trackRecord",
+		"references",
+		"scheduleOfRealEstateOwned",
+	]);
 	for (const key of Object.keys(result)) {
 		if (
 			key !== "_lockedFields" &&
@@ -1697,13 +2105,14 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 
 	// Lock all fields that have values (matching project resume logic)
 	// Lock fields that have non-empty values (including 0 for numeric fields, false for booleans, empty arrays)
-	// Also lock special array fields (principals, trackRecord, references) that the frontend expects
+	// Also lock special array fields (principals, trackRecord, references, scheduleOfRealEstateOwned) that the frontend expects
 	const lockedFields: Record<string, boolean> = {};
 	const fieldsToCheck = [
 		...BORROWER_SCHEMA_FIELD_IDS,
 		"principals",
 		"trackRecord",
 		"references",
+		"scheduleOfRealEstateOwned",
 	];
 	for (const fieldId of fieldsToCheck) {
 		const value = result[fieldId];
@@ -1726,7 +2135,8 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 				if (
 					fieldId === "principals" ||
 					fieldId === "trackRecord" ||
-					fieldId === "references"
+					fieldId === "references" ||
+					fieldId === "scheduleOfRealEstateOwned"
 				) {
 					if (value.length > 0) {
 						lockedFields[fieldId] = true;
@@ -1840,20 +2250,20 @@ async function onboardUserDirectly(
 				user_id: userId,
 				role: "owner",
 			});
-			
+
 			// Create storage bucket for the org
 			const { error: bucketError } = await supabaseAdmin.storage.createBucket(orgId, {
 				public: false,
 				fileSizeLimit: 50 * 1024 * 1024, // 50MB
 			});
-			
+
 			if (bucketError && !bucketError.message.includes("already exists")) {
 				console.error(`[seed] Failed to create storage bucket: ${bucketError.message}`);
 				// Continue anyway, it might be a transient issue or existing bucket
 			} else if (!bucketError) {
 				console.log(`[seed] Created storage bucket for org: ${orgId}`);
 			}
-			
+
 		} else if (appRole === "advisor") {
 			// Advisors join/create the advisor org
 			const { data: existingOrg } = await supabaseAdmin
@@ -1916,14 +2326,14 @@ async function ensureStorageBucket(orgId: string) {
 			public: false,
 			fileSizeLimit: 50 * 1024 * 1024, // 50MB
 		});
-		
+
 		if (bucketError && !bucketError.message.includes("already exists")) {
 			console.error(`[seed] Failed to ensure storage bucket: ${bucketError.message}`);
 		} else if (!bucketError) {
 			console.log(`[seed] Created storage bucket for org: ${orgId}`);
 		} else {
-             // Bucket already exists, which is fine
-        }
+			// Bucket already exists, which is fine
+		}
 	} catch (e) {
 		console.error(`[seed] Exception ensuring storage bucket:`, e);
 	}
@@ -2126,8 +2536,8 @@ async function getOrCreateDemoBorrowerAccount(): Promise<{
 		return null;
 	}
 
-    // Ensure bucket exists
-    await ensureStorageBucket(borrowerOrgId);
+	// Ensure bucket exists
+	await ensureStorageBucket(borrowerOrgId);
 
 	return { userId: borrowerUserId, orgId: borrowerOrgId };
 }
@@ -2659,30 +3069,51 @@ async function seedUnderwritingDocs(
 
 	const docsToSeed = [
 		{
-			filename: "T12_Statement.xlsx",
+			filename: "t12_filled.xlsx",
 			displayName: "T12 Financial Statement",
 			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		},
 		{
-			filename: "T12_Summary_Report.pdf",
-			displayName: "T12 Summary Report",
-			mimeType: "application/pdf",
-		},
-		{
-			filename: "sources_and_uses_comprehensive.xlsx",
+			filename: "sources_uses_filled.xlsx",
 			displayName: "Sources & Uses Model",
 			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		},
 		{
-			filename: "sources_and_uses_report.pdf",
-			displayName: "Sources & Uses Report",
-			mimeType: "application/pdf",
+			filename: "pfs_filled.xlsx",
+			displayName: "Personal Financial Statement (PFS)",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		},
+		{
+			filename: "sponsor_resume_filled.docx",
+			displayName: "Sponsor Bio",
+			mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		},
+        {
+            filename: "rent_roll_filled.xlsx",
+            displayName: "Current Rent Roll",
+            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+            filename: "sreo_filled.xlsx",
+            displayName: "Schedule of Real Estate Owned (SREO)",
+            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        },
+        {
+            filename: "capex_report_filled.xlsx",
+            displayName: "CapEx Report",
+            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		},
+		{
+			filename: "pro_forma_filled.xlsx",
+			displayName: "ProForma Cash flow",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		}
 	];
 
+	// Point to the parent "docs/so-good-apartments/underwriting-docs" directory
 	const basePath = path.join(
 		process.cwd(),
-		"docs/so-good-apartments/underwriting"
+		"docs/so-good-apartments/underwriting-docs"
 	);
 
 	for (const doc of docsToSeed) {
@@ -2693,11 +3124,49 @@ async function seedUnderwritingDocs(
 				continue;
 			}
 
-			const fileBuffer = fs.readFileSync(filePath);
-			// Use consistent folder name with UnderwritingVault (underwriting-docs)
-			const storagePath = `${projectId}/underwriting-docs/${doc.filename}`;
+			// Check if resource already exists to avoid duplicates
+			const { data: existing } = await supabaseAdmin
+				.from("resources")
+				.select("id")
+				.eq("parent_id", uRoot.id)
+				.eq("name", doc.displayName)
+				.maybeSingle();
 
-			// Upload to Storage (use orgId as bucket, same as project docs)
+			if (existing) {
+				console.log(`[seed] ℹ️  Underwriting doc already exists: ${doc.displayName}`);
+				continue;
+			}
+
+			// 1. Create Resource First (to get ID for path)
+			const { data: resource, error: resourceError } = await supabaseAdmin
+				.from("resources")
+				.insert({
+					org_id: orgId,
+					project_id: projectId,
+					parent_id: uRoot.id,
+					resource_type: "FILE",
+					name: doc.displayName,
+				})
+				.select("id")
+				.single();
+
+			if (resourceError) {
+				console.error(
+					`[seed] ❌ Failed to create resource record for ${doc.displayName}:`,
+					resourceError.message
+				);
+				continue;
+			}
+
+			const fileBuffer = fs.readFileSync(filePath);
+			const fileSize = fs.statSync(filePath).size;
+			const fileNameOnly = path.basename(doc.filename);
+
+			// Construct Deep Path
+			// {ProjectId}/underwriting-docs/{ResourceId}/v1_user{CreatorId}_{Filename}
+			const storagePath = `${projectId}/underwriting-docs/${resource.id}/v1_user${creatorId}_${fileNameOnly}`;
+
+			// 2. Upload to Storage
 			const { error: uploadError } = await supabaseAdmin.storage
 				.from(orgId)
 				.upload(storagePath, fileBuffer, {
@@ -2710,75 +3179,46 @@ async function seedUnderwritingDocs(
 					`[seed] ❌ Failed to upload ${doc.filename}:`,
 					uploadError.message
 				);
+				// Cleanup resource if upload failed
+				await supabaseAdmin.from("resources").delete().eq("id", resource.id);
 				continue;
 			}
 
-			// Create Resource
-			// Check if exists first
-			const { data: existing } = await supabaseAdmin
-				.from("resources")
+			// 3. Create Document Version
+			const { data: version, error: versionError } = await supabaseAdmin
+				.from("document_versions")
+				.insert({
+					resource_id: resource.id,
+					version_number: 1,
+					storage_path: storagePath,
+					created_by: creatorId,
+					status: "active",
+					metadata: {
+						size: fileSize,
+						mimeType: doc.mimeType,
+						source: "generated", // Marked as generated per requirements
+						isGenerated: true,   // Explicit flag
+					},
+				})
 				.select("id")
-				.eq("parent_id", uRoot.id)
-				.eq("name", doc.displayName)
 				.single();
 
-			if (!existing) {
-				// 1. Create Resource (without storage_path)
-				const { data: resource, error: resourceError } = await supabaseAdmin
-					.from("resources")
-					.insert({
-						org_id: orgId,
-						project_id: projectId,
-						parent_id: uRoot.id,
-						resource_type: "FILE",
-						name: doc.displayName,
-					})
-					.select("id")
-					.single();
-
-				if (resourceError) {
-					console.error(
-						`[seed] ❌ Failed to create resource record for ${doc.displayName}:`,
-						resourceError.message
-					);
-					continue;
-				}
-
-				// 2. Create Document Version
-				const { data: version, error: versionError } = await supabaseAdmin
-					.from("document_versions")
-					.insert({
-						resource_id: resource.id,
-						version_number: 1,
-						storage_path: storagePath,
-						created_by: creatorId,
-						status: "active",
-						metadata: {
-							size: fs.statSync(filePath).size,
-							mimeType: doc.mimeType,
-						},
-					})
-					.select("id")
-					.single();
-
-				if (versionError) {
-					console.error(
-						`[seed] ❌ Failed to create version for ${doc.displayName}:`,
-						versionError.message
-					);
-					continue;
-				}
-
-				// 3. Update Resource with current_version_id
-				await supabaseAdmin
-					.from("resources")
-					.update({ current_version_id: version.id })
-					.eq("id", resource.id);
-
-				console.log(`[seed] ✅ Seeded underwriting doc: ${doc.displayName}`);
-			} else {
-				console.log(`[seed] ℹ️  Underwriting doc already exists: ${doc.displayName}`);
+			if (versionError) {
+				console.error(
+					`[seed] ❌ Failed to create version for ${doc.displayName}:`,
+					versionError.message
+				);
+				continue;
 			}
+
+			// 4. Update Resource with current_version_id
+			await supabaseAdmin
+				.from("resources")
+				.update({ current_version_id: version.id })
+				.eq("id", resource.id);
+
+			console.log(`[seed] ✅ Seeded underwriting doc: ${doc.displayName}`);
+
 		} catch (err) {
 			console.error(`[seed] ❌ Error seeding ${doc.displayName}:`, err);
 		}
@@ -3316,11 +3756,9 @@ async function seedChatMessages(
 		// Initial project kickoff
 		{
 			userId: borrowerId,
-			content: `Hi @[Cody Field](user:${advisorId})! Excited to work with you on SoGood Apartments Building B. I've uploaded the key documents including the @[Term Sheet](doc:${
-				termSheetId || ""
-			}) and @[Sources & Uses](doc:${
-				sourcesUsesId || ""
-			}) which have all the key details for our 116-unit mixed-use development. This is Building B in the SoGood master plan, located between the Dallas Farmers Market and Deep Ellum.`,
+			content: `Hi @[Cody Field](user:${advisorId})! Excited to work with you on SoGood Apartments Building B. I've uploaded the key documents including the @[Term Sheet](doc:${termSheetId || ""
+				}) and @[Sources & Uses](doc:${sourcesUsesId || ""
+				}) which have all the key details for our 116-unit mixed-use development. This is Building B in the SoGood master plan, located between the Dallas Farmers Market and Deep Ellum.`,
 			resourceIds: [termSheetId, sourcesUsesId].filter(Boolean),
 		},
 		{
@@ -3330,9 +3768,8 @@ async function seedChatMessages(
 		},
 		{
 			userId: borrowerId,
-			content: `We're targeting Q1 2025 for debt marketing kickoff. Site control and PFC approval are complete as of July 2024. I've also uploaded the @[Market Study](doc:${
-				marketStudyId || ""
-			}) so you can see the market context. Groundbreaking is scheduled for August 2025.`,
+			content: `We're targeting Q1 2025 for debt marketing kickoff. Site control and PFC approval are complete as of July 2024. I've also uploaded the @[Market Study](doc:${marketStudyId || ""
+				}) so you can see the market context. Groundbreaking is scheduled for August 2025.`,
 			resourceIds: marketStudyId ? [marketStudyId] : [],
 		},
 
@@ -3351,9 +3788,8 @@ async function seedChatMessages(
 		// Financial discussion
 		{
 			userId: advisorId,
-			content: `I've been reviewing the @[Operating Pro Forma](doc:${
-				proFormaId || ""
-			}) - $18M loan request against $29.8M TDC is 60% LTC, which is reasonable for construction. Your base case shows 7.6% yield on cost with 44% LTV at stabilization. The partial recourse structure should help with pricing.`,
+			content: `I've been reviewing the @[Operating Pro Forma](doc:${proFormaId || ""
+				}) - $18M loan request against $29.8M TDC is 60% LTC, which is reasonable for construction. Your base case shows 7.6% yield on cost with 44% LTV at stabilization. The partial recourse structure should help with pricing.`,
 			resourceIds: proFormaId ? [proFormaId] : [],
 		},
 		{
@@ -3365,11 +3801,9 @@ async function seedChatMessages(
 		// Design and site discussion
 		{
 			userId: advisorId,
-			content: `The location between Farmers Market and Deep Ellum is excellent. I've looked at the @[Site Plan Abstract](doc:${
-				sitePlanId || ""
-			}) - the site access from Hickory St and Ferris St works well. The @[Architectural Plan Abstract](doc:${
-				architecturalPlanId || ""
-			}) shows a solid 6-story podium design with good amenity spaces.`,
+			content: `The location between Farmers Market and Deep Ellum is excellent. I've looked at the @[Site Plan Abstract](doc:${sitePlanId || ""
+				}) - the site access from Hickory St and Ferris St works well. The @[Architectural Plan Abstract](doc:${architecturalPlanId || ""
+				}) shows a solid 6-story podium design with good amenity spaces.`,
 			resourceIds: [sitePlanId, architecturalPlanId].filter(Boolean),
 		},
 		{
@@ -3432,18 +3866,16 @@ async function seedChatMessages(
 			const constructionMessages = [
 				{
 					userId: borrowerId,
-					content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Architectural Plan Abstract](doc:${
-						architecturalPlanId || ""
-					}) shows the full scope - 6-story podium with structured parking.`,
+					content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Architectural Plan Abstract](doc:${architecturalPlanId || ""
+						}) shows the full scope - 6-story podium with structured parking.`,
 					resourceIds: architecturalPlanId
 						? [architecturalPlanId]
 						: [],
 				},
 				{
 					userId: advisorId,
-					content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan Abstract](doc:${
-						sitePlanId || ""
-					}) shows good site access - that should help with construction logistics.`,
+					content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan Abstract](doc:${sitePlanId || ""
+						}) shows good site access - that should help with construction logistics.`,
 					resourceIds: sitePlanId ? [sitePlanId] : [],
 				},
 				{
@@ -3474,11 +3906,9 @@ async function seedChatMessages(
 			const financingMessages = [
 				{
 					userId: advisorId,
-					content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Term Sheet](doc:${
-						termSheetId || ""
-					}) and @[Sources & Uses](doc:${
-						sourcesUsesId || ""
-					}) are comprehensive - I'll use these for initial outreach. Target list coming next week.`,
+					content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Term Sheet](doc:${termSheetId || ""
+						}) and @[Sources & Uses](doc:${sourcesUsesId || ""
+						}) are comprehensive - I'll use these for initial outreach. Target list coming next week.`,
 					resourceIds: [termSheetId, sourcesUsesId].filter(Boolean),
 				},
 				{
@@ -3493,9 +3923,8 @@ async function seedChatMessages(
 				},
 				{
 					userId: borrowerId,
-					content: `Sounds good. The @[Operating Pro Forma](doc:${
-						proFormaId || ""
-					}) shows strong returns - 7.6% yield on cost with multiple exit scenarios. That should help with lender underwriting.`,
+					content: `Sounds good. The @[Operating Pro Forma](doc:${proFormaId || ""
+						}) shows strong returns - 7.6% yield on cost with multiple exit scenarios. That should help with lender underwriting.`,
 					resourceIds: proFormaId ? [proFormaId] : [],
 				},
 			];
@@ -3546,21 +3975,7 @@ async function createProject(
 		const projectId = project.id;
 		console.log(`[seed] ✅ Created project record: ${projectId}`);
 
-		// 2. Create empty project resume (will be updated later)
-		const { error: resumeError } = await supabaseAdmin
-			.from("project_resumes")
-			.insert({ project_id: projectId, content: {} });
-
-		if (resumeError) {
-			console.error(
-				`[seed] Failed to create project resume:`,
-				resumeError
-			);
-			await supabaseAdmin.from("projects").delete().eq("id", projectId);
-			return null;
-		}
-
-		// 3. Create storage folders (project root, architectural-diagrams, site-images)
+		// 2. Create storage folders (project root, architectural-diagrams, site-images)
 		const { error: storageError } = await supabaseAdmin.storage
 			.from(ownerOrgId)
 			.upload(
@@ -3623,7 +4038,7 @@ async function createProject(
 			);
 		}
 
-		// 4. Create PROJECT_RESUME resource
+		// 3. Create PROJECT_RESUME resource
 		const { data: projectResumeResource, error: resumeResourceError } =
 			await supabaseAdmin
 				.from("resources")
@@ -3643,7 +4058,7 @@ async function createProject(
 			);
 		}
 
-		// 5. Create PROJECT_DOCS_ROOT resource
+		// 4. Create PROJECT_DOCS_ROOT resource
 		const { data: projectDocsRootResource, error: docsRootError } =
 			await supabaseAdmin
 				.from("resources")
@@ -3663,7 +4078,7 @@ async function createProject(
 			);
 		}
 
-		// 6. Ensure borrower root resources
+		// 5. Ensure borrower root resources
 		const { error: borrowerRootError } = await supabaseAdmin.rpc(
 			"ensure_project_borrower_roots",
 			{
@@ -3678,7 +4093,7 @@ async function createProject(
 			);
 		}
 
-		// 7. Grant creator access
+		// 6. Grant creator access
 		const { error: grantError } = await supabaseAdmin
 			.from("project_access_grants")
 			.insert({
@@ -4037,6 +4452,173 @@ async function seedHoqueProject(): Promise<void> {
 		console.log("\n📋 Step 5.6: Seeding underwriting documents...");
 		await seedUnderwritingDocs(projectId, borrowerOrgId, advisorId);
 
+		// Step 5.7: Seed Underwriting Templates (Project Specific)
+		console.log("\n📋 Step 5.7: Seeding underwriting templates (Project Specific)...");
+
+		// Create Template Root
+		// User reports missing unique constraint on (project_id, resource_type), so we use check-then-insert
+		let templatesRoot: any = null;
+
+		const { data: existingRoot, error: findRootError } = await supabaseAdmin
+			.from("resources")
+			.select("*")
+			.eq("project_id", projectId)
+			.eq("resource_type", "UNDERWRITING_TEMPLATES_ROOT")
+			.maybeSingle();
+
+		if (findRootError) {
+			console.error("[seed] ❌ Failed to query UNDERWRITING_TEMPLATES_ROOT:", findRootError);
+		}
+
+		if (existingRoot) {
+			templatesRoot = existingRoot;
+			console.log(`[seed] ✅ Found existing Template Root: ${templatesRoot.id}`);
+		} else {
+			const { data: newRoot, error: createRootError } = await supabaseAdmin
+				.from("resources")
+				.insert({
+					project_id: projectId,
+					resource_type: "UNDERWRITING_TEMPLATES_ROOT",
+					name: "Underwriting Templates",
+                    org_id: borrowerOrgId,
+                    // parent_id is null for roots, allowed.
+                })
+                .select()
+                .single();
+            
+             if (createRootError) {
+                 console.error("[seed] ❌ Failed to create UNDERWRITING_TEMPLATES_ROOT:", createRootError);
+             } else {
+                 templatesRoot = newRoot;
+                 console.log(`[seed] ✅ Created Template Root: ${templatesRoot?.id}`);
+             }
+        }
+            
+        if (templatesRoot && advisorId) {
+             const { error: permError } = await supabaseAdmin.from("permissions").upsert({
+                resource_id: templatesRoot.id,
+                user_id: advisorId,
+                permission: "edit",
+                granted_by: advisorId, 
+            });
+            if (permError) console.error("[seed] ❌ Failed to grant root permissions:", permError);
+        }
+
+		const templateDir = path.join(process.cwd(), "docs/so-good-apartments/underwriting-templates");
+		const templatesToSeed = [
+			{ name: "Sources & Uses Model Template", filename: "sources_uses_template.xlsx" },
+			{ name: "Schedule of Real Estate Owned (SREO) Template", filename: "sreo_template.xlsx" },
+			{ name: "T12 Financial Statement Template", filename: "t12_template.xlsx" },
+			{ name: "Current Rent Roll Template", filename: "rent_roll_template.xlsx" },
+			{ name: "Personal Financial Statement (PFS) Template", filename: "pfs_template.xlsx" },
+			{ name: "Sponsor Bio Template", filename: "sponsor_bio_template.docx" },
+			{ name: "CapEx Report Template", filename: "capex_report_template.xlsx" },
+			{ name: "ProForma Cash flow Template", filename: "pro_forma_template.xlsx" },
+		];
+
+		for (const tmpl of templatesToSeed) {
+			const filePath = path.join(templateDir, tmpl.filename);
+			if (fs.existsSync(filePath)) {
+				// Check if resource exists - STRICTLY checking within the templates root
+				let existingRes = null;
+				
+				if (templatesRoot?.id) {
+					const { data } = await supabaseAdmin
+						.from("resources")
+						.select("*")
+						.eq("project_id", projectId)
+						.eq("parent_id", templatesRoot.id)
+						.eq("name", tmpl.name)
+						.eq("resource_type", "FILE")
+						.maybeSingle();
+					existingRes = data;
+				}
+
+				if (existingRes) {
+					console.log(`[seed]   - Template correctly exists for ${tmpl.name}`);
+					continue;
+				}
+
+				// Create new resource
+				if (!templatesRoot?.id) {
+					console.error(`[seed] ❌ Cannot create ${tmpl.name} because Template Root ID is missing.`);
+					continue;
+				}
+
+				const { data: res, error: resError } = await supabaseAdmin
+					.from("resources")
+					.insert({
+						project_id: projectId,
+						org_id: borrowerOrgId,
+						resource_type: "FILE",
+						name: tmpl.name,
+						parent_id: templatesRoot.id
+					})
+					.select()
+					.single();
+
+				if (resError) {
+					console.error(`[seed] ❌ Failed to create resource for ${tmpl.name}:`, resError);
+					continue;
+				}
+
+				if (res) {
+					const fileBuffer = fs.readFileSync(filePath);
+					// Construct Deep Path for Templates
+					// {ProjectId}/underwriting-templates/{ResourceId}/v1_user{AdvisorId}_{Filename}
+					const storagePath = `${projectId}/underwriting-templates/${res.id}/v1_user${advisorId}_${tmpl.filename}`;
+
+					// Upload
+					const { error: uploadError } = await supabaseAdmin.storage
+						.from(borrowerOrgId)
+						.upload(storagePath, fileBuffer, {
+							contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+							upsert: true
+						});
+
+					if (uploadError) {
+						console.error(`[seed] ❌ Failed to upload ${tmpl.name}:`, uploadError);
+						// cleanup
+						await supabaseAdmin.from("resources").delete().eq("id", res.id);
+						continue;
+					}
+
+					console.log(`[seed] ✅ Uploaded ${tmpl.name} to storage`);
+
+					const { data: ver, error: verError } = await supabaseAdmin
+						.from("document_versions")
+						.insert({
+							resource_id: res.id,
+							version_number: 1,
+							storage_path: storagePath,
+							status: "active",
+							created_by: advisorId,
+							metadata: {
+								size: fileBuffer.length,
+								mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+								bucket: borrowerOrgId
+							}
+						})
+						.select()
+						.single();
+
+					if (verError) {
+						console.error(`[seed] ❌ Failed to create version for ${tmpl.name}:`, verError);
+					}
+
+					if (ver) {
+						await supabaseAdmin
+							.from("resources")
+							.update({ current_version_id: ver.id })
+							.eq("id", res.id);
+					}
+					console.log(`[seed]   - Registered Resource & Version for ${tmpl.name}`);
+				}
+			} else {
+				console.warn(`[seed] ⚠️  Template file missing: ${filePath}`);
+			}
+		}
+
 		// Step 6: Seed team members
 		console.log("\n📋 Step 6: Seeding team members...");
 		const memberIds = await seedTeamMembers(
@@ -4091,15 +4673,45 @@ async function seedHoqueProject(): Promise<void> {
 						.single();
 
 					if (uRoot) {
-						await supabaseAdmin.from("permissions").upsert({
+						const { error: permError } = await supabaseAdmin.from("permissions").upsert({
 							resource_id: uRoot.id,
 							user_id: lenderUserId,
 							permission: "view",
 							granted_by: advisorId,
 						});
-						console.log(
-							`[seed] ✅ Granted lender VIEW access to UNDERWRITING_DOCS_ROOT`
-						);
+                        
+                        if (permError) {
+                             console.error(`[seed] ❌ Failed to grant permission on UNDERWRITING_DOCS_ROOT:`, permError);
+                        } else {
+    						console.log(
+    							`[seed] ✅ Granted lender VIEW access to UNDERWRITING_DOCS_ROOT`
+    						);
+                        }
+                        
+                        // Grant lender VIEW access to UNDERWRITING_TEMPLATES_ROOT
+                        const { data: uTemplatesRoot } = await supabaseAdmin
+                            .from("resources")
+                            .select("id")
+                            .eq("project_id", projectId)
+                            .eq("resource_type", "UNDERWRITING_TEMPLATES_ROOT")
+                            .maybeSingle();
+
+                        if (uTemplatesRoot) {
+                            const { error: tmplPermError } = await supabaseAdmin.from("permissions").upsert({
+                                resource_id: uTemplatesRoot.id,
+                                user_id: lenderUserId,
+                                permission: "view",
+                                granted_by: advisorId, 
+                            });
+                            
+                            if (tmplPermError) {
+                                console.error(`[seed] ❌ Failed to grant permission on UNDERWRITING_TEMPLATES_ROOT:`, tmplPermError);
+                            } else {
+                                console.log(
+                                    `[seed] ✅ Granted lender VIEW access to UNDERWRITING_TEMPLATES_ROOT`
+                                );
+                            }
+                        }
 					}
 				}
 			} catch (err) {

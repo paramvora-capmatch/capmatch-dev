@@ -195,9 +195,9 @@
 						"syndicationCostsLabel",
 						"enviroRemediationLabel",
 						"pfcStructuringFeeLabel",
-                        "acquisitionCosts",
-                        "softCosts",
-                        "payoffExistingDebt"
+						"acquisitionCosts",
+						"softCosts",
+						"payoffExistingDebt"
 					]
 				},
 				{
@@ -215,10 +215,10 @@
 						"sponsorEquityLabel",
 						"taxCreditEquityLabel",
 						"gapFinancingLabel",
-                        "mezzanineDebt",
-                        "sellerFinancing",
-                        "preferredEquity",
-                        "grantsTaxCredits"
+						"mezzanineDebt",
+						"sellerFinancing",
+						"preferredEquity",
+						"grantsTaxCredits"
 					]
 				},
 				{
@@ -308,7 +308,18 @@
 				{
 					"id": "risk-analysis",
 					"title": "3.6 Risk Analysis",
-					"fields": ["riskHigh", "riskMedium", "riskLow"]
+					"fields": [
+						"riskHigh",
+						"riskMedium",
+						"riskLow"
+					]
+				},
+				{
+					"id": "rent-roll",
+					"title": "3.7 Rent Roll",
+					"fields": [
+						"rentRollUnits"
+					]
 				}
 			],
 			"fields": [
@@ -433,7 +444,8 @@
 				"sensitivityAnalysis",
 				"riskHigh",
 				"riskMedium",
-				"riskLow"
+				"riskLow",
+				"rentRollUnits"
 			]
 		},
 		{
@@ -476,6 +488,8 @@
 						"submarketName",
 						"walkabilityScore",
 						"infrastructureCatalyst",
+						"infraCompletion",
+						"projectBudget",
 						"broadbandSpeed",
 						"distanceToCBD",
 						"distanceToEmployment",
@@ -731,6 +745,7 @@
 						"currentSiteStatus",
 						"topography",
 						"soilConditions",
+						"geotechSoilsRep",
 						"accessPoints",
 						"siteAccess",
 						"proximityShopping",
@@ -753,12 +768,19 @@
 				{
 					"id": "infrastructure-utilities",
 					"title": "7.4 Infrastructure & Utilities",
-					"fields": ["utilityAvailability", "easements"]
+					"fields": [
+						"utilityAvailability",
+						"utilityCapacity",
+						"easements"
+					]
 				},
 				{
 					"id": "project-media",
 					"title": "7.5 Project Media (Site Images & Plans)",
-					"fields": ["siteImages", "architecturalDiagrams"]
+					"fields": [
+						"siteImages",
+						"architecturalDiagrams"
+					]
 				}
 			],
 			"fields": [
@@ -781,6 +803,7 @@
 				"zoningCompliant",
 				"currentSiteStatus",
 				"topography",
+				"geotechSoilsRep",
 				"soilConditions",
 				"accessPoints",
 				"siteAccess",
@@ -794,6 +817,7 @@
 				"phaseIESAFinding",
 				"noiseFactors",
 				"utilityAvailability",
+				"utilityCapacity",
 				"easements"
 			]
 		},
@@ -826,7 +850,10 @@
 				{
 					"id": "financial-strength",
 					"title": "8.3 Financial Strength",
-					"fields": ["netWorth", "guarantorLiquidity"]
+					"fields": [
+						"netWorth",
+						"guarantorLiquidity"
+					]
 				}
 			],
 			"fields": [
@@ -2093,7 +2120,23 @@
 			"label": "Architectural Diagrams",
 			"required": false
 		},
-        "acquisitionCosts": {
+		"infraCompletion": {
+			"label": "Infra. Completion Date",
+			"required": false
+		},
+		"projectBudget": {
+			"label": "Project Budget ($)",
+			"required": false
+		},
+		"utilityCapacity": {
+			"label": "Utility Capacity",
+			"required": false
+		},
+		"geotechSoilsRep": {
+			"label": "Geotech/Soils Report",
+			"required": false
+		},
+		"acquisitionCosts": {
 			"label": "Acquisition Costs",
 			"required": false
 		},
