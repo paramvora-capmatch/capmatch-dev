@@ -77,24 +77,24 @@ if (!serviceRoleKey) {
 
 // Initialize Supabase client
 const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+		auth: {
+		autoRefreshToken: false,
+		persistSession: false,
+	},
+});
 
-			    {
-				    name: "Sources & Uses Model Template", filename: "sources_uses_template.xlsx" },
-			    {
-				    name: "Schedule of Real Estate Owned (SREO) Template", filename: "sreo_template.xlsx" },
-			    {
-				    name: "T12 Financial Statement Template", filename: "t12_template.xlsx" },
-			    {
-				    name: "Current Rent Roll Template", filename: "rent_roll_template.xlsx" },
-			    {
-				    name: "Personal Financial Statement (PFS) Template", filename: "pfs_template.xlsx" },
-			    {
-				    name: "Sponsor Bio Template", filename: "sponsor_bio_template.docx" },
-			    {
-				    name: "CapEx Report Template", filename: "capex_report_template.xlsx" },
-			    {
-				    name: "ProForma Cash flow Template", filename: "pro_forma_template.xlsx" },
- 
+// ============================================================================
+// HOQUE PROJECT DATA
+// ============================================================================
+
+const HOQUE_PROJECT_NAME = "SoGood Apartments";
+
+/**
+ * Get all field IDs from a schema
+ */
+function getSchemaFieldIds(schema: any): string[] {
+	const fieldIds = new Set<string>();
+
 	// First, try to get from schema.fields (field metadata object)
 	if (schema.fields && typeof schema.fields === "object") {
 		Object.keys(schema.fields).forEach((fieldId) => fieldIds.add(fieldId));
@@ -4513,6 +4513,7 @@ async function seedHoqueProject(): Promise<void> {
 			{ name: "Personal Financial Statement (PFS) Template", filename: "pfs_template.xlsx" },
 			{ name: "Sponsor Bio Template", filename: "sponsor_bio_template.docx" },
 			{ name: "CapEx Report Template", filename: "capex_report_template.xlsx" },
+			{ name: "ProForma Cash flow", filename: "pro_forma_template.xlsx" },
 		];
 
 		for (const tmpl of templatesToSeed) {

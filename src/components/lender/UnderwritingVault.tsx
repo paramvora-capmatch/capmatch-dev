@@ -58,9 +58,9 @@ const StageAccordion: React.FC<StageProps> = ({
 
     return (
         <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50/50 mb-4 shadow-sm">
-            <button
+            <div
                 onClick={onToggle}
-                className="w-full flex items-center justify-between p-4 bg-white hover:bg-gray-50 transition-colors text-left border-b border-gray-100"
+                className="w-full flex items-center justify-between p-4 bg-white hover:bg-gray-50 transition-colors text-left border-b border-gray-100 cursor-pointer"
             >
                 <div className="flex items-center gap-3">
                     <div className={cn("p-1 rounded-md transition-colors", isExpanded ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-500")}>
@@ -102,7 +102,7 @@ const StageAccordion: React.FC<StageProps> = ({
                         {docs.length} Documents
                     </div>
                 </div>
-            </button>
+            </div>
 
             {isExpanded && (
                 <div className="p-4 space-y-3 bg-gray-50/50">
@@ -425,7 +425,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     
     // View Template logic - Opens preview modal
     const handleViewTemplate = async (docName: string) => {
-        const resourceId = templatesMap[docName];
+        const resourceId = templatesMap[docName] || templatesMap[`${docName} Template`];
         if (resourceId) {
             setSelectedTemplateId(resourceId);
         } else {
