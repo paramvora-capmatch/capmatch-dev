@@ -174,6 +174,7 @@ export const LenderProjectWorkspace: React.FC<LenderProjectWorkspaceProps> = ({
                         const followUpQuestion = `Following up: "${message.content?.substring(0, 50)}..." - details?`;
                         void activeAskAi.sendMessage(followUpQuestion, undefined, undefined, message);
                     }}
+                    mode={mode === "underwriting" ? "underwriter" : "ask-ai"}
                 />
             </div>
         </AskAIProvider>

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { MessageSquare, Brain, Users } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { toast } from "sonner";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { MeetInterface } from "@/components/chat/MeetInterface";
 import { useChatStore } from "@/stores/useChatStore";
@@ -26,6 +27,7 @@ interface StickyChatCardProps {
   externalShouldExpand?: boolean; // When true, expands the chat if collapsed
   hideTeamTab?: boolean; // When true, hides team tab and shows only AI chat
   onAIReplyClick?: (message: Message) => void; // Callback for AI chat reply clicks
+  mode?: "ask-ai" | "underwriter";
 }
 
 export const StickyChatCard: React.FC<StickyChatCardProps> = ({
@@ -43,6 +45,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   externalShouldExpand,
   hideTeamTab = false,
   onAIReplyClick,
+  mode = "ask-ai",
 }) => {
   const [rightTab, setRightTab] = useState<"team" | "ai" | "meet">(hideTeamTab ? "ai" : "team");
   const [isChatCollapsed, setIsChatCollapsed] = useState<boolean>(() => {
@@ -82,11 +85,30 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   }, [externalShouldExpand, isChatCollapsed]);
 
   // Thread and unread counts (WhatsApp-style)
-  const threadCount = useChatStore((s) => s.threads.length);
+  const { threads, activeThreadId, resolveThread } = useChatStore();
+  const threadCount = threads.length;
   const { getTotalUnreadCount, formatUnreadCount } = useUnreadCounts();
   const unreadCount = getTotalUnreadCount();
 
+
   const askAiEnabled = true; // presentation only; parent governs availability
+
+  // Check if active thread is a "Missing Data" thread that can be resolved
+  const activeChatThread = threads.find(t => t.id === activeThreadId);
+  const isResolvable = activeChatThread?.status === 'active' && activeChatThread?.topic?.includes('Missing Data');
+  const isUnderwritingMode = mode === "underwriter" || activeChatThread?.stage === 'underwriting' || activeChatThread?.topic?.includes('Missing Data');
+
+  const handleResolveThread = async () => {
+    if (!activeThreadId) return;
+    try {
+        await resolveThread(activeThreadId);
+        toast.success("Resolved. Restarting document generation...");
+        // Optionally switch back to vault or close chat?
+        // For now, keep it open to see "Regenerating..." or AI response.
+    } catch (e) {
+        toast.error("Failed to resolve thread.");
+    }
+  };
 
   // Determine width based on state
   const getChatWidth = () => {
@@ -189,14 +211,14 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
                     aria-pressed={rightTab === "ai"}
                   >
                     <Brain size={16} className={cn("transition-transform duration-300", rightTab === "ai" ? "scale-110" : "")} />
-                    <span>AI Chat</span>
+                    <span>{isUnderwritingMode ? "AI Underwriter" : "AI Chat"}</span>
                   </button>
                 </div>
               ) : (
                 <div className="flex-1 flex items-center justify-center px-3 py-2">
                   <div className="flex items-center space-x-2">
                     <Brain size={16} className="text-blue-600" />
-                    <span className="text-sm font-medium text-gray-900">AI Chat</span>
+                    <span className="text-sm font-medium text-gray-900">{isUnderwritingMode ? "AI Underwriter" : "AI Chat"}</span>
                   </div>
                 </div>
               )}
@@ -238,6 +260,8 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
                       contextError={contextError}
                       hasActiveContext={hasActiveContext}
                       onReplyClick={onAIReplyClick}
+                      onResolve={isResolvable ? handleResolveThread : undefined}
+                      mode={isUnderwritingMode ? "underwriter" : "ask-ai"}
                     />
                   ) : (
                     <div className="h-full flex items-center justify-center">

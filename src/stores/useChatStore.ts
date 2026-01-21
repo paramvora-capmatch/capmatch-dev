@@ -8,6 +8,9 @@ interface ChatThread {
   id: string;
   project_id: string;
   topic?: string;
+  resource_id?: string;
+  status?: 'active' | 'resolved';
+  stage?: string;
   created_at: string;
 }
 
@@ -88,6 +91,7 @@ interface ChatActions {
   loadThreadsForProject: (projectId: string) => Promise<void>;
   createThread: (projectId: string, topic?: string, participantIds?: string[]) => Promise<string>;
   setActiveThread: (threadId: string | null) => void;
+  resolveThread: (threadId: string) => Promise<void>;
 
   // Participants
   addParticipant: (threadId: string, userIds: string[]) => Promise<void>;
@@ -231,13 +235,45 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
         await get().loadThreadsForProject(projectId); // Refresh thread list
         set({ isLoading: false });
-        return data.thread_id;
+        // Use the returned threadId to immediately select it if needed
+        return data.thread_id; 
       } catch (err) {
         set({
           error: err instanceof Error ? err.message : 'Failed to create thread',
           isLoading: false
         });
         throw err;
+      }
+    },
+
+    resolveThread: async (threadId: string) => {
+      set({ isLoading: true, error: null });
+      try {
+        const { error } = await apiClient.manageChatThread({
+          action: 'resolve_thread',
+          thread_id: threadId
+        });
+        if (error) throw error;
+        
+        // Optimistically update local state
+        set(state => ({
+          threads: state.threads.map(t => 
+            t.id === threadId ? { ...t, status: 'resolved' } : t
+          )
+        }));
+        
+        // Also refresh to be sure
+        const state = get();
+        const activeThread = state.threads.find(t => t.id === threadId);
+        if (activeThread?.project_id) {
+            await get().loadThreadsForProject(activeThread.project_id);
+        }
+        
+      } catch (err) {
+        set({ error: err instanceof Error ? err.message : 'Failed to resolve thread' });
+        throw err;
+      } finally {
+        set({ isLoading: false });
       }
     },
 

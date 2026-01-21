@@ -9,16 +9,18 @@ import { apiClient } from "@/lib/apiClient";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 
 import { AddFromResumeModal } from "@/components/lender/AddFromResumeModal";
+import { useChatStore } from "@/stores/useChatStore";
 
 interface DocItem {
     name: string;
-    status: "uploaded" | "pending";
+    status: "uploaded" | "pending" | "action_required"; // Added action_required
     importance: "High" | "Medium" | "Low" | "Internal";
     rationale?: string;
     examples?: string;
     file?: DocumentFile; // Associated file if uploaded
     canGenerate?: boolean;
     addFromResume?: boolean;
+    activeThreadId?: string; // Link to chat thread
 }
 
 interface StageProps {
@@ -34,6 +36,7 @@ interface StageProps {
     isGenerating: (docName: string) => boolean;
     onViewTemplate: (docName: string) => void; 
     onGenerateStage: (docs: DocItem[]) => void;
+    onActionRequired: (threadId: string) => void;
 }
 
 const StageAccordion: React.FC<StageProps> = ({
@@ -48,7 +51,8 @@ const StageAccordion: React.FC<StageProps> = ({
     onGenerate,
     isGenerating,
     onViewTemplate,
-    onGenerateStage
+    onGenerateStage,
+    onActionRequired
 }) => {
     // Use all generateable docs for the stage action, supporting regeneration
     const generateableDocs = docs.filter(d => d.canGenerate);
@@ -118,9 +122,13 @@ const StageAccordion: React.FC<StageProps> = ({
                                 
                                 {/* Status Badge - Appears on Hover */}
                                 <div className="hidden group-hover:flex items-center gap-2 mt-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                                     {doc.status === "uploaded" ? (
+                                    {doc.status === "uploaded" ? (
                                         <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-50 px-2 py-0.5 rounded-sm border border-green-200">
                                             Uploaded
+                                        </span>
+                                    ) : doc.status === "action_required" ? (
+                                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-0.5 rounded-sm border border-red-200 animate-pulse">
+                                            Action Required
                                         </span>
                                     ) : (
                                         <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-sm border border-amber-200">
@@ -135,10 +143,17 @@ const StageAccordion: React.FC<StageProps> = ({
                                 
                                 {/* Default View: Status Badge */}
                                 <div className="group-hover:hidden flex items-center">
-                                     {doc.status === "uploaded" ? (
+                                    {doc.status === "uploaded" ? (
                                         <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-50 px-2 py-0.5 rounded-sm border border-green-200">
                                             Uploaded
                                         </span>
+                                    ) : doc.status === "action_required" ? (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); if(doc.activeThreadId) onActionRequired(doc.activeThreadId); }}
+                                            className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-0.5 rounded-sm border border-red-200 animate-pulse hover:bg-red-100 transition-colors"
+                                        >
+                                            Action Required
+                                        </button>
                                     ) : (
                                         <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-sm border border-amber-200">
                                             Missing
@@ -335,7 +350,22 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     const [templatesMap, setTemplatesMap] = useState<Record<string, string>>({});
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
-    // Fetch available templates on mount
+    const { threads, loadThreadsForProject, setActiveThread } = useChatStore();
+
+    // Load threads
+    React.useEffect(() => {
+        if (projectId) {
+            loadThreadsForProject(projectId);
+        }
+    }, [projectId, loadThreadsForProject]);
+
+    const handleActionRequired = (threadId: string) => {
+        setActiveThread(threadId);
+        // We might need to ensure the StickyChatCard is open/visible.
+        // Usually, setActiveThread triggers the store, and StickyChatCard listens to it.
+        // If StickyChatCard logic requires explicit 'open' state in a parent, that might be an issue,
+        // but typically it subscribes to activeThreadId.
+    };
     React.useEffect(() => {
         const fetchTemplates = async () => {
              if (!projectId) return;
@@ -504,6 +534,15 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             ...stage,
             docs: stage.docs.map(doc => {
                 const foundFile = fileMap.get(doc.name);
+                
+                // Check for active "Missing Data" thread
+                // Topic format from backend: "Missing data for {docName}: {missing fields}"
+                const activeThread = threads.find(t => 
+                    t.project_id === projectId && 
+                    t.status === 'active' && 
+                    t.topic?.includes(`Missing data for ${doc.name}`)
+                );
+
                 if (foundFile) {
                     console.log(`UnderwritingVault: Matched doc '${doc.name}' with file '${foundFile.name}'`);
                     return {
@@ -511,16 +550,18 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                         status: "uploaded" as const,
                         file: foundFile
                     };
-                } else {
-                     // Debug why it's not matching
-                     if (files && files.some(f => f.name.includes(doc.name))) {
-                         console.warn(`UnderwritingVault: Potential partial match ignored for '${doc.name}'`);
-                     }
+                } else if (activeThread) {
+                     return {
+                        ...doc,
+                        status: "action_required" as const,
+                        activeThreadId: activeThread.id
+                    };
                 }
+                
                 return doc;
             })
         }));
-    }, [files, templatesMap]);
+    }, [files, templatesMap, threads, projectId]);
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -547,6 +588,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                         isGenerating={(name) => generatingDocs.has(name)}
                         onViewTemplate={handleViewTemplate}
                         onGenerateStage={handleGenerateStage}
+                        onActionRequired={handleActionRequired}
                     />
                 ))}
             </div>

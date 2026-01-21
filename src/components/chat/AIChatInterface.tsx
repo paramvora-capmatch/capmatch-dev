@@ -17,6 +17,8 @@ interface AIChatInterfaceProps {
   contextError: string | null;
   hasActiveContext: boolean;
   onReplyClick?: (message: Message) => void; // Callback when user clicks reply
+  onResolve?: () => void; // Callback to resolve the thread
+  mode?: "ask-ai" | "underwriter";
 }
 
 export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
@@ -27,6 +29,8 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   contextError,
   hasActiveContext,
   onReplyClick,
+  onResolve,
+  mode = "ask-ai",
 }) => {
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -45,10 +49,20 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
     return (
       <div className="h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg transition-all duration-300 mx-3 mb-10 border-gray-300 bg-gradient-to-br from-gray-50 to-blue-50/30 hover:border-blue-300 hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-purple-50/30">
         <MessageSquare className="h-12 w-12 text-gray-400 mb-3 animate-pulse" />
-        <p className="text-sm text-gray-600 text-center">
-          Click &quot;Ask AI&quot; buttons on form fields
-          <br />
-          to get AI assistance
+        <p className="text-sm text-gray-600 text-center px-4">
+          {mode === "underwriter" ? (
+            <>
+              <b>AI Underwriter</b> is ready.
+              <br />
+              Select a document in the vault to start underwriting.
+            </>
+          ) : (
+            <>
+              Click &quot;Ask AI&quot; buttons on form fields
+              <br />
+              to get AI assistance
+            </>
+          )}
         </p>
       </div>
     );
@@ -56,6 +70,22 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
 
   return (
     <div className="h-full flex flex-col">
+      {/* Header for Resolution if applicable */}
+      {onResolve && (
+         <div className="flex items-center justify-between p-2 mx-3 mb-2 bg-blue-50 border border-blue-200 rounded-md shadow-sm">
+            <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-blue-600" />
+                <span className="text-xs font-semibold text-blue-700">Action Required</span>
+            </div>
+            <button
+                onClick={onResolve}
+                className="px-3 py-1 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors shadow-sm"
+            >
+                Resolve & Regenerate
+            </button>
+         </div>
+      )}
+
       {contextError && (
         <div className="flex items-center space-x-2 p-2 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-md mb-3 mx-3 shadow-sm">
           <AlertCircle className="h-4 w-4 text-red-600" />
@@ -152,7 +182,9 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
       </div>
 
       <div className="text-center mx-3 pb-4">
-        <p className="text-sm text-gray-500 animate-pulse">Click another field&apos;s Ask AI to switch topics</p>
+        {!onResolve && mode !== "underwriter" && (
+          <p className="text-sm text-gray-500 animate-pulse">Click another field&apos;s Ask AI to switch topics</p>
+        )}
       </div>
     </div>
   );
