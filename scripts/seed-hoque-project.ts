@@ -632,6 +632,40 @@ const hoqueProjectResumeBase: Record<string, any> = {
 			totalSF: 8 * 1120,
 		},
 	],
+	// Financial Assumptions & Rates
+	rates: {
+		interestRate: 6.5,
+		taxRate: 2.1,
+		insuranceRate: 0.45,
+		capexPerUnit: 300,
+		managementFeePercent: 3.0,
+		wageGrowth: 3.0,
+		expenseGrowth: 3.0,
+		rentGrowth: 3.5,
+		vacancyRate: 5.0,
+	},
+
+	// Sources & Uses Detail
+	usesDirect: [
+		{ item: "Land Acquisition", amount: 5000000, category: "Land" },
+		{ item: "Hard Construction Costs", amount: 20000000, category: "Construction" },
+		{ item: "Soft Costs (A&E, Legal, etc)", amount: 2500000, category: "Soft Costs" },
+		{ item: "FF&E", amount: 500000, category: "Soft Costs" },
+		{ item: "Financing Costs & Reserves", amount: 2000000, category: "Financing" },
+	],
+	sourcesDirect: [
+		{ source: "Sensor Construction Loan", amount: 18000000, type: "Debt" },
+		{ source: "Sponsor Equity", amount: 12000000, type: "Equity" },
+	],
+
+	// Pro Forma Settings
+	proFormaStartYear: 2026,
+	proFormaRentGrowth: 0.035,
+	proFormaExpenseInflation: 0.03,
+	proFormaVacancyRate: 0.05,
+	proFormaExitCapRate: 0.055,
+	proFormaCapExPerUnit: 300,
+
 	commercialSpaceMix: [
 		{
 			spaceType: "Innovation Center",
