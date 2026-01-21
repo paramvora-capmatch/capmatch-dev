@@ -17,7 +17,11 @@
 				{
 					"id": "borrower-contact",
 					"title": "1.2 Contact Details",
-					"fields": ["contactEmail", "contactPhone", "contactAddress"]
+					"fields": [
+						"contactEmail",
+						"contactPhone",
+						"contactAddress"
+					]
 				}
 			],
 			"fields": [
@@ -69,6 +73,8 @@
 				"assetClassesExperience",
 				"geographicMarketsExperience",
 				"totalDealValueClosedRange",
+				"totalAUM",
+				"totalSqFtManaged",
 				"existingLenderRelationships",
 				"bioNarrative",
 				"trackRecord"
@@ -83,9 +89,16 @@
 					"id": "financial-capacity",
 					"title": "3.1 Net Worth & Liquidity",
 					"fields": [
+						"totalAssets",
+						"totalLiabilities",
+						"netWorth",
+						"totalLiquidAssets",
+						"contingentLiabilities",
 						"creditScoreRange",
 						"netWorthRange",
-						"liquidityRange"
+						"liquidityRange",
+						"assets",
+						"liabilities"
 					]
 				},
 				{
@@ -94,25 +107,28 @@
 					"fields": [
 						"bankruptcyHistory",
 						"foreclosureHistory",
-						"litigationHistory"
-					]
-				},
-				{
-					"id": "real-estate-owned",
-					"title": "3.3 Real Estate Owned",
-					"fields": [
-						"scheduleOfRealEstateOwned"
+						"litigationHistory",
+						"scheduleOfRealEstateOwned",
+						"sreoProperties"
 					]
 				}
 			],
 			"fields": [
+				"totalAssets",
+				"totalLiabilities",
+				"netWorth",
+				"totalLiquidAssets",
+				"contingentLiabilities",
 				"creditScoreRange",
 				"netWorthRange",
 				"liquidityRange",
+				"assets",
+				"liabilities",
 				"bankruptcyHistory",
 				"foreclosureHistory",
 				"litigationHistory",
-				"scheduleOfRealEstateOwned"
+				"scheduleOfRealEstateOwned",
+				"sreoProperties"
 			]
 		},
 		{
@@ -123,10 +139,16 @@
 				{
 					"id": "online-links",
 					"title": "4.1 Profiles & Website",
-					"fields": ["linkedinUrl", "websiteUrl"]
+					"fields": [
+						"linkedinUrl",
+						"websiteUrl"
+					]
 				}
 			],
-			"fields": ["linkedinUrl", "websiteUrl"]
+			"fields": [
+				"linkedinUrl",
+				"websiteUrl"
+			]
 		},
 		{
 			"id": "principals",
@@ -308,6 +330,34 @@
 		},
 		"scheduleOfRealEstateOwned": {
 			"label": "Schedule of Real Estate Owned",
+			"required": false
+		},
+		"totalAUM": {
+			"label": "Assets Under Management (AUM)",
+			"required": false
+		},
+		"totalSqFtManaged": {
+			"label": "Total SqFt / Units Managed",
+			"required": false
+		},
+		"totalAssets": {
+			"label": "Total Assets",
+			"required": false
+		},
+		"totalLiabilities": {
+			"label": "Total Liabilities",
+			"required": false
+		},
+		"netWorth": {
+			"label": "Net Worth (Exact)",
+			"required": false
+		},
+		"totalLiquidAssets": {
+			"label": "Liquid Assets",
+			"required": false
+		},
+		"contingentLiabilities": {
+			"label": "Contingent Liabilities",
 			"required": false
 		}
 	}
