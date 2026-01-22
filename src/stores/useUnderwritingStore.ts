@@ -1,0 +1,171 @@
+import { create } from "zustand";
+import { apiClient } from "@/lib/apiClient";
+import { supabase } from "@/lib/supabaseClient";
+
+interface User {
+    id: string;
+    full_name?: string;
+    email?: string;
+}
+
+interface UnderwritingMessage {
+    id: string | number;
+    thread_id: string;
+    user_id?: string;
+    sender_type: 'user' | 'ai';
+    content: string;
+    created_at: string;
+    metadata?: any;
+    user?: User; // Hydrated user info
+}
+
+interface UnderwritingThread {
+    id: string;
+    project_id: string;
+    topic?: string;
+    created_by: string;
+    status: string; // 'active' | 'resolved'
+    created_at: string;
+}
+
+interface UnderwritingState {
+    threads: UnderwritingThread[];
+    activeThreadId: string | null;
+    messages: UnderwritingMessage[];
+    isLoading: boolean;
+    isSending: boolean;
+    error: string | null;
+
+    // Actions
+    loadThreads: (projectId: string) => Promise<void>;
+    createThread: (projectId: string, topic?: string) => Promise<string | null>;
+    setActiveThread: (threadId: string | null) => void;
+    loadMessages: (threadId: string) => Promise<void>;
+    sendMessage: (content: string, context?: any) => Promise<void>;
+    reset: () => void;
+}
+
+export const useUnderwritingStore = create<UnderwritingState>((set, get) => ({
+    threads: [],
+    activeThreadId: null,
+    messages: [],
+    isLoading: false,
+    isSending: false,
+    error: null,
+
+    loadThreads: async (projectId: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const { data, error } = await apiClient.getUnderwritingThreads(projectId);
+            if (error) throw error;
+            set({ threads: data || [] });
+        } catch (err) {
+            console.error("Failed to load underwriting threads:", err);
+            set({ error: err instanceof Error ? err.message : "Failed to load threads" });
+        } finally {
+            set({ isLoading: false });
+        }
+    },
+
+    createThread: async (projectId: string, topic?: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const { data, error } = await apiClient.createUnderwritingThread({ project_id: projectId, topic });
+            if (error) throw error;
+            if (!data) throw new Error("No data returned");
+
+            // Add to list locally
+            const newThread = data as UnderwritingThread;
+            set((state) => ({ threads: [newThread, ...state.threads] }));
+            return newThread.id;
+        } catch (err) {
+            console.error("Failed to create thread:", err);
+            set({ error: err instanceof Error ? err.message : "Failed to create thread" });
+            return null;
+        } finally {
+            set({ isLoading: false });
+        }
+    },
+
+    setActiveThread: (threadId: string | null) => {
+        set({ activeThreadId: threadId, messages: [], error: null });
+        if (threadId) {
+            get().loadMessages(threadId);
+        }
+    },
+
+    loadMessages: async (threadId: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const { data, error } = await apiClient.getUnderwritingMessages(threadId);
+            if (error) throw error;
+
+            // Hydrate messages with user info if needed
+            // Ideally backend returns it or we fetch profiles.
+            // For now, assume sender_type 'user' implies current user or we fetch.
+            // Let's simplified assuming we can show 'User' or 'AI'.
+            // Usually we need `users` table cache.
+            // For speed, let's just leave user undefined and UI will handle or fetch.
+
+            set({ messages: (data as UnderwritingMessage[]) || [] });
+        } catch (err) {
+            console.error("Failed to load messages:", err);
+            set({ error: err instanceof Error ? err.message : "Failed to load messages" });
+        } finally {
+            set({ isLoading: false });
+        }
+    },
+
+    sendMessage: async (content: string, context?: any) => {
+        const threadId = get().activeThreadId;
+        if (!threadId) return;
+
+        set({ isSending: true, error: null });
+
+        // Optimistic update?
+        const tempId = Date.now();
+        const optimisticMsg: UnderwritingMessage = {
+            id: tempId,
+            thread_id: threadId,
+            sender_type: 'user',
+            content: content,
+            created_at: new Date().toISOString()
+        };
+
+        set(state => ({ messages: [...state.messages, optimisticMsg] }));
+
+        try {
+            const { data, error } = await apiClient.sendUnderwritingMessage({
+                thread_id: threadId,
+                content,
+                context
+            });
+
+            if (error) throw error;
+            if (!data) throw new Error("No data returned");
+
+            // Replace optimistic message and append AI message
+            set(state => ({
+                messages: state.messages.map(m => m.id === tempId ? { ...data.user_message } : m).concat(data.ai_message)
+            }));
+
+        } catch (err) {
+            console.error("Failed to send message:", err);
+            set({ error: err instanceof Error ? err.message : "Failed to send message" });
+            // Remove optimistic
+            set(state => ({ messages: state.messages.filter(m => m.id !== tempId) }));
+        } finally {
+            set({ isSending: false });
+        }
+    },
+
+    reset: () => {
+        set({
+            threads: [],
+            activeThreadId: null,
+            messages: [],
+            isLoading: false,
+            error: null
+        });
+    }
+}));

@@ -8,7 +8,9 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import { MeetInterface } from "@/components/chat/MeetInterface";
 import { useChatStore } from "@/stores/useChatStore";
 import { AIChatInterface } from "@/components/chat/AIChatInterface";
+import { UnderwritingChatInterface } from "@/components/chat/UnderwritingChatInterface";
 import { Message, FieldContext } from "@/types/ask-ai-types";
+import { useUnderwritingStore } from "@/stores/useUnderwritingStore";
 import { useUnreadCounts } from "@/hooks/useUnreadCounts";
 
 interface StickyChatCardProps {
@@ -71,7 +73,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
         `chatCollapsed:${projectId}`,
         JSON.stringify(isChatCollapsed)
       );
-    } catch {}
+    } catch { }
   }, [isChatCollapsed, projectId]);
 
   // Allow parent to control visible tab (e.g., switch to AI on Ask AI click)
@@ -89,7 +91,14 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   }, [externalShouldExpand, isChatCollapsed]);
 
   // Thread and unread counts (WhatsApp-style)
-  const { threads, activeThreadId, resolveThread } = useChatStore();
+  const chatStore = useChatStore();
+  const underwritingStore = useUnderwritingStore();
+  const isUnderwritingMode = mode === "underwriter";
+
+  const currentStore = isUnderwritingMode ? underwritingStore : chatStore;
+  const threads = currentStore.threads;
+  const activeThreadId = currentStore.activeThreadId;
+
   const threadCount = threads.length;
   const { getTotalUnreadCount, formatUnreadCount } = useUnreadCounts();
   const unreadCount = getTotalUnreadCount();
@@ -99,18 +108,18 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
 
   // Check if active thread is a "Missing Data" thread that can be resolved
   const activeChatThread = threads.find(t => t.id === activeThreadId);
-  const isResolvable = activeChatThread?.status === 'active' && activeChatThread?.topic?.includes('Missing Data');
-  const isUnderwritingMode = mode === "underwriter" || activeChatThread?.stage === 'underwriting' || activeChatThread?.topic?.includes('Missing Data');
+  const isResolvable = !isUnderwritingMode && activeChatThread?.status === 'active' && activeChatThread?.topic?.includes('Missing Data');
+  // const isUnderwritingMode = ... already defined above based on prop
 
   const handleResolveThread = async () => {
     if (!activeThreadId) return;
     try {
-        await resolveThread(activeThreadId);
-        toast.success("Resolved. Restarting document generation...");
-        // Optionally switch back to vault or close chat?
-        // For now, keep it open to see "Regenerating..." or AI response.
+      await chatStore.resolveThread(activeThreadId);
+      toast.success("Resolved. Restarting document generation...");
+      // Optionally switch back to vault or close chat?
+      // For now, keep it open to see "Regenerating..." or AI response.
     } catch (e) {
-        toast.error("Failed to resolve thread.");
+      toast.error("Failed to resolve thread.");
     }
   };
 
@@ -256,11 +265,11 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
               ) : (
                 <div className="h-full bg-transparent py-4">
                   {isUnderwritingMode ? (
-                    <ChatInterface
+                    <UnderwritingChatInterface
                       embedded
                       projectId={projectId || ""}
                       clientContext={clientContext}
-                      hideSidebar={true}
+                      hideSidebar={false}
                       defaultTopic={defaultTopic || "AI Underwriter"}
                     />
                   ) : askAiEnabled ? (

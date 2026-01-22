@@ -9,7 +9,7 @@ import { apiClient } from "@/lib/apiClient";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 
 import { AddFromResumeModal } from "@/components/lender/AddFromResumeModal";
-import { useChatStore } from "@/stores/useChatStore";
+import { useUnderwritingStore } from "@/stores/useUnderwritingStore";
 import { supabase } from "@/lib/supabaseClient";
 import { useEffect } from "react";
 
@@ -36,7 +36,7 @@ interface StageProps {
     onSelectFromResume: (docName: string) => void;
     onGenerate: (docName: string) => void;
     isGenerating: (docName: string) => boolean;
-    onViewTemplate: (docName: string) => void; 
+    onViewTemplate: (docName: string) => void;
     onGenerateStage: (docs: DocItem[]) => void;
     onActionRequired: (threadId: string) => void;
 }
@@ -71,22 +71,22 @@ const StageAccordion: React.FC<StageProps> = ({
             >
                 <div className="flex items-center gap-3">
                     <div className={cn("p-1 rounded-md transition-colors", isExpanded ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-500")}>
-                         {isExpanded ? (
+                        {isExpanded ? (
                             <ChevronDown className="h-5 w-5" />
                         ) : (
                             <ChevronRight className="h-5 w-5" />
                         )}
                     </div>
-                   
+
                     <div>
                         <h3 className="font-bold text-gray-900 text-base">{title}</h3>
                         <p className="text-sm text-gray-500">{description}</p>
                     </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                     {canGenerateAny && (
-                        <button 
+                        <button
                             onClick={(e) => {
                                 e.stopPropagation();
                                 if (!docs.some(d => isGenerating(d.name))) {
@@ -115,13 +115,13 @@ const StageAccordion: React.FC<StageProps> = ({
                 <div className="p-4 space-y-3 bg-gray-50/50">
                     {docs.map((doc, idx) => (
                         <div key={idx} className="group bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[72px]">
-                            
+
                             {/* Left Section: Name + Hover Status */}
                             <div className="flex flex-col justify-center min-w-0 flex-1 mr-4">
                                 <h4 className="font-bold text-gray-900 text-sm truncate" title={doc.name}>
                                     {doc.name}
                                 </h4>
-                                
+
                                 {/* Status Badge - Appears on Hover */}
                                 <div className="hidden group-hover:flex items-center gap-2 mt-1 animate-in fade-in slide-in-from-top-1 duration-200">
                                     {doc.status === "uploaded" ? (
@@ -142,7 +142,7 @@ const StageAccordion: React.FC<StageProps> = ({
 
                             {/* Right Section: Status (Default) vs Actions (Hover) */}
                             <div className="flex items-center justify-end shrink-0">
-                                
+
                                 {/* Default View: Status Badge */}
                                 <div className="group-hover:hidden flex items-center">
                                     {doc.status === "uploaded" ? (
@@ -151,7 +151,7 @@ const StageAccordion: React.FC<StageProps> = ({
                                         </span>
                                     ) : doc.status === "action_required" ? (
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); if(doc.activeThreadId) onActionRequired(doc.activeThreadId); }}
+                                            onClick={(e) => { e.stopPropagation(); if (doc.activeThreadId) onActionRequired(doc.activeThreadId); }}
                                             className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-0.5 rounded-sm border border-red-200 animate-pulse hover:bg-red-100 transition-colors"
                                         >
                                             Action Required
@@ -165,8 +165,8 @@ const StageAccordion: React.FC<StageProps> = ({
 
                                 {/* Hover View: Actions */}
                                 <div className="hidden group-hover:flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-200">
-                                     {/* View Template Action */}
-                                    <button 
+                                    {/* View Template Action */}
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); onViewTemplate(doc.name); }}
                                         className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 transition-all"
                                     >
@@ -174,7 +174,7 @@ const StageAccordion: React.FC<StageProps> = ({
                                         <span>Template</span>
                                     </button>
 
-                                     {/* Document Actions */}
+                                    {/* Document Actions */}
                                     {doc.file ? (
                                         <>
                                             <button
@@ -184,12 +184,12 @@ const StageAccordion: React.FC<StageProps> = ({
                                                 <FileText className="h-3.5 w-3.5" />
                                                 View Document
                                             </button>
-                                            
+
                                             {doc.canGenerate && (
                                                 <button
-                                                     onClick={(e) => { e.stopPropagation(); onGenerate(doc.name); }}
-                                                     disabled={isGenerating(doc.name)}
-                                                     className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50"
+                                                    onClick={(e) => { e.stopPropagation(); onGenerate(doc.name); }}
+                                                    disabled={isGenerating(doc.name)}
+                                                    className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50"
                                                 >
                                                     {isGenerating(doc.name) ? (
                                                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -212,7 +212,7 @@ const StageAccordion: React.FC<StageProps> = ({
                                         </>
                                     ) : (
                                         <>
-                                             {doc.canGenerate && (
+                                            {doc.canGenerate && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onGenerate(doc.name); }}
                                                     disabled={isGenerating(doc.name)}
@@ -353,14 +353,14 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [resources, setResources] = useState<any[]>([]);
 
-    const { threads, loadThreadsForProject, setActiveThread, createThread, sendMessage } = useChatStore();
+    const { threads, loadThreads, setActiveThread, createThread, sendMessage } = useUnderwritingStore();
 
     // Load threads
     React.useEffect(() => {
         if (projectId) {
-            loadThreadsForProject(projectId);
+            loadThreads(projectId);
         }
-    }, [projectId, loadThreadsForProject]);
+    }, [projectId, loadThreads]);
 
     const handleActionRequired = (threadId: string) => {
         setActiveThread(threadId);
@@ -371,10 +371,10 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     };
     React.useEffect(() => {
         const fetchTemplates = async () => {
-             if (!projectId) return;
-             
+            if (!projectId) return;
+
             try {
-                const response = await apiClient.get<Array<{name: string, resource_id: string}>>(`/api/v1/underwriting/templates?project_id=${projectId}`);
+                const response = await apiClient.get<Array<{ name: string, resource_id: string }>>(`/api/v1/underwriting/templates?project_id=${projectId}`);
                 const map: Record<string, string> = {};
                 if (response.data) {
                     response.data.forEach(t => {
@@ -389,86 +389,93 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         fetchTemplates();
     }, [projectId]);
 
-  // Fetch validation status from resources
-  useEffect(() => {
-    if (!projectId) return;
+    // Fetch validation status from resources
+    useEffect(() => {
+        if (!projectId) return;
 
-    const fetchResources = async () => {
-      const { data, error } = await supabase
-        .from('resources')
-        .select('id, name, validation_status, validation_errors')
-        .eq('project_id', projectId);
-        
-      if (!error && data) {
-         setResources(data);
-      }
+        const fetchResources = async () => {
+            const { data, error } = await supabase
+                .from('resources')
+                .select('id, name, validation_status, validation_errors')
+                .eq('project_id', projectId);
+
+            if (!error && data) {
+                setResources(data);
+            }
+        };
+
+        fetchResources();
+
+        // Subscribe to resource changes
+        const channel = supabase
+            .channel('vault-resources')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'resources', filter: `project_id=eq.${projectId}` },
+                () => fetchResources()
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [projectId]);
+
+    // Updated helper to check status
+    const getDocStatus = (docName: string) => {
+        const res = resources.find(r => r.name === docName);
+        // Return action_required if resource says so
+        if (res?.validation_status === 'action_required') return 'action_required';
+
+        // Fallback to active threads (legacy support or if orchestrator still creates them)
+        // But V2 prefers resource status.
+        const activeThreads = threads.filter(t => t.status === 'active'); // Define activeThreads here
+        const hasThread = activeThreads.some(t => t.topic?.includes(docName));
+        return hasThread ? 'action_required' : 'uploaded'; // Simplified
     };
 
-    fetchResources();
+    const handleValidationResolve = async (docName: string) => {
+        const res = resources.find(r => r.name === docName);
+        if (!res) return;
 
-    // Subscribe to resource changes
-    const channel = supabase
-      .channel('vault-resources')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'resources', filter: `project_id=eq.${projectId}` }, 
-        () => fetchResources()
-      )
-      .subscribe();
+        // 1. Get/Create Unified Thread
+        try {
+            // 1. Get/Create Thread
+            // Using new store: createThread(projectId, topic) returns basic info.
+            const topic = `Missing data for ${docName}`;
 
-    return () => {
-      supabase.removeChannel(channel);
+            // Check if thread exists
+            let threadId = threads.find(t => t.topic === topic)?.id;
+
+            if (!threadId) {
+                threadId = await createThread(projectId!, topic) || undefined;
+            }
+
+            if (!threadId) throw new Error("Failed to create thread");
+
+            // 2. Send Context Message
+            if (res.validation_errors) {
+                // Ensure thread is active in store
+                setActiveThread(threadId);
+                await sendMessage(`I need to resolve the validation errors for **${docName}**.`, {
+                    type: 'validation_error',
+                    doc_name: docName,
+                    errors: res.validation_errors
+                });
+            } else {
+                setActiveThread(threadId);
+            }
+
+            // 3. Open Chat
+            setActiveThread(threadId);
+
+        } catch (e) {
+            console.error("Failed to start resolution", e);
+            toast.error("Failed to start resolution");
+        }
     };
-  }, [projectId]);
 
-  // Updated helper to check status
-  const getDocStatus = (docName: string) => {
-    const res = resources.find(r => r.name === docName);
-    // Return action_required if resource says so
-    if (res?.validation_status === 'action_required') return 'action_required';
-    
-    // Fallback to active threads (legacy support or if orchestrator still creates them)
-    // But V2 prefers resource status.
-    const activeThreads = threads.filter(t => t.status === 'active'); // Define activeThreads here
-    const hasThread = activeThreads.some(t => t.topic?.includes(docName));
-    return hasThread ? 'action_required' : 'uploaded'; // Simplified
-  };
-
-  const handleValidationResolve = async (docName: string) => {
-    const res = resources.find(r => r.name === docName);
-    if (!res) return;
-
-    // 1. Get/Create Unified Thread
-    try {
-      // creating with stage='underwriting' returns existing one
-      const threadId = await createThread(projectId!, 'AI Underwriter', undefined); // stage defaults to underwriting in store? No, need to pass it.
-      // Wait, createThread signature in store: (projectId, topic, participantIds) -> we might need to update store to pass stage/resource_id?
-      // Actually store calls apiClient.manageChatThread which supports stage.
-      // But useChatStore.createThread doesn't expose stage/resource_id args yet.
-      // We should update useChatStore or just call apiClient directly here? 
-      // Better: Update useChatStore or use existing topic convention if backend handles it.
-      // Backend 'create' handles finding existing if stage provided.
-      // Let's assume createThread in store needs update OR we rely on backend default stage='underwriting'.
-      
-      // 2. Send Context Message
-      if (res.validation_errors) {
-         await sendMessage(threadId, `I need to resolve the validation errors for **${docName}**.`, null, {
-            type: 'validation_error',
-            doc_name: docName,
-            errors: res.validation_errors
-         });
-      }
-      
-      // 3. Open Chat
-      setActiveThread(threadId);
-      
-    } catch (e) {
-      console.error("Failed to start resolution", e);
-      toast.error("Failed to start resolution");
-    }
-  };
-
-  // ... (render update)
-  // Inside the mapped items, pass status based on getDocStatus
-  // And onClick calls handleValidationResolve
+    // ... (render update)
+    // Inside the mapped items, pass status based on getDocStatus
+    // And onClick calls handleValidationResolve
 
 
     // Leverage the existing document management hook for logic, signing, and downloads
@@ -499,7 +506,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         setTargetDocName(docName);
         setShowResumeModal(true);
     };
-    
+
     // Reliable polling function
     const waitForGeneration = async (docName: string, maxAttempts = 60, intervalMs = 3000): Promise<boolean> => {
         let attempts = 0;
@@ -511,9 +518,9 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 attempts++;
                 const result = await refresh(); // Force fetch
                 const currentFiles = result?.files || [];
-                
+
                 const currentFile = currentFiles?.find(f => f.name === docName || f.name.replace(/\.[^/.]+$/, "") === docName);
-                
+
                 // Success conditions:
                 // 1. File didn't exist before, now it does.
                 // 2. File existed before, now version number is higher.
@@ -521,7 +528,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
                 const isNew = !initialFile && currentFile;
                 const isUpdated = initialFile && currentFile && (currentFile.version_number > (initialVersion || 0));
-                
+
                 if (isNew || isUpdated) {
                     clearInterval(poll);
                     resolve(true);
@@ -546,7 +553,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
         setGeneratingDocs(prev => new Set(prev).add(docName));
         const toastId = toast.loading(`Generating ${docName}...`);
-        
+
         try {
             // Updated endpoint to generate specific document
             await apiClient.post(`/api/v1/underwriting/generate-single`, {
@@ -560,21 +567,21 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             if (success) {
                 toast.success(`${docName} generated successfully!`, { id: toastId });
             } else {
-                 toast.warning(`${docName} generation is taking longer than expected. It will appear here soon.`, { id: toastId, duration: 5000 });
+                toast.warning(`${docName} generation is taking longer than expected. It will appear here soon.`, { id: toastId, duration: 5000 });
             }
 
         } catch (error) {
             console.error("Generate failed:", error);
             toast.error(`Failed to generate ${docName}`, { id: toastId });
         } finally {
-             setGeneratingDocs(prev => {
+            setGeneratingDocs(prev => {
                 const next = new Set(prev);
                 next.delete(docName);
                 return next;
             });
         }
     };
-    
+
     // View Template logic - Opens preview modal
     const handleViewTemplate = async (docName: string) => {
         const resourceId = templatesMap[docName] || templatesMap[`${docName} Template`];
@@ -585,7 +592,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             toast.error("Template not available for preview yet.");
         }
     };
-    
+
     const handleGenerateStage = (docs: DocItem[]) => {
         toast.info(`Starting batch generation for ${docs.length} documents...`);
         docs.forEach(doc => {
@@ -612,19 +619,19 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 }
             });
         }
-        
+
         console.log("UnderwritingVault: fileMap keys:", Array.from(fileMap.keys()));
 
         return initialStages.map(stage => ({
             ...stage,
             docs: stage.docs.map(doc => {
                 const foundFile = fileMap.get(doc.name);
-                
+
                 // Check for active "Missing Data" thread
                 // Topic format from backend: "Missing data for {docName}: {missing fields}"
-                const activeThread = threads.find(t => 
-                    t.project_id === projectId && 
-                    t.status === 'active' && 
+                const activeThread = threads.find(t =>
+                    t.project_id === projectId &&
+                    t.status === 'active' &&
                     t.topic?.includes(`Missing data for ${doc.name}`)
                 );
 
@@ -636,13 +643,13 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                         file: foundFile
                     };
                 } else if (activeThread) {
-                     return {
+                    return {
                         ...doc,
                         status: "action_required" as const,
                         activeThreadId: activeThread.id
                     };
                 }
-                
+
                 return doc;
             })
         }));
@@ -677,7 +684,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     />
                 ))}
             </div>
-            
+
             {/* Modals ... */}
             {selectedFileId && (
                 <DocumentPreviewModal
