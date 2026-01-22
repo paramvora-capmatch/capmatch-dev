@@ -12,7 +12,7 @@ interface UnderwritingMessage {
     id: string | number;
     thread_id: string;
     user_id?: string;
-    sender_type: 'user' | 'ai';
+    sender_type: 'user' | 'ai' | 'tool';
     content: string;
     created_at: string;
     metadata?: any;
@@ -147,10 +147,14 @@ export const useUnderwritingStore = create<UnderwritingState>((set, get) => ({
             if (error) throw error;
             if (!data) throw new Error("No data returned");
 
-            // Replace optimistic message and append AI message
-            set(state => ({
-                messages: state.messages.map(m => m.id === tempId ? { ...data.user_message } : m).concat(data.ai_message)
-            }));
+            // Replace optimistic message and append all new AI/Tool messages
+            set(state => {
+                const filtered = state.messages.filter(m => m.id !== tempId);
+                const turnMessages = data.new_messages || [data.ai_message];
+                return {
+                    messages: [...filtered, data.user_message, ...turnMessages]
+                };
+            });
 
         } catch (err) {
             console.error("Failed to send message:", err);

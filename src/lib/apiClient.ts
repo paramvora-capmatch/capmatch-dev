@@ -584,7 +584,7 @@ export const apiClient = {
       id: string | number;
       thread_id: string;
       user_id?: string;
-      sender_type: 'user' | 'ai';
+      sender_type: 'user' | 'ai' | 'tool';
       content: string;
       created_at: string;
       metadata?: any;
@@ -604,6 +604,7 @@ export const apiClient = {
     return apiRequest<{
       user_message: any;
       ai_message: any;
+      new_messages?: any[];
     }>(`/api/v1/underwriting/threads/${params.thread_id}/messages`, {
       method: 'POST',
       body: JSON.stringify(params),

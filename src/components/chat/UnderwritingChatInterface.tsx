@@ -19,7 +19,11 @@ import {
     User,
     Bot,
     Menu,
-    Trash2
+    Trash2,
+    Code2,
+    Drill,
+    ChevronDown,
+    ChevronRight
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { toast } from "sonner";
@@ -32,6 +36,45 @@ interface UnderwritingChatInterfaceProps {
     defaultTopic?: string; // e.g. "AI Underwriter" or specific doc name
     clientContext?: any;
 }
+
+const ToolMessage: React.FC<{ content: string }> = ({ content }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    return (
+        <div className="bg-gray-100/50 border border-gray-200 rounded-xl px-4 py-2 shadow-sm text-gray-600 font-mono text-xs w-full max-w-none">
+            <div
+                className="flex items-center justify-between cursor-pointer group"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="text-[10px] opacity-75 font-semibold flex items-center gap-1">
+                    <Code2 size={10} />
+                    <span>Tool Output</span>
+                </div>
+                <div className="flex items-center gap-1 text-[10px] opacity-50 group-hover:opacity-100 transition-opacity">
+                    <span>{isExpanded ? "Collapse" : "Expand"}</span>
+                    {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                </div>
+            </div>
+
+            <AnimatePresence>
+                {isExpanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="mt-2 pt-2 border-t border-gray-200/50 break-all whitespace-pre-wrap prose prose-xs max-w-none prose-slate">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {content}
+                            </ReactMarkdown>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
 
 export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps> = ({
     projectId,
@@ -315,21 +358,46 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
                                             "flex mb-3",
                                             msg.sender_type === 'user' ? "justify-end" : "justify-start"
                                         )}>
-                                            <div className={cn(
-                                                "max-w-[85%] rounded-xl px-4 py-2 shadow-sm",
-                                                msg.sender_type === 'user'
-                                                    ? "bg-blue-600 text-white"
-                                                    : "bg-white border border-gray-200 text-gray-800"
-                                            )}>
-                                                <div className="text-[10px] opacity-75 mb-1 font-semibold">
-                                                    {msg.sender_type === 'user' ? "You" : "AI Underwriter"}
+                                            {msg.sender_type === 'tool' ? (
+                                                <ToolMessage content={msg.content} />
+                                            ) : (
+                                                <div className={cn(
+                                                    "max-w-[85%] rounded-xl px-4 py-2 shadow-sm",
+                                                    msg.sender_type === 'user'
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-white border border-gray-200 text-gray-800"
+                                                )}>
+                                                    <div className="text-[10px] opacity-75 mb-1 font-semibold flex items-center gap-1">
+                                                        {msg.sender_type === 'user' ? (
+                                                            "You"
+                                                        ) : (
+                                                            <>
+                                                                <Bot size={10} />
+                                                                <span>AI Underwriter</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Render Tool Call Request (in AI message) */}
+                                                    {(msg.metadata as any)?.function_call && (
+                                                        <div className="mb-2 p-2 bg-blue-50/50 rounded-lg border border-blue-100">
+                                                            <div className="flex items-center gap-1.5 text-blue-700 text-xs font-semibold mb-1">
+                                                                <Drill size={12} />
+                                                                <span>Calling Tool: {(msg.metadata as any).function_call.name}</span>
+                                                            </div>
+                                                            <div className="font-mono text-[10px] text-blue-600 break-all">
+                                                                {(msg.metadata as any).function_call.arguments}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="prose prose-sm max-w-none">
+                                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                            {msg.content}
+                                                        </ReactMarkdown>
+                                                    </div>
                                                 </div>
-                                                <div className="prose prose-sm max-w-none">
-                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                                        {msg.content}
-                                                    </ReactMarkdown>
-                                                </div>
-                                            </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
