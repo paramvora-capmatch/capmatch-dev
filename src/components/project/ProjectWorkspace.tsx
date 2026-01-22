@@ -260,9 +260,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 			setIsEditing(false);
 		} else if (step.startsWith("project:")) {
 			const sectionId = step.slice("project:".length).trim();
-			setInitialProjectStepId(sectionId || null);
-			setIsEditing(true);
-			setBorrowerEditing(false);
+
+			if (sectionId === "underwriting") {
+				setViewMode("underwriting");
+				setIsEditing(false);
+				setBorrowerEditing(false);
+			} else {
+				setViewMode("resume");
+				setInitialProjectStepId(sectionId || null);
+				setIsEditing(true);
+				setBorrowerEditing(false);
+			}
 		} else if (step === "borrower") {
 			setBorrowerEditing(true);
 			setIsEditing(false);
