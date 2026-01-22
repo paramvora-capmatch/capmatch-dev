@@ -316,12 +316,21 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
     
     if (!targetThread) {
-        targetThread = threads.find(
-          (thread) => thread.topic?.trim().toLowerCase() === "general"
-        );
+        // If we have a default topic, DO NOT fall back to general. Wait for creation.
+        // If NO default topic, fall back to General.
+        if (!defaultTopic) {
+            targetThread = threads.find(
+              (thread) => thread.topic?.trim().toLowerCase() === "general"
+            );
+        }
     }
 
-    setActiveThread(targetThread ? targetThread.id : threads[0].id);
+    if (targetThread) {
+        setActiveThread(targetThread.id);
+    } else if (!defaultTopic) {
+        // Fallback for normal mode only
+        setActiveThread(threads[0]?.id);
+    }
   }, [threads, activeThreadId, setActiveThread, defaultTopic, canCreateThreads, projectId]);
 
   // Effect to auto-create default topic thread if missing
@@ -771,8 +780,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </Card>
     );
   }
-
+  
   const activeThread = threads.find(t => t.id === activeThreadId);
+  
+  // If we have a defaultTopic strictly set, and the active thread doesn't match it (or is missing),
+  // show a loading or creating state instead of "General" or some other thread.
+  // This prevents "General" from leaking in.
+  const isWrongTopic = defaultTopic && activeThread?.topic?.trim().toLowerCase() !== defaultTopic.trim().toLowerCase();
+  
+  if (defaultTopic && (!activeThread || isWrongTopic)) {
+      return (
+        <div className="h-full flex items-center justify-center bg-gray-50/50">
+           <div className="flex flex-col items-center gap-3">
+             <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+             <p className="text-sm text-gray-500 font-medium">Initializing AI Underwriter...</p>
+           </div>
+        </div>
+      );
+  }
+
   const channelName = activeThread?.topic || "General";
 
   return (
