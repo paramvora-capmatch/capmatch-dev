@@ -33,6 +33,7 @@ interface UnderwritingState {
     activeThreadId: string | null;
     messages: UnderwritingMessage[];
     isLoading: boolean;
+    isLoaded: boolean;
     isSending: boolean;
     error: string | null;
 
@@ -42,6 +43,7 @@ interface UnderwritingState {
     setActiveThread: (threadId: string | null) => void;
     loadMessages: (threadId: string) => Promise<void>;
     sendMessage: (content: string, context?: any) => Promise<void>;
+    deleteThread: (threadId: string) => Promise<void>;
     reset: () => void;
 }
 
@@ -50,6 +52,7 @@ export const useUnderwritingStore = create<UnderwritingState>((set, get) => ({
     activeThreadId: null,
     messages: [],
     isLoading: false,
+    isLoaded: false,
     isSending: false,
     error: null,
 
@@ -58,7 +61,7 @@ export const useUnderwritingStore = create<UnderwritingState>((set, get) => ({
         try {
             const { data, error } = await apiClient.getUnderwritingThreads(projectId);
             if (error) throw error;
-            set({ threads: data || [] });
+            set({ threads: data || [], isLoaded: true });
         } catch (err) {
             console.error("Failed to load underwriting threads:", err);
             set({ error: err instanceof Error ? err.message : "Failed to load threads" });
@@ -159,12 +162,32 @@ export const useUnderwritingStore = create<UnderwritingState>((set, get) => ({
         }
     },
 
+    deleteThread: async (threadId: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const { error } = await apiClient.deleteUnderwritingThread(threadId);
+            if (error) throw error;
+
+            set(state => ({
+                threads: state.threads.filter(t => t.id !== threadId),
+                activeThreadId: state.activeThreadId === threadId ? null : state.activeThreadId,
+                messages: state.activeThreadId === threadId ? [] : state.messages
+            }));
+        } catch (err) {
+            console.error("Failed to delete thread:", err);
+            set({ error: err instanceof Error ? err.message : "Failed to delete thread" });
+        } finally {
+            set({ isLoading: false });
+        }
+    },
+
     reset: () => {
         set({
             threads: [],
             activeThreadId: null,
             messages: [],
             isLoading: false,
+            isLoaded: false,
             error: null
         });
     }

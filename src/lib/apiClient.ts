@@ -611,6 +611,18 @@ export const apiClient = {
   },
 
   /**
+   * Delete an underwriting thread
+   */
+  deleteUnderwritingThread: async (thread_id: string) => {
+    return apiRequest<{
+      success: boolean;
+      message: string;
+    }>(`/api/v1/underwriting/threads/${thread_id}`, {
+      method: "DELETE",
+    });
+  },
+
+  /**
    * Generic POST request
    */
   post: async (endpoint: string, data: any) => {

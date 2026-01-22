@@ -17,9 +17,12 @@ import {
     Reply,
     X,
     User,
-    Bot
+    Bot,
+    Menu,
+    Trash2
 } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { toast } from "sonner";
 import { RichTextInput, RichTextInputRef } from "./RichTextInput";
 
 interface UnderwritingChatInterfaceProps {
@@ -42,11 +45,14 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
         activeThreadId,
         messages,
         isLoading,
+        isLoaded,
+        isSending,
         error,
         loadThreads,
         createThread,
         setActiveThread,
         sendMessage,
+        deleteThread,
         reset
     } = useUnderwritingStore();
 
@@ -55,6 +61,8 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
     const messageListRef = useRef<HTMLDivElement>(null);
     const richTextInputRef = useRef<RichTextInputRef>(null);
     const [isCreatingThread, setIsCreatingThread] = useState(false);
+
+    const [isSideBarOpen, setIsSideBarOpen] = useState(false);
 
     // Initial load
     useEffect(() => {
@@ -68,30 +76,30 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
 
     // Select default or active thread
     useEffect(() => {
-        if (threads.length === 0) return;
+        // Only act once we've definitively loaded (or failed to load) threads from the backend
+        if (!isLoaded || isLoading || isCreatingThread) return;
+
+        // If an active thread is already set, don't override it
         if (activeThreadId) return;
 
         let target = null;
+
+        // 1. Try to find existing thread by topic
         if (defaultTopic) {
             target = threads.find(t => t.topic === defaultTopic);
         }
 
-        if (!target && !defaultTopic) {
-            // Default to first available
+        // 2. If no target found but we have threads, pick the first available one
+        if (!target && threads.length > 0) {
             target = threads[0];
         }
 
         if (target) {
+            // Found a match or picked first available, set it active
             setActiveThread(target.id);
-        } else if (defaultTopic && !isCreatingThread && !isLoading) {
-            // Auto-create default topic if it doesn't exist
-            setIsCreatingThread(true);
-            createThread(projectId, defaultTopic).then((id) => {
-                if (id) setActiveThread(id);
-                setIsCreatingThread(false);
-            });
         }
-    }, [threads, activeThreadId, defaultTopic, projectId, createThread, setActiveThread, isCreatingThread, isLoading]);
+        // If threads.length === 0, we do nothing and wait for user to click "+" 
+    }, [isLoaded, isLoading, isCreatingThread, threads, activeThreadId, defaultTopic, projectId, setActiveThread]);
 
     // Scroll to bottom
     useEffect(() => {
@@ -103,8 +111,11 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !activeThreadId) return;
         try {
-            await sendMessage(newMessage.trim(), clientContext);
+            const content = newMessage.trim();
+            // Clear input immediately or after success
+            richTextInputRef.current?.clear();
             setNewMessage("");
+            await sendMessage(content, clientContext);
         } catch (e) {
             console.error("Failed to send", e);
         }
@@ -154,43 +165,142 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
     const activeThread = threads.find(t => t.id === activeThreadId);
 
     return (
-        <div className={embedded ? "h-full flex" : "h-full flex rounded-2xl overflow-hidden bg-white/70 backdrop-blur-xl border border-gray-200 shadow-lg"}>
+        <div className={cn(
+            "relative flex overflow-hidden",
+            embedded ? "h-full" : "h-full rounded-2xl bg-white/70 backdrop-blur-xl border border-gray-200 shadow-lg"
+        )}>
 
-            {/* Sidebar */}
-            {!hideSidebar && (
-                <div className="w-48 bg-white/60 backdrop-blur border-r border-gray-100 flex flex-col">
-                    <div className="p-3 border-b border-gray-100 font-semibold text-sm text-gray-700 flex justify-between items-center">
-                        <span>Underwriting</span>
-                        <Button size="sm" variant="ghost" onClick={() => createThread(projectId, "New Thread").then(id => id && setActiveThread(id))}>
-                            <Plus className="h-4 w-4" />
-                        </Button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                        {threads.map(t => (
-                            <div
-                                key={t.id}
-                                onClick={() => setActiveThread(t.id)}
-                                className={cn(
-                                    "p-2 rounded-md text-sm cursor-pointer flex items-center gap-2 truncate",
-                                    activeThreadId === t.id ? "bg-blue-100 text-blue-700 font-medium" : "hover:bg-gray-100 text-gray-700"
-                                )}
-                            >
-                                <Hash size={14} className="flex-shrink-0" />
-                                <span className="truncate">{t.topic || "Untitled"}</span>
+            {/* Floating Sidebar Drawer */}
+            <AnimatePresence>
+                {isSideBarOpen && !hideSidebar && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsSideBarOpen(false)}
+                            className="absolute inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity"
+                        />
+                        {/* Drawer */}
+                        <motion.div
+                            initial={{ x: "-100%" }}
+                            animate={{ x: 0 }}
+                            exit={{ x: "-100%" }}
+                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            className="absolute left-0 top-0 bottom-0 w-64 bg-white shadow-2xl z-50 flex flex-col border-r border-gray-100"
+                        >
+                            <div className="p-4 border-b border-gray-100 font-semibold text-sm text-gray-700 flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <MessageCircle size={18} className="text-blue-600" />
+                                    <span>Threads</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => {
+                                            setIsCreatingThread(true);
+                                            createThread(projectId, "New Thread").then(id => {
+                                                if (id) setActiveThread(id);
+                                                setIsCreatingThread(false);
+                                            });
+                                        }}
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => setIsSideBarOpen(false)}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+                            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                                {threads.map(t => (
+                                    <div
+                                        key={t.id}
+                                        className={cn(
+                                            "p-3 rounded-xl text-sm cursor-pointer flex items-center justify-between group transition-all",
+                                            activeThreadId === t.id
+                                                ? "bg-blue-50 text-blue-700 font-semibold shadow-sm border border-blue-100"
+                                                : "hover:bg-gray-50 text-gray-600 border border-transparent"
+                                        )}
+                                    >
+                                        <div
+                                            className="flex items-center gap-3 overflow-hidden flex-1"
+                                            onClick={() => {
+                                                setActiveThread(t.id);
+                                                setIsSideBarOpen(false);
+                                            }}
+                                        >
+                                            <Hash size={16} className={cn("flex-shrink-0", activeThreadId === t.id ? "text-blue-500" : "text-gray-400")} />
+                                            <span className="truncate">{t.topic || "Untitled"}</span>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50 transition-all rounded-lg"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (window.confirm("Are you sure you want to delete this thread?")) {
+                                                    deleteThread(t.id).then(() => {
+                                                        toast.success("Thread deleted");
+                                                    });
+                                                }
+                                            }}
+                                        >
+                                            <Trash2 size={14} />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {threads.length === 0 && !isLoading && !isCreatingThread && (
+                                    <div className="p-4 text-center text-xs text-gray-400 italic">
+                                        No threads found
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
 
             {/* Chat Area */}
             <div className="flex-1 flex flex-col min-w-0">
                 {activeThreadId ? (
                     <>
                         {/* Header */}
-                        <div className="px-3 py-2 border-b border-gray-100 bg-white/60 backdrop-blur flex items-center">
-                            <Bot size={16} className="text-blue-600 mr-2" />
-                            <span className="font-semibold text-gray-800 text-sm">{activeThread?.topic || "Loading..."}</span>
+                        <div className="px-4 py-3 border-b border-gray-100 bg-white/80 backdrop-blur sticky top-0 z-30 flex items-center justify-between shadow-sm">
+                            <div className="flex items-center gap-3">
+                                {!hideSidebar && (
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 w-8 p-0 flex"
+                                        onClick={() => setIsSideBarOpen(true)}
+                                    >
+                                        <Menu className="h-5 w-5 text-gray-500" />
+                                    </Button>
+                                )}
+                                <div className="flex items-center gap-2">
+                                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                        <Bot size={18} className="text-blue-600" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-gray-900 text-sm">{activeThread?.topic || "Loading..."}</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className={cn("h-1.5 w-1.5 rounded-full", isSending ? "bg-green-500 animate-pulse" : "bg-gray-300")} />
+                                            <span className="text-[10px] text-gray-400 font-medium">
+                                                {isSending ? "AI is processing..." : "Online"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Messages */}
@@ -224,8 +334,35 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
                                     ))}
                                 </div>
                             ))}
+                            {isSending && (
+                                <div className="flex justify-start mb-3">
+                                    <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3 min-w-[140px]">
+                                        <div className="flex gap-1">
+                                            <motion.div
+                                                animate={{ scale: [1, 1.2, 1] }}
+                                                transition={{ repeat: Infinity, duration: 0.6, delay: 0 }}
+                                                className="w-1.5 h-1.5 bg-blue-400 rounded-full"
+                                            />
+                                            <motion.div
+                                                animate={{ scale: [1, 1.2, 1] }}
+                                                transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }}
+                                                className="w-1.5 h-1.5 bg-blue-500 rounded-full"
+                                            />
+                                            <motion.div
+                                                animate={{ scale: [1, 1.2, 1] }}
+                                                transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }}
+                                                className="w-1.5 h-1.5 bg-blue-600 rounded-full"
+                                            />
+                                        </div>
+                                        <span className="text-xs text-gray-400 font-medium italic">AI is thinking...</span>
+                                    </div>
+                                </div>
+                            )}
                             {isLoading && messages.length === 0 && (
-                                <div className="text-center text-sm text-gray-400 mt-4">Loading messages...</div>
+                                <div className="flex flex-col items-center justify-center h-full gap-3 py-12">
+                                    <Loader2 className="h-8 w-8 text-blue-500 animate-spin opacity-20" />
+                                    <div className="text-center text-sm text-gray-400">Loading messages...</div>
+                                </div>
                             )}
                         </div>
 
@@ -259,14 +396,53 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
                         </div>
                     </>
                 ) : (
-                    <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-                        <div className="text-center">
-                            <Bot className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                            Select or create a thread to start
+                    <div className="flex-1 flex flex-col min-w-0">
+                        {/* Header for Empty State */}
+                        <div className="px-4 py-3 border-b border-gray-100 bg-white/80 backdrop-blur sticky top-0 z-30 flex items-center justify-between shadow-sm">
+                            <div className="flex items-center gap-3">
+                                {!hideSidebar && (
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 w-8 p-0 flex"
+                                        onClick={() => setIsSideBarOpen(true)}
+                                    >
+                                        <Menu className="h-5 w-5 text-gray-500" />
+                                    </Button>
+                                )}
+                                <span className="font-bold text-gray-900 text-sm">AI Underwriter</span>
+                            </div>
+                        </div>
+
+                        {/* Empty State Content */}
+                        <div className="flex-1 flex items-center justify-center p-8 bg-gray-50/30">
+                            <div className="text-center max-w-xs">
+                                <div className="mb-6 bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto shadow-sm border border-blue-100">
+                                    <Bot className="h-8 w-8 text-blue-500 opacity-60" />
+                                </div>
+                                <h3 className="text-gray-900 font-semibold mb-2">Ready to assist</h3>
+                                <p className="text-gray-500 text-xs mb-8 leading-relaxed">
+                                    Select an existing thread from the sidebar or start a new analysis to begin chatting with the AI Underwriter.
+                                </p>
+                                <Button
+                                    onClick={() => {
+                                        setIsCreatingThread(true);
+                                        createThread(projectId, "New Thread").then(id => {
+                                            if (id) setActiveThread(id);
+                                            setIsCreatingThread(false);
+                                        });
+                                    }}
+                                    disabled={isCreatingThread}
+                                    className="w-full shadow-md"
+                                    leftIcon={isCreatingThread ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
+                                >
+                                    {isCreatingThread ? "Creating..." : "Start New Thread"}
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
