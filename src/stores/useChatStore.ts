@@ -100,7 +100,7 @@ interface ChatActions {
 
   // Messages
   loadMessages: (threadId: string) => Promise<void>;
-  sendMessage: (threadId: string, content: string, replyTo?: number | null) => Promise<void>;
+  sendMessage: (threadId: string, content: string, replyTo?: number | null, clientContext?: any) => Promise<void>;
   subscribeToMessages: (threadId: string) => void;
   unsubscribeFromMessages: () => void;
   subscribeToMembershipChanges: (projectId: string) => Promise<void>;
@@ -491,7 +491,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       }
     },
 
-    sendMessage: async (threadId: string, content: string, replyTo?: number | null) => {
+    sendMessage: async (threadId: string, content: string, replyTo?: number | null, clientContext?: any) => {
       // Get current authenticated user
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
@@ -546,17 +546,12 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       });
 
       try {
-        // Call RPC directly - much faster than edge function!
-        const { data: result, error: insertError } = await supabase.rpc(
-          'insert_thread_message',
-          {
-            p_thread_id: threadId,
-            p_user_id: user.id,
-            p_content: content.trim(),
-            p_resource_ids: resourceIdArray,
-            p_reply_to: replyTo || null,
-          }
-        );
+        // Use API Client -> Backend Endpoint (for AI Context Injection)
+        const { data: result, error: insertError } = await apiClient.sendMessage({
+          thread_id: threadId,
+          content: content.trim(),
+          client_context: clientContext
+        });
 
         if (insertError) {
           // Remove optimistic message on error
@@ -573,28 +568,6 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
             };
           });
 
-          // Handle DOC_ACCESS_DENIED error
-          if (insertError.message?.includes('DOC_ACCESS_DENIED')) {
-            // Fetch full validation details for UI
-            const { data: validation } = await supabase.rpc(
-              'validate_docs_for_thread',
-              {
-                p_thread_id: threadId,
-                p_resource_ids: resourceIdArray,
-              }
-            );
-
-            const blocked = (validation || []).filter(
-              (row: any) => row.missing_user_ids && row.missing_user_ids.length > 0
-            );
-
-            throw {
-              code: 'DOC_ACCESS_DENIED',
-              message: 'Some participants do not have access to the referenced documents',
-              blocked,
-            };
-          }
-
           throw new Error(insertError.message || 'Failed to send message');
         }
 
@@ -605,9 +578,10 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
         if (typeof result === 'object' && result !== null && 'message_id' in result) {
           messageId = result.message_id;
-          eventId = result.event_id;
+          // API doesn't return event_id currently, but that's fine for now
+          eventId = null; 
         } else {
-          messageId = result; // Legacy BIGINT return
+          messageId = result; // Legacy support
         }
 
         if (!messageId) {

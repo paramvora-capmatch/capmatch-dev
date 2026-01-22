@@ -1691,6 +1691,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 							message
 						);
 					}}
+					mode={viewMode === "underwriting" ? "underwriter" : "ask-ai"}
+					defaultTopic="AI Underwriter"
 				/>
 			</AskAIProvider>
 			{previewingResourceId && (

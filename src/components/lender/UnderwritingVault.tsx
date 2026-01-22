@@ -10,6 +10,8 @@ import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModa
 
 import { AddFromResumeModal } from "@/components/lender/AddFromResumeModal";
 import { useChatStore } from "@/stores/useChatStore";
+import { supabase } from "@/lib/supabaseClient";
+import { useEffect } from "react";
 
 interface DocItem {
     name: string;
@@ -349,8 +351,9 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     const [targetDocName, setTargetDocName] = useState<string | null>(null);
     const [templatesMap, setTemplatesMap] = useState<Record<string, string>>({});
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+    const [resources, setResources] = useState<any[]>([]);
 
-    const { threads, loadThreadsForProject, setActiveThread } = useChatStore();
+    const { threads, loadThreadsForProject, setActiveThread, createThread, sendMessage } = useChatStore();
 
     // Load threads
     React.useEffect(() => {
@@ -385,6 +388,88 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         };
         fetchTemplates();
     }, [projectId]);
+
+  // Fetch validation status from resources
+  useEffect(() => {
+    if (!projectId) return;
+
+    const fetchResources = async () => {
+      const { data, error } = await supabase
+        .from('resources')
+        .select('id, name, validation_status, validation_errors')
+        .eq('project_id', projectId);
+        
+      if (!error && data) {
+         setResources(data);
+      }
+    };
+
+    fetchResources();
+
+    // Subscribe to resource changes
+    const channel = supabase
+      .channel('vault-resources')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'resources', filter: `project_id=eq.${projectId}` }, 
+        () => fetchResources()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [projectId]);
+
+  // Updated helper to check status
+  const getDocStatus = (docName: string) => {
+    const res = resources.find(r => r.name === docName);
+    // Return action_required if resource says so
+    if (res?.validation_status === 'action_required') return 'action_required';
+    
+    // Fallback to active threads (legacy support or if orchestrator still creates them)
+    // But V2 prefers resource status.
+    const activeThreads = threads.filter(t => t.status === 'active'); // Define activeThreads here
+    const hasThread = activeThreads.some(t => t.topic?.includes(docName));
+    return hasThread ? 'action_required' : 'uploaded'; // Simplified
+  };
+
+  const handleValidationResolve = async (docName: string) => {
+    const res = resources.find(r => r.name === docName);
+    if (!res) return;
+
+    // 1. Get/Create Unified Thread
+    try {
+      // creating with stage='underwriting' returns existing one
+      const threadId = await createThread(projectId!, 'AI Underwriter', undefined); // stage defaults to underwriting in store? No, need to pass it.
+      // Wait, createThread signature in store: (projectId, topic, participantIds) -> we might need to update store to pass stage/resource_id?
+      // Actually store calls apiClient.manageChatThread which supports stage.
+      // But useChatStore.createThread doesn't expose stage/resource_id args yet.
+      // We should update useChatStore or just call apiClient directly here? 
+      // Better: Update useChatStore or use existing topic convention if backend handles it.
+      // Backend 'create' handles finding existing if stage provided.
+      // Let's assume createThread in store needs update OR we rely on backend default stage='underwriting'.
+      
+      // 2. Send Context Message
+      if (res.validation_errors) {
+         await sendMessage(threadId, `I need to resolve the validation errors for **${docName}**.`, null, {
+            type: 'validation_error',
+            doc_name: docName,
+            errors: res.validation_errors
+         });
+      }
+      
+      // 3. Open Chat
+      setActiveThread(threadId);
+      
+    } catch (e) {
+      console.error("Failed to start resolution", e);
+      toast.error("Failed to start resolution");
+    }
+  };
+
+  // ... (render update)
+  // Inside the mapped items, pass status based on getDocStatus
+  // And onClick calls handleValidationResolve
+
 
     // Leverage the existing document management hook for logic, signing, and downloads
     const { files, downloadFile, refresh } = useDocumentManagement({

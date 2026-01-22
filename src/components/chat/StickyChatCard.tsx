@@ -28,6 +28,8 @@ interface StickyChatCardProps {
   hideTeamTab?: boolean; // When true, hides team tab and shows only AI chat
   onAIReplyClick?: (message: Message) => void; // Callback for AI chat reply clicks
   mode?: "ask-ai" | "underwriter";
+  clientContext?: any; // Context for AI Underwriter Live Edit
+  defaultTopic?: string; // Default thread topic to open
 }
 
 export const StickyChatCard: React.FC<StickyChatCardProps> = ({
@@ -46,6 +48,8 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   hideTeamTab = false,
   onAIReplyClick,
   mode = "ask-ai",
+  clientContext,
+  defaultTopic,
 }) => {
   const [rightTab, setRightTab] = useState<"team" | "ai" | "meet">(hideTeamTab ? "ai" : "team");
   const [isChatCollapsed, setIsChatCollapsed] = useState<boolean>(() => {
@@ -251,7 +255,15 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
                 />
               ) : (
                 <div className="h-full bg-transparent py-4">
-                  {askAiEnabled ? (
+                  {isUnderwritingMode ? (
+                    <ChatInterface
+                      embedded
+                      projectId={projectId || ""}
+                      clientContext={clientContext}
+                      hideSidebar={true}
+                      defaultTopic={defaultTopic || "AI Underwriter"}
+                    />
+                  ) : askAiEnabled ? (
                     <AIChatInterface
                       messages={messages}
                       fieldContext={fieldContext}
@@ -261,7 +273,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
                       hasActiveContext={hasActiveContext}
                       onReplyClick={onAIReplyClick}
                       onResolve={isResolvable ? handleResolveThread : undefined}
-                      mode={isUnderwritingMode ? "underwriter" : "ask-ai"}
+                      mode="ask-ai"
                     />
                   ) : (
                     <div className="h-full flex items-center justify-center">

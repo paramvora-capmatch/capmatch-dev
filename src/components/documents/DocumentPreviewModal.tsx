@@ -6,6 +6,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { OnlyOfficeEditor } from "./OnlyOfficeEditor";
+import { StickyChatCard } from "../chat/StickyChatCard";
 import { VersionHistoryDropdown } from "./VersionHistoryDropdown";
 import { ShareModal } from "./ShareModal";
 import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
@@ -228,9 +229,9 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           </div>
         }
       >
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            {/* Preview area - extends to bottom */}
-            <div className="flex-1 bg-gray-200 rounded-md overflow-hidden relative min-h-0" style={{ minHeight: '500px' }}>
+        <div className="flex flex-1 min-h-0 overflow-hidden relative">
+            {/* Main Content Area (Left) */}
+            <div className="flex-1 flex flex-col min-w-0 bg-gray-200 overflow-hidden relative" style={{ minHeight: '500px' }}>
                 {/* Decorative Background Layer for preview */}
                 <div className="pointer-events-none absolute inset-0">
                     {/* Subtle grid pattern */}
@@ -270,6 +271,25 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* Right Sidebar: AI Chat (Only for Underwriting Docs) */}
+            {resource && docContext === 'underwriting' && (
+                <div className="h-full border-l border-gray-200 bg-white shadow-xl z-20 flex-shrink-0">
+                    <StickyChatCard
+                        projectId={resource.project_id || undefined}
+                        topOffsetClassName="top-0"
+                        widthClassName="w-full" // Let container control width via flex
+                        mode="underwriter"
+                        hideTeamTab={true}
+                        clientContext={{
+                            context_type: "live_edit",
+                            resource_id: resource.id,
+                            resource_name: resource.name,
+                            doc_type: resource.type
+                        }}
+                    />
+                </div>
+            )}
         </div>
       </Modal>
       {isSharing && resource && (

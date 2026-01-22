@@ -175,6 +175,7 @@ export const LenderProjectWorkspace: React.FC<LenderProjectWorkspaceProps> = ({
                         void activeAskAi.sendMessage(followUpQuestion, undefined, undefined, message);
                     }}
                     mode={mode === "underwriting" ? "underwriter" : "ask-ai"}
+                    defaultTopic="AI Underwriter"
                 />
             </div>
         </AskAIProvider>

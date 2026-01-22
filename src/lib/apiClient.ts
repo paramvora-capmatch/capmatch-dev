@@ -338,6 +338,33 @@ export const apiClient = {
   },
 
   /**
+   * Resolve a chat thread
+   *
+   * @param threadId - ID of the thread to resolve
+   * @returns Response with thread data or success message
+   */
+  resolveThread: async (threadId: string) => {
+    return apiClient.manageChatThread({ action: 'resolve_thread', thread_id: threadId });
+  },
+
+  /**
+   * Send a message to a chat thread
+   *
+   * @param data - Message data
+   * @returns Message ID and response
+   */
+  sendMessage: async (data: {
+    thread_id: string;
+    content: string;
+    client_context?: any;
+  }) => {
+    return apiRequest<{ message_id: string; response: string }>('/api/v1/chat/messages', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
    * Update meeting participant response status and sync to Google Calendar
    *
    * @param params - Update parameters
