@@ -77,7 +77,7 @@ if (!serviceRoleKey) {
 
 // Initialize Supabase client
 const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-		auth: {
+	auth: {
 		autoRefreshToken: false,
 		persistSession: false,
 	},
@@ -3122,20 +3122,20 @@ async function seedUnderwritingDocs(
 			displayName: "Sponsor Bio",
 			mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 		},
-        {
-            filename: "rent_roll_filled.xlsx",
-            displayName: "Current Rent Roll",
-            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        },
-        {
-            filename: "sreo_filled.xlsx",
-            displayName: "Schedule of Real Estate Owned (SREO)",
-            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        },
-        {
-            filename: "capex_report_filled.xlsx",
-            displayName: "CapEx Report",
-            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		{
+			filename: "rent_roll_filled.xlsx",
+			displayName: "Current Rent Roll",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		},
+		{
+			filename: "sreo_filled.xlsx",
+			displayName: "Schedule of Real Estate Owned (SREO)",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		},
+		{
+			filename: "capex_report_filled.xlsx",
+			displayName: "CapEx Report",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 		},
 		{
 			filename: "pro_forma_filled.xlsx",
@@ -3246,12 +3246,31 @@ async function seedUnderwritingDocs(
 			}
 
 			// 4. Update Resource with current_version_id
+			// 4. Update Resource with current_version_id
 			await supabaseAdmin
 				.from("resources")
 				.update({ current_version_id: version.id })
 				.eq("id", resource.id);
 
-			console.log(`[seed] ✅ Seeded underwriting doc: ${doc.displayName}`);
+			// 5. Create Underwriting Document record
+			const { error: uwError } = await supabaseAdmin
+				.from("underwriting_documents")
+				.insert({
+					resource_id: resource.id,
+					validation_status: "valid", // Pre-filled/seeded docs are valid
+					validation_errors: {},
+				});
+
+			if (uwError) {
+				console.error(
+					`[seed] ❌ Failed to create underwriting document record for ${doc.displayName}:`,
+					uwError.message
+				);
+			} else {
+				console.log(
+					`[seed] ✅ Seeded underwriting doc: ${doc.displayName}`
+				);
+			}
 
 		} catch (err) {
 			console.error(`[seed] ❌ Error seeding ${doc.displayName}:`, err);
@@ -4514,29 +4533,29 @@ async function seedHoqueProject(): Promise<void> {
 					project_id: projectId,
 					resource_type: "UNDERWRITING_TEMPLATES_ROOT",
 					name: "Underwriting Templates",
-                    org_id: borrowerOrgId,
-                    // parent_id is null for roots, allowed.
-                })
-                .select()
-                .single();
-            
-             if (createRootError) {
-                 console.error("[seed] ❌ Failed to create UNDERWRITING_TEMPLATES_ROOT:", createRootError);
-             } else {
-                 templatesRoot = newRoot;
-                 console.log(`[seed] ✅ Created Template Root: ${templatesRoot?.id}`);
-             }
-        }
-            
-        if (templatesRoot && advisorId) {
-             const { error: permError } = await supabaseAdmin.from("permissions").upsert({
-                resource_id: templatesRoot.id,
-                user_id: advisorId,
-                permission: "edit",
-                granted_by: advisorId, 
-            });
-            if (permError) console.error("[seed] ❌ Failed to grant root permissions:", permError);
-        }
+					org_id: borrowerOrgId,
+					// parent_id is null for roots, allowed.
+				})
+				.select()
+				.single();
+
+			if (createRootError) {
+				console.error("[seed] ❌ Failed to create UNDERWRITING_TEMPLATES_ROOT:", createRootError);
+			} else {
+				templatesRoot = newRoot;
+				console.log(`[seed] ✅ Created Template Root: ${templatesRoot?.id}`);
+			}
+		}
+
+		if (templatesRoot && advisorId) {
+			const { error: permError } = await supabaseAdmin.from("permissions").upsert({
+				resource_id: templatesRoot.id,
+				user_id: advisorId,
+				permission: "edit",
+				granted_by: advisorId,
+			});
+			if (permError) console.error("[seed] ❌ Failed to grant root permissions:", permError);
+		}
 
 		const templateDir = path.join(process.cwd(), "docs/so-good-apartments/underwriting-templates");
 		const templatesToSeed = [
@@ -4555,7 +4574,7 @@ async function seedHoqueProject(): Promise<void> {
 			if (fs.existsSync(filePath)) {
 				// Check if resource exists - STRICTLY checking within the templates root
 				let existingRes = null;
-				
+
 				if (templatesRoot?.id) {
 					const { data } = await supabaseAdmin
 						.from("resources")
@@ -4713,39 +4732,39 @@ async function seedHoqueProject(): Promise<void> {
 							permission: "view",
 							granted_by: advisorId,
 						});
-                        
-                        if (permError) {
-                             console.error(`[seed] ❌ Failed to grant permission on UNDERWRITING_DOCS_ROOT:`, permError);
-                        } else {
-    						console.log(
-    							`[seed] ✅ Granted lender VIEW access to UNDERWRITING_DOCS_ROOT`
-    						);
-                        }
-                        
-                        // Grant lender VIEW access to UNDERWRITING_TEMPLATES_ROOT
-                        const { data: uTemplatesRoot } = await supabaseAdmin
-                            .from("resources")
-                            .select("id")
-                            .eq("project_id", projectId)
-                            .eq("resource_type", "UNDERWRITING_TEMPLATES_ROOT")
-                            .maybeSingle();
 
-                        if (uTemplatesRoot) {
-                            const { error: tmplPermError } = await supabaseAdmin.from("permissions").upsert({
-                                resource_id: uTemplatesRoot.id,
-                                user_id: lenderUserId,
-                                permission: "view",
-                                granted_by: advisorId, 
-                            });
-                            
-                            if (tmplPermError) {
-                                console.error(`[seed] ❌ Failed to grant permission on UNDERWRITING_TEMPLATES_ROOT:`, tmplPermError);
-                            } else {
-                                console.log(
-                                    `[seed] ✅ Granted lender VIEW access to UNDERWRITING_TEMPLATES_ROOT`
-                                );
-                            }
-                        }
+						if (permError) {
+							console.error(`[seed] ❌ Failed to grant permission on UNDERWRITING_DOCS_ROOT:`, permError);
+						} else {
+							console.log(
+								`[seed] ✅ Granted lender VIEW access to UNDERWRITING_DOCS_ROOT`
+							);
+						}
+
+						// Grant lender VIEW access to UNDERWRITING_TEMPLATES_ROOT
+						const { data: uTemplatesRoot } = await supabaseAdmin
+							.from("resources")
+							.select("id")
+							.eq("project_id", projectId)
+							.eq("resource_type", "UNDERWRITING_TEMPLATES_ROOT")
+							.maybeSingle();
+
+						if (uTemplatesRoot) {
+							const { error: tmplPermError } = await supabaseAdmin.from("permissions").upsert({
+								resource_id: uTemplatesRoot.id,
+								user_id: lenderUserId,
+								permission: "view",
+								granted_by: advisorId,
+							});
+
+							if (tmplPermError) {
+								console.error(`[seed] ❌ Failed to grant permission on UNDERWRITING_TEMPLATES_ROOT:`, tmplPermError);
+							} else {
+								console.log(
+									`[seed] ✅ Granted lender VIEW access to UNDERWRITING_TEMPLATES_ROOT`
+								);
+							}
+						}
 					}
 				}
 			} catch (err) {
