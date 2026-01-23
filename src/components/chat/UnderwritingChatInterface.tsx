@@ -40,19 +40,37 @@ interface UnderwritingChatInterfaceProps {
 const ToolMessage: React.FC<{ content: string }> = ({ content }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
+    const formattedContent = useMemo(() => {
+        try {
+            const parsed = JSON.parse(content);
+            return JSON.stringify(parsed, null, 2);
+        } catch (e) {
+            return content;
+        }
+    }, [content]);
+
+    const isJson = content !== formattedContent;
+
     return (
-        <div className="bg-gray-100/50 border border-gray-200 rounded-xl px-4 py-2 shadow-sm text-gray-600 font-mono text-xs max-w-full">
+        <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm text-gray-800 overflow-hidden">
             <div
-                className="flex items-center justify-between cursor-pointer group"
+                className="flex items-center justify-between cursor-pointer group select-none"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
-                <div className="text-[10px] opacity-75 font-semibold flex items-center gap-1">
-                    <Code2 size={10} />
+                <div className="text-xs font-semibold flex items-center gap-2 text-gray-700">
+                    <div className="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                        <Code2 size={12} className="text-indigo-600" />
+                    </div>
                     <span>Tool Output</span>
+                    {isJson && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                            JSON
+                        </span>
+                    )}
                 </div>
-                <div className="flex items-center gap-1 text-[10px] opacity-50 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 text-[10px] text-gray-400 group-hover:text-gray-600 transition-colors">
                     <span>{isExpanded ? "Collapse" : "Expand"}</span>
-                    {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </div>
             </div>
 
@@ -64,10 +82,18 @@ const ToolMessage: React.FC<{ content: string }> = ({ content }) => {
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                     >
-                        <div className="mt-2 pt-2 border-t border-gray-200/50 break-all whitespace-pre-wrap prose prose-xs max-w-none prose-slate">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {content}
-                            </ReactMarkdown>
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                            {isJson ? (
+                                <pre className="p-3 bg-gray-50 rounded-lg overflow-x-auto text-[10px] leading-relaxed text-gray-600 border border-gray-200/50 font-mono">
+                                    <code>{formattedContent}</code>
+                                </pre>
+                            ) : (
+                                <div className="break-all whitespace-pre-wrap prose prose-sm max-w-none prose-slate text-xs">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {content}
+                                    </ReactMarkdown>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 )}
@@ -359,22 +385,29 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
                                             msg.sender_type === 'user' ? "justify-end" : "justify-start"
                                         )}>
                                             {msg.sender_type === 'tool' ? (
-                                                <div className="max-w-[85%]">
+                                                <div className="max-w-[85%] w-[85%]">
                                                     <ToolMessage content={msg.content} />
                                                 </div>
                                             ) : (
                                                 <div className={cn(
-                                                    "max-w-[85%] rounded-xl px-4 py-2 shadow-sm",
+                                                    "max-w-[85%] rounded-xl px-4 py-3 shadow-sm",
                                                     msg.sender_type === 'user'
                                                         ? "bg-blue-600 text-white"
                                                         : "bg-white border border-gray-200 text-gray-800"
                                                 )}>
-                                                    <div className="text-[10px] opacity-75 mb-1 font-semibold flex items-center gap-1">
+                                                    <div className="text-[10px] opacity-75 mb-2 font-semibold flex items-center gap-2">
                                                         {msg.sender_type === 'user' ? (
-                                                            "You"
+                                                            <>
+                                                                <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                                                    <User size={10} className="text-white" />
+                                                                </div>
+                                                                <span>You</span>
+                                                            </>
                                                         ) : (
                                                             <>
-                                                                <Bot size={10} />
+                                                                <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center">
+                                                                    <Bot size={12} className="text-blue-600" />
+                                                                </div>
                                                                 <span>AI Underwriter</span>
                                                             </>
                                                         )}
@@ -382,31 +415,47 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
 
                                                     {/* Render Tool Call Request (in AI message) */}
                                                     {(msg.metadata as any)?.function_call && (
-                                                        <div className="mb-2 p-2 bg-blue-50/50 rounded-lg border border-blue-100 max-w-full overflow-hidden">
-                                                            <div className="flex items-center gap-1.5 text-blue-700 text-xs font-semibold mb-1">
-                                                                <Drill size={12} />
-                                                                <span>Calling Tool: {(msg.metadata as any).function_call.name}</span>
-                                                            </div>
-                                                            <div className="font-mono text-[10px] text-blue-600 break-all whitespace-pre-wrap">
+                                                        <div className="mb-3">
+                                                            <div className="flex flex-col gap-2 rounded-lg bg-blue-50/50 border border-blue-100 p-3">
+                                                                <div className="flex items-center gap-2 text-blue-700 text-xs font-semibold">
+                                                                    <div className="p-1 bg-blue-100 rounded text-blue-600">
+                                                                        <Drill size={12} />
+                                                                    </div>
+                                                                    <span>Running: <span className="font-mono">{(msg.metadata as any).function_call.name}</span></span>
+                                                                </div>
+
+                                                                {/* Only show parameters if they are not empty */}
                                                                 {(() => {
                                                                     const args = (msg.metadata as any).function_call.arguments;
                                                                     try {
                                                                         const parsed = typeof args === 'string' ? JSON.parse(args) : args;
-                                                                        return JSON.stringify(parsed, null, 2);
+                                                                        const hasProps = Object.keys(parsed).length > 0;
+                                                                        if (!hasProps) return null;
+
+                                                                        return (
+                                                                            <div className="flex flex-col gap-1 mt-1 pl-7">
+                                                                                <span className="text-[9px] font-bold text-blue-400 uppercase tracking-wider">With Parameters</span>
+                                                                                <div className="font-mono text-[10px] text-blue-600 bg-white/60 p-2 rounded border border-blue-100/30 overflow-x-auto">
+                                                                                    <pre className="!m-0">{JSON.stringify(parsed, null, 2)}</pre>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
                                                                     } catch (e) {
-                                                                        return args;
+                                                                        return null; // Don't show confusing errors, just hide
                                                                     }
                                                                 })()}
                                                             </div>
                                                         </div>
                                                     )}
 
-
-                                                    <div className="prose prose-sm max-w-none">
-                                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                                            {msg.content}
-                                                        </ReactMarkdown>
-                                                    </div>
+                                                    {/* Content - Hide if it's the redundant "Calling tool" text */}
+                                                    {(!msg.content.startsWith("Calling tool:") || !(msg.metadata as any)?.function_call) && (
+                                                        <div className="prose prose-sm max-w-none text-sm leading-relaxed">
+                                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                                {msg.content}
+                                                            </ReactMarkdown>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
