@@ -46,6 +46,18 @@ interface UnderwritingState {
     updateThread: (threadId: string, topic: string) => Promise<void>;
     deleteThread: (threadId: string) => Promise<void>;
     reset: () => void;
+
+    // Draft Message
+    draftMessage: string | null;
+    setDraftMessage: (message: string | null) => void;
+
+    // Triggers for automated UI interaction
+    requestedTab: 'team' | 'ai' | 'meet' | null;
+    setRequestedTab: (tab: 'team' | 'ai' | 'meet' | null) => void;
+    autoSendDraft: boolean;
+    setAutoSendDraft: (autoSend: boolean) => void;
+    requestedWorkspaceMode: 'resume' | 'underwriting' | null;
+    setRequestedWorkspaceMode: (mode: 'resume' | 'underwriting' | null) => void;
 }
 
 export const useUnderwritingStore = create<UnderwritingState>((set, get) => ({
@@ -56,6 +68,11 @@ export const useUnderwritingStore = create<UnderwritingState>((set, get) => ({
     isLoaded: false,
     isSending: false,
     error: null,
+    draftMessage: null,
+
+    requestedTab: null,
+    autoSendDraft: false,
+    requestedWorkspaceMode: null,
 
     loadThreads: async (projectId: string) => {
         set({ isLoading: true, error: null });
@@ -206,6 +223,12 @@ export const useUnderwritingStore = create<UnderwritingState>((set, get) => ({
         }
     },
 
+    setDraftMessage: (message: string | null) => set({ draftMessage: message }),
+
+    setRequestedTab: (tab: 'team' | 'ai' | 'meet' | null) => set({ requestedTab: tab }),
+    setAutoSendDraft: (autoSend: boolean) => set({ autoSendDraft: autoSend }),
+    setRequestedWorkspaceMode: (mode: 'resume' | 'underwriting' | null) => set({ requestedWorkspaceMode: mode }),
+
     reset: () => {
         set({
             threads: [],
@@ -213,7 +236,11 @@ export const useUnderwritingStore = create<UnderwritingState>((set, get) => ({
             messages: [],
             isLoading: false,
             isLoaded: false,
-            error: null
+            error: null,
+            draftMessage: null,
+            requestedTab: null,
+            autoSendDraft: false,
+            requestedWorkspaceMode: null
         });
     }
 }));

@@ -119,13 +119,15 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
         isLoaded,
         isSending,
         error,
+        draftMessage,
         loadThreads,
         createThread,
         updateThread,
         setActiveThread,
         sendMessage,
         deleteThread,
-        reset
+        reset,
+        setDraftMessage
     } = useUnderwritingStore();
 
     const { user } = useAuthStore();
@@ -147,6 +149,23 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
             reset();
         };
     }, [projectId, loadThreads, reset]);
+
+    // Handle draft message
+    useEffect(() => {
+        if (draftMessage) {
+            setNewMessage(draftMessage);
+            setDraftMessage(null); // Clear after consuming
+        }
+    }, [draftMessage, setDraftMessage]);
+
+    // Handle auto-send trigger
+    useEffect(() => {
+        const { autoSendDraft, setAutoSendDraft } = useUnderwritingStore.getState();
+        if (autoSendDraft && newMessage && activeThreadId && !isSending) {
+            handleSendMessage();
+            setAutoSendDraft(false);
+        }
+    }, [newMessage, activeThreadId, isSending]);
 
     // Select default or active thread
     useEffect(() => {
