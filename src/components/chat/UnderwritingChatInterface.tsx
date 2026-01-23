@@ -23,7 +23,9 @@ import {
     Code2,
     Drill,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
+    Edit2,
+    Check
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { toast } from "sonner";
@@ -119,6 +121,7 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
         error,
         loadThreads,
         createThread,
+        updateThread,
         setActiveThread,
         sendMessage,
         deleteThread,
@@ -130,6 +133,8 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
     const messageListRef = useRef<HTMLDivElement>(null);
     const richTextInputRef = useRef<RichTextInputRef>(null);
     const [isCreatingThread, setIsCreatingThread] = useState(false);
+    const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
+    const [editTopic, setEditTopic] = useState("");
 
     const [isSideBarOpen, setIsSideBarOpen] = useState(false);
 
@@ -299,32 +304,87 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
                                                 ? "bg-blue-50 text-blue-700 font-semibold shadow-sm border border-blue-100"
                                                 : "hover:bg-gray-50 text-gray-600 border border-transparent"
                                         )}
-                                    >
-                                        <div
-                                            className="flex items-center gap-3 overflow-hidden flex-1"
-                                            onClick={() => {
+                                        onClick={() => {
+                                            if (editingThreadId !== t.id) {
                                                 setActiveThread(t.id);
                                                 setIsSideBarOpen(false);
-                                            }}
-                                        >
+                                            }
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3 overflow-hidden flex-1">
                                             <Hash size={16} className={cn("flex-shrink-0", activeThreadId === t.id ? "text-blue-500" : "text-gray-400")} />
-                                            <span className="truncate">{t.topic || "Untitled"}</span>
+                                            {editingThreadId === t.id ? (
+                                                <div className="flex items-center gap-1 flex-1" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        value={editTopic}
+                                                        onChange={(e) => setEditTopic(e.target.value)}
+                                                        className="h-6 w-full text-xs px-1 py-0 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                updateThread(t.id, editTopic);
+                                                                setEditingThreadId(null);
+                                                            } else if (e.key === 'Escape') {
+                                                                setEditingThreadId(null);
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <span className="truncate">{t.topic || "Untitled"}</span>
+                                            )}
                                         </div>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50 transition-all rounded-lg"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (window.confirm("Are you sure you want to delete this thread?")) {
-                                                    deleteThread(t.id).then(() => {
-                                                        toast.success("Thread deleted");
-                                                    });
-                                                }
-                                            }}
-                                        >
-                                            <Trash2 size={14} />
-                                        </Button>
+
+                                        {editingThreadId === t.id ? (
+                                            <div className="flex items-center gap-1 ml-2">
+                                                <button
+                                                    className="h-7 w-7 flex items-center justify-center text-green-600 hover:bg-green-50 transition-all rounded-lg focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        updateThread(t.id, editTopic);
+                                                        setEditingThreadId(null);
+                                                    }}
+                                                >
+                                                    <Check size={14} />
+                                                </button>
+                                                <button
+                                                    className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all rounded-lg focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingThreadId(null);
+                                                    }}
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="hidden group-hover:flex items-center gap-1 ml-2">
+                                                <button
+                                                    className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all rounded-lg focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setEditingThreadId(t.id);
+                                                        setEditTopic(t.topic || "");
+                                                    }}
+                                                >
+                                                    <Edit2 size={12} />
+                                                </button>
+                                                <button
+                                                    className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all rounded-lg focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (window.confirm("Are you sure you want to delete this thread?")) {
+                                                            deleteThread(t.id).then(() => {
+                                                                toast.success("Thread deleted");
+                                                            });
+                                                        }
+                                                    }}
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                                 {threads.length === 0 && !isLoading && !isCreatingThread && (
@@ -360,7 +420,57 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
                                         <Bot size={18} className="text-blue-600" />
                                     </div>
                                     <div className="flex flex-col">
-                                        <span className="font-bold text-gray-900 text-sm">{activeThread?.topic || "Loading..."}</span>
+                                        {editingThreadId === activeThreadId ? (
+                                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                <input
+                                                    value={editTopic}
+                                                    onChange={(e) => setEditTopic(e.target.value)}
+                                                    className="h-6 w-48 text-sm font-bold px-1 py-0 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && activeThreadId) {
+                                                            updateThread(activeThreadId, editTopic);
+                                                            setEditingThreadId(null);
+                                                        } else if (e.key === 'Escape') {
+                                                            setEditingThreadId(null);
+                                                        }
+                                                    }}
+                                                />
+                                                <button
+                                                    className="h-5 w-5 flex items-center justify-center text-green-600 hover:bg-green-50 transition-all rounded focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (activeThreadId) {
+                                                            updateThread(activeThreadId, editTopic);
+                                                        }
+                                                        setEditingThreadId(null);
+                                                    }}
+                                                >
+                                                    <Check size={14} />
+                                                </button>
+                                                <button
+                                                    className="h-5 w-5 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all rounded focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingThreadId(null);
+                                                    }}
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 group cursor-pointer" onClick={() => {
+                                                if (activeThreadId) {
+                                                    setEditingThreadId(activeThreadId);
+                                                    setEditTopic(activeThread?.topic || "");
+                                                }
+                                            }}>
+                                                <span className="font-bold text-gray-900 text-sm">{activeThread?.topic || "Loading..."}</span>
+                                                <button className="focus:outline-none">
+                                                    <Edit2 size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                </button>
+                                            </div>
+                                        )}
                                         <div className="flex items-center gap-1.5">
                                             <div className={cn("h-1.5 w-1.5 rounded-full", isSending ? "bg-green-500 animate-pulse" : "bg-gray-300")} />
                                             <span className="text-[10px] text-gray-400 font-medium">

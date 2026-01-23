@@ -43,6 +43,7 @@ interface UnderwritingState {
     setActiveThread: (threadId: string | null) => void;
     loadMessages: (threadId: string) => Promise<void>;
     sendMessage: (content: string, context?: any) => Promise<void>;
+    updateThread: (threadId: string, topic: string) => Promise<void>;
     deleteThread: (threadId: string) => Promise<void>;
     reset: () => void;
 }
@@ -163,6 +164,26 @@ export const useUnderwritingStore = create<UnderwritingState>((set, get) => ({
             set(state => ({ messages: state.messages.filter(m => m.id !== tempId) }));
         } finally {
             set({ isSending: false });
+        }
+    },
+
+    updateThread: async (threadId: string, topic: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const { data, error } = await apiClient.updateUnderwritingThread(threadId, { topic });
+            if (error) throw error;
+            if (!data) throw new Error("No data returned");
+
+            set(state => ({
+                threads: state.threads.map(t => t.id === threadId ? { ...t, topic: data.topic } : t),
+                // Update active thread if it's the one being renamed
+                activeThreadId: state.activeThreadId === threadId ? state.activeThreadId : state.activeThreadId
+            }));
+        } catch (err) {
+            console.error("Failed to update thread:", err);
+            set({ error: err instanceof Error ? err.message : "Failed to update thread" });
+        } finally {
+            set({ isLoading: false });
         }
     },
 
