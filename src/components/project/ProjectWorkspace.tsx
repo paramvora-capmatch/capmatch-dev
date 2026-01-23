@@ -127,7 +127,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	const [isEditing, setIsEditing] = useState(false);
-	const [viewMode, setViewMode] = useState<"resume" | "underwriting">("resume");
+	const [viewMode, setViewMode] = useState<"resume" | "underwriting">(() => {
+		const view = searchParams?.get("view");
+		return view === "underwriting" ? "underwriting" : "resume";
+	});
+
+	useEffect(() => {
+		const view = searchParams?.get("view");
+		if (view === "underwriting" || view === "resume") {
+			setViewMode(view);
+		}
+	}, [searchParams]);
 	const [initialProjectStepId, setInitialProjectStepId] = useState<
 		string | null
 	>(null);
@@ -149,6 +159,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		},
 		[isBorrowerEditing, onBorrowerEditingChange]
 	);
+
+	const handleViewChange = useCallback(
+		(mode: "resume" | "underwriting") => {
+			setViewMode(mode);
+			const params = new URLSearchParams(searchParams.toString());
+			params.set("view", mode);
+			router.replace(`${pathname}?${params.toString()}`);
+		},
+		[pathname, router, searchParams]
+	);
+
 	const [borrowerProgress, setBorrowerProgress] = useState(0);
 	const [borrowerResumeSnapshot, setBorrowerResumeSnapshot] =
 		useState<Partial<BorrowerResumeContent> | null>(null);
@@ -250,6 +271,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		const step = searchParams?.get("step");
 		if (!step) return;
 
+		const params = new URLSearchParams(searchParams.toString());
+		params.delete("step");
+
 		// Deep-link format:
 		// - borrower / project / documents (legacy)
 		// - borrower:<sectionId> or project:<sectionId> (new)
@@ -263,10 +287,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 			if (sectionId === "underwriting") {
 				setViewMode("underwriting");
+				params.set("view", "underwriting");
 				setIsEditing(false);
 				setBorrowerEditing(false);
 			} else {
 				setViewMode("resume");
+				params.set("view", "resume");
 				setInitialProjectStepId(sectionId || null);
 				setIsEditing(true);
 				setBorrowerEditing(false);
@@ -291,8 +317,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 			}
 		}
 
-		const params = new URLSearchParams(searchParams.toString());
-		params.delete("step");
 		const nextPath = params.toString() ? `${pathname}?${params}` : pathname;
 		router.replace(nextPath);
 	}, [pathname, router, searchParams, setBorrowerEditing]);
@@ -1182,7 +1206,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 							<div className="mb-6 flex justify-center">
 								<div className="flex bg-gray-100 p-1 rounded-lg shadow-sm border border-gray-200">
 									<button
-										onClick={() => setViewMode("resume")}
+										onClick={() =>
+											handleViewChange("resume")
+										}
 										className={cn(
 											"flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
 											viewMode === "resume"
@@ -1195,7 +1221,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 									</button>
 									<button
 										onClick={() =>
-											setViewMode("underwriting")
+											handleViewChange("underwriting")
 										}
 										className={cn(
 											"flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
