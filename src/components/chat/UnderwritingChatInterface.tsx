@@ -23,7 +23,9 @@ import {
     Code2,
     Drill,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
+    Edit2,
+    Check
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { toast } from "sonner";
@@ -40,19 +42,37 @@ interface UnderwritingChatInterfaceProps {
 const ToolMessage: React.FC<{ content: string }> = ({ content }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
+    const formattedContent = useMemo(() => {
+        try {
+            const parsed = JSON.parse(content);
+            return JSON.stringify(parsed, null, 2);
+        } catch (e) {
+            return content;
+        }
+    }, [content]);
+
+    const isJson = content !== formattedContent;
+
     return (
-        <div className="bg-gray-100/50 border border-gray-200 rounded-xl px-4 py-2 shadow-sm text-gray-600 font-mono text-xs w-full max-w-none">
+        <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm text-gray-800 overflow-hidden">
             <div
-                className="flex items-center justify-between cursor-pointer group"
+                className="flex items-center justify-between cursor-pointer group select-none"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
-                <div className="text-[10px] opacity-75 font-semibold flex items-center gap-1">
-                    <Code2 size={10} />
+                <div className="text-xs font-semibold flex items-center gap-2 text-gray-700">
+                    <div className="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                        <Code2 size={12} className="text-indigo-600" />
+                    </div>
                     <span>Tool Output</span>
+                    {isJson && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                            JSON
+                        </span>
+                    )}
                 </div>
-                <div className="flex items-center gap-1 text-[10px] opacity-50 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 text-[10px] text-gray-400 group-hover:text-gray-600 transition-colors">
                     <span>{isExpanded ? "Collapse" : "Expand"}</span>
-                    {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </div>
             </div>
 
@@ -64,10 +84,18 @@ const ToolMessage: React.FC<{ content: string }> = ({ content }) => {
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                     >
-                        <div className="mt-2 pt-2 border-t border-gray-200/50 break-all whitespace-pre-wrap prose prose-xs max-w-none prose-slate">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {content}
-                            </ReactMarkdown>
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                            {isJson ? (
+                                <pre className="p-3 bg-gray-50 rounded-lg overflow-x-auto text-[10px] leading-relaxed text-gray-600 border border-gray-200/50 font-mono">
+                                    <code>{formattedContent}</code>
+                                </pre>
+                            ) : (
+                                <div className="break-all whitespace-pre-wrap prose prose-sm max-w-none prose-slate text-xs">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {content}
+                                    </ReactMarkdown>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 )}
@@ -91,12 +119,15 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
         isLoaded,
         isSending,
         error,
+        draftMessage,
         loadThreads,
         createThread,
+        updateThread,
         setActiveThread,
         sendMessage,
         deleteThread,
-        reset
+        reset,
+        setDraftMessage
     } = useUnderwritingStore();
 
     const { user } = useAuthStore();
@@ -104,6 +135,8 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
     const messageListRef = useRef<HTMLDivElement>(null);
     const richTextInputRef = useRef<RichTextInputRef>(null);
     const [isCreatingThread, setIsCreatingThread] = useState(false);
+    const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
+    const [editTopic, setEditTopic] = useState("");
 
     const [isSideBarOpen, setIsSideBarOpen] = useState(false);
 
@@ -116,6 +149,23 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
             reset();
         };
     }, [projectId, loadThreads, reset]);
+
+    // Handle draft message
+    useEffect(() => {
+        if (draftMessage) {
+            setNewMessage(draftMessage);
+            setDraftMessage(null); // Clear after consuming
+        }
+    }, [draftMessage, setDraftMessage]);
+
+    // Handle auto-send trigger
+    useEffect(() => {
+        const { autoSendDraft, setAutoSendDraft } = useUnderwritingStore.getState();
+        if (autoSendDraft && newMessage && activeThreadId && !isSending) {
+            handleSendMessage();
+            setAutoSendDraft(false);
+        }
+    }, [newMessage, activeThreadId, isSending]);
 
     // Select default or active thread
     useEffect(() => {
@@ -273,32 +323,87 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
                                                 ? "bg-blue-50 text-blue-700 font-semibold shadow-sm border border-blue-100"
                                                 : "hover:bg-gray-50 text-gray-600 border border-transparent"
                                         )}
-                                    >
-                                        <div
-                                            className="flex items-center gap-3 overflow-hidden flex-1"
-                                            onClick={() => {
+                                        onClick={() => {
+                                            if (editingThreadId !== t.id) {
                                                 setActiveThread(t.id);
                                                 setIsSideBarOpen(false);
-                                            }}
-                                        >
+                                            }
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3 overflow-hidden flex-1">
                                             <Hash size={16} className={cn("flex-shrink-0", activeThreadId === t.id ? "text-blue-500" : "text-gray-400")} />
-                                            <span className="truncate">{t.topic || "Untitled"}</span>
+                                            {editingThreadId === t.id ? (
+                                                <div className="flex items-center gap-1 flex-1" onClick={(e) => e.stopPropagation()}>
+                                                    <input
+                                                        value={editTopic}
+                                                        onChange={(e) => setEditTopic(e.target.value)}
+                                                        className="h-6 w-full text-xs px-1 py-0 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                updateThread(t.id, editTopic);
+                                                                setEditingThreadId(null);
+                                                            } else if (e.key === 'Escape') {
+                                                                setEditingThreadId(null);
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <span className="truncate">{t.topic || "Untitled"}</span>
+                                            )}
                                         </div>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50 transition-all rounded-lg"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (window.confirm("Are you sure you want to delete this thread?")) {
-                                                    deleteThread(t.id).then(() => {
-                                                        toast.success("Thread deleted");
-                                                    });
-                                                }
-                                            }}
-                                        >
-                                            <Trash2 size={14} />
-                                        </Button>
+
+                                        {editingThreadId === t.id ? (
+                                            <div className="flex items-center gap-1 ml-2">
+                                                <button
+                                                    className="h-7 w-7 flex items-center justify-center text-green-600 hover:bg-green-50 transition-all rounded-lg focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        updateThread(t.id, editTopic);
+                                                        setEditingThreadId(null);
+                                                    }}
+                                                >
+                                                    <Check size={14} />
+                                                </button>
+                                                <button
+                                                    className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all rounded-lg focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingThreadId(null);
+                                                    }}
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="hidden group-hover:flex items-center gap-1 ml-2">
+                                                <button
+                                                    className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all rounded-lg focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setEditingThreadId(t.id);
+                                                        setEditTopic(t.topic || "");
+                                                    }}
+                                                >
+                                                    <Edit2 size={12} />
+                                                </button>
+                                                <button
+                                                    className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all rounded-lg focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (window.confirm("Are you sure you want to delete this thread?")) {
+                                                            deleteThread(t.id).then(() => {
+                                                                toast.success("Thread deleted");
+                                                            });
+                                                        }
+                                                    }}
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                                 {threads.length === 0 && !isLoading && !isCreatingThread && (
@@ -334,7 +439,57 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
                                         <Bot size={18} className="text-blue-600" />
                                     </div>
                                     <div className="flex flex-col">
-                                        <span className="font-bold text-gray-900 text-sm">{activeThread?.topic || "Loading..."}</span>
+                                        {editingThreadId === activeThreadId ? (
+                                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                                <input
+                                                    value={editTopic}
+                                                    onChange={(e) => setEditTopic(e.target.value)}
+                                                    className="h-6 w-48 text-sm font-bold px-1 py-0 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && activeThreadId) {
+                                                            updateThread(activeThreadId, editTopic);
+                                                            setEditingThreadId(null);
+                                                        } else if (e.key === 'Escape') {
+                                                            setEditingThreadId(null);
+                                                        }
+                                                    }}
+                                                />
+                                                <button
+                                                    className="h-5 w-5 flex items-center justify-center text-green-600 hover:bg-green-50 transition-all rounded focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (activeThreadId) {
+                                                            updateThread(activeThreadId, editTopic);
+                                                        }
+                                                        setEditingThreadId(null);
+                                                    }}
+                                                >
+                                                    <Check size={14} />
+                                                </button>
+                                                <button
+                                                    className="h-5 w-5 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all rounded focus:outline-none"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingThreadId(null);
+                                                    }}
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 group cursor-pointer" onClick={() => {
+                                                if (activeThreadId) {
+                                                    setEditingThreadId(activeThreadId);
+                                                    setEditTopic(activeThread?.topic || "");
+                                                }
+                                            }}>
+                                                <span className="font-bold text-gray-900 text-sm">{activeThread?.topic || "Loading..."}</span>
+                                                <button className="focus:outline-none">
+                                                    <Edit2 size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                </button>
+                                            </div>
+                                        )}
                                         <div className="flex items-center gap-1.5">
                                             <div className={cn("h-1.5 w-1.5 rounded-full", isSending ? "bg-green-500 animate-pulse" : "bg-gray-300")} />
                                             <span className="text-[10px] text-gray-400 font-medium">
@@ -359,20 +514,29 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
                                             msg.sender_type === 'user' ? "justify-end" : "justify-start"
                                         )}>
                                             {msg.sender_type === 'tool' ? (
-                                                <ToolMessage content={msg.content} />
+                                                <div className="max-w-[85%] w-[85%]">
+                                                    <ToolMessage content={msg.content} />
+                                                </div>
                                             ) : (
                                                 <div className={cn(
-                                                    "max-w-[85%] rounded-xl px-4 py-2 shadow-sm",
+                                                    "max-w-[85%] rounded-xl px-4 py-3 shadow-sm",
                                                     msg.sender_type === 'user'
                                                         ? "bg-blue-600 text-white"
                                                         : "bg-white border border-gray-200 text-gray-800"
                                                 )}>
-                                                    <div className="text-[10px] opacity-75 mb-1 font-semibold flex items-center gap-1">
+                                                    <div className="text-[10px] opacity-75 mb-2 font-semibold flex items-center gap-2">
                                                         {msg.sender_type === 'user' ? (
-                                                            "You"
+                                                            <>
+                                                                <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                                                    <User size={10} className="text-white" />
+                                                                </div>
+                                                                <span>You</span>
+                                                            </>
                                                         ) : (
                                                             <>
-                                                                <Bot size={10} />
+                                                                <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center">
+                                                                    <Bot size={12} className="text-blue-600" />
+                                                                </div>
                                                                 <span>AI Underwriter</span>
                                                             </>
                                                         )}
@@ -380,22 +544,47 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
 
                                                     {/* Render Tool Call Request (in AI message) */}
                                                     {(msg.metadata as any)?.function_call && (
-                                                        <div className="mb-2 p-2 bg-blue-50/50 rounded-lg border border-blue-100">
-                                                            <div className="flex items-center gap-1.5 text-blue-700 text-xs font-semibold mb-1">
-                                                                <Drill size={12} />
-                                                                <span>Calling Tool: {(msg.metadata as any).function_call.name}</span>
-                                                            </div>
-                                                            <div className="font-mono text-[10px] text-blue-600 break-all">
-                                                                {(msg.metadata as any).function_call.arguments}
+                                                        <div className="mb-3">
+                                                            <div className="flex flex-col gap-2 rounded-lg bg-blue-50/50 border border-blue-100 p-3">
+                                                                <div className="flex items-center gap-2 text-blue-700 text-xs font-semibold">
+                                                                    <div className="p-1 bg-blue-100 rounded text-blue-600">
+                                                                        <Drill size={12} />
+                                                                    </div>
+                                                                    <span>Running: <span className="font-mono">{(msg.metadata as any).function_call.name}</span></span>
+                                                                </div>
+
+                                                                {/* Only show parameters if they are not empty */}
+                                                                {(() => {
+                                                                    const args = (msg.metadata as any).function_call.arguments;
+                                                                    try {
+                                                                        const parsed = typeof args === 'string' ? JSON.parse(args) : args;
+                                                                        const hasProps = Object.keys(parsed).length > 0;
+                                                                        if (!hasProps) return null;
+
+                                                                        return (
+                                                                            <div className="flex flex-col gap-1 mt-1 pl-7">
+                                                                                <span className="text-[9px] font-bold text-blue-400 uppercase tracking-wider">With Parameters</span>
+                                                                                <div className="font-mono text-[10px] text-blue-600 bg-white/60 p-2 rounded border border-blue-100/30 overflow-x-auto">
+                                                                                    <pre className="!m-0">{JSON.stringify(parsed, null, 2)}</pre>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    } catch (e) {
+                                                                        return null; // Don't show confusing errors, just hide
+                                                                    }
+                                                                })()}
                                                             </div>
                                                         </div>
                                                     )}
 
-                                                    <div className="prose prose-sm max-w-none">
-                                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                                            {msg.content}
-                                                        </ReactMarkdown>
-                                                    </div>
+                                                    {/* Content - Hide if it's the redundant "Calling tool" text */}
+                                                    {(!msg.content.startsWith("Calling tool:") || !(msg.metadata as any)?.function_call) && (
+                                                        <div className="prose prose-sm max-w-none text-sm leading-relaxed">
+                                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                                {msg.content}
+                                                            </ReactMarkdown>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

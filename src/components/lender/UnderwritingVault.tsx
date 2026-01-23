@@ -12,6 +12,7 @@ import { AddFromResumeModal } from "@/components/lender/AddFromResumeModal";
 import { useUnderwritingStore } from "@/stores/useUnderwritingStore";
 import { supabase } from "@/lib/supabaseClient";
 import { useEffect } from "react";
+import { ValidationErrorsModal } from "./ValidationErrorsModal";
 
 interface DocItem {
     name: string;
@@ -38,7 +39,7 @@ interface StageProps {
     isGenerating: (docName: string) => boolean;
     onViewTemplate: (docName: string) => void;
     onGenerateStage: (docs: DocItem[]) => void;
-    onActionRequired: (threadId: string) => void;
+    onActionRequired: (idOrName: string) => void;
 }
 
 const StageAccordion: React.FC<StageProps> = ({
@@ -59,7 +60,6 @@ const StageAccordion: React.FC<StageProps> = ({
     // Use all generateable docs for the stage action, supporting regeneration
     const generateableDocs = docs.filter(d => d.canGenerate);
 
-    console.log(generateableDocs)
     // Button is visible if there are ANY generateable docs (not just missing ones)
     const canGenerateAny = generateableDocs.length > 0;
 
@@ -129,9 +129,12 @@ const StageAccordion: React.FC<StageProps> = ({
                                             Uploaded
                                         </span>
                                     ) : doc.status === "action_required" ? (
-                                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-0.5 rounded-sm border border-red-200 animate-pulse">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onActionRequired(doc.name); }}
+                                            className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-0.5 rounded-sm border border-red-200 animate-pulse hover:bg-red-100 transition-colors cursor-pointer"
+                                        >
                                             Action Required
-                                        </span>
+                                        </button>
                                     ) : (
                                         <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-sm border border-amber-200">
                                             Missing
@@ -151,8 +154,8 @@ const StageAccordion: React.FC<StageProps> = ({
                                         </span>
                                     ) : doc.status === "action_required" ? (
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); if (doc.activeThreadId) onActionRequired(doc.activeThreadId); }}
-                                            className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-0.5 rounded-sm border border-red-200 animate-pulse hover:bg-red-100 transition-colors"
+                                            onClick={(e) => { e.stopPropagation(); onActionRequired(doc.name); }}
+                                            className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-0.5 rounded-sm border border-red-200 animate-pulse hover:bg-red-100 transition-colors cursor-pointer"
                                         >
                                             Action Required
                                         </button>
@@ -278,7 +281,6 @@ const initialStages = [
             { name: "Business Plan", status: "pending", importance: "Medium", rationale: "Strategy: Critical for value-add/construction.", canGenerate: true },
         ]
     },
-    // ... other stages remain same
     {
         id: "stage-2",
         title: "Underwriting & Due Diligence",
@@ -353,6 +355,10 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [resources, setResources] = useState<any[]>([]);
 
+    // New validation state
+    const [validationData, setValidationData] = useState<Record<string, { status: string, errors: any }>>({});
+    const [validationModal, setValidationModal] = useState<{ isOpen: boolean, docName: string, errors: any }>({ isOpen: false, docName: "", errors: null });
+
     const { threads, loadThreads, setActiveThread, createThread, sendMessage } = useUnderwritingStore();
 
     // Load threads
@@ -362,13 +368,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         }
     }, [projectId, loadThreads]);
 
-    const handleActionRequired = (threadId: string) => {
-        setActiveThread(threadId);
-        // We might need to ensure the StickyChatCard is open/visible.
-        // Usually, setActiveThread triggers the store, and StickyChatCard listens to it.
-        // If StickyChatCard logic requires explicit 'open' state in a parent, that might be an issue,
-        // but typically it subscribes to activeThreadId.
-    };
+
     React.useEffect(() => {
         const fetchTemplates = async () => {
             if (!projectId) return;
@@ -389,14 +389,14 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         fetchTemplates();
     }, [projectId]);
 
-    // Fetch validation status from resources
+    // Fetch resources
     useEffect(() => {
         if (!projectId) return;
 
         const fetchResources = async () => {
             const { data, error } = await supabase
                 .from('resources')
-                .select('id, name, validation_status, validation_errors')
+                .select('id, name')
                 .eq('project_id', projectId);
 
             if (!error && data) {
@@ -419,63 +419,116 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         };
     }, [projectId]);
 
-    // Updated helper to check status
-    const getDocStatus = (docName: string) => {
-        const res = resources.find(r => r.name === docName);
-        // Return action_required if resource says so
-        if (res?.validation_status === 'action_required') return 'action_required';
+    // Fetch validation status from underwriting_documents
+    useEffect(() => {
+        if (!projectId || resources.length === 0) return;
 
-        // Fallback to active threads (legacy support or if orchestrator still creates them)
-        // But V2 prefers resource status.
-        const activeThreads = threads.filter(t => t.status === 'active'); // Define activeThreads here
-        const hasThread = activeThreads.some(t => t.topic?.includes(docName));
-        return hasThread ? 'action_required' : 'uploaded'; // Simplified
+        const fetchUnderwritingDocs = async () => {
+            const resourceIds = resources.map(r => r.id);
+            if (resourceIds.length === 0) return;
+
+            const { data, error } = await supabase
+                .from('underwriting_documents')
+                .select('resource_id, validation_status, validation_errors')
+                .in('resource_id', resourceIds);
+
+            if (!error && data) {
+                const map: Record<string, { status: string, errors: any }> = {};
+                data.forEach(d => {
+                    map[d.resource_id] = {
+                        status: d.validation_status || 'pending',
+                        errors: d.validation_errors
+                    };
+                });
+                setValidationData(map);
+            }
+        };
+
+        fetchUnderwritingDocs();
+
+        // Subscribe to changes
+        const channel = supabase
+            .channel('vault-underwriting-docs')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'underwriting_documents' },
+                () => fetchUnderwritingDocs()
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [projectId, resources]);
+
+
+    const handleActionRequired = (arg: string) => {
+        // Try to interpret as docName (check current files)
+        const file = files?.find(f => f.name === arg || f.name.replace(/\.[^/.]+$/, "") === arg);
+
+        if (file) {
+            // It's a file, check validation data
+            const vData = validationData[file.resource_id];
+            if (vData) {
+                setValidationModal({
+                    isOpen: true,
+                    docName: arg,
+                    errors: vData.errors
+                });
+                return;
+            }
+        }
+
+        // Fallback: Assume it is a thread ID (Legacy flow or simple thread open)
+        // If we can't find file, or file has no validation data, but we were called -> likely thread ID
+        setActiveThread(arg);
     };
 
-    const handleValidationResolve = async (docName: string) => {
-        const res = resources.find(r => r.name === docName);
-        if (!res) return;
+    const handleFixInChat = () => {
+        const { docName, errors } = validationModal;
+        setValidationModal({ ...validationModal, isOpen: false });
+        if (docName) {
+            handleValidationResolve(docName, errors);
+        }
+    };
 
-        // 1. Get/Create Unified Thread
+
+    const handleValidationResolve = async (docName: string, errors?: any) => {
         try {
-            // 1. Get/Create Thread
-            // Using new store: createThread(projectId, topic) returns basic info.
-            const topic = `Missing data for ${docName}`;
+            // Create a unique topic to ensure we create a NEW thread
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const topic = `Fix: ${docName} (${timestamp})`;
 
-            // Check if thread exists
-            let threadId = threads.find(t => t.topic === topic)?.id;
-
-            if (!threadId) {
-                threadId = await createThread(projectId!, topic) || undefined;
-            }
+            const threadId = await createThread(projectId!, topic) || undefined;
 
             if (!threadId) throw new Error("Failed to create thread");
 
-            // 2. Send Context Message
-            if (res.validation_errors) {
-                // Ensure thread is active in store
-                setActiveThread(threadId);
-                await sendMessage(`I need to resolve the validation errors for **${docName}**.`, {
-                    type: 'validation_error',
-                    doc_name: docName,
-                    errors: res.validation_errors
-                });
-            } else {
-                setActiveThread(threadId);
-            }
+            // Set state triggers for automated transition
+            const { setDraftMessage, setRequestedTab, setAutoSendDraft, setRequestedWorkspaceMode } = useUnderwritingStore.getState();
 
-            // 3. Open Chat
-            setActiveThread(threadId);
+            // Format message
+            let errorText = `I need help resolving validation errors for **${docName}**:\n\n`;
+            if (typeof errors === 'string') {
+                errorText += errors;
+            } else if (errors) {
+                if (errors.reasoning) errorText += `**Reasoning:** ${errors.reasoning}\n\n`;
+                if (errors.missing_fields && Array.isArray(errors.missing_fields)) {
+                    errorText += `**Missing Fields:** ${errors.missing_fields.join(', ')}\n\n`;
+                }
+            }
+            errorText += "\nPlease guide me on how to fix these.";
+
+            setDraftMessage(errorText);
+            setActiveThread(threadId); // Open the new thread
+
+            // Set triggers
+            setRequestedWorkspaceMode('underwriting');
+            setRequestedTab('ai');
+            setAutoSendDraft(true);
 
         } catch (e) {
             console.error("Failed to start resolution", e);
             toast.error("Failed to start resolution");
         }
     };
-
-    // ... (render update)
-    // Inside the mapped items, pass status based on getDocStatus
-    // And onClick calls handleValidationResolve
 
 
     // Leverage the existing document management hook for logic, signing, and downloads
@@ -627,22 +680,32 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             docs: stage.docs.map(doc => {
                 const foundFile = fileMap.get(doc.name);
 
-                // Check for active "Missing Data" thread
+                // Check validation status first
+                if (foundFile) {
+                    const vData = validationData[foundFile.resource_id];
+                    if (vData?.status === 'action_required') {
+                        return {
+                            ...doc,
+                            status: "action_required" as const,
+                            file: foundFile
+                        };
+                    }
+
+                    return {
+                        ...doc,
+                        status: "uploaded" as const,
+                        file: foundFile
+                    };
+                }
+
+                // Check for active "Missing Data" thread (LEGACY/FALLBACK)
                 // Topic format from backend: "Missing data for {docName}: {missing fields}"
                 const activeThread = threads.find(t =>
                     t.project_id === projectId &&
                     t.status === 'active' &&
                     t.topic?.includes(`Missing data for ${doc.name}`)
                 );
-
-                if (foundFile) {
-                    console.log(`UnderwritingVault: Matched doc '${doc.name}' with file '${foundFile.name}'`);
-                    return {
-                        ...doc,
-                        status: "uploaded" as const,
-                        file: foundFile
-                    };
-                } else if (activeThread) {
+                if (activeThread) {
                     return {
                         ...doc,
                         status: "action_required" as const,
@@ -653,7 +716,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 return doc;
             })
         }));
-    }, [files, templatesMap, threads, projectId]);
+    }, [files, templatesMap, threads, projectId, validationData]);
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -716,6 +779,13 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     openVersionsDefault={false}
                 />
             )}
+            <ValidationErrorsModal
+                isOpen={validationModal.isOpen}
+                onClose={() => setValidationModal({ ...validationModal, isOpen: false })}
+                errors={validationModal.errors}
+                docName={validationModal.docName}
+                onFixInChat={handleFixInChat}
+            />
             <Toaster position="bottom-right" richColors />
         </div>
     );

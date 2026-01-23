@@ -577,6 +577,23 @@ export const apiClient = {
   },
 
   /**
+   * Update an underwriting thread
+   */
+  updateUnderwritingThread: async (thread_id: string, params: { topic?: string }) => {
+    return apiRequest<{
+      id: string;
+      project_id: string;
+      topic?: string;
+      created_by: string;
+      status: string;
+      created_at: string;
+    }>(`/api/v1/underwriting/threads/${thread_id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
    * Get messages for an underwriting thread
    */
   getUnderwritingMessages: async (thread_id: string) => {
