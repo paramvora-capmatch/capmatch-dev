@@ -41,7 +41,7 @@ const ToolMessage: React.FC<{ content: string }> = ({ content }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
-        <div className="bg-gray-100/50 border border-gray-200 rounded-xl px-4 py-2 shadow-sm text-gray-600 font-mono text-xs w-full max-w-none">
+        <div className="bg-gray-100/50 border border-gray-200 rounded-xl px-4 py-2 shadow-sm text-gray-600 font-mono text-xs max-w-full">
             <div
                 className="flex items-center justify-between cursor-pointer group"
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -359,7 +359,9 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
                                             msg.sender_type === 'user' ? "justify-end" : "justify-start"
                                         )}>
                                             {msg.sender_type === 'tool' ? (
-                                                <ToolMessage content={msg.content} />
+                                                <div className="max-w-[85%]">
+                                                    <ToolMessage content={msg.content} />
+                                                </div>
                                             ) : (
                                                 <div className={cn(
                                                     "max-w-[85%] rounded-xl px-4 py-2 shadow-sm",
@@ -380,16 +382,25 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
 
                                                     {/* Render Tool Call Request (in AI message) */}
                                                     {(msg.metadata as any)?.function_call && (
-                                                        <div className="mb-2 p-2 bg-blue-50/50 rounded-lg border border-blue-100">
+                                                        <div className="mb-2 p-2 bg-blue-50/50 rounded-lg border border-blue-100 max-w-full overflow-hidden">
                                                             <div className="flex items-center gap-1.5 text-blue-700 text-xs font-semibold mb-1">
                                                                 <Drill size={12} />
                                                                 <span>Calling Tool: {(msg.metadata as any).function_call.name}</span>
                                                             </div>
-                                                            <div className="font-mono text-[10px] text-blue-600 break-all">
-                                                                {(msg.metadata as any).function_call.arguments}
+                                                            <div className="font-mono text-[10px] text-blue-600 break-all whitespace-pre-wrap">
+                                                                {(() => {
+                                                                    const args = (msg.metadata as any).function_call.arguments;
+                                                                    try {
+                                                                        const parsed = typeof args === 'string' ? JSON.parse(args) : args;
+                                                                        return JSON.stringify(parsed, null, 2);
+                                                                    } catch (e) {
+                                                                        return args;
+                                                                    }
+                                                                })()}
                                                             </div>
                                                         </div>
                                                     )}
+
 
                                                     <div className="prose prose-sm max-w-none">
                                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
