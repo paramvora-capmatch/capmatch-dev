@@ -40,6 +40,7 @@ interface StageProps {
     onViewTemplate: (docName: string) => void;
     onGenerateStage: (docs: DocItem[]) => void;
     onActionRequired: (idOrName: string) => void;
+    progress?: { total: number; completed: number };
 }
 
 const StageAccordion: React.FC<StageProps> = ({
@@ -55,13 +56,18 @@ const StageAccordion: React.FC<StageProps> = ({
     isGenerating,
     onViewTemplate,
     onGenerateStage,
-    onActionRequired
+    onActionRequired,
+    progress
 }) => {
     // Use all generateable docs for the stage action, supporting regeneration
     const generateableDocs = docs.filter(d => d.canGenerate);
 
     // Button is visible if there are ANY generateable docs (not just missing ones)
     const canGenerateAny = generateableDocs.length > 0;
+    const isBatchGenerating = !!progress;
+    const percentComplete = isBatchGenerating && progress && progress.total > 0
+        ? Math.round((progress.completed / progress.total) * 100)
+        : 0;
 
     return (
         <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50/50 mb-4 shadow-sm">
@@ -86,24 +92,43 @@ const StageAccordion: React.FC<StageProps> = ({
 
                 <div className="flex items-center gap-3">
                     {canGenerateAny && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (!docs.some(d => isGenerating(d.name))) {
-                                    // Trigger generation for ALL generateable docs in this stage
-                                    onGenerateStage(generateableDocs);
-                                }
-                            }}
-                            disabled={docs.some(d => isGenerating(d.name))}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors mr-2 cursor-pointer border border-blue-100 disabled:opacity-50"
-                        >
-                            {docs.some(d => isGenerating(d.name)) ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <div className="flex flex-col items-end gap-1 mr-2">
+                            {isBatchGenerating ? (
+                                <div className="flex flex-col items-end min-w-[120px]">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
+                                        <span className="text-xs font-semibold text-blue-700">
+                                            {progress?.completed}/{progress?.total} Generated
+                                        </span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-blue-600 rounded-full transition-all duration-300 ease-out"
+                                            style={{ width: `${percentComplete}%` }}
+                                        />
+                                    </div>
+                                </div>
                             ) : (
-                                <Play className="h-3.5 w-3.5 fill-current" />
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!docs.some(d => isGenerating(d.name))) {
+                                            // Trigger generation for ALL generateable docs in this stage
+                                            onGenerateStage(generateableDocs);
+                                        }
+                                    }}
+                                    disabled={docs.some(d => isGenerating(d.name))}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors cursor-pointer border border-blue-100 disabled:opacity-50"
+                                >
+                                    {docs.some(d => isGenerating(d.name)) ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                        <Play className="h-3.5 w-3.5 fill-current" />
+                                    )}
+                                    {docs.some(d => isGenerating(d.name)) ? "Generating..." : "Generate Docs"}
+                                </button>
                             )}
-                            {docs.some(d => isGenerating(d.name)) ? "Generating..." : "Generate Docs"}
-                        </button>
+                        </div>
                     )}
                     <div className="text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shadow-sm">
                         {docs.length} Documents
@@ -348,6 +373,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     const [expandedStage, setExpandedStage] = useState<string | null>("stage-1");
     // const [isGenerating, setIsGenerating] = useState(false); // Global generation disabled for generic button
     const [generatingDocs, setGeneratingDocs] = useState<Set<string>>(new Set());
+    const [stageProgress, setStageProgress] = useState<Record<string, { total: number, completed: number }>>({});
     const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
     const [showResumeModal, setShowResumeModal] = useState(false);
     const [targetDocName, setTargetDocName] = useState<string | null>(null);
@@ -594,18 +620,20 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     };
 
     // Individual Generation Logic
-    const handleGenerateDoc = async (docName: string) => {
+    const handleGenerateDoc = async (docName: string, options?: { isBatch?: boolean }): Promise<boolean> => {
         console.log(`[UnderwritingVault] Requesting generation for: ${docName}`);
         if (!projectId) {
             console.error("[UnderwritingVault] Missing projectId, aborting generation.");
             toast.error("Missing Project ID");
-            return;
+            return false;
         }
 
-        if (generatingDocs.has(docName)) return; // Prevent double click
+        if (generatingDocs.has(docName)) return false; // Prevent double click
 
         setGeneratingDocs(prev => new Set(prev).add(docName));
-        const toastId = toast.loading(`Generating ${docName}...`);
+
+        // Only show toast if NOT part of a batch
+        const toastId = !options?.isBatch ? toast.loading(`Generating ${docName}...`) : undefined;
 
         try {
             // Updated endpoint to generate specific document
@@ -617,15 +645,22 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             // Poll for completion - wait up to 3 minutes (60 * 3s)
             const success = await waitForGeneration(docName);
 
-            if (success) {
-                toast.success(`${docName} generated successfully!`, { id: toastId });
-            } else {
-                toast.warning(`${docName} generation is taking longer than expected. It will appear here soon.`, { id: toastId, duration: 5000 });
+            if (!options?.isBatch) {
+                if (success) {
+                    toast.success(`${docName} generated successfully!`, { id: toastId });
+                } else {
+                    toast.warning(`${docName} generation is taking longer than expected. It will appear here soon.`, { id: toastId, duration: 5000 });
+                }
             }
+
+            return success;
 
         } catch (error) {
             console.error("Generate failed:", error);
-            toast.error(`Failed to generate ${docName}`, { id: toastId });
+            if (!options?.isBatch) {
+                toast.error(`Failed to generate ${docName}`, { id: toastId });
+            }
+            return false;
         } finally {
             setGeneratingDocs(prev => {
                 const next = new Set(prev);
@@ -646,13 +681,43 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         }
     };
 
-    const handleGenerateStage = (docs: DocItem[]) => {
-        toast.info(`Starting batch generation for ${docs.length} documents...`);
-        docs.forEach(doc => {
-            if (doc.canGenerate && !generatingDocs.has(doc.name)) {
-                handleGenerateDoc(doc.name);
-            }
-        });
+    const handleGenerateStage = async (stageId: string, docs: DocItem[]) => {
+        const toGenerate = docs.filter(doc => doc.canGenerate && !generatingDocs.has(doc.name));
+
+        if (toGenerate.length === 0) return;
+
+        // Initialize progress
+        setStageProgress(prev => ({
+            ...prev,
+            [stageId]: { total: toGenerate.length, completed: 0 }
+        }));
+
+        const toastId = toast.loading(`Batch generating ${toGenerate.length} documents...`);
+
+        // Run all generations in parallel
+        await Promise.all(toGenerate.map(async (doc) => {
+            await handleGenerateDoc(doc.name, { isBatch: true });
+
+            // Update progress
+            setStageProgress(prev => {
+                const current = prev[stageId] || { total: toGenerate.length, completed: 0 };
+                return {
+                    ...prev,
+                    [stageId]: { ...current, completed: current.completed + 1 }
+                };
+            });
+        }));
+
+        toast.success("Batch generation complete!", { id: toastId });
+
+        // Clear progress after a short delay
+        setTimeout(() => {
+            setStageProgress(prev => {
+                const next = { ...prev };
+                delete next[stageId];
+                return next;
+            });
+        }, 3000);
     };
 
     // Merge fetched files into stages
@@ -739,11 +804,12 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                         onDownload={handleDownload}
                         onClickFile={handleClickFile}
                         onSelectFromResume={handleSelectFromResume}
-                        onGenerate={handleGenerateDoc}
+                        onGenerate={(docName) => handleGenerateDoc(docName)}
                         isGenerating={(name) => generatingDocs.has(name)}
                         onViewTemplate={handleViewTemplate}
-                        onGenerateStage={handleGenerateStage}
+                        onGenerateStage={(docs) => handleGenerateStage(stage.id, docs)} // Pass docs, stage ID implicit from state/map iteration? No, pass stage.id
                         onActionRequired={handleActionRequired}
+                        progress={stageProgress[stage.id]}
                     />
                 ))}
             </div>
