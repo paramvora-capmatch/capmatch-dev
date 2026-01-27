@@ -44,7 +44,7 @@ async function apiRequest<T>(
     // Handle non-2xx responses
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       // Log full error in development for debugging
       if (process.env.NODE_ENV === 'development') {
         console.error(`API Error [${endpoint}]:`, {
@@ -53,10 +53,10 @@ async function apiRequest<T>(
           errorData,
         });
       }
-      
+
       // FastAPI uses 'detail' for HTTP exceptions and 'details' for validation errors
       let errorMessage = errorData.detail || errorData.error || errorData.message;
-      
+
       // If it's a validation error (422), format the details
       if (response.status === 422 && errorData.details && Array.isArray(errorData.details)) {
         const validationErrors = errorData.details
@@ -68,12 +68,12 @@ async function apiRequest<T>(
           .join(', ');
         errorMessage = `Validation error: ${validationErrors}`;
       }
-      
+
       // Fallback to status text if no message found
       if (!errorMessage) {
         errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       }
-      
+
       throw new Error(errorMessage);
     }
 
@@ -113,7 +113,7 @@ async function unauthenticatedApiRequest<T>(
     // Handle non-2xx responses
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       // Log full error in development for debugging
       if (process.env.NODE_ENV === 'development') {
         console.error(`API Error [${endpoint}]:`, {
@@ -122,10 +122,10 @@ async function unauthenticatedApiRequest<T>(
           errorData,
         });
       }
-      
+
       // FastAPI uses 'detail' for HTTP exceptions and 'details' for validation errors
       let errorMessage = errorData.detail || errorData.error || errorData.message;
-      
+
       // If it's a validation error (422), format the details
       if (response.status === 422 && errorData.details && Array.isArray(errorData.details)) {
         const validationErrors = errorData.details
@@ -137,12 +137,12 @@ async function unauthenticatedApiRequest<T>(
           .join(', ');
         errorMessage = `Validation error: ${validationErrors}`;
       }
-      
+
       // Fallback to status text if no message found
       if (!errorMessage) {
         errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       }
-      
+
       throw new Error(errorMessage);
     }
 
@@ -319,11 +319,13 @@ export const apiClient = {
    * @returns Response with thread data or success message
    */
   manageChatThread: async (params: {
-    action: 'create' | 'add_participant' | 'remove_participant' | 'get_thread';
+    action: 'create' | 'add_participant' | 'remove_participant' | 'get_thread' | 'resolve_thread';
     thread_id?: string;
     project_id?: string;
     topic?: string;
     participant_ids?: string[];
+    resource_id?: string;
+    stage?: string;
   }) => {
     return apiRequest<{
       thread_id?: string;
@@ -332,6 +334,33 @@ export const apiClient = {
     }>('/api/v1/chat/threads', {
       method: 'POST',
       body: JSON.stringify(params),
+    });
+  },
+
+  /**
+   * Resolve a chat thread
+   *
+   * @param threadId - ID of the thread to resolve
+   * @returns Response with thread data or success message
+   */
+  resolveThread: async (threadId: string) => {
+    return apiClient.manageChatThread({ action: 'resolve_thread', thread_id: threadId });
+  },
+
+  /**
+   * Send a message to a chat thread
+   *
+   * @param data - Message data
+   * @returns Message ID and response
+   */
+  sendMessage: async (data: {
+    thread_id: string;
+    content: string;
+    client_context?: any;
+  }) => {
+    return apiRequest<{ message_id: string; response: string }>('/api/v1/chat/messages', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 
@@ -508,6 +537,106 @@ export const apiClient = {
   get: async <T>(endpoint: string) => {
     return apiRequest<T>(endpoint, {
       method: "GET",
+    });
+  },
+
+  /**
+   * Create an underwriting thread
+   */
+  createUnderwritingThread: async (params: {
+    project_id: string;
+    topic?: string;
+  }) => {
+    return apiRequest<{
+      id: string;
+      project_id: string;
+      topic?: string;
+      created_by: string;
+      status: string;
+      created_at: string;
+    }>('/api/v1/underwriting/threads', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
+   * Get underwriting threads for a project
+   */
+  getUnderwritingThreads: async (project_id: string) => {
+    return apiRequest<Array<{
+      id: string;
+      project_id: string;
+      topic?: string;
+      created_by: string;
+      status: string;
+      created_at: string;
+    }>>(`/api/v1/underwriting/projects/${project_id}/threads`, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Update an underwriting thread
+   */
+  updateUnderwritingThread: async (thread_id: string, params: { topic?: string }) => {
+    return apiRequest<{
+      id: string;
+      project_id: string;
+      topic?: string;
+      created_by: string;
+      status: string;
+      created_at: string;
+    }>(`/api/v1/underwriting/threads/${thread_id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
+   * Get messages for an underwriting thread
+   */
+  getUnderwritingMessages: async (thread_id: string) => {
+    return apiRequest<Array<{
+      id: string | number;
+      thread_id: string;
+      user_id?: string;
+      sender_type: 'user' | 'ai' | 'tool';
+      content: string;
+      created_at: string;
+      metadata?: any;
+    }>>(`/api/v1/underwriting/threads/${thread_id}/messages`, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Send a message to an underwriting thread
+   */
+  sendUnderwritingMessage: async (params: {
+    thread_id: string;
+    content: string;
+    context?: any;
+  }) => {
+    return apiRequest<{
+      user_message: any;
+      ai_message: any;
+      new_messages?: any[];
+    }>(`/api/v1/underwriting/threads/${params.thread_id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
+   * Delete an underwriting thread
+   */
+  deleteUnderwritingThread: async (thread_id: string) => {
+    return apiRequest<{
+      success: boolean;
+      message: string;
+    }>(`/api/v1/underwriting/threads/${thread_id}`, {
+      method: "DELETE",
     });
   },
 

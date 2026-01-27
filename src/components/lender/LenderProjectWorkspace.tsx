@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { AskAIProvider } from "@/components/ui/AskAIProvider";
 import { StickyChatCard } from "@/components/chat/StickyChatCard";
 import { useAskAI } from "@/hooks/useAskAI";
+import { useUnderwritingStore } from "@/stores/useUnderwritingStore";
 
 interface LenderProjectWorkspaceProps {
     project: ProjectProfile;
@@ -28,6 +29,15 @@ export const LenderProjectWorkspace: React.FC<LenderProjectWorkspaceProps> = ({
 }) => {
     const [mode, setMode] = useState<WorkspaceMode>("resume");
     const router = useRouter();
+    const { requestedWorkspaceMode, setRequestedWorkspaceMode } = useUnderwritingStore();
+
+    // Handle automated mode switching
+    React.useEffect(() => {
+        if (requestedWorkspaceMode) {
+            setMode(requestedWorkspaceMode);
+            setRequestedWorkspaceMode(null); // Clear after use
+        }
+    }, [requestedWorkspaceMode, setRequestedWorkspaceMode]);
 
     // Setup AskAI for the "project" context by default for simplicity
     // Ideally, this could switch contexts based on the mode, but 'project' is a safe default for general retrieval
@@ -174,6 +184,8 @@ export const LenderProjectWorkspace: React.FC<LenderProjectWorkspaceProps> = ({
                         const followUpQuestion = `Following up: "${message.content?.substring(0, 50)}..." - details?`;
                         void activeAskAi.sendMessage(followUpQuestion, undefined, undefined, message);
                     }}
+                    mode={mode === "underwriting" ? "underwriter" : "ask-ai"}
+                    defaultTopic="AI Underwriter"
                 />
             </div>
         </AskAIProvider>

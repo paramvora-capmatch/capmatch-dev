@@ -127,7 +127,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	const [isEditing, setIsEditing] = useState(false);
-	const [viewMode, setViewMode] = useState<"resume" | "underwriting">("resume");
+	const [viewMode, setViewMode] = useState<"resume" | "underwriting">(() => {
+		const view = searchParams?.get("view");
+		return view === "underwriting" ? "underwriting" : "resume";
+	});
+
+	useEffect(() => {
+		const view = searchParams?.get("view");
+		if (view === "underwriting" || view === "resume") {
+			setViewMode(view);
+		}
+	}, [searchParams]);
 	const [initialProjectStepId, setInitialProjectStepId] = useState<
 		string | null
 	>(null);
@@ -149,6 +159,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		},
 		[isBorrowerEditing, onBorrowerEditingChange]
 	);
+
+	const handleViewChange = useCallback(
+		(mode: "resume" | "underwriting") => {
+			setViewMode(mode);
+			const params = new URLSearchParams(searchParams.toString());
+			params.set("view", mode);
+			router.replace(`${pathname}?${params.toString()}`);
+		},
+		[pathname, router, searchParams]
+	);
+
 	const [borrowerProgress, setBorrowerProgress] = useState(0);
 	const [borrowerResumeSnapshot, setBorrowerResumeSnapshot] =
 		useState<Partial<BorrowerResumeContent> | null>(null);
@@ -250,6 +271,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		const step = searchParams?.get("step");
 		if (!step) return;
 
+		const params = new URLSearchParams(searchParams.toString());
+		params.delete("step");
+
 		// Deep-link format:
 		// - borrower / project / documents (legacy)
 		// - borrower:<sectionId> or project:<sectionId> (new)
@@ -260,9 +284,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 			setIsEditing(false);
 		} else if (step.startsWith("project:")) {
 			const sectionId = step.slice("project:".length).trim();
-			setInitialProjectStepId(sectionId || null);
-			setIsEditing(true);
-			setBorrowerEditing(false);
+
+			if (sectionId === "underwriting") {
+				setViewMode("underwriting");
+				params.set("view", "underwriting");
+				setIsEditing(false);
+				setBorrowerEditing(false);
+			} else {
+				setViewMode("resume");
+				params.set("view", "resume");
+				setInitialProjectStepId(sectionId || null);
+				setIsEditing(true);
+				setBorrowerEditing(false);
+			}
 		} else if (step === "borrower") {
 			setBorrowerEditing(true);
 			setIsEditing(false);
@@ -283,8 +317,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 			}
 		}
 
-		const params = new URLSearchParams(searchParams.toString());
-		params.delete("step");
 		const nextPath = params.toString() ? `${pathname}?${params}` : pathname;
 		router.replace(nextPath);
 	}, [pathname, router, searchParams, setBorrowerEditing]);
@@ -1174,7 +1206,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 							<div className="mb-6 flex justify-center">
 								<div className="flex bg-gray-100 p-1 rounded-lg shadow-sm border border-gray-200">
 									<button
-										onClick={() => setViewMode("resume")}
+										onClick={() =>
+											handleViewChange("resume")
+										}
 										className={cn(
 											"flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
 											viewMode === "resume"
@@ -1187,7 +1221,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 									</button>
 									<button
 										onClick={() =>
-											setViewMode("underwriting")
+											handleViewChange("underwriting")
 										}
 										className={cn(
 											"flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
@@ -1204,423 +1238,338 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 						)}
 
 						{viewMode === "underwriting" ? (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                {isInitialLoad || !activeProject?.owner_org_id ? (
-                                    <div className="flex items-center justify-center p-8">
-                                        <div className="text-gray-500">Loading underwriting vault...</div>
-                                    </div>
-                                ) : (
-                                    <UnderwritingVault projectId={projectId} orgId={activeProject.owner_org_id} />
-                                )}
-                            </div>
+							<div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+								{isInitialLoad || !activeProject?.owner_org_id ? (
+									<div className="flex items-center justify-center p-8">
+										<div className="text-gray-500">Loading underwriting vault...</div>
+									</div>
+								) : (
+									<UnderwritingVault projectId={projectId} orgId={activeProject.owner_org_id} />
+								)}
+							</div>
 						) : (
 							<AnimatePresence mode="wait">
 								{borrowerEditing ? (
-								<motion.div
-									key="borrower-view"
-									initial={{ opacity: 0 }}
-									animate={{ opacity: 1 }}
-									exit={{ opacity: 0 }}
-									transition={{ duration: 0.2 }}
-									className="space-y-6"
-								>
-									{/* Borrower Documents - Show skeleton or content based on loading state */}
-									{isInitialLoad ||
-										isWaitingForBorrowerDocs ||
-										isLoadingBorrowerDocsPermissions ? (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.1,
-											}}
-										>
-											<DocumentManagerSkeleton title="Borrower Documents" />
-										</motion.div>
-									) : canViewBorrowerDocs ? (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.1,
-											}}
-										>
-											{renderBorrowerDocumentsSection()}
-										</motion.div>
-									) : null}
-									{/* Borrower Resume - Show skeleton or content based on loading state */}
-									{isInitialLoad ||
-										isWaitingForBorrowerResume ||
-										isLoadingBorrowerResumePermissions ? (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.2,
-											}}
-										>
-											<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-full">
-												<div className="p-6 space-y-4">
-													<div className="h-7 bg-gray-200 rounded w-48 animate-pulse"></div>
-													<div className="space-y-3">
-														{[1, 2, 3, 4].map(
-															(i) => (
-																<div
-																	key={i}
-																	className="h-16 bg-gray-100 rounded-lg animate-pulse"
-																></div>
-															)
-														)}
+									<motion.div
+										key="borrower-view"
+										initial={{ opacity: 0 }}
+										animate={{ opacity: 1 }}
+										exit={{ opacity: 0 }}
+										transition={{ duration: 0.2 }}
+										className="space-y-6"
+									>
+										{/* Borrower Documents - Show skeleton or content based on loading state */}
+										{isInitialLoad ||
+											isWaitingForBorrowerDocs ||
+											isLoadingBorrowerDocsPermissions ? (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.1,
+												}}
+											>
+												<DocumentManagerSkeleton title="Borrower Documents" />
+											</motion.div>
+										) : canViewBorrowerDocs ? (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.1,
+												}}
+											>
+												{renderBorrowerDocumentsSection()}
+											</motion.div>
+										) : null}
+										{/* Borrower Resume - Show skeleton or content based on loading state */}
+										{isInitialLoad ||
+											isWaitingForBorrowerResume ||
+											isLoadingBorrowerResumePermissions ? (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.2,
+												}}
+											>
+												<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-full">
+													<div className="p-6 space-y-4">
+														<div className="h-7 bg-gray-200 rounded w-48 animate-pulse"></div>
+														<div className="space-y-3">
+															{[1, 2, 3, 4].map(
+																(i) => (
+																	<div
+																		key={i}
+																		className="h-16 bg-gray-100 rounded-lg animate-pulse"
+																	></div>
+																)
+															)}
+														</div>
 													</div>
 												</div>
-											</div>
-										</motion.div>
-									) : canViewBorrowerResume ? (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.2,
-											}}
-										>
-											{renderBorrowerResumeSection()}
-										</motion.div>
-									) : null}
-								</motion.div>
-							) : (
-								<motion.div
-									key="project-view"
-									initial={{ opacity: 0 }}
-									animate={{ opacity: 1 }}
-									exit={{ opacity: 0 }}
-									transition={{ duration: 0.2 }}
-									className="space-y-6"
-								>
-									{/* Project Title */}
-									<motion.h1
-										initial={{ opacity: 0, y: 10 }}
-										animate={{ opacity: 1, y: 0 }}
-										transition={{ duration: 0.3 }}
-										className="text-3xl font-bold text-gray-900 mb-5"
-									>
-										{isInitialLoad ? (
-											<div className="h-9 bg-gray-200 rounded w-64 animate-pulse"></div>
-										) : (
-											(unwrapValue(
-												activeProject?.projectName
-											) as string) || "Project"
-										)}
-									</motion.h1>
-
-									{/* Project Progress Card - Show skeleton or content based on loading state */}
-									{isInitialLoad ||
-										isWaitingForBorrowerResume ||
-										isWaitingForBorrowerDocs ? (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.1,
-											}}
-											className="relative"
-										>
-											<ProjectSummaryCardSkeleton />
-										</motion.div>
-									) : canViewBorrowerResume ||
-										canViewBorrowerDocs ? (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.1,
-											}}
-											className="relative"
-										>
-											<ProjectSummaryCard
-												project={projectForProgress}
-												isLoading={projectsLoading}
-												onEdit={() =>
-													setIsEditing(true)
-												}
-												onBorrowerClick={() => {
-													setIsEditing(false);
-													setActiveFieldId(null);
-													setChatTab("team");
-													setShouldExpandChat(false);
-													setBorrowerEditing(true);
+											</motion.div>
+										) : canViewBorrowerResume ? (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.2,
 												}}
-												borrowerProgress={
-													borrowerResumeProgress
-												}
-											/>
-										</motion.div>
-									) : null}
-
-									{/* Section for OM Link - Only show if project is complete */}
-									{isProjectComplete && (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.2,
-											}}
-											className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border border-emerald-200 rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group"
-										>
-											{/* Animated background pattern */}
-											<div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-transparent to-green-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-											{/* Success pulse effect */}
-											<div className="absolute -inset-1 bg-gradient-to-r from-emerald-200 to-green-200 rounded-lg blur-sm opacity-30 group-hover:opacity-50 transition-opacity duration-300 animate-pulse" />
-
-											<div className="relative z-10">
-												<h3 className="text-base font-semibold text-emerald-800 flex items-center">
-													<span className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse"></span>
-													Project Ready!
-												</h3>
-												<p className="text-sm text-emerald-700">
-													This project profile is
-													complete. You can view the
-													generated Offering
-													Memorandum.
-												</p>
-											</div>
-											<Button
-												variant="outline"
-												onClick={async () => {
-													try {
-														// Generate insights first before navigating
-														setIsGeneratingInsights(
-															true
-														);
-														await generateOMInsights(
-															projectId
-														);
-														// Navigate to OM dashboard after insights are generated and stored
-														router.push(
-															`/project/om/${projectId}/dashboard`
-														);
-													} catch (error) {
-														console.error(
-															"Failed to generate insights:",
-															error
-														);
-														// Show error but still allow navigation
-														alert(
-															"Failed to generate insights. You can still view the OM."
-														);
-														router.push(
-															`/project/om/${projectId}/dashboard`
-														);
-													} finally {
-														setIsGeneratingInsights(
-															false
-														);
-													}
-												}}
-												disabled={isGeneratingInsights}
-												className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10 whitespace-nowrap flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
 											>
-												{isGeneratingInsights ? (
-													<>
-														<Loader2 className="mr-2 h-5 w-5 animate-spin" />
-														Generating Insights...
-													</>
-												) : (
-													<>
-														<FileSpreadsheet className="mr-2 h-5 w-5" />
-														View OM
-													</>
-												)}
-											</Button>
-										</motion.div>
-									)}
+												{renderBorrowerResumeSection()}
+											</motion.div>
+										) : null}
+									</motion.div>
+								) : (
+									<motion.div
+										key="project-view"
+										initial={{ opacity: 0 }}
+										animate={{ opacity: 1 }}
+										exit={{ opacity: 0 }}
+										transition={{ duration: 0.2 }}
+										className="space-y-6"
+									>
+										{/* Project Title */}
+										<motion.h1
+											initial={{ opacity: 0, y: 10 }}
+											animate={{ opacity: 1, y: 0 }}
+											transition={{ duration: 0.3 }}
+											className="text-3xl font-bold text-gray-900 mb-5"
+										>
+											{isInitialLoad ? (
+												<div className="h-9 bg-gray-200 rounded w-64 animate-pulse"></div>
+											) : (
+												(unwrapValue(
+													activeProject?.projectName
+												) as string) || "Project"
+											)}
+										</motion.h1>
 
-									{/* Project Documents - Show skeleton or content based on loading state */}
-									{isInitialLoad ||
-										isWaitingForProjectDocs ||
-										isLoadingProjectDocsPermissions ? (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.3,
-											}}
-											id="project-documents-section"
-											className="overflow-visible"
-										>
-											<DocumentManagerSkeleton title="Project Documents" />
-										</motion.div>
-									) : canViewProjectDocs ? (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.3,
-											}}
-											id="project-documents-section"
-											className="overflow-visible"
-										>
-											<DocumentManager
-												projectId={projectId}
-												resourceId="PROJECT_ROOT"
-												title="Project Documents"
-												orgId={
-													activeProject?.owner_org_id ??
-													null
-												}
-												canUpload={true}
-												canDelete={true}
-												highlightedResourceId={
-													highlightedResourceId
-												}
-												context="project"
-											/>
-										</motion.div>
-									) : null}
+										{/* Project Progress Card - Show skeleton or content based on loading state */}
+										{isInitialLoad ||
+											isWaitingForBorrowerResume ||
+											isWaitingForBorrowerDocs ? (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.1,
+												}}
+												className="relative"
+											>
+												<ProjectSummaryCardSkeleton />
+											</motion.div>
+										) : canViewBorrowerResume ||
+											canViewBorrowerDocs ? (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.1,
+												}}
+												className="relative"
+											>
+												<ProjectSummaryCard
+													project={projectForProgress}
+													isLoading={projectsLoading}
+													onEdit={() =>
+														setIsEditing(true)
+													}
+													onBorrowerClick={() => {
+														setIsEditing(false);
+														setActiveFieldId(null);
+														setChatTab("team");
+														setShouldExpandChat(false);
+														setBorrowerEditing(true);
+													}}
+													borrowerProgress={
+														borrowerResumeProgress
+													}
+												/>
+											</motion.div>
+										) : null}
 
-									{/* Project completion progress - Show skeleton or content based on loading state */}
-									{isInitialLoad ||
-										isWaitingForProjectResume ? (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.4,
-											}}
-										>
-											<ProjectCompletionCardSkeleton />
-										</motion.div>
-									) : canViewProjectResume ? (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.4,
-											}}
-										>
-											<ProjectCompletionCard
-												project={projectForProgress}
-												isLoading={projectsLoading}
-												onEdit={() =>
-													setIsEditing(true)
-												}
-											/>
-										</motion.div>
-									) : null}
+										{/* Section for OM Link - Only show if project is complete */}
+										{isProjectComplete && (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.2,
+												}}
+												className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border border-emerald-200 rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group"
+											>
+												{/* Animated background pattern */}
+												<div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-transparent to-green-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-									{/* Project Resume (View or Edit) - Show skeleton or content based on loading state */}
-									{isInitialLoad ||
-										isWaitingForProjectResume ||
-										isLoadingProjectResumePermissions ? (
-										<motion.div
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.5,
-											}}
-										>
-											<ProjectResumeViewSkeleton />
-										</motion.div>
-									) : canViewProjectResume ? (
-										<>
-											{isEditing ? (
-												<motion.div
-													initial={{
-														opacity: 0,
-														y: 10,
-													}}
-													animate={{
-														opacity: 1,
-														y: 0,
-													}}
-													transition={{
-														duration: 0.3,
-														delay: 0.5,
-													}}
-												>
-													<EnhancedProjectForm
-														key={`enhanced-form-${resumeRefreshKey}`}
-														existingProject={
-															activeProject
-														}
-														initialStepId={
-															initialProjectStepId
-														}
-														onComplete={() =>
-															setIsEditing(false)
-														}
-														onAskAI={(fieldId) => {
-															setActiveFieldId(
-																fieldId
-															);
-															void projectAskAi.activateField(
-																fieldId,
-																{
-																	autoSend:
-																		true,
-																}
-															);
-															setChatTab("ai");
-															setShouldExpandChat(
+												{/* Success pulse effect */}
+												<div className="absolute -inset-1 bg-gradient-to-r from-emerald-200 to-green-200 rounded-lg blur-sm opacity-30 group-hover:opacity-50 transition-opacity duration-300 animate-pulse" />
+
+												<div className="relative z-10">
+													<h3 className="text-base font-semibold text-emerald-800 flex items-center">
+														<span className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse"></span>
+														Project Ready!
+													</h3>
+													<p className="text-sm text-emerald-700">
+														This project profile is
+														complete. You can view the
+														generated Offering
+														Memorandum.
+													</p>
+												</div>
+												<Button
+													variant="outline"
+													onClick={async () => {
+														try {
+															// Generate insights first before navigating
+															setIsGeneratingInsights(
 																true
 															);
-															setTimeout(
-																() =>
-																	setShouldExpandChat(
-																		false
-																	),
-																100
+															await generateOMInsights(
+																projectId
 															);
-														}}
-														onFormDataChange={
-															setCurrentFormData
+															// Navigate to OM dashboard after insights are generated and stored
+															router.push(
+																`/project/om/${projectId}/dashboard`
+															);
+														} catch (error) {
+															console.error(
+																"Failed to generate insights:",
+																error
+															);
+															// Show error but still allow navigation
+															alert(
+																"Failed to generate insights. You can still view the OM."
+															);
+															router.push(
+																`/project/om/${projectId}/dashboard`
+															);
+														} finally {
+															setIsGeneratingInsights(
+																false
+															);
 														}
-														onVersionChange={
-															handleResumeVersionChange
-														}
-													/>
-												</motion.div>
-											) : (
-												<>
-													{/* Remote update notification */}
-													{isProjectResumeRemoteUpdate && (
-														<motion.div
-															initial={{
-																opacity: 0,
-																y: 10,
-															}}
-															animate={{
-																opacity: 1,
-																y: 0,
-															}}
-															transition={{
-																duration: 0.3,
-															}}
-															className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 px-4 py-3 mx-6 mb-4 rounded-md flex items-center gap-2"
-														>
-															<AlertCircle className="h-4 w-4 flex-shrink-0" />
-															<span className="text-sm font-medium">
-																This project
-																resume was
-																updated by
-																another user.
-																Your view has
-																been refreshed.
-															</span>
-														</motion.div>
+													}}
+													disabled={isGeneratingInsights}
+													className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10 whitespace-nowrap flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+												>
+													{isGeneratingInsights ? (
+														<>
+															<Loader2 className="mr-2 h-5 w-5 animate-spin" />
+															Generating Insights...
+														</>
+													) : (
+														<>
+															<FileSpreadsheet className="mr-2 h-5 w-5" />
+															View OM
+														</>
 													)}
+												</Button>
+											</motion.div>
+										)}
+
+										{/* Project Documents - Show skeleton or content based on loading state */}
+										{isInitialLoad ||
+											isWaitingForProjectDocs ||
+											isLoadingProjectDocsPermissions ? (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.3,
+												}}
+												id="project-documents-section"
+												className="overflow-visible"
+											>
+												<DocumentManagerSkeleton title="Project Documents" />
+											</motion.div>
+										) : canViewProjectDocs ? (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.3,
+												}}
+												id="project-documents-section"
+												className="overflow-visible"
+											>
+												<DocumentManager
+													projectId={projectId}
+													resourceId="PROJECT_ROOT"
+													title="Project Documents"
+													orgId={
+														activeProject?.owner_org_id ??
+														null
+													}
+													canUpload={true}
+													canDelete={true}
+													highlightedResourceId={
+														highlightedResourceId
+													}
+													context="project"
+												/>
+											</motion.div>
+										) : null}
+
+										{/* Project completion progress - Show skeleton or content based on loading state */}
+										{isInitialLoad ||
+											isWaitingForProjectResume ? (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.4,
+												}}
+											>
+												<ProjectCompletionCardSkeleton />
+											</motion.div>
+										) : canViewProjectResume ? (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.4,
+												}}
+											>
+												<ProjectCompletionCard
+													project={projectForProgress}
+													isLoading={projectsLoading}
+													onEdit={() =>
+														setIsEditing(true)
+													}
+												/>
+											</motion.div>
+										) : null}
+
+										{/* Project Resume (View or Edit) - Show skeleton or content based on loading state */}
+										{isInitialLoad ||
+											isWaitingForProjectResume ||
+											isLoadingProjectResumePermissions ? (
+											<motion.div
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												transition={{
+													duration: 0.3,
+													delay: 0.5,
+												}}
+											>
+												<ProjectResumeViewSkeleton />
+											</motion.div>
+										) : canViewProjectResume ? (
+											<>
+												{isEditing ? (
 													<motion.div
 														initial={{
 															opacity: 0,
@@ -1635,31 +1584,116 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 															delay: 0.5,
 														}}
 													>
-														<ProjectResumeView
-															key={`resume-view-${resumeRefreshKey}`}
-															project={
+														<EnhancedProjectForm
+															key={`enhanced-form-${resumeRefreshKey}`}
+															existingProject={
 																activeProject
 															}
-															onEdit={() =>
-																setIsEditing(
+															initialStepId={
+																initialProjectStepId
+															}
+															onComplete={() =>
+																setIsEditing(false)
+															}
+															onAskAI={(fieldId) => {
+																setActiveFieldId(
+																	fieldId
+																);
+																void projectAskAi.activateField(
+																	fieldId,
+																	{
+																		autoSend:
+																			true,
+																	}
+																);
+																setChatTab("ai");
+																setShouldExpandChat(
 																	true
-																)
+																);
+																setTimeout(
+																	() =>
+																		setShouldExpandChat(
+																			false
+																		),
+																	100
+																);
+															}}
+															onFormDataChange={
+																setCurrentFormData
 															}
 															onVersionChange={
 																handleResumeVersionChange
 															}
-															canEdit={
-																canEditProjectResume
-															}
 														/>
 													</motion.div>
-												</>
-											)}
-										</>
-									) : null}
-								</motion.div>
-							)}
-						</AnimatePresence>
+												) : (
+													<>
+														{/* Remote update notification */}
+														{isProjectResumeRemoteUpdate && (
+															<motion.div
+																initial={{
+																	opacity: 0,
+																	y: 10,
+																}}
+																animate={{
+																	opacity: 1,
+																	y: 0,
+																}}
+																transition={{
+																	duration: 0.3,
+																}}
+																className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 px-4 py-3 mx-6 mb-4 rounded-md flex items-center gap-2"
+															>
+																<AlertCircle className="h-4 w-4 flex-shrink-0" />
+																<span className="text-sm font-medium">
+																	This project
+																	resume was
+																	updated by
+																	another user.
+																	Your view has
+																	been refreshed.
+																</span>
+															</motion.div>
+														)}
+														<motion.div
+															initial={{
+																opacity: 0,
+																y: 10,
+															}}
+															animate={{
+																opacity: 1,
+																y: 0,
+															}}
+															transition={{
+																duration: 0.3,
+																delay: 0.5,
+															}}
+														>
+															<ProjectResumeView
+																key={`resume-view-${resumeRefreshKey}`}
+																project={
+																	activeProject
+																}
+																onEdit={() =>
+																	setIsEditing(
+																		true
+																	)
+																}
+																onVersionChange={
+																	handleResumeVersionChange
+																}
+																canEdit={
+																	canEditProjectResume
+																}
+															/>
+														</motion.div>
+													</>
+												)}
+											</>
+										) : null}
+									</motion.div>
+								)}
+							</AnimatePresence>
 						)}
 					</div>
 				</div>
@@ -1691,6 +1725,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 							message
 						);
 					}}
+					mode={viewMode === "underwriting" ? "underwriter" : "ask-ai"}
+					defaultTopic="AI Underwriter"
 				/>
 			</AskAIProvider>
 			{previewingResourceId && (

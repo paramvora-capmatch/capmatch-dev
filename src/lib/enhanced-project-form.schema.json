@@ -26,7 +26,9 @@
 						"assetType",
 						"constructionType",
 						"projectPhase",
-						"projectDescription"
+						"projectDescription",
+						"parcelNumber",
+						"zoningDesignation"
 					]
 				}
 			],
@@ -42,7 +44,9 @@
 				"assetType",
 				"constructionType",
 				"projectPhase",
-				"projectDescription"
+				"projectDescription",
+				"parcelNumber",
+				"zoningDesignation"
 			]
 		},
 		{
@@ -153,6 +157,7 @@
 						"totalDevelopmentCost",
 						"totalProjectCost",
 						"capexBudget",
+						"capexItems",
 						"purchasePrice",
 						"landAcquisition",
 						"baseConstruction",
@@ -195,9 +200,8 @@
 						"syndicationCostsLabel",
 						"enviroRemediationLabel",
 						"pfcStructuringFeeLabel",
-						"acquisitionCosts",
-						"softCosts",
-						"payoffExistingDebt"
+						"usesDirect",
+						"rates"
 					]
 				},
 				{
@@ -215,10 +219,7 @@
 						"sponsorEquityLabel",
 						"taxCreditEquityLabel",
 						"gapFinancingLabel",
-						"mezzanineDebt",
-						"sellerFinancing",
-						"preferredEquity",
-						"grantsTaxCredits"
+						"sourcesDirect"
 					]
 				},
 				{
@@ -267,7 +268,8 @@
 						"capExReserve",
 						"marketingLeasing",
 						"serviceCoordination",
-						"totalOperatingExpenses"
+						"totalOperatingExpenses",
+						"t12MonthlyData"
 					]
 				},
 				{
@@ -302,7 +304,14 @@
 						"fiveYearCashFlow",
 						"returnsBreakdown",
 						"quarterlyDeliverySchedule",
-						"sensitivityAnalysis"
+						"quarterlyDeliverySchedule",
+						"sensitivityAnalysis",
+						"proFormaStartYear",
+						"proFormaRentGrowth",
+						"proFormaExpenseInflation",
+						"proFormaVacancyRate",
+						"proFormaExitCapRate",
+						"proFormaCapExPerUnit"
 					]
 				},
 				{
@@ -369,6 +378,8 @@
 				"syndicationCostsLabel",
 				"enviroRemediationLabel",
 				"pfcStructuringFeeLabel",
+				"usesDirect",
+				"rates",
 				"sponsorEquity",
 				"taxCreditEquity",
 				"gapFinancing",
@@ -379,6 +390,7 @@
 				"sponsorEquityLabel",
 				"taxCreditEquityLabel",
 				"gapFinancingLabel",
+				"sourcesDirect",
 				"loanAmountRequested",
 				"loanType",
 				"lender",
@@ -442,13 +454,20 @@
 				"returnsBreakdown",
 				"quarterlyDeliverySchedule",
 				"sensitivityAnalysis",
+				"proFormaStartYear",
+				"proFormaRentGrowth",
+				"proFormaExpenseInflation",
+				"proFormaVacancyRate",
+				"proFormaExitCapRate",
+				"proFormaCapExPerUnit",
 				"riskHigh",
 				"riskMedium",
 				"riskLow",
-				"rentRollUnits"
+				"t12MonthlyData",
+				"rentRollUnits",
+				"capexItems"
 			]
-		},
-		{
+		},		{
 			"id": "market-context",
 			"title": "Market Context",
 			"icon": "Globe",
@@ -488,8 +507,6 @@
 						"submarketName",
 						"walkabilityScore",
 						"infrastructureCatalyst",
-						"infraCompletion",
-						"projectBudget",
 						"broadbandSpeed",
 						"distanceToCBD",
 						"distanceToEmployment",
@@ -745,7 +762,6 @@
 						"currentSiteStatus",
 						"topography",
 						"soilConditions",
-						"geotechSoilsRep",
 						"accessPoints",
 						"siteAccess",
 						"proximityShopping",
@@ -770,7 +786,6 @@
 					"title": "7.4 Infrastructure & Utilities",
 					"fields": [
 						"utilityAvailability",
-						"utilityCapacity",
 						"easements"
 					]
 				},
@@ -803,7 +818,6 @@
 				"zoningCompliant",
 				"currentSiteStatus",
 				"topography",
-				"geotechSoilsRep",
 				"soilConditions",
 				"accessPoints",
 				"siteAccess",
@@ -817,7 +831,6 @@
 				"phaseIESAFinding",
 				"noiseFactors",
 				"utilityAvailability",
-				"utilityCapacity",
 				"easements"
 			]
 		},
@@ -1072,6 +1085,10 @@
 			"label": "Total Operating Expenses",
 			"required": false
 		},
+		"t12MonthlyData": {
+			"label": "T-12 Monthly Data",
+			"required": false
+		},
 		"fiveYearCashFlow": {
 			"label": "Five Year Cash Flow",
 			"required": false
@@ -1218,10 +1235,6 @@
 		},
 		"amenityList": {
 			"label": "Amenity List",
-			"required": false
-		},
-		"amenitySF": {
-			"label": "Amenity Square Footage",
 			"required": false
 		},
 		"studioCount": {
@@ -1712,6 +1725,10 @@
 			"label": "Residential Unit Mix",
 			"required": false
 		},
+		"rentRollUnits": {
+			"label": "Rent Roll Units",
+			"required": false
+		},
 		"commercialSpaceMix": {
 			"label": "Commercial Space Mix",
 			"required": false
@@ -2110,58 +2127,6 @@
 		},
 		"stabilizationStatus": {
 			"label": "Stabilization Status",
-			"required": false
-		},
-		"siteImages": {
-			"label": "Site Images",
-			"required": false
-		},
-		"architecturalDiagrams": {
-			"label": "Architectural Diagrams",
-			"required": false
-		},
-		"infraCompletion": {
-			"label": "Infra. Completion Date",
-			"required": false
-		},
-		"projectBudget": {
-			"label": "Project Budget ($)",
-			"required": false
-		},
-		"utilityCapacity": {
-			"label": "Utility Capacity",
-			"required": false
-		},
-		"geotechSoilsRep": {
-			"label": "Geotech/Soils Report",
-			"required": false
-		},
-		"acquisitionCosts": {
-			"label": "Acquisition Costs",
-			"required": false
-		},
-		"softCosts": {
-			"label": "Soft Costs",
-			"required": false
-		},
-		"payoffExistingDebt": {
-			"label": "Payoff Existing Debt",
-			"required": false
-		},
-		"mezzanineDebt": {
-			"label": "Mezzanine Debt",
-			"required": false
-		},
-		"sellerFinancing": {
-			"label": "Seller Financing",
-			"required": false
-		},
-		"preferredEquity": {
-			"label": "Preferred Equity",
-			"required": false
-		},
-		"grantsTaxCredits": {
-			"label": "Grants / Tax Credits",
 			"required": false
 		}
 	}

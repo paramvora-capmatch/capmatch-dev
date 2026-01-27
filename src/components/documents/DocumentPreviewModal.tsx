@@ -5,7 +5,9 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
+import { cn } from "@/utils/cn";
 import { OnlyOfficeEditor } from "./OnlyOfficeEditor";
+import { StickyChatCard } from "../chat/StickyChatCard";
 import { VersionHistoryDropdown } from "./VersionHistoryDropdown";
 import { ShareModal } from "./ShareModal";
 import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
@@ -13,7 +15,8 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { usePermissions } from "@/hooks/usePermissions";
 import { usePermissionStore } from "@/stores/usePermissionStore";
 import { extractOriginalFilename } from "@/utils/documentUtils";
-import { Loader2, Download, Edit, Share2, Trash2 } from "lucide-react";
+import { Loader2, Download, Edit, Share2, Trash2, Brain, ChevronLeft, ChevronRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -40,13 +43,14 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const { activeOrg, currentOrgRole, user } = useAuthStore();
   const docContext = resource?.storage_path?.includes('/borrower-docs/')
     ? 'borrower'
     : resource?.storage_path?.includes('/underwriting-docs/')
-    ? 'underwriting'
-    : 'project';
+      ? 'underwriting'
+      : 'project';
   const { deleteFile, downloadFile } = useDocumentManagement({
     projectId: resource?.project_id || null,
     orgId: resource?.org_id || null, // Pass the resource's org_id to use correct storage bucket
@@ -54,25 +58,25 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     skipInitialFetch: true,
   });
   const { canEdit, canView, isLoading: isPermissionsLoading } = usePermissions(resourceId);
-  
+
   const isEditableInOffice = useMemo(() => {
     if (!resource) return false;
     // Check name first, then storage path
     const hasExtension = (str: string) => /\.(docx|xlsx|pptx|pptm|xlsm|xls)$/i.test(str);
     return hasExtension(resource.name) || hasExtension(resource.storage_path);
   }, [resource]);
-  
+
   // Reload permissions if missing (e.g. newly created/copied file)
   useEffect(() => {
     const checkPermissions = async () => {
       // Only reload if we have a resource, we are NOT loading resource details,
       // the permission store is NOT currently loading, and we have NO permissions (view or edit)
       if (resource?.project_id && !isLoading && !isPermissionsLoading && canEdit === false && canView === false) {
-          console.log('[DocumentPreviewModal] Permission missing for resource, reloading permissions...');
-          await usePermissionStore.getState().loadPermissionsForProject(resource.project_id, true);
+        console.log('[DocumentPreviewModal] Permission missing for resource, reloading permissions...');
+        await usePermissionStore.getState().loadPermissionsForProject(resource.project_id, true);
       }
     };
-    
+
     checkPermissions();
   }, [resource?.project_id, resourceId, isLoading, isPermissionsLoading, canEdit, canView]);
 
@@ -92,7 +96,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         .select("*")
         .eq("id", resourceId)
         .single();
-      
+
       if (error) {
         console.error('[DocumentPreviewModal] Error fetching resource:', error);
         throw new Error(`Failed to fetch resource: ${error.message}`);
@@ -120,7 +124,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         console.error('[DocumentPreviewModal] Error fetching version:', versionError);
         throw new Error(`Failed to fetch document version: ${versionError.message}`);
       }
-      
+
       if (!currentVersion) {
         throw new Error("Document version not found");
       }
@@ -165,7 +169,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     // Refresh the document instead of closing the modal
     fetchResourceDetails();
   }, [fetchResourceDetails]);
-  
+
   const handleDelete = async () => {
     if (!resource) return;
     if (window.confirm(`Are you sure you want to delete "${resource.name}"?`)) {
@@ -192,19 +196,19 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
 
   return (
     <>
-      <Modal 
-        isOpen={true} 
-        onClose={onClose} 
-        title={resource?.name || "Loading..."} 
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title={resource?.name || "Loading..."}
         size="full"
         headerRight={
           <div className="flex items-center space-x-2">
             {canEdit && (
-              <VersionHistoryDropdown 
+              <VersionHistoryDropdown
                 key={`versions-${resourceId}-${openVersionsDefault}`}
-                resourceId={resourceId} 
-                onRollbackSuccess={handleRollbackSuccess} 
-                defaultOpen={openVersionsDefault} 
+                resourceId={resourceId}
+                onRollbackSuccess={handleRollbackSuccess}
+                defaultOpen={openVersionsDefault}
               />
             )}
             {canEdit && isEditableInOffice && resource && (
@@ -216,67 +220,114 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 Edit
               </Link>
             )}
-            <Button variant="outline" onClick={handleDownload} leftIcon={<Download size={16}/>}>Download</Button>
+            <Button variant="outline" onClick={handleDownload} leftIcon={<Download size={16} />}>Download</Button>
             {canEdit && (
               <>
                 {(currentOrgRole === 'owner' || user?.role === 'advisor') && (
-                  <Button variant="outline" onClick={() => setIsSharing(true)} leftIcon={<Share2 size={16}/>}>Share</Button>
+                  <Button variant="outline" onClick={() => setIsSharing(true)} leftIcon={<Share2 size={16} />}>Share</Button>
                 )}
-                <Button variant="danger" onClick={handleDelete} leftIcon={<Trash2 size={16}/>}>Delete</Button>
+                <Button variant="danger" onClick={handleDelete} leftIcon={<Trash2 size={16} />}>Delete</Button>
               </>
             )}
           </div>
         }
       >
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            {/* Preview area - extends to bottom */}
-            <div className="flex-1 bg-gray-200 rounded-md overflow-hidden relative min-h-0" style={{ minHeight: '500px' }}>
-                {/* Decorative Background Layer for preview */}
-                <div className="pointer-events-none absolute inset-0">
-                    {/* Subtle grid pattern */}
-                    <div className="absolute inset-0 opacity-[0.5]">
-                        <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
-                            <defs>
-                                <pattern id="preview-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                                    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
-                                </pattern>
-                            </defs>
-                            <rect width="100%" height="100%" fill="url(#preview-grid)" />
-                        </svg>
-                    </div>
-                </div>
-                {isLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
-                        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                    </div>
-                )}
-                {error && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-red-50 text-red-700 z-10">
-                        <p>{error}</p>
-                    </div>
-                )}
-                {!isLoading && !error && resource && (
-                    <OnlyOfficeEditor
-                        key={resource.id} // Re-mount when resource changes
-                        bucketId={resource.org_id}
-                        filePath={resource.storage_path}
-                        mode="view"
-                        hideHeader={true}
-                    />
-                )}
-                {!resource && !isLoading && !error && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                        <p className="text-gray-500">No document loaded</p>
-                    </div>
-                )}
+        <div className="flex flex-1 min-h-0 overflow-hidden relative">
+          {/* Main Content Area (Left) */}
+          <div className="flex-1 flex flex-col min-w-0 bg-gray-200 overflow-hidden relative" style={{ minHeight: '500px' }}>
+            {/* Decorative Background Layer for preview */}
+            <div className="pointer-events-none absolute inset-0">
+              {/* Subtle grid pattern */}
+              <div className="absolute inset-0 opacity-[0.5]">
+                <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
+                  <defs>
+                    <pattern id="preview-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#preview-grid)" />
+                </svg>
+              </div>
             </div>
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            )}
+            {error && (
+              <div className="absolute inset-0 flex items-center justify-center bg-red-50 text-red-700 z-10">
+                <p>{error}</p>
+              </div>
+            )}
+            {!isLoading && !error && resource && (
+              <OnlyOfficeEditor
+                key={resource.id} // Re-mount when resource changes
+                bucketId={resource.org_id}
+                filePath={resource.storage_path}
+                mode="view"
+                hideHeader={true}
+              />
+            )}
+            {!resource && !isLoading && !error && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                <p className="text-gray-500">No document loaded</p>
+              </div>
+            )}
+
+            {/* Vertical floating tab on the right edge to open AI Underwriter */}
+            {resource && docContext === 'underwriting' && !isChatOpen && (
+              <button
+                onClick={() => setIsChatOpen(true)}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-40 bg-blue-600 text-white py-4 px-2 rounded-l-xl shadow-xl hover:bg-blue-700 transition-all flex flex-col items-center gap-2 group border border-blue-400 border-r-0"
+              >
+                <Brain size={20} className="group-hover:scale-110 transition-transform" />
+                <span className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold tracking-widest uppercase">AI Underwriter</span>
+              </button>
+            )}
+          </div>
+
+          {/* AI Chat Drawer (Only for Underwriting Docs) */}
+          <AnimatePresence>
+            {resource && docContext === 'underwriting' && isChatOpen && (
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="absolute top-0 right-0 bottom-0 w-[450px] bg-white shadow-2xl z-50 border-l border-gray-200 flex flex-col"
+              >
+                <div className="flex-1 overflow-hidden">
+                  <StickyChatCard
+                    projectId={resource.project_id || undefined}
+                    topOffsetClassName="top-0"
+                    widthClassName="w-full"
+                    mode="underwriter"
+                    hideTeamTab={true}
+                    clientContext={{
+                      context_type: "live_edit",
+                      resource_id: resource.id,
+                      resource_name: resource.name,
+                      doc_type: resource.type
+                    }}
+                  />
+                </div>
+                {/* Close handle */}
+                <button
+                  onClick={() => setIsChatOpen(false)}
+                  className="absolute left-[-24px] top-1/2 -translate-y-1/2 w-6 h-12 bg-white border border-r-0 border-gray-200 rounded-l-md flex items-center justify-center shadow-md hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </Modal>
       {isSharing && resource && (
         <ShareModal
-            resource={resource}
-            isOpen={isSharing}
-            onClose={() => setIsSharing(false)}
+          resource={resource}
+          isOpen={isSharing}
+          onClose={() => setIsSharing(false)}
         />
       )}
     </>

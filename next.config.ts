@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    optimizePackageImports: ["@radix-ui/react-icons", "lucide-react", "recharts", "framer-motion"],
+  },
   images: {
     remotePatterns: [
       // Local Supabase development - public URLs

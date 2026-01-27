@@ -24,6 +24,7 @@ interface RichTextInputProps {
 export interface RichTextInputRef {
   insertAtCursor: (text: string, replaceQuery?: string) => void;
   focus: () => void;
+  clear: () => void;
 }
 
 export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
@@ -123,18 +124,18 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
   // Convert HTML back to markdown value
   const htmlToValue = useCallback((element: HTMLElement): string => {
     let result = '';
-    
+
     const traverse = (node: Node) => {
       if (node.nodeType === Node.TEXT_NODE) {
         result += node.textContent || '';
       } else if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as HTMLElement;
-        
+
         if (el.classList.contains('mention-pill')) {
           const id = el.getAttribute('data-id') || el.getAttribute('data-resource-id'); // Fallback for backward compatibility
           const name = el.getAttribute('data-name') || el.getAttribute('data-doc-name'); // Fallback
           const type = el.getAttribute('data-type') || (el.classList.contains('doc-mention') ? 'doc' : 'user');
-          
+
           if (id && name) {
             result += `@[${name}](${type}:${id})`;
           }
@@ -173,7 +174,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
 
     // Check if the current DOM content matches the value
     const currentValue = htmlToValue(editorRef.current);
-    
+
     // If they match and we're not forcing a render, no update needed
     if (currentValue === value && !forceRenderRef.current) {
       previousValueRef.current = value;
@@ -192,7 +193,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
       // Save cursor position
       const selection = window.getSelection();
       let cursorPos = 0;
-      
+
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         let absolutePos = 0;
@@ -210,44 +211,44 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
 
           if (node.nodeType === Node.ELEMENT_NODE) {
             const el = node as HTMLElement;
-            
+
             // Check if cursor is inside this element (before any children)
             // Note: startOffset for Element is child index
             if (node === range.startContainer) {
-               // We handle this by checking index in the loop below
+              // We handle this by checking index in the loop below
             }
 
             if (el.classList.contains('mention-pill')) {
               absolutePos += 1; // Count pill as 1 character
               return; // Don't traverse children of pill
             }
-            
+
             for (let i = 0; i < node.childNodes.length; i++) {
               // Check if cursor is exactly at this child index
               if (node === range.startContainer && i === range.startOffset) {
                 found = true;
                 return;
               }
-              
+
               traverse(node.childNodes[i]);
               if (found) return;
             }
-            
+
             // Check if cursor is at the end of this element
             if (node === range.startContainer && range.startOffset === node.childNodes.length) {
-               found = true;
-               return;
+              found = true;
+              return;
             }
-            
+
             if (el.tagName === 'BR') {
               absolutePos += 1;
             }
           } else if (node.nodeType === Node.TEXT_NODE) {
-             // Node was fully traversed
-             absolutePos += node.textContent?.length || 0;
+            // Node was fully traversed
+            absolutePos += node.textContent?.length || 0;
           }
         };
-        
+
         if (editorRef.current) {
           traverse(editorRef.current);
           if (found) {
@@ -255,16 +256,16 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
           }
         }
       }
-      
+
       editorRef.current.innerHTML = valueToHTML(value);
-      
+
       // Restore cursor position
       if (selection && cursorPos >= 0) {
         try {
           let remaining = cursorPos;
           let targetNode: Node | null = null;
           let targetOffset = 0;
-          
+
           const findPosition = (node: Node): boolean => {
             if (node.nodeType === Node.TEXT_NODE) {
               const len = node.textContent?.length || 0;
@@ -276,19 +277,19 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
               remaining -= len;
             } else if (node.nodeType === Node.ELEMENT_NODE) {
               const el = node as HTMLElement;
-              
+
               if (el.classList.contains('mention-pill')) {
                 if (remaining === 0) {
                   // Cursor should be before this pill
                   // We need to set range before this node.
                   // But findPosition returns boolean to signal "found".
                   // We'll handle the range setting logic here or ensure targetNode is set correctly.
-                  
+
                   // Since we can't easily return "before node" via targetNode/targetOffset (unless we use parent),
                   // let's handle it by setting a special flag or handling it in the loop.
                   // Actually, if remaining is 0, we want the position *before* this element.
                   // But the caller expects targetNode/targetOffset for setStart.
-                  
+
                   // Alternative: set targetNode to parent, targetOffset to index.
                   targetNode = node.parentNode;
                   targetOffset = Array.from(node.parentNode?.childNodes || []).indexOf(node as ChildNode);
@@ -297,12 +298,12 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
                 remaining -= 1;
                 return false;
               }
-              
+
               if (el.tagName === 'BR') {
                 if (remaining === 0) {
-                   targetNode = node.parentNode;
-                   targetOffset = Array.from(node.parentNode?.childNodes || []).indexOf(node as ChildNode);
-                   return true;
+                  targetNode = node.parentNode;
+                  targetOffset = Array.from(node.parentNode?.childNodes || []).indexOf(node as ChildNode);
+                  return true;
                 }
                 remaining -= 1;
               }
@@ -313,20 +314,20 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
             }
             return false;
           };
-          
+
           // We need to handle the case where cursor is at the very end (remaining > 0 but no more nodes)
           // handled by fallback.
-          
+
           // But verify findPosition works for the "before pill" case.
-          
+
           let found = false;
           for (let i = 0; i < editorRef.current.childNodes.length; i++) {
             if (findPosition(editorRef.current.childNodes[i])) {
-                found = true;
-                break;
+              found = true;
+              break;
             }
           }
-          
+
           if (found && targetNode) {
             const newRange = document.createRange();
             newRange.setStart(targetNode, targetOffset);
@@ -334,36 +335,36 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
             selection.removeAllRanges();
             selection.addRange(newRange);
           } else {
-             // If remaining is > 0, maybe it matches the very end?
-             // Or if remaining was 0 and we didn't find a node (empty editor?)
-             if (remaining === 0 && editorRef.current.childNodes.length === 0) {
-                 const newRange = document.createRange();
-                 newRange.setStart(editorRef.current, 0);
-                 newRange.collapse(true);
-                 selection.removeAllRanges();
-                 selection.addRange(newRange);
-             } else {
-                // Fallback: place cursor at the end
-                const lastChild = editorRef.current.lastChild;
-                if (lastChild) {
-                  const newRange = document.createRange();
-                  if (lastChild.nodeType === Node.TEXT_NODE) {
-                    newRange.setStart(lastChild, lastChild.textContent?.length || 0);
-                  } else {
-                    newRange.setStartAfter(lastChild);
-                  }
-                  newRange.collapse(true);
-                  selection.removeAllRanges();
-                  selection.addRange(newRange);
+            // If remaining is > 0, maybe it matches the very end?
+            // Or if remaining was 0 and we didn't find a node (empty editor?)
+            if (remaining === 0 && editorRef.current.childNodes.length === 0) {
+              const newRange = document.createRange();
+              newRange.setStart(editorRef.current, 0);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+            } else {
+              // Fallback: place cursor at the end
+              const lastChild = editorRef.current.lastChild;
+              if (lastChild) {
+                const newRange = document.createRange();
+                if (lastChild.nodeType === Node.TEXT_NODE) {
+                  newRange.setStart(lastChild, lastChild.textContent?.length || 0);
+                } else {
+                  newRange.setStartAfter(lastChild);
                 }
-             }
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+              }
+            }
           }
         } catch (e) {
           // Ignore cursor restoration errors
           console.warn('Failed to restore cursor position:', e);
         }
       }
-      
+
       previousValueRef.current = value;
     }
 
@@ -375,7 +376,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
     if (!editorRef.current || isComposingRef.current || isUpdatingDOMRef.current) {
       return;
     }
-    
+
     isInternalUpdateRef.current = true;
     const newValue = htmlToValue(editorRef.current);
     onChange(newValue);
@@ -402,7 +403,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
       }
 
       const range = selection.getRangeAt(0);
-      
+
       // If we need to replace a query (like "@app" when completing mention)
       if (replaceQuery) {
         // Expand the range backward to include the query text
@@ -411,7 +412,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
           const textContent = container.textContent || '';
           const cursorOffset = range.startOffset;
           const textBefore = textContent.substring(0, cursorOffset);
-          
+
           // Check if the text before cursor ends with the query
           if (textBefore.endsWith(replaceQuery)) {
             const newStart = cursorOffset - replaceQuery.length;
@@ -419,7 +420,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
           }
         }
       }
-      
+
       // Delete any selected content or query text
       range.deleteContents();
 
@@ -446,6 +447,14 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
     focus: () => {
       editorRef.current?.focus();
     },
+    clear: () => {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = '';
+        previousValueRef.current = '';
+        isInternalUpdateRef.current = false;
+        onChange('');
+      }
+    },
   }), [htmlToValue, onChange]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
@@ -456,18 +465,18 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    
+
     // Handle remove button click
     if (target.classList.contains('mention-remove')) {
       e.preventDefault();
       e.stopPropagation();
-      
+
       const mention = target.closest('.mention-pill') as HTMLElement;
       if (mention) {
         const id = mention.getAttribute('data-id') || mention.getAttribute('data-resource-id');
         const name = mention.getAttribute('data-name') || mention.getAttribute('data-doc-name');
         const type = mention.getAttribute('data-type') || (mention.classList.contains('doc-mention') ? 'doc' : 'user');
-        
+
         // Remove the mention from the value
         if (id && name) {
           const mentionText = `@[${name}](${type}:${id})`;
@@ -493,7 +502,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
       }
 
       const range = selection.getRangeAt(0);
-      
+
       // Only handle if cursor is collapsed (no selection)
       if (!range.collapsed) {
         if (onKeyDown) onKeyDown(e);
@@ -503,24 +512,24 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
       const removeMention = (el: HTMLElement) => {
         if (el.classList && el.classList.contains('mention-pill')) {
           e.preventDefault();
-          
+
           // If Backspace, we are after the element. Move cursor before it so restoration works correctly.
           // This ensures that after the element is removed, the cursor stays at the same relative position (now before the following content).
           if (e.key === 'Backspace') {
-             const selection = window.getSelection();
-             if (selection) {
-                 const range = document.createRange();
-                 range.setStartBefore(el);
-                 range.collapse(true);
-                 selection.removeAllRanges();
-                 selection.addRange(range);
-             }
+            const selection = window.getSelection();
+            if (selection) {
+              const range = document.createRange();
+              range.setStartBefore(el);
+              range.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
           }
-          
+
           // Find which occurrence this is
           const allPills = Array.from(editorRef.current?.querySelectorAll('.mention-pill') || []);
           const pillIndex = allPills.indexOf(el);
-          
+
           if (pillIndex !== -1) {
             const mentions = parseMentions(value);
             if (mentions[pillIndex]) {
@@ -610,12 +619,12 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         onCompositionStart={() => { isComposingRef.current = true; }}
-        onCompositionEnd={() => { 
+        onCompositionEnd={() => {
           isComposingRef.current = false;
           handleInput();
         }}
         className="flex-1 px-3 py-2 border-0 focus:outline-none resize-none overflow-y-auto overflow-x-auto break-words overflow-wrap-anywhere"
-        style={{ 
+        style={{
           minHeight: `${minHeight}px`,
           maxHeight: `${maxHeight}px`,
           whiteSpace: 'pre-wrap',

@@ -36,6 +36,9 @@ interface ChatInterfaceProps {
   onMentionClick?: (resourceId: string) => void;
   embedded?: boolean; // when true, render without outer border/radius so parents can frame it
   isHovered?: boolean; // when true, show channel selector
+  clientContext?: any; // Context to inject into messages (e.g. for AI Live Edit)
+  hideSidebar?: boolean; // If true, completely hides the channel list sidebar
+  defaultTopic?: string; // If provided, try to select/create a thread with this topic instead of General
 }
 
 import { ManageChannelMembersModal } from "./ManageChannelMembersModal";
@@ -99,6 +102,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onMentionClick,
   embedded = false,
   isHovered = false,
+  clientContext,
+  hideSidebar = false,
+  defaultTopic,
 }) => {
   const BASE_INPUT_HEIGHT = 44; // px, matches Button h-11
   const {
@@ -291,12 +297,67 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       !!activeThreadId && threads.some((thread) => thread.id === activeThreadId);
     if (hasActiveThread) return;
 
-    const generalThread = threads.find(
-      (thread) => thread.topic?.trim().toLowerCase() === "general"
+    // Priority: Default Topic -> General -> First Thread
+    let targetThread = null;
+    
+    if (defaultTopic) {
+        targetThread = threads.find(
+            (t) => t.topic?.trim().toLowerCase() === defaultTopic.trim().toLowerCase()
+        );
+        
+        // Use a ref to prevent double-creation in strict mode if needed, 
+        // but verify effects run once or handle gracefully.
+        // For now, if not found and we have permissions, create it.
+        if (!targetThread && canCreateThreads && projectId) {
+             // We can't await here easily in a sync effect, but we can trigger it.
+             // Better to set a flag or call an async self-contained function.
+             // Let's rely on a separate effect to create if needed.
+        }
+    }
+    
+    if (!targetThread) {
+        // If we have a default topic, DO NOT fall back to general. Wait for creation.
+        // If NO default topic, fall back to General.
+        if (!defaultTopic) {
+            targetThread = threads.find(
+              (thread) => thread.topic?.trim().toLowerCase() === "general"
+            );
+        }
+    }
+
+    if (targetThread) {
+        setActiveThread(targetThread.id);
+    } else if (!defaultTopic) {
+        // Fallback for normal mode only
+        setActiveThread(threads[0]?.id);
+    }
+  }, [threads, activeThreadId, setActiveThread, defaultTopic, canCreateThreads, projectId]);
+
+  // Effect to auto-create default topic thread if missing
+  useEffect(() => {
+    if (!defaultTopic || !projectId || !canCreateThreads) return;
+    if (threads.length === 0 && !isLoading) return; // Wait for threads to load
+
+    const targetThread = threads.find(
+        (t) => t.topic?.trim().toLowerCase() === defaultTopic.trim().toLowerCase()
     );
 
-    setActiveThread(generalThread ? generalThread.id : threads[0].id);
-  }, [threads, activeThreadId, setActiveThread]);
+    if (!targetThread && !isLoading) {
+       // Check if we are already creating it to avoid loops
+       // Simple approach: call createThread. createThread handles optimistic updates? 
+       // We should be careful. useChatStore createThread handles backend call.
+       
+       // To avoid React double-invocation issues, we can just log for now 
+       // or assume the user will create it manually? 
+       // No, user wants it to work.
+       // Let's just create it.
+       createThread(projectId, defaultTopic, [])
+        .then((newThreadId) => {
+            if (newThreadId) setActiveThread(newThreadId);
+        })
+        .catch(err => console.error("Failed to auto-create thread", err));
+    }
+  }, [defaultTopic, projectId, threads, canCreateThreads, isLoading, createThread, setActiveThread]);
 
   useEffect(() => {
     const container = messageListRef.current;
@@ -314,7 +375,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const processSend = async (threadId: string, message: string, replyTo?: number | null) => {
     try {
-      await sendMessage(threadId, message.trim(), replyTo);
+      await sendMessage(threadId, message.trim(), replyTo, clientContext);
       setNewMessage("");
       setBlockedState(null);
       return true;
@@ -719,8 +780,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </Card>
     );
   }
-
+  
   const activeThread = threads.find(t => t.id === activeThreadId);
+  
+  // If we have a defaultTopic strictly set, and the active thread doesn't match it (or is missing),
+  // show a loading or creating state instead of "General" or some other thread.
+  // This prevents "General" from leaking in.
+  const isWrongTopic = defaultTopic && activeThread?.topic?.trim().toLowerCase() !== defaultTopic.trim().toLowerCase();
+  
+  if (defaultTopic && (!activeThread || isWrongTopic)) {
+      return (
+        <div className="h-full flex items-center justify-center bg-gray-50/50">
+           <div className="flex flex-col items-center gap-3">
+             <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+             <p className="text-sm text-gray-500 font-medium">Initializing AI Underwriter...</p>
+           </div>
+        </div>
+      );
+  }
+
   const channelName = activeThread?.topic || "General";
 
   return (
@@ -730,9 +808,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {/* Threads Sidebar - Collapsible on hover */}
       <div className={cn(
         "flex-shrink-0 bg-white/60 backdrop-blur border-r border-gray-100 flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
-        isHovered ? "w-48" : "w-0"
+        (isHovered && !hideSidebar) ? "w-48" : "w-0"
       )}>
-        {isHovered && (
+        {(isHovered && !hideSidebar) && (
           <>
             <div className="p-3 border-b border-gray-100 bg-white/60">
               <div className="flex items-center justify-between mb-1">

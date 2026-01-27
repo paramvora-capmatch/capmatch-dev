@@ -41,6 +41,11 @@ const TEMPLATES = [
         name: "Current Rent Roll",
         filename: "rent_roll_template.xlsx",
         description: "Rent Roll Template"
+    },
+    {
+        name: "Personal Financial Statement",
+        filename: "pfs_template.xlsx",
+        description: "Personal Financial Statement Template"
     }
 ];
 
@@ -65,16 +70,16 @@ async function seedTemplates() {
         console.error("❌ No Organization found. Run seed-hoque or seed-demo first.");
         return;
     }
-    
+
     // Get Owner (first member of org)
     const { data: members } = await supabase.from("org_members").select("user_id").eq("org_id", orgId).limit(1);
     if (members && members.length > 0) ownerId = members[0].user_id;
-    
+
     // Ensure bucket exists (Org ID is bucket name usually)
     const BUCKET_NAME = orgId;
     const { data: buckets } = await supabase.storage.listBuckets();
     if (!buckets.find(b => b.name === BUCKET_NAME)) {
-         await supabase.storage.createBucket(BUCKET_NAME, { public: false, fileSizeLimit: 52428800 });
+        await supabase.storage.createBucket(BUCKET_NAME, { public: false, fileSizeLimit: 52428800 });
     }
 
     // 3. Process Templates
@@ -99,18 +104,18 @@ async function seedTemplates() {
             });
 
         if (uploadError) {
-             console.error(`Failed to upload ${template.filename}:`, uploadError);
-             continue;
+            console.error(`Failed to upload ${template.filename}:`, uploadError);
+            continue;
         }
 
         // Register in DB
         let resourceId = null;
-        
+
         const { data: existingResources } = await supabase
             .from("resources")
             .select("id")
             .eq("name", template.name)
-            .eq("org_id", orgId) 
+            .eq("org_id", orgId)
             .eq("resource_type", "FILE")
             .single();
 
@@ -127,12 +132,11 @@ async function seedTemplates() {
                     org_id: orgId,
                     // No project_id for global templates, or maybe assign to a 'Templates' project?
                     // Leaving project_id null implies global/org level resource.
-                    resource_type: "FILE", 
                     parent_id: null // Root of org or similar
                 })
                 .select()
                 .single();
-            
+
             if (insertError) {
                 console.error(`Failed to create resource for ${template.name}:`, insertError);
                 continue;
@@ -149,7 +153,7 @@ async function seedTemplates() {
         const versionNumber = (count || 0) + 1;
 
         console.log(`Creating Version ${versionNumber}...`);
-        
+
         const fileMetadata = {
             size: fileContent.length,
             mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -161,19 +165,19 @@ async function seedTemplates() {
             .insert({
                 resource_id: resourceId,
                 version_number: versionNumber,
-                storage_path: storagePath, 
+                storage_path: storagePath,
                 status: "active",
                 created_by: ownerId,
-                metadata: fileMetadata 
+                metadata: fileMetadata
             })
             .select()
             .single();
 
         if (verError) {
-             console.error(`Failed to create version:`, verError);
+            console.error(`Failed to create version:`, verError);
         } else {
             // Update resource current version
-             await supabase
+            await supabase
                 .from("resources")
                 .update({ current_version_id: version.id })
                 .eq("id", resourceId);
