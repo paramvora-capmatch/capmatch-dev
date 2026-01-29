@@ -8342,7 +8342,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																Rent
 															</th>
 															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Lease Term
+																Rent/SF
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Recurring Charges
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Term
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Next Increase
 															</th>
 															<th className="px-3 py-2"></th>
 														</tr>
@@ -8386,6 +8395,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			"baths",
 																			"sf",
 																			"monthlyRent",
+																			"recurringCharges",
+																			"nextRentIncreaseAmount",
 																		].includes(
 																			key
 																		)
@@ -8437,10 +8448,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			"",
 																		monthlyRent:
 																			undefined,
+																		recurringCharges:
+																			undefined,
 																		leaseStart:
 																			"",
 																		leaseEnd:
 																			"",
+																		nextRentIncreaseDate:
+																			"",
+																		nextRentIncreaseAmount:
+																			undefined,
 																	});
 																	handleInputChange(
 																		"rentRollUnits",
@@ -8706,6 +8723,43 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																					</div>
 																				</td>
 																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<div className="text-sm text-gray-500 font-medium">
+																						{row.monthlyRent && row.sf ?
+																							`$${(row.monthlyRent / row.sf).toFixed(2)}` :
+																							"N/A"}
+																					</div>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<div className="flex items-center gap-1">
+																						<span className="text-gray-500">
+																							$
+																						</span>
+																						<input
+																							type="number"
+																							className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																							value={
+																								row.recurringCharges ??
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleRowChange(
+																									idx,
+																									"recurringCharges",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																							placeholder="Charges"
+																						/>
+																					</div>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
 																					<div className="flex flex-col gap-1">
 																						<input
 																							type="date"
@@ -8751,6 +8805,60 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																								isLocked
 																							}
 																						/>
+																					</div>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<div className="flex flex-col gap-1">
+																						<input
+																							type="date"
+																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																							value={
+																								row.nextRentIncreaseDate ||
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleRowChange(
+																									idx,
+																									"nextRentIncreaseDate",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																						<div className="flex items-center gap-1">
+																							<span className="text-[10px] text-gray-500">
+																								$
+																							</span>
+																							<input
+																								type="number"
+																								className="w-24 rounded-md border border-gray-200 px-1 py-0.5 text-[10px] focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																								value={
+																									row.nextRentIncreaseAmount ??
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleRowChange(
+																										idx,
+																										"nextRentIncreaseAmount",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLocked
+																								}
+																								placeholder="Amount"
+																							/>
+																						</div>
 																					</div>
 																				</td>
 																				<td className="px-3 py-2 whitespace-nowrap align-middle text-right">

@@ -1569,8 +1569,11 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> SF </th>
 																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Status </th>
 																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Tenant </th>
-																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Lease Term </th>
-																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Monthly Rent </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Rent </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Rent/SF </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Recurring </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Term </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Next Increase </th>
 																								</tr>
 																							</thead>
 																							<tbody className="bg-white divide-y divide-gray-200">
@@ -1590,8 +1593,21 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																											<td className="px-3 py-2 whitespace-nowrap"> {unit.sf?.toLocaleString() || "N/A"} </td>
 																											<td className="px-3 py-2 whitespace-nowrap"> {unit.status || "N/A"} </td>
 																											<td className="px-3 py-2 whitespace-nowrap"> {unit.tenantName || "N/A"} </td>
-																											<td className="px-3 py-2 whitespace-nowrap text-xs"> {unit.leaseStart || "N/A"} - {unit.leaseEnd || "N/A"} </td>
 																											<td className="px-3 py-2 whitespace-nowrap"> {formatCurrency(unit.monthlyRent)} </td>
+																											<td className="px-3 py-2 whitespace-nowrap">
+																												{unit.rentPSF ? `$${unit.rentPSF.toFixed(2)}` :
+																													(unit.monthlyRent && unit.sf ? `$${(unit.monthlyRent / unit.sf).toFixed(2)}` : "N/A")}
+																											</td>
+																											<td className="px-3 py-2 whitespace-nowrap"> {formatCurrency(unit.recurringCharges)} </td>
+																											<td className="px-3 py-2 whitespace-nowrap text-xs"> {unit.leaseStart || "N/A"} - {unit.leaseEnd || "N/A"} </td>
+																											<td className="px-3 py-2 whitespace-nowrap text-xs">
+																												{unit.nextRentIncreaseDate ? (
+																													<div>
+																														{unit.nextRentIncreaseDate}
+																														{unit.nextRentIncreaseAmount ? ` (${formatCurrency(unit.nextRentIncreaseAmount)})` : ""}
+																													</div>
+																												) : "N/A"}
+																											</td>
 																										</tr>
 																									)
 																								)}
