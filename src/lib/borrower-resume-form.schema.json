@@ -62,7 +62,10 @@
 					"id": "track-record",
 					"title": "2.3 Track Record",
 					"fields": [
-						"trackRecord"
+						"trackRecord",
+						"historicalCostBasis",
+						"historicalExitValues",
+						"constructionWorkInProgress"
 					]
 				}
 			],
@@ -98,7 +101,12 @@
 						"netWorthRange",
 						"liquidityRange",
 						"assets",
-						"liabilities"
+						"liabilities",
+						"developmentGuarantees",
+						"equitypartnersList",
+						"historicalEquityDistributions",
+						"retainedEarningsCalculated",
+						"priorYearsRetainedEarnings"
 					]
 				},
 				{
@@ -358,6 +366,38 @@
 		},
 		"contingentLiabilities": {
 			"label": "Contingent Liabilities",
+			"required": false
+		},
+		"historicalCostBasis": {
+			"label": "Historical Cost Basis",
+			"required": false
+		},
+		"historicalExitValues": {
+			"label": "Historical Exit Values",
+			"required": false
+		},
+		"constructionWorkInProgress": {
+			"label": "Construction Work In Progress",
+			"required": false
+		},
+		"developmentGuarantees": {
+			"label": "Development Guarantees",
+			"required": false
+		},
+		"equitypartnersList": {
+			"label": "Equity Partners",
+			"required": false
+		},
+		"historicalEquityDistributions": {
+			"label": "Historical Equity Distributions",
+			"required": false
+		},
+		"retainedEarningsCalculated": {
+			"label": "Retained Earnings (Calculated)",
+			"required": false
+		},
+		"priorYearsRetainedEarnings": {
+			"label": "Prior Years Retained Earnings",
 			"required": false
 		}
 	}
