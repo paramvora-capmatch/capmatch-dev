@@ -789,13 +789,6 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Currency",
 		section: "financial-details",
 	},
-	t12MonthlyData: {
-		fieldId: "t12MonthlyData",
-		description: "Monthly T-12 financial operating data.",
-		expectedValue: "Table/Array of monthly financial objects",
-		dataType: "Table",
-		section: "financial-details",
-	},
 	rentRollUnits: {
 		fieldId: "rentRollUnits",
 		description: "Detailed, unit-level rent roll information.",
@@ -998,13 +991,6 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		fieldId: "capexBudget",
 		description: "Budget for capital improvements.",
 		expectedValue: "Currency, e.g., $1,500,000",
-		dataType: "Currency",
-		section: "financials",
-	},
-	propertyNoiT12: {
-		fieldId: "propertyNoiT12",
-		description: "Trailing 12-month Net Operating Income.",
-		expectedValue: "Currency, e.g., $450,000",
 		dataType: "Currency",
 		section: "financials",
 	},

@@ -268,8 +268,7 @@
 						"capExReserve",
 						"marketingLeasing",
 						"serviceCoordination",
-						"totalOperatingExpenses",
-						"t12MonthlyData"
+						"totalOperatingExpenses"
 					]
 				},
 				{
@@ -463,11 +462,11 @@
 				"riskHigh",
 				"riskMedium",
 				"riskLow",
-				"t12MonthlyData",
 				"rentRollUnits",
 				"capexItems"
 			]
-		},		{
+		},
+		{
 			"id": "market-context",
 			"title": "Market Context",
 			"icon": "Globe",
@@ -1083,10 +1082,6 @@
 		},
 		"totalOperatingExpenses": {
 			"label": "Total Operating Expenses",
-			"required": false
-		},
-		"t12MonthlyData": {
-			"label": "T-12 Monthly Data",
 			"required": false
 		},
 		"fiveYearCashFlow": {
