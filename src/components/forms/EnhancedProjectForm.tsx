@@ -2928,10 +2928,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		(fieldId: string, sectionId: string) => {
 			// Filter fields based on project's deal type
 			const dealType: DealType = (existingProject.deal_type as DealType) ?? 'ground_up';
-            // Debug deal type
-            if (fieldId === 'projectName') {
-               console.log('[EnhancedProjectForm] project:', existingProject.id, 'deal_type:', existingProject.deal_type, 'resolved:', dealType);
-            }
+			// Debug deal type
+			if (fieldId === 'projectName') {
+				console.log('[EnhancedProjectForm] project:', existingProject.id, 'deal_type:', existingProject.deal_type, 'resolved:', dealType);
+			}
 			if (!isFieldVisibleForDealType(fieldId, dealType, true)) {
 				return null;
 			}
@@ -8926,6 +8926,211 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											</div>
 										</div>
 									)}
+
+								{/* T-12 Monthly Data Table */}
+								{sectionId === "financial-details" && subsectionId === "operating-expenses" && (
+									<div
+										className={cn(
+											getTableWrapperClasses(
+												"t12MonthlyData",
+												sectionId
+											),
+											"p-4 mt-4"
+										)}
+									>
+										<div className="mb-3 flex items-center justify-between">
+											<div className="flex items-center gap-2">
+												<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+													T-12 Monthly Data
+												</h4>
+												{isFieldRequiredFromSchema(
+													"t12MonthlyData"
+												) && (
+														<span className="text-red-500 ml-1">
+															*
+														</span>
+													)}
+												<FieldHelpTooltip
+													fieldId="t12MonthlyData"
+													fieldMetadata={
+														fieldMetadata[
+														"t12MonthlyData"
+														]
+													}
+												/>
+											</div>
+											<div className="flex items-center gap-1">
+												{renderFieldLockButton(
+													"t12MonthlyData",
+													sectionId
+												)}
+											</div>
+										</div>
+
+										<div className="overflow-x-auto">
+											<table className="min-w-full divide-y divide-gray-200 text-sm">
+												<thead className="bg-gray-50">
+													<tr>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Month</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">GPR</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Other Income</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Concessions</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Bad Debt</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Utilities</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">RE Taxes</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Insurance</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Mgmt Fee</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Payroll</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">R&M</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Contract Svc</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Marketing</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">G&A</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Make Ready</th>
+														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">CapEx</th>
+														<th className="px-3 py-2"></th>
+													</tr>
+												</thead>
+												<tbody className="bg-white divide-y divide-gray-100">
+													{(() => {
+														const value = (formData as any).t12MonthlyData;
+														const rows: any[] = Array.isArray(value) ? value : [];
+														const isLocked = isFieldLocked("t12MonthlyData", sectionId);
+
+														const handleRowChange = (
+															index: number,
+															key: string,
+															raw: string
+														) => {
+															const next = [...rows];
+															const current = next[index] || {};
+															let v: any = raw;
+
+															// Parse numeric fields
+															if ([
+																"grossPotentialRent",
+																"otherIncome",
+																"concessions",
+																"badDebt",
+																"utilities",
+																"realEstateTaxes",
+																"insurance",
+																"managementFee",
+																"payroll",
+																"repairsMaintenance",
+																"contractServices",
+																"marketing",
+																"generalAdmin",
+																"makeReady",
+																"capex"
+															].includes(key)) {
+																v = raw.trim() === "" ? undefined : Math.max(0, Number(raw));
+																if (Number.isNaN(v)) {
+																	v = undefined;
+																}
+															}
+
+															next[index] = { ...current, [key]: v };
+															handleInputChange("t12MonthlyData", next);
+														};
+
+														const handleAddRow = () => {
+															const next = [...rows];
+															next.push({
+																month: "",
+																grossPotentialRent: undefined,
+																otherIncome: undefined,
+																concessions: undefined,
+																badDebt: undefined,
+																utilities: undefined,
+																realEstateTaxes: undefined,
+																insurance: undefined,
+																managementFee: undefined,
+																payroll: undefined,
+																repairsMaintenance: undefined,
+																contractServices: undefined,
+																marketing: undefined,
+																generalAdmin: undefined,
+																makeReady: undefined,
+																capex: undefined,
+															});
+															handleInputChange("t12MonthlyData", next);
+														};
+
+														const handleRemoveRow = (index: number) => {
+															const next = [...rows];
+															next.splice(index, 1);
+															handleInputChange("t12MonthlyData", next);
+														};
+
+														const displayRows = rows.length > 0 ? rows : [{}];
+
+														return (
+															<>
+																{displayRows.map((row, idx) => (
+																	<tr key={idx}>
+																		<td className="px-3 py-2 whitespace-nowrap align-middle">
+																			<input
+																				type="text"
+																				className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																				value={row.month || ""}
+																				onChange={(e) => handleRowChange(idx, "month", e.target.value)}
+																				disabled={isLocked}
+																				placeholder="Jan-25"
+																			/>
+																		</td>
+																		{["grossPotentialRent", "otherIncome", "concessions", "badDebt", "utilities", "realEstateTaxes", "insurance", "managementFee", "payroll", "repairsMaintenance", "contractServices", "marketing", "generalAdmin", "makeReady", "capex"].map((field) => (
+																			<td key={field} className="px-3 py-2 whitespace-nowrap align-middle">
+																				<div className="flex items-center gap-1">
+																					<span className="text-gray-500">$</span>
+																					<input
+																						type="number"
+																						className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
+																						value={row[field] ?? ""}
+																						onChange={(e) => handleRowChange(idx, field, e.target.value)}
+																						disabled={isLocked}
+																						placeholder="0"
+																					/>
+																				</div>
+																			</td>
+																		))}
+																		<td className="px-3 py-2 whitespace-nowrap align-middle text-right">
+																			<Button
+																				type="button"
+																				variant="ghost"
+																				size="sm"
+																				onClick={() => handleRemoveRow(idx)}
+																				disabled={isLocked || rows.length <= 1}
+																				className="text-red-500 hover:text-red-700 disabled:opacity-30 p-1 h-auto"
+																			>
+																				<X className="h-4 w-4" />
+																			</Button>
+																		</td>
+																	</tr>
+																))}
+																{!isLocked && (
+																	<tr>
+																		<td colSpan={17} className="px-3 py-3">
+																			<Button
+																				type="button"
+																				variant="ghost"
+																				size="sm"
+																				onClick={handleAddRow}
+																				className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 p-0 h-auto"
+																			>
+																				<Plus className="h-4 w-4" />
+																				Add Month
+																			</Button>
+																		</td>
+																	</tr>
+																)}
+															</>
+														);
+													})()}
+												</tbody>
+											</table>
+										</div>
+									</div>
+								)}
 
 								{sectionId === "site-context" &&
 									subsectionId === "project-media" && (

@@ -1061,6 +1061,24 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																					return null;
 																				}
 
+																				// Skip table fields that have custom rendering below
+																				if (
+																					[
+																						"t12MonthlyData",
+																						"rentRollUnits",
+																						"fiveYearCashFlow",
+																						"returnsBreakdown",
+																						"quarterlyDeliverySchedule",
+																						"sensitivityAnalysis",
+																						"residentialUnitMix",
+																						"commercialSpaceMix"
+																					].includes(
+																						field.fieldId
+																					)
+																				) {
+																					return null;
+																				}
+
 																				const formattedValue =
 																					formatFieldValue(
 																						value,
@@ -1617,6 +1635,74 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																				</div>
 																			);
 																		})()}
+
+																	{/* T-12 Monthly Data Table */}
+																	{(() => {
+																		const t12Data = getFieldValue(
+																			project,
+																			"t12MonthlyData"
+																		);
+																		const t12Array = Array.isArray(t12Data) ? t12Data : null;
+
+																		if (!t12Array || t12Array.length === 0) {
+																			return null;
+																		}
+
+																		return (
+																			<div>
+																				<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																					T-12 Monthly Data
+																				</h4>
+																				<div className="overflow-x-auto">
+																					<table className="min-w-full divide-y divide-gray-200 text-sm">
+																						<thead className="bg-gray-50">
+																							<tr>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Month</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">GPR</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Other Income</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Concessions</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bad Debt</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Utilities</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">RE Taxes</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Insurance</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mgmt Fee</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Payroll</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">R&M</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Contract Svc</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Marketing</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">G&A</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Make Ready</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">CapEx</th>
+																							</tr>
+																						</thead>
+																						<tbody className="bg-white divide-y divide-gray-200">
+																							{t12Array.map((monthData: any, idx: number) => (
+																								<tr key={idx}>
+																									<td className="px-3 py-2 whitespace-nowrap font-medium">{monthData.month || "N/A"}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.grossPotentialRent)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.otherIncome)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.concessions)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.badDebt)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.utilities)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.realEstateTaxes)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.insurance)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.managementFee)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.payroll)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.repairsMaintenance)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.contractServices)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.marketing)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.generalAdmin)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.makeReady)}</td>
+																									<td className="px-3 py-2 whitespace-nowrap">{formatCurrency(monthData.capex)}</td>
+																								</tr>
+																							))}
+																						</tbody>
+																					</table>
+																				</div>
+																			</div>
+																		);
+																	})()}
+
 																	{/* Five Year Cash Flow */}
 																	{cashFlowArray &&
 																		cashFlowArray.length >

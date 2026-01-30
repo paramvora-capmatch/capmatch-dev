@@ -1416,6 +1416,13 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Table",
 		section: "financial-details",
 	},
+	t12MonthlyData: {
+		fieldId: "t12MonthlyData",
+		description: "Trailing 12 months of monthly financial performance data including income and expenses.",
+		expectedValue: "Table/Array of monthly financial objects with fields like month, grossPotentialRent, otherIncome, concessions, badDebt, utilities, realEstateTaxes, insurance, managementFee, payroll, repairsMaintenance, contractServices, marketing, generalAdmin, makeReady, capex",
+		dataType: "Table",
+		section: "financial-details",
+	},
 	yieldOnCost: {
 		fieldId: "yieldOnCost",
 		description: "Yield on Cost (NOI / TDC).",
@@ -2886,7 +2893,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Text",
 		section: "site-context",
 	},
-	
+
 	// Section 7.3: Environmental (Additional)
 	earthquakeDeductible: {
 		fieldId: "earthquakeDeductible",
