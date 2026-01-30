@@ -37,7 +37,7 @@ interface StageProps {
     onSelectFromResume: (docName: string) => void;
     onGenerate: (docName: string) => void;
     isGenerating: (docName: string) => boolean;
-    onViewTemplate: (docName: string) => void;
+
     onGenerateStage: (docs: DocItem[]) => void;
     onActionRequired: (idOrName: string) => void;
     progress?: { total: number; completed: number };
@@ -54,7 +54,7 @@ const StageAccordion: React.FC<StageProps> = ({
     onSelectFromResume,
     onGenerate,
     isGenerating,
-    onViewTemplate,
+
     onGenerateStage,
     onActionRequired,
     progress
@@ -193,14 +193,7 @@ const StageAccordion: React.FC<StageProps> = ({
 
                                 {/* Hover View: Actions */}
                                 <div className="hidden group-hover:flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-200">
-                                    {/* View Template Action */}
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onViewTemplate(doc.name); }}
-                                        className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 transition-all"
-                                    >
-                                        <FileText className="h-3.5 w-3.5 text-gray-500" />
-                                        <span>Template</span>
-                                    </button>
+
 
                                     {/* Document Actions */}
                                     {doc.file ? (
@@ -377,8 +370,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
     const [showResumeModal, setShowResumeModal] = useState(false);
     const [targetDocName, setTargetDocName] = useState<string | null>(null);
-    const [templatesMap, setTemplatesMap] = useState<Record<string, string>>({});
-    const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+
     const [resources, setResources] = useState<any[]>([]);
 
     // New validation state
@@ -395,25 +387,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     }, [projectId, loadThreads]);
 
 
-    React.useEffect(() => {
-        const fetchTemplates = async () => {
-            if (!projectId) return;
 
-            try {
-                const response = await apiClient.get<Array<{ name: string, resource_id: string }>>(`/api/v1/underwriting/templates?project_id=${projectId}`);
-                const map: Record<string, string> = {};
-                if (response.data) {
-                    response.data.forEach(t => {
-                        map[t.name] = t.resource_id;
-                    });
-                }
-                setTemplatesMap(map);
-            } catch (err) {
-                console.warn("Failed to fetch templates list:", err);
-            }
-        };
-        fetchTemplates();
-    }, [projectId]);
 
     // Fetch resources
     useEffect(() => {
@@ -670,16 +644,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         }
     };
 
-    // View Template logic - Opens preview modal
-    const handleViewTemplate = async (docName: string) => {
-        const resourceId = templatesMap[docName] || templatesMap[`${docName} Template`];
-        if (resourceId) {
-            setSelectedTemplateId(resourceId);
-        } else {
-            console.warn(`Template not found for: ${docName}`);
-            toast.error("Template not available for preview yet.");
-        }
-    };
+
 
     const handleGenerateStage = async (stageId: string, docs: DocItem[]) => {
         const toGenerate = docs.filter(doc => doc.canGenerate && !generatingDocs.has(doc.name));
@@ -723,7 +688,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     // Merge fetched files into stages
     const stages = useMemo(() => {
         console.log("UnderwritingVault: received files:", files);
-        console.log("UnderwritingVault: templatesMap:", templatesMap);
+
 
         // Create a lookup map by name for O(1) access
         const fileMap = new Map<string, DocumentFile>();
@@ -781,7 +746,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 return doc;
             })
         }));
-    }, [files, templatesMap, threads, projectId, validationData]);
+    }, [files, threads, projectId, validationData]);
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -806,7 +771,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                         onSelectFromResume={handleSelectFromResume}
                         onGenerate={(docName) => handleGenerateDoc(docName)}
                         isGenerating={(name) => generatingDocs.has(name)}
-                        onViewTemplate={handleViewTemplate}
+
                         onGenerateStage={(docs) => handleGenerateStage(stage.id, docs)} // Pass docs, stage ID implicit from state/map iteration? No, pass stage.id
                         onActionRequired={handleActionRequired}
                         progress={stageProgress[stage.id]}
@@ -838,13 +803,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     }}
                 />
             )}
-            {selectedTemplateId && (
-                <DocumentPreviewModal
-                    resourceId={selectedTemplateId}
-                    onClose={() => setSelectedTemplateId(null)}
-                    openVersionsDefault={false}
-                />
-            )}
+
             <ValidationErrorsModal
                 isOpen={validationModal.isOpen}
                 onClose={() => setValidationModal({ ...validationModal, isOpen: false })}
