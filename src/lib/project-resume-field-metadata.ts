@@ -1421,6 +1421,11 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		description: "Trailing 12 months of monthly financial performance data including income and expenses.",
 		expectedValue: "Table/Array of monthly financial objects with fields like month, grossPotentialRent, otherIncome, concessions, badDebt, utilities, realEstateTaxes, insurance, managementFee, payroll, repairsMaintenance, contractServices, marketing, generalAdmin, makeReady, capex",
 		dataType: "Table",
+	t12FinancialData: {
+		fieldId: "t12FinancialData",
+		description: "Trailing 12-month income statement with hierarchical categories and monthly values.",
+		expectedValue: "JSON object with hierarchical financial data",
+		dataType: "JSON",
 		section: "financial-details",
 	},
 	yieldOnCost: {

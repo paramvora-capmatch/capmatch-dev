@@ -59,6 +59,8 @@ import {
 } from "@/lib/project-resume-field-metadata";
 import { saveProjectResume } from "@/lib/project-queries";
 import { isFieldVisibleForDealType, type DealType } from "@/lib/deal-type-field-config";
+import { T12FinancialTable } from "@/components/project/T12FinancialTable";
+import { T12FinancialData } from "@/types/t12-financial";
 import { supabase } from "@/lib/supabaseClient";
 
 interface EnhancedProjectFormProps {
@@ -5810,6 +5812,54 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													</tbody>
 												</table>
 											</div>
+										</div>
+									)}
+
+								{/* T12 Financials */}
+								{sectionId === "financial-details" &&
+									subsectionId === "t12-financials" && (
+										<div
+											className={cn(
+												getTableWrapperClasses(
+													"t12FinancialData",
+													sectionId
+												),
+												"p-4"
+											)}
+										>
+											<div className="mb-3 flex items-center justify-between">
+												<div className="flex items-center gap-2">
+													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+														T12 Financial Statement
+													</h4>
+													{isFieldRequiredFromSchema(
+														"t12FinancialData"
+													) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
+													<FieldHelpTooltip
+														fieldId="t12FinancialData"
+														fieldMetadata={
+															fieldMetadata[
+															"t12FinancialData"
+															]
+														}
+													/>
+												</div>
+												<div className="flex items-center gap-1">
+													{renderFieldLockButton(
+														"t12FinancialData",
+														sectionId
+													)}
+												</div>
+											</div>
+											<T12FinancialTable
+												data={(formData as any).t12FinancialData}
+												onChange={(updated) => handleInputChange("t12FinancialData", updated)}
+												editable={!isFieldLocked("t12FinancialData", sectionId)}
+											/>
 										</div>
 									)}
 

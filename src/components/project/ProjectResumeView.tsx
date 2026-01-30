@@ -42,6 +42,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { useCallback } from "react";
 import { useAutofill } from "@/hooks/useAutofill";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
+import { T12FinancialTable } from "@/components/project/T12FinancialTable";
+import { T12FinancialData } from "@/types/t12-financial";
 
 interface ProjectResumeViewProps {
 	project: ProjectProfile;
@@ -927,7 +929,9 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																				field.fieldId ===
 																				"riskMedium" ||
 																				field.fieldId ===
-																				"riskLow"
+																				"riskLow" ||
+																				field.fieldId ===
+																				"t12FinancialData"
 																			) {
 																				return false;
 																			}
@@ -954,11 +958,11 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																				value
 																			);
 																		}
-																	);
+																	).filter((f) => f.fieldId !== "t12FinancialData");
 
 															if (
-																visibleFieldMetas.length ===
-																0
+																visibleFieldMetas.length === 0 &&
+																subsectionId !== "t12-financials"
 															) {
 																return null;
 															}
@@ -1114,6 +1118,19 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																			}
 																		)}
 																	</div>
+
+																	{/* T12 Financial Table */}
+																	{subsectionId === "t12-financials" && (() => {
+																		const t12Data = getFieldValue(project, "t12FinancialData") as T12FinancialData | null;
+																		return (
+																			<div className="mt-4 col-span-2">
+																				<T12FinancialTable
+																					data={t12Data}
+																					editable={canEdit}
+																				/>
+																			</div>
+																		);
+																	})()}
 																</div>
 															);
 														}

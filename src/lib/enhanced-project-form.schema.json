@@ -468,6 +468,11 @@
 						"shortTermRentalIncome",
 						"nonRevenueUnitCount"
 					]
+				},
+				{
+					"id": "t12-financials",
+					"title": "3.8 T12 Financial Data",
+					"fields": []
 				}
 			],
 			"fields": [
@@ -620,7 +625,8 @@
 				"totalDelinquencyAmount",
 				"leaseRolloverSchedule"
 			]
-		},		{
+		},
+		{
 			"id": "market-context",
 			"title": "Market Context",
 			"icon": "Globe",
@@ -2396,170 +2402,669 @@
 			"label": "Stabilization Status",
 			"required": false
 		},
-		"ownershipType": { "label": "Ownership Type", "required": true },
-		"groundLeaseTerm": { "label": "Ground Lease Term", "required": false },
-		"groundLeaseRent": { "label": "Ground Lease Rent", "required": false },
-		"constructionClass": { "label": "Construction Class", "required": false },
-		"remainingEconomicLife": { "label": "Remaining Economic Life", "required": false },
-		"lastRenovationDate": { "label": "Last Renovation Date", "required": false },
-		"commercialNRSF": { "label": "Commercial NRSF", "required": false },
-		"unitBalconyCount": { "label": "Unit Balcony Count", "required": false },
-		"unitWasherDryer": { "label": "In-Unit W/D", "required": false },
-		"unitKitchenIsland": { "label": "Kitchen Island", "required": false },
-		"unitHardwoodFloors": { "label": "Hardwood Floors", "required": false },
-		"unitEntryType": { "label": "Unit Entry Type", "required": false },
-		"commonAreaFurnishings": { "label": "Common Area Furnishings", "required": false },
-		"guaranteedMaximumPrice": { "label": "GMP Contract", "required": false },
-		"constructionRetainage": { "label": "Construction Retainage %", "required": false },
-		"sharedSavingsSplit": { "label": "Shared Savings Split", "required": false },
-		"partnerEquityBreakdown": { "label": "Partner Equity Breakdown", "required": false },
-		"mezzanineDebtAmount": { "label": "Mezzanine Debt Amount", "required": false },
-		"preferredEquityAmount": { "label": "Preferred Equity Amount", "required": false },
-		"liens": { "label": "Liens", "required": false },
-		"existingLoanDefeasanceFee": { "label": "Defeasance Fee", "required": false },
-		"managementFeePercent": { "label": "Management Fee %", "required": false },
-		"appraisalMarketingTime": { "label": "Appraisal Mkt Time", "required": false },
-		"finalStabilizedValue": { "label": "Final Stabilized Value", "required": false },
-		"finalCapRate": { "label": "Final Cap Rate", "required": false },
-		"totalDelinquencyAmount": { "label": "Total Delinquency", "required": false },
-		"leaseRolloverSchedule": { "label": "Lease Rollover Schedule", "required": false },
-		"employmentSector_Education": { "label": "Emp. Sector: Education %", "required": false },
-		"employmentSector_HealthCare": { "label": "Emp. Sector: Healthcare %", "required": false },
-		"employmentSector_Manufacturing": { "label": "Emp. Sector: Manufacturing %", "required": false },
-		"jobCreationReportingReq": { "label": "Job Creation Reporting?", "required": false },
-		"reportingDuration": { "label": "Reporting Duration", "required": false },
-		"localLaborUtilizationReq": { "label": "Local Labor Req?", "required": false },
-		"developmentRightsTransferability": { "label": "Dev Rights Transferable?", "required": false },
-		"assignmentConsentReq": { "label": "Assignment Consent Req?", "required": false },
-		"abatementSchedule": { "label": "Abatement Schedule", "required": false },
-		"abatementClawbackProvision": { "label": "Abatement Clawback?", "required": false },
-		"taxCircuitBreakerCap": { "label": "Tax Circuit Breaker Cap", "required": false },
-		"paymentInLieuOfTaxes": { "label": "PILOT", "required": false },
-		"abatementTriggerEvent": { "label": "Abatement Trigger", "required": false },
-		"effectiveAbatementRate": { "label": "Effective Abatement Rate", "required": false },
-		"zoningMaxHeight": { "label": "Zoning Max Height", "required": false },
-		"zoningMinLotWidth": { "label": "Zoning Min Lot Width", "required": false },
-		"zoningSetbacks": { "label": "Zoning Setbacks", "required": false },
-		"foundationSystemType": { "label": "Foundation System", "required": false },
-		"roofWarrantyExpiration": { "label": "Roof Warranty Expiration", "required": false },
-		"constructionFenceReq": { "label": "Construction Fence Req?", "required": false },
-		"publicSpaceMaintenanceReq": { "label": "Public Space Maint. Req?", "required": false },
-		"publicAccessEasement": { "label": "Public Access Easement?", "required": false },
-		"parkingRequirementStatus": { "label": "Parking Req. Status", "required": false },
-		"earthquakeDeductible": { "label": "EQ Deductible", "required": false },
-		"businessIncomeCoverage": { "label": "BI Coverage", "required": false },
-		"equipmentBreakdownCoverage": { "label": "Equip. Breakdown Coverage", "required": false },
-		"cyberLiabilityCoverage": { "label": "Cyber Liability Coverage", "required": false },
-		"generalLiabilityAggregate": { "label": "Gen. Liability Aggregate", "required": false },
-		"liabilityPerOccurrence": { "label": "Liability Per Occurrence", "required": false },
-		"terrorismPremium": { "label": "Terrorism Premium", "required": false },
-		"umbrellaLiabilityLimit": { "label": "Umbrella Limit", "required": false },
-		"mineSubsidenceCoverage": { "label": "Mine Subsidence Coverage", "required": false },
-		"insuranceInflationGuard": { "label": "Ins. Inflation Guard", "required": false },
-		"insuranceCoinsuranceReq": { "label": "Ins. Coinsurance Req", "required": false },
-		"protectiveSafeguardCode": { "label": "Protective Safeguard Code", "required": false },
-		"insuranceExclusion_CommunicableDisease": { "label": "Excl. Communicable Disease", "required": false },
-		"insuranceExclusion_FungiBacteria": { "label": "Excl. Fungi/Bacteria", "required": false },
-		"insuranceExclusion_Asbestos": { "label": "Excl. Asbestos", "required": false },
-		"ordOrLawCoverageB_Demolition": { "label": "Ord. Law: Demolition", "required": false },
-		"ordOrLawCoverageC_IncCost": { "label": "Ord. Law: Inc. Cost", "required": false },
-		"sewerDrainBackupLimit": { "label": "Sewer Backup Limit", "required": false },
-		"waitingPeriod_BusinessIncome": { "label": "Waiting Period (BI)", "required": false },
-		"subLimit_AccountsReceivable": { "label": "Sublimit: AR", "required": false },
-		"subLimit_FineArts": { "label": "Sublimit: Fine Arts", "required": false },
-		"subLimit_PollutantCleanup": { "label": "Sublimit: Pollutant Cleanup", "required": false },
-		"subLimit_ComputerFraud": { "label": "Sublimit: Computer Fraud", "required": false },
-		"subLimit_MisdirectedPayment": { "label": "Sublimit: Misdirected Payment", "required": false },
-		"subLimit_CyberExtortion": { "label": "Sublimit: Cyber Extortion", "required": false },
-		"federalTerrorismShare": { "label": "Fed. Terrorism Share", "required": false },
-		"femaMapPanelID": { "label": "FEMA Map Panel ID", "required": false },
-		"femaMapDate": { "label": "FEMA Map Date", "required": false },
-		"insuranceStockValuationMethod": { "label": "Stock Valuation Method", "required": false },
-		"tenantImprovementAmortization": { "label": "TI Amortization", "required": false },
-		"percentageRentThreshold": { "label": "Percentage Rent Threshold", "required": false },
-		"relatedPartyTenantStatus": { "label": "Related Party Tenant?", "required": false },
-		"relatedPartyRentStatus": { "label": "Related Party Rent Status", "required": false },
-		"financialReportingBasis": { "label": "Financial Reporting Basis", "required": false },
-		"groundLessor": { "label": "Ground Lessor", "required": false },
-		"groundLeaseExpiration": { "label": "Ground Lease Expiration", "required": false },
-		"zoningOverlayDistrict": { "label": "Zoning Overlay", "required": false },
-		"restorationFundThreshold": { "label": "Restoration Fund Threshold", "required": false },
-		"casualtyTerminationRight": { "label": "Casualty Termination Right", "required": false },
-		"substantialDestructionThreshold_Area": { "label": "Substantial Destruction (Area)", "required": false },
-		"substantialDestructionThreshold_Parking": { "label": "Substantial Destruction (Parking)", "required": false },
-		"landValueDefinition_Legal": { "label": "Land Value Definition", "required": false },
-		"meteringStructure": { "label": "Metering Structure", "required": false },
-		"shortTermRentalCount": { "label": "Short Term Rentals", "required": false },
-		"modelUnitCount": { "label": "Model Units", "required": false },
-		"commercialParkingObligation": { "label": "Commercial Parking Obligation", "required": false },
-		"residentialParkingNetCount": { "label": "Net Residential Parking", "required": false },
-		"minimumOperatingAreaReq": { "label": "Min Operating Area Req", "required": false },
-		"alterationConsentThreshold": { "label": "Alteration Consent Threshold", "required": false },
-		"adminReviewFee": { "label": "Admin Review Fee", "required": false },
-		"prohibitedCommercialUses": { "label": "Prohibited Commercial Uses", "required": false },
-		"commercialVendingBan": { "label": "Commercial Vending Ban", "required": false },
-		"contractorWarrantyPeriod": { "label": "Contractor Warranty Period", "required": false },
-		"netChangeOrderTotal": { "label": "Net Change Order Total", "required": false },
-		"designBuilderFee": { "label": "Design Builder Fee", "required": false },
-		"designBuilderContingency": { "label": "Design Builder Contingency", "required": false },
-		"officeTIReimbursementCap": { "label": "Office TI Cap", "required": false },
-		"allowance_MaterialTesting": { "label": "Allowance: Material Testing", "required": false },
-		"allowance_SiteRestoration": { "label": "Allowance: Site Restoration", "required": false },
-		"accountsPayableTrade": { "label": "AP Trade", "required": false },
-		"selfPerformMarkupPercent": { "label": "Self-Perform Markup %", "required": false },
-		"personnelRate_ProjectExec": { "label": "Rate: Project Exec", "required": false },
-		"personnelRate_Superintendent": { "label": "Rate: Superintendent", "required": false },
-		"sharedSavingsCap_Builder": { "label": "Shared Savings Cap (Builder)", "required": false },
-		"grantFundingAmount": { "label": "Grant Funding Amount", "required": false },
-		"grantFundingSource": { "label": "Grant Funding Source", "required": false },
-		"privateInvestmentCommitment": { "label": "Private Investment Commitment", "required": false },
-		"retainagePayableLiability": { "label": "Retainage Payable", "required": false },
-		"affiliatedLoanReceivable": { "label": "Affiliated Loan Receivable", "required": false },
-		"totalSecurityDepositLiability": { "label": "Security Deposit Liability", "required": false },
-		"prepaidRentLiability": { "label": "Prepaid Rent Liability", "required": false },
-		"existingSupplementalPrepay": { "label": "Existing Supplemental Prepay", "required": false },
-		"existingLender": { "label": "Existing Lender", "required": false },
-		"groundLeaseNewLeaseOption": { "label": "Ground Lease New Lease Option", "required": false },
-		"feeMortgageSubordination": { "label": "Fee Mortgage Subordination", "required": false },
-		"condemnationAwardPriority": { "label": "Condemnation Award Priority", "required": false },
-		"groundLeaseDefaultInterest": { "label": "Ground Lease Default Interest", "required": false },
-		"groundLeaseCurePeriod_Monetary": { "label": "GL Cure Period (Monetary)", "required": false },
-		"groundLeaseCurePeriod_NonMonetary": { "label": "GL Cure Period (Non-Monetary)", "required": false },
-		"estoppelTurnaroundTime": { "label": "Estoppel Turnaround", "required": false },
-		"arbitratorQualification": { "label": "Arbitrator Qualification", "required": false },
-		"commercialCAMReimbursement": { "label": "Commercial CAM Reimbursement", "required": false },
-		"commercialLeaseType": { "label": "Commercial Lease Type", "required": false },
-		"commRenewalEscalationMethod": { "label": "Comm. Renewal Escalation", "required": false },
-		"commExpenseStopBaseYear": { "label": "Comm. Expense Stop Base Year", "required": false },
-		"commSalesReportingReq": { "label": "Comm. Sales Reporting Req", "required": false },
-		"commAuditRights": { "label": "Comm. Audit Rights", "required": false },
-		"taxReplacementCreditRate": { "label": "Tax Replacement Credit Rate", "required": false },
-		"localIncomeTaxRate": { "label": "Local Income Tax Rate", "required": false },
-		"taxingDistrictID": { "label": "Taxing District ID", "required": false },
-		"propertyTaxHardCapAmount": { "label": "Property Tax Hard Cap", "required": false },
-		"referendumRateAdjustment": { "label": "Referendum Rate Adj", "required": false },
-		"avgTurnoverCostPerUnit": { "label": "Avg Turnover Cost/Unit", "required": false },
-		"utilityBillBackMethod": { "label": "Utility Bill Back Method", "required": false },
-		"trashRemovalMethod": { "label": "Trash Removal Method", "required": false },
-		"commercialHoldoverPenalty": { "label": "Commercial Holdover Penalty", "required": false },
-		"leaseAuditFrequency": { "label": "Lease Audit Frequency", "required": false },
-		"lateFeeCalculation": { "label": "Late Fee Calculation", "required": false },
-		"providerElectric": { "label": "Provider: Electric", "required": false },
-		"providerGas": { "label": "Provider: Gas", "required": false },
-		"providerWaterSewer": { "label": "Provider: Water/Sewer", "required": false },
-		"suspenseAccountBalance": { "label": "Suspense Account Balance", "required": false },
-		"intercompanyInterestIncome": { "label": "Intercompany Interest Income", "required": false },
-		"highestBestUseAsVacant": { "label": "HBU As Vacant", "required": false },
-		"ffeContributoryValue": { "label": "FF&E Contributory Value", "required": false },
-		"abatementDiscountRate": { "label": "Abatement Discount Rate", "required": false },
-		"expenseGrowthRateAssumption": { "label": "Expense Growth Assumption", "required": false },
-		"ffeEconomicLife": { "label": "FF&E Economic Life", "required": false },
-		"ffeReplacementCostNew": { "label": "FF&E Replacement Cost", "required": false },
-		"appraisedLandValue": { "label": "Appraised Land Value", "required": false },
-		"appraisedExpenseRatio": { "label": "Appraised Expense Ratio", "required": false },
-		"appraisedInsurableValue": { "label": "Appraised Insurable Value", "required": false },
-		"tenantCredits_Prepayments": { "label": "Tenant Credits/Prepayments", "required": false },
-		"shortTermRentalIncome": { "label": "Short Term Rental Income", "required": false },
-		"nonRevenueUnitCount": { "label": "Non-Revenue Unit Count", "required": false }
+		"ownershipType": {
+			"label": "Ownership Type",
+			"required": true
+		},
+		"groundLeaseTerm": {
+			"label": "Ground Lease Term",
+			"required": false
+		},
+		"groundLeaseRent": {
+			"label": "Ground Lease Rent",
+			"required": false
+		},
+		"constructionClass": {
+			"label": "Construction Class",
+			"required": false
+		},
+		"remainingEconomicLife": {
+			"label": "Remaining Economic Life",
+			"required": false
+		},
+		"lastRenovationDate": {
+			"label": "Last Renovation Date",
+			"required": false
+		},
+		"commercialNRSF": {
+			"label": "Commercial NRSF",
+			"required": false
+		},
+		"unitBalconyCount": {
+			"label": "Unit Balcony Count",
+			"required": false
+		},
+		"unitWasherDryer": {
+			"label": "In-Unit W/D",
+			"required": false
+		},
+		"unitKitchenIsland": {
+			"label": "Kitchen Island",
+			"required": false
+		},
+		"unitHardwoodFloors": {
+			"label": "Hardwood Floors",
+			"required": false
+		},
+		"unitEntryType": {
+			"label": "Unit Entry Type",
+			"required": false
+		},
+		"commonAreaFurnishings": {
+			"label": "Common Area Furnishings",
+			"required": false
+		},
+		"guaranteedMaximumPrice": {
+			"label": "GMP Contract",
+			"required": false
+		},
+		"constructionRetainage": {
+			"label": "Construction Retainage %",
+			"required": false
+		},
+		"sharedSavingsSplit": {
+			"label": "Shared Savings Split",
+			"required": false
+		},
+		"partnerEquityBreakdown": {
+			"label": "Partner Equity Breakdown",
+			"required": false
+		},
+		"mezzanineDebtAmount": {
+			"label": "Mezzanine Debt Amount",
+			"required": false
+		},
+		"preferredEquityAmount": {
+			"label": "Preferred Equity Amount",
+			"required": false
+		},
+		"liens": {
+			"label": "Liens",
+			"required": false
+		},
+		"existingLoanDefeasanceFee": {
+			"label": "Defeasance Fee",
+			"required": false
+		},
+		"managementFeePercent": {
+			"label": "Management Fee %",
+			"required": false
+		},
+		"appraisalMarketingTime": {
+			"label": "Appraisal Mkt Time",
+			"required": false
+		},
+		"finalStabilizedValue": {
+			"label": "Final Stabilized Value",
+			"required": false
+		},
+		"finalCapRate": {
+			"label": "Final Cap Rate",
+			"required": false
+		},
+		"totalDelinquencyAmount": {
+			"label": "Total Delinquency",
+			"required": false
+		},
+		"leaseRolloverSchedule": {
+			"label": "Lease Rollover Schedule",
+			"required": false
+		},
+		"employmentSector_Education": {
+			"label": "Emp. Sector: Education %",
+			"required": false
+		},
+		"employmentSector_HealthCare": {
+			"label": "Emp. Sector: Healthcare %",
+			"required": false
+		},
+		"employmentSector_Manufacturing": {
+			"label": "Emp. Sector: Manufacturing %",
+			"required": false
+		},
+		"jobCreationReportingReq": {
+			"label": "Job Creation Reporting?",
+			"required": false
+		},
+		"reportingDuration": {
+			"label": "Reporting Duration",
+			"required": false
+		},
+		"localLaborUtilizationReq": {
+			"label": "Local Labor Req?",
+			"required": false
+		},
+		"developmentRightsTransferability": {
+			"label": "Dev Rights Transferable?",
+			"required": false
+		},
+		"assignmentConsentReq": {
+			"label": "Assignment Consent Req?",
+			"required": false
+		},
+		"abatementSchedule": {
+			"label": "Abatement Schedule",
+			"required": false
+		},
+		"abatementClawbackProvision": {
+			"label": "Abatement Clawback?",
+			"required": false
+		},
+		"taxCircuitBreakerCap": {
+			"label": "Tax Circuit Breaker Cap",
+			"required": false
+		},
+		"paymentInLieuOfTaxes": {
+			"label": "PILOT",
+			"required": false
+		},
+		"abatementTriggerEvent": {
+			"label": "Abatement Trigger",
+			"required": false
+		},
+		"effectiveAbatementRate": {
+			"label": "Effective Abatement Rate",
+			"required": false
+		},
+		"zoningMaxHeight": {
+			"label": "Zoning Max Height",
+			"required": false
+		},
+		"zoningMinLotWidth": {
+			"label": "Zoning Min Lot Width",
+			"required": false
+		},
+		"zoningSetbacks": {
+			"label": "Zoning Setbacks",
+			"required": false
+		},
+		"foundationSystemType": {
+			"label": "Foundation System",
+			"required": false
+		},
+		"roofWarrantyExpiration": {
+			"label": "Roof Warranty Expiration",
+			"required": false
+		},
+		"constructionFenceReq": {
+			"label": "Construction Fence Req?",
+			"required": false
+		},
+		"publicSpaceMaintenanceReq": {
+			"label": "Public Space Maint. Req?",
+			"required": false
+		},
+		"publicAccessEasement": {
+			"label": "Public Access Easement?",
+			"required": false
+		},
+		"parkingRequirementStatus": {
+			"label": "Parking Req. Status",
+			"required": false
+		},
+		"earthquakeDeductible": {
+			"label": "EQ Deductible",
+			"required": false
+		},
+		"businessIncomeCoverage": {
+			"label": "BI Coverage",
+			"required": false
+		},
+		"equipmentBreakdownCoverage": {
+			"label": "Equip. Breakdown Coverage",
+			"required": false
+		},
+		"cyberLiabilityCoverage": {
+			"label": "Cyber Liability Coverage",
+			"required": false
+		},
+		"generalLiabilityAggregate": {
+			"label": "Gen. Liability Aggregate",
+			"required": false
+		},
+		"liabilityPerOccurrence": {
+			"label": "Liability Per Occurrence",
+			"required": false
+		},
+		"terrorismPremium": {
+			"label": "Terrorism Premium",
+			"required": false
+		},
+		"umbrellaLiabilityLimit": {
+			"label": "Umbrella Limit",
+			"required": false
+		},
+		"mineSubsidenceCoverage": {
+			"label": "Mine Subsidence Coverage",
+			"required": false
+		},
+		"insuranceInflationGuard": {
+			"label": "Ins. Inflation Guard",
+			"required": false
+		},
+		"insuranceCoinsuranceReq": {
+			"label": "Ins. Coinsurance Req",
+			"required": false
+		},
+		"protectiveSafeguardCode": {
+			"label": "Protective Safeguard Code",
+			"required": false
+		},
+		"insuranceExclusion_CommunicableDisease": {
+			"label": "Excl. Communicable Disease",
+			"required": false
+		},
+		"insuranceExclusion_FungiBacteria": {
+			"label": "Excl. Fungi/Bacteria",
+			"required": false
+		},
+		"insuranceExclusion_Asbestos": {
+			"label": "Excl. Asbestos",
+			"required": false
+		},
+		"ordOrLawCoverageB_Demolition": {
+			"label": "Ord. Law: Demolition",
+			"required": false
+		},
+		"ordOrLawCoverageC_IncCost": {
+			"label": "Ord. Law: Inc. Cost",
+			"required": false
+		},
+		"sewerDrainBackupLimit": {
+			"label": "Sewer Backup Limit",
+			"required": false
+		},
+		"waitingPeriod_BusinessIncome": {
+			"label": "Waiting Period (BI)",
+			"required": false
+		},
+		"subLimit_AccountsReceivable": {
+			"label": "Sublimit: AR",
+			"required": false
+		},
+		"subLimit_FineArts": {
+			"label": "Sublimit: Fine Arts",
+			"required": false
+		},
+		"subLimit_PollutantCleanup": {
+			"label": "Sublimit: Pollutant Cleanup",
+			"required": false
+		},
+		"subLimit_ComputerFraud": {
+			"label": "Sublimit: Computer Fraud",
+			"required": false
+		},
+		"subLimit_MisdirectedPayment": {
+			"label": "Sublimit: Misdirected Payment",
+			"required": false
+		},
+		"subLimit_CyberExtortion": {
+			"label": "Sublimit: Cyber Extortion",
+			"required": false
+		},
+		"federalTerrorismShare": {
+			"label": "Fed. Terrorism Share",
+			"required": false
+		},
+		"femaMapPanelID": {
+			"label": "FEMA Map Panel ID",
+			"required": false
+		},
+		"femaMapDate": {
+			"label": "FEMA Map Date",
+			"required": false
+		},
+		"insuranceStockValuationMethod": {
+			"label": "Stock Valuation Method",
+			"required": false
+		},
+		"tenantImprovementAmortization": {
+			"label": "TI Amortization",
+			"required": false
+		},
+		"percentageRentThreshold": {
+			"label": "Percentage Rent Threshold",
+			"required": false
+		},
+		"relatedPartyTenantStatus": {
+			"label": "Related Party Tenant?",
+			"required": false
+		},
+		"relatedPartyRentStatus": {
+			"label": "Related Party Rent Status",
+			"required": false
+		},
+		"financialReportingBasis": {
+			"label": "Financial Reporting Basis",
+			"required": false
+		},
+		"groundLessor": {
+			"label": "Ground Lessor",
+			"required": false
+		},
+		"groundLeaseExpiration": {
+			"label": "Ground Lease Expiration",
+			"required": false
+		},
+		"zoningOverlayDistrict": {
+			"label": "Zoning Overlay",
+			"required": false
+		},
+		"restorationFundThreshold": {
+			"label": "Restoration Fund Threshold",
+			"required": false
+		},
+		"casualtyTerminationRight": {
+			"label": "Casualty Termination Right",
+			"required": false
+		},
+		"substantialDestructionThreshold_Area": {
+			"label": "Substantial Destruction (Area)",
+			"required": false
+		},
+		"substantialDestructionThreshold_Parking": {
+			"label": "Substantial Destruction (Parking)",
+			"required": false
+		},
+		"landValueDefinition_Legal": {
+			"label": "Land Value Definition",
+			"required": false
+		},
+		"meteringStructure": {
+			"label": "Metering Structure",
+			"required": false
+		},
+		"shortTermRentalCount": {
+			"label": "Short Term Rentals",
+			"required": false
+		},
+		"modelUnitCount": {
+			"label": "Model Units",
+			"required": false
+		},
+		"commercialParkingObligation": {
+			"label": "Commercial Parking Obligation",
+			"required": false
+		},
+		"residentialParkingNetCount": {
+			"label": "Net Residential Parking",
+			"required": false
+		},
+		"minimumOperatingAreaReq": {
+			"label": "Min Operating Area Req",
+			"required": false
+		},
+		"alterationConsentThreshold": {
+			"label": "Alteration Consent Threshold",
+			"required": false
+		},
+		"adminReviewFee": {
+			"label": "Admin Review Fee",
+			"required": false
+		},
+		"prohibitedCommercialUses": {
+			"label": "Prohibited Commercial Uses",
+			"required": false
+		},
+		"commercialVendingBan": {
+			"label": "Commercial Vending Ban",
+			"required": false
+		},
+		"contractorWarrantyPeriod": {
+			"label": "Contractor Warranty Period",
+			"required": false
+		},
+		"netChangeOrderTotal": {
+			"label": "Net Change Order Total",
+			"required": false
+		},
+		"designBuilderFee": {
+			"label": "Design Builder Fee",
+			"required": false
+		},
+		"designBuilderContingency": {
+			"label": "Design Builder Contingency",
+			"required": false
+		},
+		"officeTIReimbursementCap": {
+			"label": "Office TI Cap",
+			"required": false
+		},
+		"allowance_MaterialTesting": {
+			"label": "Allowance: Material Testing",
+			"required": false
+		},
+		"allowance_SiteRestoration": {
+			"label": "Allowance: Site Restoration",
+			"required": false
+		},
+		"accountsPayableTrade": {
+			"label": "AP Trade",
+			"required": false
+		},
+		"selfPerformMarkupPercent": {
+			"label": "Self-Perform Markup %",
+			"required": false
+		},
+		"personnelRate_ProjectExec": {
+			"label": "Rate: Project Exec",
+			"required": false
+		},
+		"personnelRate_Superintendent": {
+			"label": "Rate: Superintendent",
+			"required": false
+		},
+		"sharedSavingsCap_Builder": {
+			"label": "Shared Savings Cap (Builder)",
+			"required": false
+		},
+		"grantFundingAmount": {
+			"label": "Grant Funding Amount",
+			"required": false
+		},
+		"grantFundingSource": {
+			"label": "Grant Funding Source",
+			"required": false
+		},
+		"privateInvestmentCommitment": {
+			"label": "Private Investment Commitment",
+			"required": false
+		},
+		"retainagePayableLiability": {
+			"label": "Retainage Payable",
+			"required": false
+		},
+		"affiliatedLoanReceivable": {
+			"label": "Affiliated Loan Receivable",
+			"required": false
+		},
+		"totalSecurityDepositLiability": {
+			"label": "Security Deposit Liability",
+			"required": false
+		},
+		"prepaidRentLiability": {
+			"label": "Prepaid Rent Liability",
+			"required": false
+		},
+		"existingSupplementalPrepay": {
+			"label": "Existing Supplemental Prepay",
+			"required": false
+		},
+		"existingLender": {
+			"label": "Existing Lender",
+			"required": false
+		},
+		"groundLeaseNewLeaseOption": {
+			"label": "Ground Lease New Lease Option",
+			"required": false
+		},
+		"feeMortgageSubordination": {
+			"label": "Fee Mortgage Subordination",
+			"required": false
+		},
+		"condemnationAwardPriority": {
+			"label": "Condemnation Award Priority",
+			"required": false
+		},
+		"groundLeaseDefaultInterest": {
+			"label": "Ground Lease Default Interest",
+			"required": false
+		},
+		"groundLeaseCurePeriod_Monetary": {
+			"label": "GL Cure Period (Monetary)",
+			"required": false
+		},
+		"groundLeaseCurePeriod_NonMonetary": {
+			"label": "GL Cure Period (Non-Monetary)",
+			"required": false
+		},
+		"estoppelTurnaroundTime": {
+			"label": "Estoppel Turnaround",
+			"required": false
+		},
+		"arbitratorQualification": {
+			"label": "Arbitrator Qualification",
+			"required": false
+		},
+		"commercialCAMReimbursement": {
+			"label": "Commercial CAM Reimbursement",
+			"required": false
+		},
+		"commercialLeaseType": {
+			"label": "Commercial Lease Type",
+			"required": false
+		},
+		"commRenewalEscalationMethod": {
+			"label": "Comm. Renewal Escalation",
+			"required": false
+		},
+		"commExpenseStopBaseYear": {
+			"label": "Comm. Expense Stop Base Year",
+			"required": false
+		},
+		"commSalesReportingReq": {
+			"label": "Comm. Sales Reporting Req",
+			"required": false
+		},
+		"commAuditRights": {
+			"label": "Comm. Audit Rights",
+			"required": false
+		},
+		"taxReplacementCreditRate": {
+			"label": "Tax Replacement Credit Rate",
+			"required": false
+		},
+		"localIncomeTaxRate": {
+			"label": "Local Income Tax Rate",
+			"required": false
+		},
+		"taxingDistrictID": {
+			"label": "Taxing District ID",
+			"required": false
+		},
+		"propertyTaxHardCapAmount": {
+			"label": "Property Tax Hard Cap",
+			"required": false
+		},
+		"referendumRateAdjustment": {
+			"label": "Referendum Rate Adj",
+			"required": false
+		},
+		"avgTurnoverCostPerUnit": {
+			"label": "Avg Turnover Cost/Unit",
+			"required": false
+		},
+		"utilityBillBackMethod": {
+			"label": "Utility Bill Back Method",
+			"required": false
+		},
+		"trashRemovalMethod": {
+			"label": "Trash Removal Method",
+			"required": false
+		},
+		"commercialHoldoverPenalty": {
+			"label": "Commercial Holdover Penalty",
+			"required": false
+		},
+		"leaseAuditFrequency": {
+			"label": "Lease Audit Frequency",
+			"required": false
+		},
+		"lateFeeCalculation": {
+			"label": "Late Fee Calculation",
+			"required": false
+		},
+		"providerElectric": {
+			"label": "Provider: Electric",
+			"required": false
+		},
+		"providerGas": {
+			"label": "Provider: Gas",
+			"required": false
+		},
+		"providerWaterSewer": {
+			"label": "Provider: Water/Sewer",
+			"required": false
+		},
+		"suspenseAccountBalance": {
+			"label": "Suspense Account Balance",
+			"required": false
+		},
+		"intercompanyInterestIncome": {
+			"label": "Intercompany Interest Income",
+			"required": false
+		},
+		"highestBestUseAsVacant": {
+			"label": "HBU As Vacant",
+			"required": false
+		},
+		"ffeContributoryValue": {
+			"label": "FF&E Contributory Value",
+			"required": false
+		},
+		"abatementDiscountRate": {
+			"label": "Abatement Discount Rate",
+			"required": false
+		},
+		"expenseGrowthRateAssumption": {
+			"label": "Expense Growth Assumption",
+			"required": false
+		},
+		"ffeEconomicLife": {
+			"label": "FF&E Economic Life",
+			"required": false
+		},
+		"ffeReplacementCostNew": {
+			"label": "FF&E Replacement Cost",
+			"required": false
+		},
+		"appraisedLandValue": {
+			"label": "Appraised Land Value",
+			"required": false
+		},
+		"appraisedExpenseRatio": {
+			"label": "Appraised Expense Ratio",
+			"required": false
+		},
+		"appraisedInsurableValue": {
+			"label": "Appraised Insurable Value",
+			"required": false
+		},
+		"tenantCredits_Prepayments": {
+			"label": "Tenant Credits/Prepayments",
+			"required": false
+		},
+		"shortTermRentalIncome": {
+			"label": "Short Term Rental Income",
+			"required": false
+		},
+		"nonRevenueUnitCount": {
+			"label": "Non-Revenue Unit Count",
+			"required": false
+		}
+		"t12FinancialData": {
+			"label": "T12 Financial Statement",
+			"required": false
+		}
 	}
 }
