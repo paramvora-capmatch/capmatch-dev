@@ -202,6 +202,7 @@ export interface Project {
 	name: string;
 	owner_org_id: string; // FK to orgs.id
 	assigned_advisor_id?: string | null; // FK to profiles.id
+	deal_type: 'ground_up' | 'refinance'; // Deal type classification
 }
 
 // New Resume Types
@@ -295,6 +296,7 @@ export interface ProjectProfile {
 	// New resource IDs
 	projectDocsResourceId?: string | null;
 	projectResumeResourceId?: string | null;
+	deal_type?: 'ground_up' | 'refinance'; // Deal type classification
 	// Optional fields
 	assignedAdvisorUserId?: string | null;
 	// Legacy `borrowerProfileId` no longer exists, but keep for older mock data compatibility

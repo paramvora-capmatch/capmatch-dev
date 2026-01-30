@@ -58,6 +58,7 @@ import {
 	FieldMetadata as ProjectFieldMeta,
 } from "@/lib/project-resume-field-metadata";
 import { saveProjectResume } from "@/lib/project-queries";
+import { isFieldVisibleForDealType, type DealType } from "@/lib/deal-type-field-config";
 import { supabase } from "@/lib/supabaseClient";
 
 interface EnhancedProjectFormProps {
@@ -2925,6 +2926,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	const renderDynamicField = useCallback(
 		(fieldId: string, sectionId: string) => {
+			// Filter fields based on project's deal type
+			const dealType: DealType = (existingProject.deal_type as DealType) ?? 'ground_up';
+            // Debug deal type
+            if (fieldId === 'projectName') {
+               console.log('[EnhancedProjectForm] project:', existingProject.id, 'deal_type:', existingProject.deal_type, 'resolved:', dealType);
+            }
+			if (!isFieldVisibleForDealType(fieldId, dealType, true)) {
+				return null;
+			}
+
 			// Remove duplicate fields from frontend to avoid confusion
 			// Also filter out table fields that are rendered separately
 			// Also filter out image fields that are rendered by ProjectMediaUpload component
@@ -2945,7 +2956,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				fieldId === "quarterlyDeliverySchedule" ||
 				fieldId === "sensitivityAnalysis" ||
 				fieldId === "capitalUseTiming" ||
-				fieldId === "rentRollUnits" ||
 				// Risk fields rendered as editable lists below
 				fieldId === "riskHigh" ||
 				fieldId === "riskMedium" ||
@@ -3218,6 +3228,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			fieldOptionsRegistry,
 			getDefaultControlForDataType,
 			fieldMetadata,
+			existingProject.deal_type,
 		]
 	);
 
