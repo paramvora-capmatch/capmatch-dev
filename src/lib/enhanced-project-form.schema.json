@@ -3061,7 +3061,7 @@
 		"nonRevenueUnitCount": {
 			"label": "Non-Revenue Unit Count",
 			"required": false
-		}
+		},
 		"t12FinancialData": {
 			"label": "T12 Financial Statement",
 			"required": false
