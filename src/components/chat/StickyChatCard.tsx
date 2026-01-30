@@ -94,14 +94,16 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   const chatStore = useChatStore();
   const underwritingStore = useUnderwritingStore();
 
+  const { requestedTab, setRequestedTab } = underwritingStore;
+
   // Sync with UnderwritingStore triggers
   useEffect(() => {
-    if (underwritingStore.requestedTab) {
-      setRightTab(underwritingStore.requestedTab);
+    if (requestedTab) {
+      setRightTab(requestedTab);
       setIsChatCollapsed(false);
-      underwritingStore.setRequestedTab(null); // Clear once consumed
+      setRequestedTab(null); // Clear once consumed
     }
-  }, [underwritingStore.requestedTab]);
+  }, [requestedTab, setRequestedTab]);
 
   const isUnderwritingMode = mode === "underwriter";
 
