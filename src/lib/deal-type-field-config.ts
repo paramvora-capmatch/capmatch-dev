@@ -8,293 +8,291 @@
  */
 
 export type DealType = 'ground_up' | 'refinance';
-export type FieldDealType = 'both' | 'ground_up' | 'refinance';
+export type FieldDealType = DealType[];
 
 /**
  * Maps project resume field IDs to their applicable deal types.
- * - 'both': Field appears for all deal types
- * - 'ground_up': Field only appears for new development/construction deals
- * - 'refinance': Field only appears for stabilized assets/acquisitions
+ * Array contains all deal types for which the field should be visible.
  */
 export const projectResumeFieldDealTypes: Record<string, FieldDealType> = {
   // ============================================================================
   // Section 1: Project Identification & Basic Info
   // ============================================================================
-  projectName: 'both',
-  propertyAddressStreet: 'both',
-  propertyAddressCity: 'both',
-  propertyAddressState: 'both',
-  propertyAddressZip: 'both',
-  propertyAddressCounty: 'both',
-  dealStatus: 'both',
-  masterPlanName: 'ground_up',
-  ownershipType: 'both',
-  groundLeaseTerm: 'both',
-  groundLeaseRent: 'both',
-  groundLessor: 'both',
-  groundLeaseExpiration: 'both',
-  restorationFundThreshold: 'both',
-  assetType: 'both',
-  constructionType: 'both',
-  projectPhase: 'both',
-  projectDescription: 'both',
-  parcelNumber: 'both',
-  constructionClass: 'both',
-  remainingEconomicLife: 'refinance',
-  lastRenovationDate: 'refinance',
+  projectName: ['ground_up', 'refinance'],
+  propertyAddressStreet: ['ground_up', 'refinance'],
+  propertyAddressCity: ['ground_up', 'refinance'],
+  propertyAddressState: ['ground_up', 'refinance'],
+  propertyAddressZip: ['ground_up', 'refinance'],
+  propertyAddressCounty: ['ground_up', 'refinance'],
+  dealStatus: ['ground_up', 'refinance'],
+  masterPlanName: ['ground_up'],
+  ownershipType: ['ground_up', 'refinance'],
+  groundLeaseTerm: ['ground_up', 'refinance'],
+  groundLeaseRent: ['ground_up', 'refinance'],
+  groundLessor: ['ground_up', 'refinance'],
+  groundLeaseExpiration: ['ground_up', 'refinance'],
+  restorationFundThreshold: ['ground_up', 'refinance'],
+  assetType: ['ground_up', 'refinance'],
+  constructionType: ['ground_up', 'refinance'],
+  projectPhase: ['ground_up', 'refinance'],
+  projectDescription: ['ground_up', 'refinance'],
+  parcelNumber: ['ground_up', 'refinance'],
+  constructionClass: ['ground_up', 'refinance'],
+  remainingEconomicLife: ['refinance'],
+  lastRenovationDate: ['refinance'],
 
   // ============================================================================
   // Section 2: Property Specifications
   // ============================================================================
-  totalResidentialUnits: 'both',
-  totalResidentialNRSF: 'both',
-  averageUnitSize: 'both',
-  totalCommercialGRSF: 'both',
-  commercialNRSF: 'both',
-  buildingEfficiency: 'both',
-  buildingType: 'both',
-  grossBuildingArea: 'both',
-  numberOfStories: 'both',
-  unitBalconyCount: 'both',
-  modelUnitCount: 'both',
-  amenityList: 'both',
-  parkingSpaces: 'both',
-  parkingRatio: 'both',
-  furnishedUnits: 'both',
-  unitWasherDryer: 'both',
-  unitKitchenIsland: 'both',
-  lossToLease: 'refinance',
-  shortTermRentalCount: 'refinance',
-  amenitySF: 'both',
-  commercialParkingObligation: 'both',
-  prohibitedCommercialUses: 'both',
-  adaCompliantPercent: 'both',
-  hvacSystem: 'both',
-  roofTypeAge: 'refinance',
-  solarCapacity: 'both',
-  evChargingStations: 'both',
-  leedGreenRating: 'both',
-  meteringStructure: 'both',
+  totalResidentialUnits: ['ground_up', 'refinance'],
+  totalResidentialNRSF: ['ground_up', 'refinance'],
+  averageUnitSize: ['ground_up', 'refinance'],
+  totalCommercialGRSF: ['ground_up', 'refinance'],
+  commercialNRSF: ['ground_up', 'refinance'],
+  buildingEfficiency: ['ground_up', 'refinance'],
+  buildingType: ['ground_up', 'refinance'],
+  grossBuildingArea: ['ground_up', 'refinance'],
+  numberOfStories: ['ground_up', 'refinance'],
+  unitBalconyCount: ['ground_up', 'refinance'],
+  modelUnitCount: ['ground_up', 'refinance'],
+  amenityList: ['ground_up', 'refinance'],
+  parkingSpaces: ['ground_up', 'refinance'],
+  parkingRatio: ['ground_up', 'refinance'],
+  furnishedUnits: ['ground_up', 'refinance'],
+  unitWasherDryer: ['ground_up', 'refinance'],
+  unitKitchenIsland: ['ground_up', 'refinance'],
+  lossToLease: ['refinance'],
+  shortTermRentalCount: ['refinance'],
+  amenitySF: ['ground_up', 'refinance'],
+  commercialParkingObligation: ['ground_up', 'refinance'],
+  prohibitedCommercialUses: ['ground_up', 'refinance'],
+  adaCompliantPercent: ['ground_up', 'refinance'],
+  hvacSystem: ['ground_up', 'refinance'],
+  roofTypeAge: ['refinance'],
+  solarCapacity: ['ground_up', 'refinance'],
+  evChargingStations: ['ground_up', 'refinance'],
+  leedGreenRating: ['ground_up', 'refinance'],
+  meteringStructure: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 3: Financial Details - Uses of Funds (Budget)
   // ============================================================================
-  totalDevelopmentCost: 'ground_up',
-  totalProjectCost: 'both',
-  purchasePrice: 'both',
-  landAcquisition: 'ground_up',
-  baseConstruction: 'ground_up',
-  guaranteedMaximumPrice: 'ground_up',
-  constructionRetainage: 'ground_up',
-  contingency: 'ground_up',
-  designBuilderFee: 'ground_up',
-  softCosts: 'both',
-  aeFees: 'ground_up',
-  developerFee: 'ground_up',
-  loanFees: 'both',
-  interestReserve: 'ground_up',
-  capexBudget: 'refinance',
-  officeTIReimbursementCap: 'both',
-  siteRestorationAllowance: 'ground_up',
+  totalDevelopmentCost: ['ground_up'],
+  totalProjectCost: ['ground_up', 'refinance'],
+  purchasePrice: ['ground_up', 'refinance'],
+  landAcquisition: ['ground_up'],
+  baseConstruction: ['ground_up'],
+  guaranteedMaximumPrice: ['ground_up'],
+  constructionRetainage: ['ground_up'],
+  contingency: ['ground_up'],
+  designBuilderFee: ['ground_up'],
+  softCosts: ['ground_up', 'refinance'],
+  aeFees: ['ground_up'],
+  developerFee: ['ground_up'],
+  loanFees: ['ground_up', 'refinance'],
+  interestReserve: ['ground_up'],
+  capexBudget: ['refinance'],
+  officeTIReimbursementCap: ['ground_up', 'refinance'],
+  siteRestorationAllowance: ['ground_up'],
 
   // ============================================================================
   // Section 3: Financial Details - Sources of Funds
   // ============================================================================
-  totalCapitalization: 'both',
-  loanAmountRequested: 'both',
-  mezzanineDebtAmount: 'both',
-  preferredEquityAmount: 'both',
-  sponsorEquity: 'both',
-  taxCreditEquity: 'both',
-  grantFundingAmount: 'both',
-  partnerEquityBreakdown: 'both',
-  liens: 'refinance',
+  totalCapitalization: ['ground_up', 'refinance'],
+  loanAmountRequested: ['ground_up', 'refinance'],
+  mezzanineDebtAmount: ['ground_up', 'refinance'],
+  preferredEquityAmount: ['ground_up', 'refinance'],
+  sponsorEquity: ['ground_up', 'refinance'],
+  taxCreditEquity: ['ground_up', 'refinance'],
+  grantFundingAmount: ['ground_up', 'refinance'],
+  partnerEquityBreakdown: ['ground_up', 'refinance'],
+  liens: ['refinance'],
 
   // ============================================================================
   // Section 3: Financial Details - Loan Terms & Structure
   // ============================================================================
-  lender: 'both',
-  loanType: 'both',
-  existingLender: 'refinance',
-  existingLoanDefeasanceFee: 'refinance',
-  requestedTerm: 'both',
-  amortizationYears: 'both',
-  interestRate: 'both',
-  recoursePreference: 'both',
-  targetLtvPercent: 'both',
-  targetLtcPercent: 'ground_up',
-  useOfProceeds: 'both',
+  lender: ['ground_up', 'refinance'],
+  loanType: ['ground_up', 'refinance'],
+  existingLender: ['refinance'],
+  existingLoanDefeasanceFee: ['refinance'],
+  requestedTerm: ['ground_up', 'refinance'],
+  amortizationYears: ['ground_up', 'refinance'],
+  interestRate: ['ground_up', 'refinance'],
+  recoursePreference: ['ground_up', 'refinance'],
+  targetLtvPercent: ['ground_up', 'refinance'],
+  targetLtcPercent: ['ground_up'],
+  useOfProceeds: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 3: Financial Details - Operating Expenses
   // ============================================================================
-  realEstateTaxes: 'both',
-  insurance: 'both',
-  managementFee: 'both',
-  reserves: 'both',
-  t12MonthlyData: 'refinance',
-  propertyTaxHardCapAmount: 'both',
-  utilityBillBackMethod: 'refinance',
-  commercialCAMReimbursement: 'both',
+  realEstateTaxes: ['ground_up', 'refinance'],
+  insurance: ['ground_up', 'refinance'],
+  managementFee: ['ground_up', 'refinance'],
+  reserves: ['ground_up', 'refinance'],
+  t12MonthlyData: ['refinance'],
+  propertyTaxHardCapAmount: ['ground_up', 'refinance'],
+  utilityBillBackMethod: ['refinance'],
+  commercialCAMReimbursement: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 3: Financial Details - Investment Metrics & Exit
   // ============================================================================
-  exitStrategy: 'both',
-  noiYear1: 'both',
-  yieldOnCost: 'ground_up',
-  capRate: 'both',
-  stabilizedValue: 'both',
-  propertyNoiT12: 'refinance',
-  stabilizedNoiProjected: 'ground_up',
-  irr: 'both',
-  equityMultiple: 'both',
-  proFormaRentGrowth: 'both',
-  proFormaExpenseInflation: 'both',
-  sensitivityAnalysis: 'both',
+  exitStrategy: ['ground_up', 'refinance'],
+  noiYear1: ['ground_up', 'refinance'],
+  yieldOnCost: ['ground_up'],
+  capRate: ['ground_up', 'refinance'],
+  stabilizedValue: ['ground_up', 'refinance'],
+  propertyNoiT12: ['refinance'],
+  stabilizedNoiProjected: ['ground_up'],
+  irr: ['ground_up', 'refinance'],
+  equityMultiple: ['ground_up', 'refinance'],
+  proFormaRentGrowth: ['ground_up', 'refinance'],
+  proFormaExpenseInflation: ['ground_up', 'refinance'],
+  sensitivityAnalysis: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 3: Financial Details - Risk Analysis
   // ============================================================================
-  riskHigh: 'both',
-  riskMedium: 'both',
-  riskLow: 'both',
+  riskHigh: ['ground_up', 'refinance'],
+  riskMedium: ['ground_up', 'refinance'],
+  riskLow: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 3: Financial Details - Rent Roll
   // ============================================================================
-  rentRollUnits: 'refinance',
-  totalDelinquencyAmount: 'refinance',
-  leaseRolloverSchedule: 'refinance',
-  tenantCredits_Prepayments: 'refinance',
-  nonRevenueUnitCount: 'refinance',
+  rentRollUnits: ['refinance'],
+  totalDelinquencyAmount: ['refinance'],
+  leaseRolloverSchedule: ['refinance'],
+  tenantCredits_Prepayments: ['refinance'],
+  nonRevenueUnitCount: ['refinance'],
 
   // ============================================================================
   // Section 4: Market Context
   // ============================================================================
-  msaName: 'both',
-  population3Mi: 'both',
-  medianHHIncome: 'both',
-  employmentSector_Education: 'both',
-  employmentSector_HealthCare: 'both',
-  employmentSector_Manufacturing: 'both',
-  crimeRiskLevel: 'both',
-  submarketName: 'both',
-  walkabilityScore: 'both',
-  infrastructureCatalyst: 'ground_up',
-  broadbandSpeed: 'both',
-  submarketAbsorption: 'both',
-  supplyPipeline: 'both',
-  monthsOfSupply: 'both',
-  rentComps: 'both',
-  rentPremium: 'both',
+  msaName: ['ground_up', 'refinance'],
+  population3Mi: ['ground_up', 'refinance'],
+  medianHHIncome: ['ground_up', 'refinance'],
+  employmentSector_Education: ['ground_up', 'refinance'],
+  employmentSector_HealthCare: ['ground_up', 'refinance'],
+  employmentSector_Manufacturing: ['ground_up', 'refinance'],
+  crimeRiskLevel: ['ground_up', 'refinance'],
+  submarketName: ['ground_up', 'refinance'],
+  walkabilityScore: ['ground_up', 'refinance'],
+  infrastructureCatalyst: ['ground_up'],
+  broadbandSpeed: ['ground_up', 'refinance'],
+  submarketAbsorption: ['ground_up', 'refinance'],
+  supplyPipeline: ['ground_up', 'refinance'],
+  monthsOfSupply: ['ground_up', 'refinance'],
+  rentComps: ['ground_up', 'refinance'],
+  rentPremium: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 5: Special Considerations - Affordable Housing & Compliance
   // ============================================================================
-  affordableHousing: 'both',
-  affordableUnitsNumber: 'both',
-  amiTargetPercent: 'both',
-  jobCreationReportingReq: 'ground_up',
-  localLaborUtilizationReq: 'ground_up',
+  affordableHousing: ['ground_up', 'refinance'],
+  affordableUnitsNumber: ['ground_up', 'refinance'],
+  amiTargetPercent: ['ground_up', 'refinance'],
+  jobCreationReportingReq: ['ground_up'],
+  localLaborUtilizationReq: ['ground_up'],
 
   // ============================================================================
   // Section 5: Special Considerations - Incentives & Tax Credits
   // ============================================================================
-  opportunityZone: 'both',
-  taxExemption: 'both',
-  abatementSchedule: 'both',
-  paymentInLieuOfTaxes: 'both',
-  abatementTriggerEvent: 'ground_up',
+  opportunityZone: ['ground_up', 'refinance'],
+  taxExemption: ['ground_up', 'refinance'],
+  abatementSchedule: ['ground_up', 'refinance'],
+  paymentInLieuOfTaxes: ['ground_up', 'refinance'],
+  abatementTriggerEvent: ['ground_up'],
 
   // ============================================================================
   // Section 6: Timeline & Milestones - Key Dates
   // ============================================================================
-  landAcquisitionClose: 'ground_up',
-  groundbreakingDate: 'ground_up',
-  verticalStart: 'ground_up',
-  firstOccupancy: 'ground_up',
-  stabilization: 'both',
-  totalProjectDuration: 'ground_up',
+  landAcquisitionClose: ['ground_up'],
+  groundbreakingDate: ['ground_up'],
+  verticalStart: ['ground_up'],
+  firstOccupancy: ['ground_up'],
+  stabilization: ['ground_up', 'refinance'],
+  totalProjectDuration: ['ground_up'],
 
   // ============================================================================
   // Section 6: Timeline & Milestones - Entitlements & Permitting
   // ============================================================================
-  entitlements: 'ground_up',
-  finalPlans: 'ground_up',
-  permitsIssued: 'ground_up',
+  entitlements: ['ground_up'],
+  finalPlans: ['ground_up'],
+  permitsIssued: ['ground_up'],
 
   // ============================================================================
   // Section 6: Timeline & Milestones - Construction & Lease-Up Status
   // ============================================================================
-  preLeasedSF: 'ground_up',
-  drawSchedule: 'ground_up',
-  absorptionProjection: 'ground_up',
+  preLeasedSF: ['ground_up'],
+  drawSchedule: ['ground_up'],
+  absorptionProjection: ['ground_up'],
 
   // ============================================================================
   // Section 7: Site & Context - Land & Zoning
   // ============================================================================
-  zoningDesignation: 'both',
-  totalSiteAcreage: 'both',
-  buildableAcreage: 'ground_up',
-  farUtilized: 'ground_up',
-  zoningMaxHeight: 'ground_up',
-  zoningMinLotWidth: 'ground_up',
-  zoningSetbacks: 'ground_up',
-  zoningCompliant: 'both',
+  zoningDesignation: ['ground_up', 'refinance'],
+  totalSiteAcreage: ['ground_up', 'refinance'],
+  buildableAcreage: ['ground_up'],
+  farUtilized: ['ground_up'],
+  zoningMaxHeight: ['ground_up'],
+  zoningMinLotWidth: ['ground_up'],
+  zoningSetbacks: ['ground_up'],
+  zoningCompliant: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 7: Site & Context - Physical Characteristics & Access
   // ============================================================================
-  currentSiteStatus: 'both',
-  topography: 'ground_up',
-  foundationSystem: 'ground_up',
-  roofWarrantyExpiry: 'refinance',
-  publicSpaceMaintReq: 'both',
+  currentSiteStatus: ['ground_up', 'refinance'],
+  topography: ['ground_up'],
+  foundationSystem: ['ground_up'],
+  roofWarrantyExpiry: ['refinance'],
+  publicSpaceMaintReq: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 7: Site & Context - Environmental & Hazards (Insurance)
   // ============================================================================
-  floodZone: 'both',
-  phaseIESAFinding: 'both',
-  wetlandsPresent: 'ground_up',
-  seismicRisk: 'both',
-  seismicPML: 'both',
-  earthquakeDeductible: 'both',
-  businessIncomeCoverage: 'refinance',
-  genLiabilityAgg: 'both',
-  umbrellaLimit: 'both',
-  terrorismPremium: 'both',
+  floodZone: ['ground_up', 'refinance'],
+  phaseIESAFinding: ['ground_up', 'refinance'],
+  wetlandsPresent: ['ground_up'],
+  seismicRisk: ['ground_up', 'refinance'],
+  seismicPML: ['ground_up', 'refinance'],
+  earthquakeDeductible: ['ground_up', 'refinance'],
+  businessIncomeCoverage: ['refinance'],
+  genLiabilityAgg: ['ground_up', 'refinance'],
+  umbrellaLimit: ['ground_up', 'refinance'],
+  terrorismPremium: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 7: Site & Context - Infrastructure & Utilities
   // ============================================================================
-  utilityAvailability: 'ground_up',
-  easements: 'both',
+  utilityAvailability: ['ground_up'],
+  easements: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 8: Sponsor Information - Entity Structure
   // ============================================================================
-  sponsorEntityName: 'both',
-  syndicationStatus: 'both',
-  sponsorStructure: 'both',
-  equityPartner: 'both',
-  relatedPartyTenant: 'refinance',
-  contactInfo: 'both',
+  sponsorEntityName: ['ground_up', 'refinance'],
+  syndicationStatus: ['ground_up', 'refinance'],
+  sponsorStructure: ['ground_up', 'refinance'],
+  equityPartner: ['ground_up', 'refinance'],
+  relatedPartyTenant: ['refinance'],
+  contactInfo: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 8: Sponsor Information - Track Record
   // ============================================================================
-  sponsorExperience: 'both',
-  priorDevelopments: 'ground_up',
-  sponsorExpScore: 'both',
-  portfolioDSCR: 'both',
+  sponsorExperience: ['ground_up', 'refinance'],
+  priorDevelopments: ['ground_up'],
+  sponsorExpScore: ['ground_up', 'refinance'],
+  portfolioDSCR: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Section 8: Sponsor Information - Financial Strength
   // ============================================================================
-  borrowerNetWorth: 'both',
-  guarantorLiquidity: 'both',
+  borrowerNetWorth: ['ground_up', 'refinance'],
+  guarantorLiquidity: ['ground_up', 'refinance'],
 };
 
 /**
@@ -305,67 +303,67 @@ export const borrowerResumeFieldDealTypes: Record<string, FieldDealType> = {
   // ============================================================================
   // Identity & Contact
   // ============================================================================
-  fullLegalName: 'both',
-  primaryEntityName: 'both',
-  contactEmail: 'both',
-  contactPhone: 'both',
-  primaryEntityStructure: 'both',
-  contactAddress: 'both',
+  fullLegalName: ['ground_up', 'refinance'],
+  primaryEntityName: ['ground_up', 'refinance'],
+  contactEmail: ['ground_up', 'refinance'],
+  contactPhone: ['ground_up', 'refinance'],
+  primaryEntityStructure: ['ground_up', 'refinance'],
+  contactAddress: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Experience & Track Record
   // ============================================================================
-  yearsCREExperienceRange: 'both',
-  yearFounded: 'both',
-  activeProjects: 'both',
-  totalAUM: 'both',
-  totalSqFtManaged: 'both',
-  totalDealValueClosedRange: 'both',
-  bioNarrative: 'both',
-  trackRecord: 'both',
-  assetClassesExperience: 'both',
-  geographicMarketsExperience: 'both',
-  existingLenderRelationships: 'both',
+  yearsCREExperienceRange: ['ground_up', 'refinance'],
+  yearFounded: ['ground_up', 'refinance'],
+  activeProjects: ['ground_up', 'refinance'],
+  totalAUM: ['ground_up', 'refinance'],
+  totalSqFtManaged: ['ground_up', 'refinance'],
+  totalDealValueClosedRange: ['ground_up', 'refinance'],
+  bioNarrative: ['ground_up', 'refinance'],
+  trackRecord: ['ground_up', 'refinance'],
+  assetClassesExperience: ['ground_up', 'refinance'],
+  geographicMarketsExperience: ['ground_up', 'refinance'],
+  existingLenderRelationships: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Financial Position
   // ============================================================================
-  creditScoreRange: 'both',
-  netWorthRange: 'both',
-  totalAssets: 'both',
-  totalLiabilities: 'both',
-  liquidityRange: 'both',
-  totalLiquidAssets: 'both',
-  contingentLiabilities: 'both',
-  scheduleOfRealEstateOwned: 'both',
+  creditScoreRange: ['ground_up', 'refinance'],
+  netWorthRange: ['ground_up', 'refinance'],
+  totalAssets: ['ground_up', 'refinance'],
+  totalLiabilities: ['ground_up', 'refinance'],
+  liquidityRange: ['ground_up', 'refinance'],
+  totalLiquidAssets: ['ground_up', 'refinance'],
+  contingentLiabilities: ['ground_up', 'refinance'],
+  scheduleOfRealEstateOwned: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Legal & Credit History
   // ============================================================================
-  bankruptcyHistory: 'both',
-  foreclosureHistory: 'both',
-  litigationHistory: 'both',
+  bankruptcyHistory: ['ground_up', 'refinance'],
+  foreclosureHistory: ['ground_up', 'refinance'],
+  litigationHistory: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Online Presence
   // ============================================================================
-  linkedinUrl: 'both',
-  websiteUrl: 'both',
+  linkedinUrl: ['ground_up', 'refinance'],
+  websiteUrl: ['ground_up', 'refinance'],
 
   // ============================================================================
   // Principal Information
   // ============================================================================
-  principalLegalName: 'both',
-  principalRoleDefault: 'both',
-  principalEmail: 'both',
-  ownershipPercentage: 'both',
-  principalBio: 'both',
-  principalSpecialties: 'both',
+  principalLegalName: ['ground_up', 'refinance'],
+  principalRoleDefault: ['ground_up', 'refinance'],
+  principalEmail: ['ground_up', 'refinance'],
+  ownershipPercentage: ['ground_up', 'refinance'],
+  principalBio: ['ground_up', 'refinance'],
+  principalSpecialties: ['ground_up', 'refinance'],
 
   // ============================================================================
   // References
   // ============================================================================
-  references: 'both',
+  references: ['ground_up', 'refinance'],
 };
 
 /**
@@ -385,20 +383,15 @@ export function isFieldVisibleForDealType(
     ? projectResumeFieldDealTypes
     : borrowerResumeFieldDealTypes;
 
-  const fieldDealType = config[fieldId];
+  const fieldDealTypes = config[fieldId];
 
   // If field not found in config, show it (fail-open for backwards compatibility)
-  if (!fieldDealType) {
+  if (!fieldDealTypes) {
     return true;
   }
 
-  // 'both' fields are always visible
-  if (fieldDealType === 'both') {
-    return true;
-  }
-
-  // Otherwise, match the deal type
-  return fieldDealType === dealType;
+  // Check if the current deal type is included in the field's allowed types
+  return fieldDealTypes.includes(dealType);
 }
 
 /**
@@ -424,7 +417,7 @@ export function filterFieldsForDealType(
  *
  * @param fieldId - The field ID to look up
  * @param isProjectField - True for project resume fields, false for borrower resume fields
- * @returns The field's deal type classification, or 'both' if not found
+ * @returns The field's deal type classification array
  */
 export function getFieldDealType(
   fieldId: string,
@@ -434,7 +427,8 @@ export function getFieldDealType(
     ? projectResumeFieldDealTypes
     : borrowerResumeFieldDealTypes;
 
-  return config[fieldId] ?? 'both';
+  // Default to showing for both if not found
+  return config[fieldId] ?? ['ground_up', 'refinance'];
 }
 
 /**
