@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from "react";
-import { ChevronRight, ChevronDown, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Trash2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import type {
     T12FinancialData,
     T12Category,
@@ -28,6 +28,7 @@ export function T12FinancialTable({
     const [editValue, setEditValue] = useState<string>("");
     const [editingName, setEditingName] = useState<string | null>(null);
     const [editNameValue, setEditNameValue] = useState<string>("");
+    const [confirmDeletionId, setConfirmDeletionId] = useState<string | null>(null);
 
     // Default mock data for visualization if no data provided
     const displayData = useMemo(() => {
@@ -194,15 +195,36 @@ export function T12FinancialTable({
     }, [displayData, onChange]);
 
     const handleDeleteRow = useCallback((categoryId: string) => {
-        if (!onChange || !confirm("Are you sure you want to delete this row?")) return;
+        if (!onChange) return;
+        setConfirmDeletionId(categoryId);
+    }, [onChange]);
 
+    const confirmDeleteRow = useCallback((categoryId: string) => {
+        if (!onChange) return;
         const updatedData = removeCategory(displayData, categoryId);
         onChange(updatedData);
+        setConfirmDeletionId(null);
     }, [displayData, onChange]);
+
+    const cancelDeleteRow = useCallback(() => {
+        setConfirmDeletionId(null);
+    }, []);
 
     const handleMoveRow = useCallback((categoryId: string, direction: "up" | "down") => {
         if (!onChange) return;
         const updatedData = moveCategory(displayData, categoryId, direction);
+        onChange(updatedData);
+    }, [displayData, onChange]);
+
+    const handlePromoteRow = useCallback((categoryId: string) => {
+        if (!onChange) return;
+        const updatedData = promoteCategory(displayData, categoryId);
+        onChange(updatedData);
+    }, [displayData, onChange]);
+
+    const handleDemoteRow = useCallback((categoryId: string) => {
+        if (!onChange) return;
+        const updatedData = demoteCategory(displayData, categoryId);
         onChange(updatedData);
     }, [displayData, onChange]);
 
@@ -274,6 +296,7 @@ export function T12FinancialTable({
                         <div className="flex items-center gap-2 group">
                             {hasChildren ? (
                                 <button
+                                    type="button"
                                     onClick={() => toggleCollapse(category.id)}
                                     className="hover:bg-gray-200 rounded p-0.5"
                                     aria-label={
@@ -317,42 +340,88 @@ export function T12FinancialTable({
 
                             {/* Row Management buttons (visible on hover) */}
                             {editable && (
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleAddRow(category.id); }}
-                                        className="p-1 hover:bg-blue-100 text-blue-600 rounded"
-                                        title="Add sub-item"
-                                    >
-                                        <Plus className="h-3 w-3" />
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleAddSibling(category.id); }}
-                                        className="p-1 hover:bg-gray-100 text-gray-600 rounded"
-                                        title="Add sibling"
-                                    >
-                                        <Plus className="h-3 w-3 border border-gray-400 rounded-sm" />
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleMoveRow(category.id, "up"); }}
-                                        className="p-1 hover:bg-gray-100 text-gray-500 rounded"
-                                        title="Move up"
-                                    >
-                                        <ArrowUp className="h-3 w-3" />
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleMoveRow(category.id, "down"); }}
-                                        className="p-1 hover:bg-gray-100 text-gray-500 rounded"
-                                        title="Move down"
-                                    >
-                                        <ArrowDown className="h-3 w-3" />
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleDeleteRow(category.id); }}
-                                        className="p-1 hover:bg-red-100 text-red-600 rounded"
-                                        title="Delete row"
-                                    >
-                                        <Trash2 className="h-3 w-3" />
-                                    </button>
+                                <div className={`flex items-center gap-1 transition-opacity ml-auto ${confirmDeletionId === category.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                                    }`}>
+                                    {confirmDeletionId === category.id ? (
+                                        <div className="flex items-center gap-1 bg-red-50 p-1 rounded border border-red-200 animate-in fade-in zoom-in duration-200">
+                                            <span className="text-[10px] font-bold text-red-600 mr-1">Delete?</span>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); confirmDeleteRow(category.id); }}
+                                                className="p-1 hover:bg-red-200 text-red-600 rounded bg-white shadow-sm"
+                                                title="Confirm Delete"
+                                            >
+                                                <Check className="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); cancelDeleteRow(); }}
+                                                className="p-1 hover:bg-gray-200 text-gray-600 rounded bg-white shadow-sm"
+                                                title="Cancel Delete"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddRow(category.id); }}
+                                                className="p-1 hover:bg-blue-100 text-blue-600 rounded"
+                                                title="Add sub-item"
+                                            >
+                                                <Plus className="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleAddSibling(category.id); }}
+                                                className="p-1 hover:bg-gray-100 text-gray-600 rounded"
+                                                title="Add sibling"
+                                            >
+                                                <Plus className="h-3 w-3 border border-gray-400 rounded-sm" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleMoveRow(category.id, "up"); }}
+                                                className="p-1 hover:bg-gray-100 text-gray-500 rounded"
+                                                title="Move up"
+                                            >
+                                                <ArrowUp className="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleMoveRow(category.id, "down"); }}
+                                                className="p-1 hover:bg-gray-100 text-gray-500 rounded"
+                                                title="Move down"
+                                            >
+                                                <ArrowDown className="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePromoteRow(category.id); }}
+                                                className="p-1 hover:bg-gray-100 text-gray-500 rounded"
+                                                title="Move up a level (Promote)"
+                                            >
+                                                <ArrowLeft className="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDemoteRow(category.id); }}
+                                                className="p-1 hover:bg-gray-100 text-gray-500 rounded"
+                                                title="Move down a level (Demote)"
+                                            >
+                                                <ArrowRight className="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteRow(category.id); }}
+                                                className="p-1 hover:bg-red-100 text-red-600 rounded"
+                                                title="Delete row"
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -473,6 +542,7 @@ export function T12FinancialTable({
                             <tr>
                                 <td colSpan={displayData.months.length + 2} className="px-3 py-2">
                                     <button
+                                        type="button"
                                         onClick={handleAddRootRow}
                                         className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
                                     >
@@ -667,6 +737,107 @@ function moveCategory(
         ...data,
         categories: moveInList(data.categories)
     };
+}
+
+/**
+ * Helper to promote a category (move out of parent)
+ */
+function promoteCategory(data: T12FinancialData, categoryId: string): T12FinancialData {
+    let categoryToMove: T12Category | null = null;
+    let parentId: string | null = null;
+
+    // 1. Find and Remove
+    const findAndRemove = (list: T12Category[], pId: string | null = null): T12Category[] => {
+        const idx = list.findIndex(c => c.id === categoryId);
+        if (idx !== -1) {
+            categoryToMove = list[idx];
+            parentId = pId;
+            return [...list.slice(0, idx), ...list.slice(idx + 1)];
+        }
+        return list.map(c => ({
+            ...c,
+            children: c.children ? findAndRemove(c.children, c.id) : undefined
+        }));
+    };
+
+    const newCategories = findAndRemove(data.categories);
+    if (!categoryToMove || !parentId) return data; // Can't promote root items
+
+    // 2. Insert after parent
+    const insertAfterParent = (list: T12Category[]): T12Category[] => {
+        const idx = list.findIndex(c => c.id === parentId);
+        if (idx !== -1 && categoryToMove) {
+            const promoted = updateCategoryLevels(categoryToMove, list[idx].level);
+            return [...list.slice(0, idx + 1), promoted, ...list.slice(idx + 1)];
+        }
+        return list.map(c => ({
+            ...c,
+            children: c.children ? insertAfterParent(c.children) : undefined
+        }));
+    };
+
+    return {
+        ...data,
+        categories: insertAfterParent(newCategories)
+    };
+}
+
+/**
+ * Helper to demote a category (make it child of sibling above)
+ */
+function demoteCategory(data: T12FinancialData, categoryId: string): T12FinancialData {
+    let categoryToMove: T12Category | null = null;
+    let siblingAboveId: string | null = null;
+
+    // 1. Find and Remove
+    const findAndRemove = (list: T12Category[]): T12Category[] => {
+        const idx = list.findIndex(c => c.id === categoryId);
+        if (idx !== -1) {
+            categoryToMove = list[idx];
+            if (idx > 0) siblingAboveId = list[idx - 1].id;
+            return [...list.slice(0, idx), ...list.slice(idx + 1)];
+        }
+        return list.map(c => ({
+            ...c,
+            children: c.children ? findAndRemove(c.children) : undefined
+        }));
+    };
+
+    const newCategories = findAndRemove(data.categories);
+    if (!categoryToMove || !siblingAboveId) return data; // No sibling above to become child of
+
+    // 2. Insert into sibling's children
+    const insertIntoSibling = (list: T12Category[]): T12Category[] => {
+        return list.map(c => {
+            if (c.id === siblingAboveId && categoryToMove) {
+                const demoted = updateCategoryLevels(categoryToMove, c.level + 1);
+                return {
+                    ...c,
+                    children: [...(c.children || []), demoted]
+                };
+            }
+            return {
+                ...c,
+                children: c.children ? insertIntoSibling(c.children) : undefined
+            };
+        });
+    };
+
+    return {
+        ...data,
+        categories: insertIntoSibling(newCategories)
+    };
+}
+
+/**
+ * Helper to update levels recursively
+ */
+function updateCategoryLevels(category: T12Category, newLevel: number): T12Category {
+    const updated: T12Category = { ...category, level: newLevel };
+    if (updated.children) {
+        updated.children = updated.children.map(child => updateCategoryLevels(child, newLevel + 1));
+    }
+    return updated;
 }
 
 /**
