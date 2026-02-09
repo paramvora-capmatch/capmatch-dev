@@ -472,7 +472,9 @@
 				{
 					"id": "t12-financials",
 					"title": "3.8 T12 Financial Data",
-					"fields": []
+					"fields": [
+						"t12MonthlyData"
+					]
 				}
 			],
 			"fields": [

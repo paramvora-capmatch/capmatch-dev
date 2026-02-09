@@ -585,6 +585,50 @@ export interface ProjectPrincipal {
 	createdAt: string;
 }
 
+// Rent Roll Types
+export interface RentRollCharge {
+	name: string | { value: string };
+	amount: number | { value: number };
+	notes?: string | { value: string };
+}
+
+export interface RentRollTenant {
+	name?: string | { value: string };
+	moveInDate?: string | { value: string };
+	leaseStart?: string | { value: string };
+	leaseEnd?: string | { value: string };
+	moveOutDate?: string | { value: string };
+	ledgerBalance?: number | { value: number };
+}
+
+export interface RentRollUnit {
+	unitNumber: string | { value: string };
+	unitType?: string | { value: string };
+	squareFeet?: number | { value: number }; // Backend sends 'squareFeet' or 'sqft'? Schema says 'squareFeet' in unified service, 'sqft' in dynamic items? 
+    // unified_extraction_service defines "squareFeet" in schema. dynamic_items.py defines "sqft" but tracked dict keys it "squareFeet" (wait, let me check).
+    // dynamic_items.py Line 219: "squareFeet": {"value": self.sqft, ...} . Good.
+	floorPlan?: string | { value: string };
+	marketRent?: number | { value: number };
+    status?: string | { value: string };
+    
+    // Nested
+    tenant?: RentRollTenant;
+    charges?: RentRollCharge[];
+    totalMonthlyRent?: number | { value: number };
+    notes?: string | { value: string };
+
+    // Legacy fields for backward compat if needed (though we are replacing extraction)
+    beds?: number;
+    baths?: number;
+    monthlyRent?: number; // Legacy flat field
+    recurringCharges?: number; // Legacy flat field
+    rentPSF?: number; // Legacy flat field
+    nextRentIncreaseDate?: string;
+    nextRentIncreaseAmount?: number;
+    tenantName?: string; // Legacy flat field
+    sf?: number; // Legacy field name often used in frontend
+}
+
 // Document Types
 export type DocumentCategory =
 	| "PFS"

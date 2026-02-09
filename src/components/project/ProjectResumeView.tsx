@@ -43,7 +43,7 @@ import { useCallback } from "react";
 import { useAutofill } from "@/hooks/useAutofill";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
 import { T12FinancialTable } from "@/components/project/T12FinancialTable";
-import { T12FinancialData } from "@/types/t12-financial";
+import { T12FinancialData, T12Category } from "@/types/t12-financial";
 
 interface ProjectResumeViewProps {
 	project: ProjectProfile;
@@ -419,6 +419,179 @@ const getFieldLabel = (field: {
 	return desc || field.fieldId;
 };
 
+// Helper to strip leading section numbers like "1. " or "2.3 "
+	const cleanTitledNumberPrefix = (title: string): string =>
+		title.replace(/^\d+(\.\d+)*\s*/, "");
+
+// Helper to transform backend T12 data (Column-oriented) to properties component format (Row-oriented)
+const transformBackendT12Data = (t12MonthlyData: any): T12FinancialData | null => {
+    let data = t12MonthlyData;
+
+    // Handle stringified data (happens if backend extraction returned a string instead of array)
+    if (typeof data === "string" && data.trim().startsWith("[")) {
+        try {
+            // Try standard JSON parse first
+            data = JSON.parse(data);
+        } catch (e) {
+            try {
+                // Fallback: Handle Python-style stringified list (single quotes)
+                // This is crude but handles the common case from LLM/Python logs
+                const jsonFixed = data.replace(/'/g, '"');
+                data = JSON.parse(jsonFixed);
+            } catch (e2) {
+                console.error("Failed to parse stringified T12 data:", e2);
+                return null;
+            }
+        }
+    }
+
+    if (!Array.isArray(data) || data.length === 0) return null;
+
+    try {
+        // 1. Get months
+        const months: string[] = (data as any[]).map((m: any) => {
+            // Handle both rich format and flat format
+            if (m.month && typeof m.month === 'object' && 'value' in m.month) {
+                return String(m.month.value);
+            }
+            return String(m.month || "Unknown");
+        });
+
+        // 2. Build category tree from first month as template
+        const firstMonth = data[0];
+        // Handle rich format for categories list if needed (though usually it's just a list)
+        const categoriesRaw = firstMonth.categories;
+        const backendCategories = Array.isArray(categoriesRaw) ? categoriesRaw : [];
+
+        // Recursive helper to build T12Category
+        // We do a simplified version: Backend Categories are Level 0, Items are Level 1
+        const categories: T12Category[] = [];
+
+        backendCategories.forEach((catTemplate: any, catIdx: number) => {
+            // Extract Category Name
+            let catName = "Unknown";
+            if (catTemplate.name && typeof catTemplate.name === 'object' && 'value' in catTemplate.name) {
+                catName = String(catTemplate.name.value);
+            } else {
+                catName = String(catTemplate.name || "Unknown");
+            }
+
+            const catId = `cat-${catIdx}-${catName.replace(/\s+/g, '-').toLowerCase()}`;
+            
+            // Build Line Items (Children)
+            const children: T12Category[] = [];
+            const itemsRaw = catTemplate.items;
+            const items = Array.isArray(itemsRaw) ? itemsRaw : [];
+
+            items.forEach((itemTemplate: any, itemIdx: number) => {
+                // Extract Item Name
+                let itemName = "Unknown";
+                if (itemTemplate.name && typeof itemTemplate.name === 'object' && 'value' in itemTemplate.name) {
+                    itemName = String(itemTemplate.name.value);
+                } else {
+                    itemName = String(itemTemplate.name || "Unknown");
+                }
+                
+                const itemId = `${catId}-item-${itemIdx}`;
+
+                // Gather values for this item across all months
+                const monthlyValues: Record<string, number | null> = {};
+                let itemTotal = 0;
+
+                months.forEach((monthStr: string, mIdx: number) => {
+                    const monthData = data[mIdx];
+                    const mCats = Array.isArray(monthData.categories) ? monthData.categories : [];
+                    
+                    // Find matching category in this month (by name or index)
+                    // We try index first as it's more reliable if structure is consistent
+                    let mCat = mCats[catIdx];
+                    // Fallback to name match if index seems wrong
+                    if (!mCat || (mCat.name?.value || mCat.name) !== (catTemplate.name?.value || catTemplate.name)) {
+                         mCat = mCats.find((c: any) => {
+                            const cName = c.name?.value || c.name;
+                            const tName = catTemplate.name?.value || catTemplate.name;
+                            return cName === tName;
+                         });
+                    }
+
+                    let val = 0;
+                    if (mCat) {
+                        const mItems = Array.isArray(mCat.items) ? mCat.items : [];
+                        // Find matching item
+                        let mItem = mItems[itemIdx];
+                        if (!mItem || (mItem.name?.value || mItem.name) !== (itemTemplate.name?.value || itemTemplate.name)) {
+                             mItem = mItems.find((i: any) => {
+                                const iName = i.name?.value || i.name;
+                                const tName = itemTemplate.name?.value || itemTemplate.name;
+                                return iName === tName;
+                             });
+                        }
+
+                        if (mItem) {
+                            if (mItem.value && typeof mItem.value === 'object' && 'value' in mItem.value) {
+                                val = Number(mItem.value.value) || 0;
+                            } else {
+                                val = Number(mItem.value) || 0;
+                            }
+                        }
+                    }
+                    monthlyValues[monthStr] = val;
+                    itemTotal += val;
+                });
+
+                children.push({
+                    id: itemId,
+                    name: itemName,
+                    level: 1,
+                    isTotal: false,
+                    isEditable: true,
+                    monthlyValues,
+                    total: itemTotal
+                });
+            });
+
+            // Calculate Category Totals (Sum of children)
+            const catMonthlyValues: Record<string, number | null> = {};
+            let catTotal = 0;
+
+            months.forEach((month: string) => {
+                let sum = 0;
+                children.forEach((child: T12Category) => {
+                    sum += (child.monthlyValues[month] || 0);
+                });
+                catMonthlyValues[month] = sum;
+                catTotal += sum;
+            });
+
+            categories.push({
+                id: catId,
+                name: catName,
+                level: 0,
+                isTotal: true,
+                isEditable: false,
+                monthlyValues: catMonthlyValues,
+                total: catTotal,
+                children,
+                collapsed: false
+            });
+        });
+
+        // Add Net Operating Income (NOI) Summary if possible
+        // Or just return the categories
+        
+        return {
+            title: "Income Statement - 12 Month",
+            periodRange: months.length > 0 ? `${months[0]} - ${months[months.length-1]}` : "",
+            months,
+            categories
+        };
+
+    } catch (e) {
+        console.error("Error transforming T12 data:", e);
+        return null;
+    }
+};
+
 export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 	project,
 	onEdit,
@@ -494,11 +667,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 		return fieldId;
 	};
 
-	// Helper to strip leading section numbers like "1. " or "2.3 "
-	const cleanTitledNumberPrefix = (title: string): string =>
-		title.replace(/^\d+(\.\d+)*\s*/, "");
 
-	// handleAutofill is now provided by the useAutofill hook
 
 	return (
 		<div
@@ -1119,9 +1288,20 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																		)}
 																	</div>
 
+
 																	{/* T12 Financial Table */}
 																	{subsectionId === "t12-financials" && (() => {
-																		const t12Data = getFieldValue(project, "t12FinancialData") as T12FinancialData | null;
+																		// Try to get explicit T12 Financial Data first
+																		let t12Data = getFieldValue(project, "t12FinancialData") as T12FinancialData | null;
+																		
+																		// Fallback: Transform t12MonthlyData if available
+																		if (!t12Data) {
+																			const monthlyData = getFieldValue(project, "t12MonthlyData");
+																			if (monthlyData && Array.isArray(monthlyData)) {
+																				t12Data = transformBackendT12Data(monthlyData);
+																			}
+																		}
+
 																		return (
 																			<div className="mt-4 col-span-2">
 																				<T12FinancialTable
@@ -1553,11 +1733,39 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	{rentRollData &&
 																		rentRollData.length >
 																		0 && (() => {
+																			// Helper to safely get value from rich field
+																			const getVal = (field: any): any => {
+																				if (field === null || field === undefined) return null;
+																				if (typeof field === 'object' && 'value' in field) return field.value;
+																				return field;
+																			};
+
 																			const totalUnits = rentRollData.length;
-																			const occupied = rentRollData.filter((u: any) => u.status === 'Occupied').length;
-																			const vacant = rentRollData.filter((u: any) => u.status === 'Vacant').length;
+																			const occupied = rentRollData.filter((u: any) => {
+																				const status = String(getVal(u.status) || "").toLowerCase();
+																				return status === 'occupied';
+																			}).length;
+																			const vacant = rentRollData.filter((u: any) => {
+																				const status = String(getVal(u.status) || "").toLowerCase();
+																				return status === 'vacant';
+																			}).length;
 																			const occupancy = totalUnits > 0 ? (occupied / totalUnits) * 100 : 0;
-																			const totalRent = rentRollData.reduce((acc: number, u: any) => acc + (u.monthlyRent || 0), 0);
+																			
+																			const totalRent = rentRollData.reduce((acc: number, u: any) => {
+																				let rent = 0;
+																				// Try totalMonthlyRent rich field
+																				if (u.totalMonthlyRent) {
+																					rent = Number(getVal(u.totalMonthlyRent)) || 0;
+																				} else if (u.monthlyRent) {
+																					// Legacy
+																					rent = Number(getVal(u.monthlyRent)) || 0;
+																				} else if (u.charges && Array.isArray(u.charges)) {
+																					// Sum charges if total not provided
+																					rent = u.charges.reduce((sum: number, c: any) => sum + (Number(getVal(c.amount)) || 0), 0);
+																				}
+																				return acc + rent;
+																			}, 0);
+																			
 																			const avgRent = totalUnits > 0 ? totalRent / totalUnits : 0;
 
 																			return (
@@ -1600,15 +1808,13 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																								<tr>
 																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Unit # </th>
 																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Type </th>
-																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Beds/Baths </th>
 																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> SF </th>
 																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Status </th>
 																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Tenant </th>
-																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Rent </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Total Rent </th>
 																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Rent/SF </th>
-																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Recurring </th>
-																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Term </th>
-																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Next Increase </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Charges Details </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Lease </th>
 																								</tr>
 																							</thead>
 																							<tbody className="bg-white divide-y divide-gray-200">
@@ -1616,35 +1822,71 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																									(
 																										unit: any,
 																										idx: number
-																									) => (
-																										<tr
-																											key={
-																												idx
-																											}
-																										>
-																											<td className="px-3 py-2 whitespace-nowrap"> {unit.unitNumber || "N/A"} </td>
-																											<td className="px-3 py-2 whitespace-nowrap"> {unit.unitType || "N/A"} </td>
-																											<td className="px-3 py-2 whitespace-nowrap"> {unit.beds ?? "N/A"}/{unit.baths ?? "N/A"} </td>
-																											<td className="px-3 py-2 whitespace-nowrap"> {unit.sf?.toLocaleString() || "N/A"} </td>
-																											<td className="px-3 py-2 whitespace-nowrap"> {unit.status || "N/A"} </td>
-																											<td className="px-3 py-2 whitespace-nowrap"> {unit.tenantName || "N/A"} </td>
-																											<td className="px-3 py-2 whitespace-nowrap"> {formatCurrency(unit.monthlyRent)} </td>
-																											<td className="px-3 py-2 whitespace-nowrap">
-																												{unit.rentPSF ? `$${unit.rentPSF.toFixed(2)}` :
-																													(unit.monthlyRent && unit.sf ? `$${(unit.monthlyRent / unit.sf).toFixed(2)}` : "N/A")}
-																											</td>
-																											<td className="px-3 py-2 whitespace-nowrap"> {formatCurrency(unit.recurringCharges)} </td>
-																											<td className="px-3 py-2 whitespace-nowrap text-xs"> {unit.leaseStart || "N/A"} - {unit.leaseEnd || "N/A"} </td>
-																											<td className="px-3 py-2 whitespace-nowrap text-xs">
-																												{unit.nextRentIncreaseDate ? (
-																													<div>
-																														{unit.nextRentIncreaseDate}
-																														{unit.nextRentIncreaseAmount ? ` (${formatCurrency(unit.nextRentIncreaseAmount)})` : ""}
-																													</div>
-																												) : "N/A"}
-																											</td>
-																										</tr>
-																									)
+																									) => {
+																										const unitNum = getVal(unit.unitNumber);
+																										const unitType = getVal(unit.unitType);
+																										const sf = Number(getVal(unit.squareFeet) || getVal(unit.sqft) || getVal(unit.sf));
+																										const status = getVal(unit.status);
+																										
+																										// Tenant Name
+																										let tenantName = getVal(unit.tenantName);
+																										if (!tenantName && unit.tenant) {
+																											tenantName = getVal(unit.tenant.name);
+																										}
+
+																										// Rent Calculation
+																										let monthRent = Number(getVal(unit.totalMonthlyRent)) || Number(getVal(unit.monthlyRent)) || 0;
+																										if (monthRent === 0 && unit.charges && Array.isArray(unit.charges)) {
+																											monthRent = unit.charges.reduce((sum: number, c: any) => sum + (Number(getVal(c.amount)) || 0), 0);
+																										}
+
+																										// Lease Dates
+																										let leaseStart = getVal(unit.leaseStart);
+																										let leaseEnd = getVal(unit.leaseEnd);
+																										if (!leaseStart && unit.tenant) {
+																											leaseStart = getVal(unit.tenant.leaseStart);
+																										}
+																										if (!leaseEnd && unit.tenant) {
+																											leaseEnd = getVal(unit.tenant.leaseEnd);
+																										}
+                                                                                                        
+                                                                                                        // Construct charges tooltip/string
+                                                                                                        let chargesStr = "";
+                                                                                                        if (unit.charges && Array.isArray(unit.charges) && unit.charges.length > 0) {
+                                                                                                            chargesStr = unit.charges.map((c: any) => `${getVal(c.name)}: ${formatCurrency(Number(getVal(c.amount)))}`).join(", ");
+                                                                                                        }
+
+																										return (
+																											<tr
+																												key={
+																													idx
+																												}
+																											>
+																												<td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900"> {unitNum || "N/A"} </td>
+																												<td className="px-3 py-2 whitespace-nowrap"> {unitType || "N/A"} </td>
+																												<td className="px-3 py-2 whitespace-nowrap"> {sf ? sf.toLocaleString() : "N/A"} </td>
+																												<td className="px-3 py-2 whitespace-nowrap"> 
+                                                                                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                                                                                        String(status).toLowerCase() === 'occupied' ? 'bg-green-100 text-green-800' : 
+                                                                                                                        String(status).toLowerCase() === 'vacant' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                                                                                                                    }`}>
+                                                                                                                        {status || "N/A"}
+                                                                                                                    </span>
+                                                                                                                </td>
+																												<td className="px-3 py-2 whitespace-nowrap"> {tenantName || "N/A"} </td>
+																												<td className="px-3 py-2 whitespace-nowrap"> {formatCurrency(monthRent)} </td>
+																												<td className="px-3 py-2 whitespace-nowrap">
+																													{monthRent && sf ? formatCurrency(monthRent / sf) : "N/A"}
+																												</td>
+																												<td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 max-w-xs truncate" title={chargesStr}> 
+                                                                                                                    {chargesStr || "N/A"} 
+                                                                                                                </td>
+																												<td className="px-3 py-2 whitespace-nowrap text-xs"> 
+                                                                                                                    {leaseStart ? `${leaseStart} - ${leaseEnd || "?"}` : "N/A"} 
+                                                                                                                </td>
+																											</tr>
+																										);
+																									}
 																								)}
 																							</tbody>
 																						</table>

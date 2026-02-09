@@ -30,74 +30,15 @@ export function T12FinancialTable({
     const [editNameValue, setEditNameValue] = useState<string>("");
     const [confirmDeletionId, setConfirmDeletionId] = useState<string | null>(null);
 
-    // Default mock data for visualization if no data provided
+    // Default to empty structure if no data provided
     const displayData = useMemo(() => {
         if (!data || Object.keys(data).length === 0) {
             return {
-                title: "Income Statement - 12 Month (Demo Data)",
-                periodRange: "Jan 2024 - Dec 2024",
-                months: ["Jan-24", "Feb-24", "Mar-24", "Apr-24", "May-24", "Jun-24", "Jul-24", "Aug-24", "Sep-24", "Oct-24", "Nov-24", "Dec-24"],
-                categories: [
-                    {
-                        id: "income",
-                        name: "Income",
-                        level: 0,
-                        monthlyValues: { "Jan-24": 0, "Feb-24": 0, "Mar-24": 0, "Apr-24": 0, "May-24": 0, "Jun-24": 0, "Jul-24": 0, "Aug-24": 0, "Sep-24": 0, "Oct-24": 0, "Nov-24": 0, "Dec-24": 0 },
-                        total: 0,
-                        children: [
-                            {
-                                id: "gross-potential-rent",
-                                name: "Gross Potential Rent",
-                                level: 1,
-                                isEditable: true,
-                                monthlyValues: { "Jan-24": 45000, "Feb-24": 45500, "Mar-24": 46000, "Apr-24": 46000, "May-24": 47000, "Jun-24": 47500, "Jul-24": 48000, "Aug-24": 48500, "Sep-24": 49000, "Oct-24": 49500, "Nov-24": 50000, "Dec-24": 50500 },
-                                total: 572500
-                            },
-                            {
-                                id: "loss-to-lease",
-                                name: "Loss to Lease",
-                                level: 1,
-                                isEditable: true,
-                                monthlyValues: { "Jan-24": -1000, "Feb-24": -1200, "Mar-24": -1100, "Apr-24": -1000, "May-24": -900, "Jun-24": -800, "Jul-24": -700, "Aug-24": -600, "Sep-24": -500, "Oct-24": -400, "Nov-24": -300, "Dec-24": -200 },
-                                total: -8700
-                            }
-                        ]
-                    },
-                    {
-                        id: "total-income",
-                        name: "Total Operating Income",
-                        level: 0,
-                        isTotal: true,
-                        monthlyValues: { "Jan-24": 44000, "Feb-24": 44300, "Mar-24": 44900, "Apr-24": 45000, "May-24": 46100, "Jun-24": 46700, "Jul-24": 47300, "Aug-24": 47900, "Sep-24": 48500, "Oct-24": 49100, "Nov-24": 49700, "Dec-24": 50300 },
-                        total: 563800
-                    },
-                    {
-                        id: "expenses",
-                        name: "Operating Expenses",
-                        level: 0,
-                        monthlyValues: { "Jan-24": 0, "Feb-24": 0, "Mar-24": 0, "Apr-24": 0, "May-24": 0, "Jun-24": 0, "Jul-24": 0, "Aug-24": 0, "Sep-24": 0, "Oct-24": 0, "Nov-24": 0, "Dec-24": 0 },
-                        total: 0,
-                        children: [
-                            {
-                                id: "taxes",
-                                name: "Real Estate Taxes",
-                                level: 1,
-                                isEditable: true,
-                                monthlyValues: { "Jan-24": 5000, "Feb-24": 5000, "Mar-24": 5000, "Apr-24": 5000, "May-24": 5000, "Jun-24": 5000, "Jul-24": 5000, "Aug-24": 5000, "Sep-24": 5000, "Oct-24": 5000, "Nov-24": 5000, "Dec-24": 5000 },
-                                total: 60000
-                            },
-                            {
-                                id: "insurance",
-                                name: "Insurance",
-                                level: 1,
-                                isEditable: true,
-                                monthlyValues: { "Jan-24": 2000, "Feb-24": 2000, "Mar-24": 2000, "Apr-24": 2000, "May-24": 2000, "Jun-24": 2000, "Jul-24": 2000, "Aug-24": 2000, "Sep-24": 2000, "Oct-24": 2000, "Nov-24": 2000, "Dec-24": 2000 },
-                                total: 24000
-                            }
-                        ]
-                    }
-                ]
-            };
+                title: "Income Statement - 12 Month",
+                periodRange: "",
+                months: [],
+                categories: []
+            } as T12FinancialData;
         }
         return data;
     }, [data]);
