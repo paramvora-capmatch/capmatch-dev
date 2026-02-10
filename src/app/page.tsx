@@ -1,30 +1,23 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { EnhancedHeader } from "../components/ui/EnhancedHeader";
 import { Footer } from "../components/ui/Footer";
-import { Button } from "@/components/ui/Button";
 import { cn } from "@/utils/cn";
 import {
-	BusinessModelSection,
 	HowItWorksSection,
-	WhoItsForSection,
 	CaseStudiesSection,
 	SecuritySection,
 } from "@/components/landing";
 
 export default function HomePage() {
-	const router = useRouter();
-
 	const [scrolled, setScrolled] = useState(false);
 	const [textAnimation, setTextAnimation] = useState({
 		part1Visible: false,
 		part2Visible: false,
 		part3Visible: false,
-		part4Visible: false,
 	});
 
 	useEffect(() => {
@@ -56,27 +49,12 @@ export default function HomePage() {
 			() => setTextAnimation((p) => ({ ...p, part3Visible: true })),
 			1300
 		);
-		const t4 = setTimeout(
-			() => setTextAnimation((p) => ({ ...p, part4Visible: true })),
-			1700
-		);
 		return () => {
 			clearTimeout(t1);
 			clearTimeout(t2);
 			clearTimeout(t3);
-			clearTimeout(t4);
 		};
 	}, []);
-
-	const handleScrollToHowItWorks = useCallback(() => {
-		document
-			.getElementById("how-it-works")
-			?.scrollIntoView({ behavior: "smooth" });
-	}, []);
-
-	const handleAccessDealRoom = useCallback(() => {
-		router.push("/login");
-	}, [router]);
 
 	return (
 		<div
@@ -211,46 +189,10 @@ export default function HomePage() {
 								</motion.div>
 							</div>
 						</motion.div>
-						<motion.div
-							initial={{ opacity: 0 }}
-							animate={{
-								opacity: textAnimation.part4Visible ? 1 : 0,
-							}}
-							transition={{ duration: 0.6, delay: 0.3 }}
-						>
-							<div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center">
-								<Button
-									variant="primary"
-									size="lg"
-									className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8"
-									style={{
-										boxShadow:
-											"0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-									}}
-									onClick={handleScrollToHowItWorks}
-								>
-									See How It Works
-								</Button>
-								<Button
-									variant="outline"
-									size="lg"
-									onClick={handleAccessDealRoom}
-									className="rounded-full border-gray-300 !text-gray-900 hover:bg-gray-100 hover:border-gray-400 bg-transparent"
-									style={{
-										boxShadow:
-											"0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1)",
-									}}
-								>
-									Access Deal Room
-								</Button>
-							</div>
-						</motion.div>
 					</motion.div>
 				</section>
 
 				<HowItWorksSection />
-				<BusinessModelSection />
-				<WhoItsForSection />
 				<CaseStudiesSection />
 				<SecuritySection />
 			</main>

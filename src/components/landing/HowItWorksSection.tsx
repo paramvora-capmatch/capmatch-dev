@@ -105,22 +105,23 @@ export function HowItWorksSection() {
 						45deg,
 						transparent,
 						transparent 10px,
-						rgba(209, 213, 219, 0.097) 10px,
-						rgba(209, 213, 219, 0.097) 11px
+						rgba(209, 213, 219, 0.22) 10px,
+						rgba(209, 213, 219, 0.22) 11px
 					),
 					repeating-linear-gradient(
 						-45deg,
 						transparent,
 						transparent 10px,
-						rgba(209, 213, 219, 0.097) 10px,
-						rgba(209, 213, 219, 0.097) 11px
+						rgba(209, 213, 219, 0.22) 10px,
+						rgba(209, 213, 219, 0.22) 11px
 					)
 				`,
 			}}
 		>
-			{/* Section title — separate block so first video aligns with first point */}
+			{/* Section title — centered */}
 			<div className="w-full max-w-[90%] 2xl:max-w-[1600px] mx-auto pt-16 lg:pt-24 px-6 sm:px-8 lg:px-12 pb-2">
 				<motion.div
+					className="text-center"
 					initial={{ opacity: 0, y: 12 }}
 					whileInView={{ opacity: 1, y: 0 }}
 					viewport={{ once: true, margin: "-80px" }}
@@ -140,7 +141,7 @@ export function HowItWorksSection() {
 				return (
 					<div
 						key={index}
-						className={`min-h-[50vh] flex flex-col lg:flex-row lg:items-center gap-8 lg:gap-10 w-full max-w-[90%] 2xl:max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12 ${index === 0 ? "pt-6 lg:pt-10 pb-16 lg:pb-24" : "py-16 lg:py-24"}`}
+						className={`min-h-[50vh] flex flex-col lg:flex-row lg:items-center gap-8 lg:gap-12 w-full max-w-[90%] 2xl:max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12 ${index === 0 ? "pt-6 lg:pt-10 pb-16 lg:pb-24" : "py-16 lg:py-24"} rounded-2xl border-2 border-gray-200/80 bg-white/70 shadow-lg backdrop-blur-sm ${index > 0 ? "mt-6" : ""}`}
 					>
 						{videoOnRight ? (
 							<>

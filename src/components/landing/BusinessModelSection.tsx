@@ -2,7 +2,6 @@
 
 import React, { useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import { Check, X, Minus } from "lucide-react";
 
 export function BusinessModelSection() {
 	const ref = useRef<HTMLDivElement>(null);
@@ -12,7 +11,7 @@ export function BusinessModelSection() {
 		<section
 			id="business-model"
 			ref={ref}
-			className="pt-24 bg-blue-50/50 border-y border-gray-100 overflow-hidden h-[750px] md:h-[800px] relative"
+			className="pt-24 pb-24 bg-blue-50/50 border-y border-gray-100 overflow-hidden relative"
 		>
 			<div className="container mx-auto px-4 max-w-5xl relative z-20">
 				<motion.div
@@ -55,42 +54,6 @@ export function BusinessModelSection() {
 							</motion.li>
 						))}
 					</ul>
-
-					{/* Faded Pricing Section as Background element */}
-					<div className="relative mt-16 overflow-hidden rounded-t-[3rem] border-x border-t border-gray-200 bg-white shadow-2xl max-w-5xl mx-auto transform scale-105">
-						<div className="p-10 pb-40 relative">
-							<div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-left opacity-60">
-								{[
-									{ name: "Starter", features: ["Market Data", "Lender Access", "OM Builder"] },
-									{ name: "Professional", features: ["Full Matching", "Bulk Outreach", "Analytics"] },
-									{ name: "Enterprise", features: ["Custom API", "White-labeling", "Priority Support"] },
-								].map((plan, i) => (
-									<div key={i} className="space-y-8">
-										<div>
-											<h4 className="text-base font-bold text-gray-400 uppercase tracking-widest mb-3">{plan.name}</h4>
-											<div className="flex items-baseline gap-2">
-												<span className="text-4xl font-extrabold text-gray-300">
-													<Minus className="inline-block" size={32} />
-												</span>
-												<span className="text-gray-300 text-lg font-medium">/ month</span>
-											</div>
-										</div>
-										<ul className="space-y-4">
-											{plan.features.map((feature, j) => (
-												<li key={j} className="flex items-center gap-3 text-gray-300">
-													<X size={20} className="text-red-400/30" />
-													<span className="text-lg line-through decoration-gray-200">{feature}</span>
-												</li>
-											))}
-										</ul>
-									</div>
-								))}
-							</div>
-
-							{/* Gradient Overlay for Fade (reduced depth) */}
-							<div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white via-white/40 to-transparent z-10" />
-						</div>
-					</div>
 				</motion.div>
 			</div>
 		</section>
