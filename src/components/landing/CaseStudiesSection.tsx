@@ -20,14 +20,14 @@ const caseStudies = [
 	},
 	{
 		id: "2",
-		headline: "Marshall",
-		assetType: "Office",
-		loanAmount: "—",
-		location: "—",
+		headline: "The Marshall",
+		assetType: "Student Housing",
+		loanAmount: "$30.1M",
+		location: "St. Louis, MO",
 		description:
-			"Office case study. Full details coming soon.",
+			"Generic docs couldn't capture student-housing and OZ nuances. CapMatch built an investor-ready intelligence layer, generated tailored outputs for each investor, and answered questions in real time—accelerating diligence and capital formation.",
 		image: "/Marshall-CaseStudy/R01-2_DUSK-PERSPECTIVE_MARSHALL-MO_4KTV_01.16.24-scaled.webp",
-		slug: null,
+		slug: "marshall",
 	},
 	{
 		id: "3",
