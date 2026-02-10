@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -158,11 +158,10 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
         }
     }, [draftMessage, setDraftMessage]);
 
-    const handleSendMessage = React.useCallback(async () => {
+    const handleSendMessage = useCallback(async () => {
         if (!newMessage.trim() || !activeThreadId) return;
         try {
             const content = newMessage.trim();
-            // Clear input immediately or after success
             richTextInputRef.current?.clear();
             setNewMessage("");
             await sendMessage(content, clientContext);
@@ -213,8 +212,6 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
             messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
         }
     }, [messages]);
-
-
 
     // Group messages
     const groupedMessages = useMemo(() => {
