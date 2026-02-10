@@ -109,7 +109,10 @@ export default function HomePage() {
 			<main className="flex-grow transition-colors duration-300 relative z-10">
 				{/* Hero */}
 				<section
-					className="relative overflow-hidden transition-colors duration-300 pt-64 pb-20"
+					className={cn(
+						"relative overflow-hidden transition-all duration-700 ease-in-out pt-64 pb-20",
+						scrolled ? "rounded-b-[50px] mx-6 md:mx-12" : ""
+					)}
 					style={{
 						minHeight: "100vh",
 						display: "flex",
