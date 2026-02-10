@@ -60,6 +60,7 @@ import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResu
 import { BorrowerResumeView } from "./BorrowerResumeView";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
 import { useAuth } from "@/hooks/useAuth";
+import { isFieldVisibleForDealType, type DealType } from "@/lib/deal-type-field-config";
 
 interface BorrowerResumeFormProps {
 	projectId: string;
@@ -79,6 +80,7 @@ interface BorrowerResumeFormProps {
 	canEdit?: boolean; // Whether the user has edit permission
 	onDirtyChange?: (isDirty: boolean) => void;
 	onRegisterSave?: (saveFn: () => Promise<void>) => void;
+	dealType?: 'ground_up' | 'refinance'; // Deal type for field filtering
 }
 
 const buildWorkspaceStepId = (stepId: string) => `borrower:${stepId}`;
@@ -273,6 +275,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	canEdit = true, // Default to true for backward compatibility
 	onDirtyChange,
 	onRegisterSave,
+	dealType = 'ground_up', // Default to ground_up for legacy projects
 }) => {
 	const {
 		content: borrowerResume,
@@ -1502,6 +1505,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 	const renderDynamicField = useCallback(
 		(fieldId: string, sectionId: string) => {
+			// Filter fields based on project's deal type
+			if (!isFieldVisibleForDealType(fieldId, dealType as DealType, false)) {
+				return null;
+			}
+
 			// Field control overrides similar to EnhancedProjectForm
 			const fieldControlOverrides: Record<string, string> = {
 				primaryEntityStructure: "button-select",
@@ -1764,6 +1772,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			onAskAI,
 			renderFieldLabel,
 			fieldMetadata,
+			dealType,
 		]
 	);
 

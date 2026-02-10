@@ -602,6 +602,7 @@ function buildProjectProfile(
 		assetType: flatContent.assetType || "",
 		projectStatus: (flatContent.dealStatus as any) || "",
 		dealStatus: flatContent.dealStatus || "",
+		deal_type: project.deal_type,
 		interestRateType: (flatContent.interestRateType as any) || "",
 		recoursePreference: (flatContent.recoursePreference as any) || "",
 		exitStrategy: flatContent.exitStrategy as any,
