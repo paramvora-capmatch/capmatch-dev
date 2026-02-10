@@ -3,37 +3,41 @@
 import React from "react";
 import { motion } from "framer-motion";
 
+import { AnimatedLenderGraph } from "../graph/AnimatedLenderGraph";
+
 const steps: {
 	title: string;
 	description: string;
 	/** YouTube embed video ID (e.g. Suy8VlbZ1yY). Leave empty for placeholder. */
 	youtubeEmbedId: string;
+	showGraph?: boolean;
 }[] = [
-	{
-		title: "Upload, AI Auto-Fill & Lender-Ready Resumes",
-		description:
-			"Drop in whatever you have—PDF, Excel, Word. Our AI extracts data and populates project and borrower resumes automatically. Complete profiles with version history, real-time collaboration, and AI validation.",
-		youtubeEmbedId: "vtNPigx49gQ",
-	},
-	{
-		title: "CapMatch Platform",
-		description:
-			"In-app communications, meeting scheduling, support chat, and document version control. Everything you need to manage deals and collaborate with lenders lives inside the platform.",
-		youtubeEmbedId: "cC5d4nWtskU",
-	},
-	{
-		title: "Live Offering Memorandum & Underwriting Documentation",
-		description:
-			"Dynamic OM dashboard—not a static PDF. Deal snapshots, market maps, scenario modeling. Plus full underwriting documentation so lenders have everything they need in one place.",
-		youtubeEmbedId: "IK8B8306ILc",
-	},
-	{
-		title: "Intelligent Lender Matching & Personalized Delivery",
-		description:
-			"AI-powered matching by asset, deal type, and location. LenderLine™ visualizes your ideal capital partners. Materials are then formatted for each lender's preferences—PDF, Excel, or live dashboard.",
-		youtubeEmbedId: "", // No video yet
-	},
-];
+		{
+			title: "Upload, AI Auto-Fill & Lender-Ready Resumes",
+			description:
+				"Drop in whatever you have—PDF, Excel, Word. Our AI extracts data and populates project and borrower resumes automatically. Complete profiles with version history, real-time collaboration, and AI validation.",
+			youtubeEmbedId: "vtNPigx49gQ",
+		},
+		{
+			title: "CapMatch Platform",
+			description:
+				"In-app communications, meeting scheduling, support chat, and document version control. Everything you need to manage deals and collaborate with lenders lives inside the platform.",
+			youtubeEmbedId: "cC5d4nWtskU",
+		},
+		{
+			title: "Live Offering Memorandum & Underwriting Documentation",
+			description:
+				"Dynamic OM dashboard—not a static PDF. Deal snapshots, market maps, scenario modeling. Plus full underwriting documentation so lenders have everything they need in one place.",
+			youtubeEmbedId: "IK8B8306ILc",
+		},
+		{
+			title: "Intelligent Lender Matching & Personalized Delivery",
+			description:
+				"AI-powered matching by asset, deal type, and location. LenderLine™ visualizes your ideal capital partners. Materials are then formatted for each lender's preferences—PDF, Excel, or live dashboard.",
+			youtubeEmbedId: "", // No video yet
+			showGraph: true,
+		},
+	];
 
 function VideoBlock({ step, index }: { step: (typeof steps)[0]; index: number }) {
 	return (
@@ -43,9 +47,11 @@ function VideoBlock({ step, index }: { step: (typeof steps)[0]; index: number })
 				whileInView={{ opacity: 1, y: 0 }}
 				viewport={{ once: true, margin: "-80px" }}
 				transition={{ duration: 0.4 }}
-				className="w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 shadow-lg bg-black"
+				className="w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 shadow-lg bg-white"
 			>
-				{step.youtubeEmbedId ? (
+				{step.showGraph ? (
+					<AnimatedLenderGraph />
+				) : step.youtubeEmbedId ? (
 					<iframe
 						className="w-full h-full"
 						src={`https://www.youtube.com/embed/${step.youtubeEmbedId}?rel=0&autoplay=1&mute=1&loop=1&playlist=${step.youtubeEmbedId}`}
@@ -128,3 +134,4 @@ export function HowItWorksSection() {
 		</section>
 	);
 }
+

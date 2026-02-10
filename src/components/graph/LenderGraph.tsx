@@ -52,17 +52,17 @@ function computeLenderScoreForGraphDisplay(lender: LenderProfile, formData: Part
       }
     }
   }
-  return matchCount / activeUIFilterCategories.length;
+  return matchCount === activeUIFilterCategories.length ? 1 : 0;
 }
 
 
 function getLenderColor(
-    lenderFromContext: LenderProfile,
-    formDataForGraphDisplay: Partial<LenderFilters> | undefined,
-    graphConsidersNodeActive: boolean, // If graph's UI filters make this node "active"
-    filtersAreAppliedOnPage: boolean // If ANY filter is applied on the page (from props)
-  ): string {
-  
+  lenderFromContext: LenderProfile,
+  formDataForGraphDisplay: Partial<LenderFilters> | undefined,
+  graphConsidersNodeActive: boolean, // If graph's UI filters make this node "active"
+  filtersAreAppliedOnPage: boolean // If ANY filter is applied on the page (from props)
+): string {
+
   // If no filters are applied on the page at all, all nodes are uniform gray
   if (!filtersAreAppliedOnPage) {
     return "#6b7280"; // Darker grey
@@ -72,26 +72,21 @@ function getLenderColor(
   if (!graphConsidersNodeActive) {
     return "#6b7280"; // Darker grey
   }
-  
-  // Otherwise (filters are applied on page AND graph considers this node active),
-  // color is based on the authoritative match_score from the context.
+
+  // Color based on the authoritative match_score from the context.
   const scoreFromContext = lenderFromContext.match_score || 0;
-  
-  // Light mode: darker, more saturated colors for contrast against white
-  if (scoreFromContext === 1) return "hsl(142, 85%, 35%)"; // Deep green for perfect match
-  if (scoreFromContext > 0.8) return "hsl(142, 70%, 40%)"; // Rich green
-  if (scoreFromContext > 0.6) return "hsl(180, 70%, 35%)"; // Deep teal
-  if (scoreFromContext > 0.4) return "hsl(200, 80%, 40%)"; // Deep blue
-  if (scoreFromContext > 0.2) return "hsl(210, 70%, 45%)"; // Medium blue
-  
-  return "#6b7280"; // Default darker grey for very low scores
+
+  if (scoreFromContext >= 0.8) return "hsl(142, 70%, 45%)"; // Vibrant green
+  if (scoreFromContext >= 0.5) return "hsl(217, 91%, 60%)"; // Clean blue
+
+  return "#94a3b8"; // Light slate grey for inactive
 }
 
 interface LenderGraphProps {
   lenders: LenderProfile[];
   formData?: Partial<LenderFilters>;
   filtersApplied: boolean; // True if ANY filter category is selected by the user on the page
-  allFiltersSelected?: boolean; 
+  allFiltersSelected?: boolean;
   onLenderClick?: (lender: LenderProfile | null) => void;
 }
 
@@ -99,7 +94,7 @@ export default function LenderGraph({
   lenders,
   formData = {},
   filtersApplied, // This prop tells the graph if any filter is active in the UI (from page.tsx)
-  allFiltersSelected = false, 
+  allFiltersSelected = false,
   onLenderClick,
 }: LenderGraphProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -132,7 +127,7 @@ export default function LenderGraph({
     life: number;
     maxLife: number;
   }>>([]);
-  
+
   // Card positioning - fixed relative to node position, not mouse position
   const cardPositionRef = useRef({ relativeX: 0, relativeY: 0 });
   const lastHoveredLenderIdRef = useRef<number | null>(null);
@@ -180,25 +175,24 @@ export default function LenderGraph({
 
     lenders.forEach((lender, index) => {
       const scoreFromContext = lender.match_score || 0;
-      
+
       // Determine if this node should appear "active" based on the graph's current UI filters (formData)
       const graphInternalScore = computeLenderScoreForGraphDisplay(lender, formData);
       const isVisuallyActiveInGraph = filtersApplied && graphInternalScore > 0;
-      
-      const baseRadius = (filtersApplied && isVisuallyActiveInGraph) 
-                          ? 8 + scoreFromContext * 8  // Active nodes scale with context score
-                          : 6;                        // Inactive or default nodes are smaller
-      
+
+      const baseRadius = (filtersApplied && isVisuallyActiveInGraph)
+        ? 10 + scoreFromContext * 4  // Active nodes are larger
+        : 8;                         // Inactive are still visible
+
       const color = getLenderColor(lender, formData, isVisuallyActiveInGraph, filtersApplied);
-      
+
       let distanceFactor;
       if (filtersApplied && isVisuallyActiveInGraph) {
-        // Position active nodes by their context_score (closer to center for higher scores)
-        distanceFactor = 0.3 + (1 - scoreFromContext) * 0.6;
+        // Position active nodes in a core ring
+        distanceFactor = 0.2 + (1 - scoreFromContext) * 0.3;
       } else {
-        // Default state (no filters applied on page OR node not visually active in graph):
-        // Push to periphery. Slightly vary by context_score to avoid perfect circle for already scored lenders.
-        distanceFactor = 0.85 + (1 - scoreFromContext * 0.2) * 0.10;
+        // Surround the core with a cloud of other lenders
+        distanceFactor = 0.55 + (index % 5) * 0.08 + (Math.sin(index) * 0.05);
       }
       const angle = index * goldenAngle;
       const distance = maxDistance * distanceFactor;
@@ -207,8 +201,8 @@ export default function LenderGraph({
 
       const currentPosData = lenderPositionsRef.current.get(lender.lender_id);
       newPositions.set(lender.lender_id, {
-        x: currentPosData?.x ?? targetX, 
-        y: currentPosData?.y ?? targetY, 
+        x: currentPosData?.x ?? targetX,
+        y: currentPosData?.y ?? targetY,
         targetX, targetY, radius: baseRadius, color, isVisuallyActiveInGraph, scoreFromContext,
       });
     });
@@ -219,7 +213,7 @@ export default function LenderGraph({
   function addParticles(x: number, y: number, color: string, count = 3, sizeMultiplier = 0.8) {
     for (let i = 0; i < count; i++) {
       particlesRef.current.push({
-        x, y, size: (Math.random() * 1.8 + 0.8) * sizeMultiplier, 
+        x, y, size: (Math.random() * 1.8 + 0.8) * sizeMultiplier,
         color, speed: Math.random() * 1.2 + 0.25, life: 0, maxLife: Math.random() * 30 + 22,
       });
     }
@@ -227,9 +221,9 @@ export default function LenderGraph({
 
   useEffect(() => {
     if (!canvasRef.current || !canvasSize.width || !canvasSize.height) {
-        const ctx = canvasRef.current?.getContext("2d");
-        if (ctx) ctx.clearRect(0,0, canvasSize.width || 0, canvasSize.height || 0);
-        return;
+      const ctx = canvasRef.current?.getContext("2d");
+      if (ctx) ctx.clearRect(0, 0, canvasSize.width || 0, canvasSize.height || 0);
+      return;
     }
     const ctx = canvasRef.current.getContext("2d");
     if (!ctx) return;
@@ -237,39 +231,50 @@ export default function LenderGraph({
     const animate = (time: number) => {
       ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
       const activePositions: Array<{ x: number, y: number, color: string, score: number }> = [];
-      const maxRadius = Math.min(canvasSize.width, canvasSize.height) * 0.45;
+      const allPositions: Array<{ x: number, y: number }> = [];
+      const maxRadius = Math.min(canvasSize.width, canvasSize.height) * 0.55;
 
-      // Concentric circles (background) - more prominent
-      ctx.strokeStyle = "rgba(219, 234, 254, 0.25)";
-      ctx.lineWidth = 0.5;
-      for (let i = 0; i < 5; i++) {
-        ctx.beginPath();
-        ctx.arc(centerPoint.x, centerPoint.y, (maxRadius / 5) * (i + 1) + (Math.sin(time / 2000 + i) * 3), 0, 2 * Math.PI);
-        ctx.stroke();
-      }
+      // 1. (Removed Diamond Grid Background)
 
-      // Draw lines between active nodes first (so they are in the background)
+      // 2. Background cloud of connections (drawing connections between all nodes)
       lenderPositionsRef.current.forEach(pos => {
+        allPositions.push({ x: pos.x, y: pos.y });
         if (pos.isVisuallyActiveInGraph) {
-            activePositions.push({ x: pos.x, y: pos.y, color: pos.color, score: pos.scoreFromContext });
+          activePositions.push({ x: pos.x, y: pos.y, color: pos.color, score: pos.scoreFromContext });
         }
       });
 
       ctx.save();
-      for(let i = 0; i < activePositions.length; i++) {
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.4)"; // Darker background lines (was 0.25)
+      ctx.lineWidth = 0.3;
+      // Draw a subset of connections to avoid overkill but maintain density
+      for (let i = 0; i < allPositions.length; i++) {
+        const step = allPositions.length > 50 ? 3 : 1; // Density control
+        for (let j = i + 1; j < allPositions.length; j += step) {
+          ctx.beginPath();
+          ctx.moveTo(allPositions[i].x, allPositions[i].y);
+          ctx.lineTo(allPositions[j].x, allPositions[j].y);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      // 3. Highlight connections between active matches
+      ctx.save();
+      for (let i = 0; i < activePositions.length; i++) {
         for (let j = i + 1; j < activePositions.length; j++) {
-            const pos1 = activePositions[i];
-            const pos2 = activePositions[j];
-            const avgScore = (pos1.score + pos2.score) / 2;
-            
-            ctx.beginPath();
-            ctx.moveTo(pos1.x, pos1.y);
-            ctx.lineTo(pos2.x, pos2.y);
-            
-            // Super light blue connecting lines between nodes - 30% darker
-            ctx.strokeStyle = "rgba(134, 153, 178, 0.225)";
-            ctx.lineWidth = 0.5 + avgScore * 0.3;
-            ctx.stroke();
+          const pos1 = activePositions[i];
+          const pos2 = activePositions[j];
+          const avgScore = (pos1.score + pos2.score) / 2;
+
+          ctx.beginPath();
+          ctx.moveTo(pos1.x, pos1.y);
+          ctx.lineTo(pos2.x, pos2.y);
+
+          // Highlight connections between matches
+          ctx.strokeStyle = "rgba(100, 116, 139, 0.65)"; // Darker matches connections
+          ctx.lineWidth = 0.8 + avgScore * 0.5;
+          ctx.stroke();
         }
       }
       ctx.restore();
@@ -288,26 +293,31 @@ export default function LenderGraph({
 
         // Draw connecting lines only if page filters are applied AND node is visually active in graph
         if (filtersApplied && isVisuallyActiveInGraph) {
-          let gradient;
-          // Super light blue lines from center to nodes - 50% higher opacity
+          // Lines from center to nodes - colored by node score
           ctx.beginPath();
           ctx.moveTo(centerPoint.x, centerPoint.y);
           ctx.lineTo(pos.x, pos.y);
-          ctx.strokeStyle = pos.color;
-          ctx.lineWidth = 0.4 + scoreFromContext * 0.5; 
+
+          // Use node color for the radial line with appropriate alpha
+          const radialColor = scoreFromContext >= 0.8
+            ? "rgba(16, 185, 129, 0.4)" // Green line
+            : "rgba(59, 130, 246, 0.4)"; // Blue line
+
+          ctx.strokeStyle = radialColor;
+          ctx.lineWidth = 1 + scoreFromContext * 1.5;
           ctx.stroke();
 
-          // Particles along lines for active, high-scoring nodes - only for hovered node
-          if (scoreFromContext > 0.65 && isHovered && Math.random() < 0.018 * scoreFromContext) {
+          // Particles along lines for high-scoring nodes
+          if (scoreFromContext > 0.65 && Math.random() < 0.015) {
             const t = Math.random();
             addParticles(centerPoint.x + (pos.x - centerPoint.x) * t, centerPoint.y + (pos.y - centerPoint.y) * t, pos.color, 1, 0.7);
           }
         }
-        
-        const moveSpeed = 0.075; 
+
+        const moveSpeed = 0.075;
         pos.x += (pos.targetX - pos.x) * moveSpeed;
         pos.y += (pos.targetY - pos.y) * moveSpeed;
-        
+
         // Particles at node position for active, mid-to-high scoring nodes - only for hovered node
         if (filtersApplied && isVisuallyActiveInGraph && scoreFromContext > 0.55 && isHovered && Math.random() < 0.012 * scoreFromContext) {
           addParticles(pos.x, pos.y, pos.color, 1, 0.6);
@@ -343,23 +353,22 @@ export default function LenderGraph({
 
         // Highlight selected/hovered - light mode only
         if (selectedLender?.lender_id === lender_id) {
-          ctx.strokeStyle = "rgba(59, 130, 246, 0.95)"; 
+          ctx.strokeStyle = "rgba(59, 130, 246, 0.95)";
           ctx.lineWidth = 1.9; ctx.stroke();
         } else if (hoveredLenderId === lender_id) {
           ctx.strokeStyle = "rgba(59, 130, 246, 0.7)";
           ctx.lineWidth = 1.3; ctx.stroke();
         }
 
-        // Node initial (text) - theme-aware
-        // Show initials only if filters are applied AND node is visually active AND has a decent score
-        if (filtersApplied && isVisuallyActiveInGraph && finalRadius > 9 && scoreFromContext > 0.22) { 
+        // Node initial (text) - centered perfectly
+        // Show initials for ANY scored node
+        if (filtersApplied && isVisuallyActiveInGraph && scoreFromContext > 0.2) {
           const lenderDetails = lenders.find(l => l.lender_id === lender_id);
           const initial = lenderDetails?.name.charAt(0).toUpperCase() || "L";
-          // White text for dark mode, white text for light mode (on colored nodes)
-          ctx.fillStyle = "rgba(255, 255, 255, 0.95)"; 
-          ctx.font = `bold ${Math.floor(finalRadius * 0.78)}px Arial, sans-serif`; 
+          ctx.fillStyle = "#ffffff";
+          ctx.font = `bold ${Math.floor(finalRadius * 0.9)}px Arial, sans-serif`;
           ctx.textAlign = "center"; ctx.textBaseline = "middle";
-          ctx.fillText(initial, pos.x, pos.y + 0.5); 
+          ctx.fillText(initial, pos.x, pos.y + 1);
         }
       });
       animationRef.current = requestAnimationFrame(animate);
@@ -370,7 +379,7 @@ export default function LenderGraph({
 
   // Memoized screen position - only recalculates when container moves (scroll/resize)
   const [containerRect, setContainerRect] = useState<DOMRect | null>(null);
-  
+
   useEffect(() => {
     if (!selectedLender || !containerRef.current) {
       setContainerRect(null);
@@ -385,7 +394,7 @@ export default function LenderGraph({
     updateRect();
     window.addEventListener('scroll', updateRect, true);
     window.addEventListener('resize', updateRect);
-    
+
     return () => {
       window.removeEventListener('scroll', updateRect, true);
       window.removeEventListener('resize', updateRect);
@@ -409,7 +418,7 @@ export default function LenderGraph({
   const calculateCardPositionFromNode = useCallback((nodeX: number, nodeY: number, containerRect: DOMRect) => {
     const cardWidth = 320;
     const cardHeight = 380;
-    
+
     // Position card to the right and slightly above the node by default
     let cardX = nodeX + 30;
     let cardY = nodeY - cardHeight / 2;
@@ -425,11 +434,11 @@ export default function LenderGraph({
     if (cardY < 10) {
       cardY = 10;
     }
-    
+
     // Clamp to canvas bounds
     cardX = Math.max(5, Math.min(cardX, canvasSize.width - cardWidth - 5));
     cardY = Math.max(5, Math.min(cardY, canvasSize.height - cardHeight - 5));
-    
+
     return { x: cardX, y: cardY };
   }, [canvasSize.width, canvasSize.height]);
 
@@ -439,7 +448,7 @@ export default function LenderGraph({
       lastHoveredLenderIdRef.current = null;
       return;
     }
-    
+
     // CRITICAL FIX: Only update if this is a DIFFERENT lender
     // This prevents card from moving when mouse moves on same node
     if (lastHoveredLenderIdRef.current === lenderId) {
@@ -447,7 +456,7 @@ export default function LenderGraph({
       // Card stays fixed relative to node
       return;
     }
-    
+
     // New lender detected - calculate and set position ONCE
     lastHoveredLenderIdRef.current = lenderId;
     const pos = lenderPositionsRef.current.get(lenderId);
@@ -455,14 +464,14 @@ export default function LenderGraph({
       lastHoveredLenderIdRef.current = null; // Reset if position not found
       return;
     }
-    
+
     // Calculate fixed position relative to node (not mouse)
     const containerRect = containerRef.current.getBoundingClientRect();
     const cardPos = calculateCardPositionFromNode(pos.x, pos.y, containerRect);
-    
+
     // Set position in ref (doesn't trigger re-render)
     cardPositionRef.current = { relativeX: cardPos.x, relativeY: cardPos.y };
-    
+
     // Update container rect to trigger screen position calculation (only once per lender)
     // This is the ONLY place where containerRect should be set for card positioning
     setContainerRect(containerRect);
@@ -473,8 +482,8 @@ export default function LenderGraph({
 
   // Find lender at mouse position
   const findLenderAtPosition = useCallback((x: number, y: number): LenderProfile | null => {
-    const sortedLenders = [...lenders].sort((a, b) => 
-      (lenderPositionsRef.current.get(a.lender_id)?.radius || 0) - 
+    const sortedLenders = [...lenders].sort((a, b) =>
+      (lenderPositionsRef.current.get(a.lender_id)?.radius || 0) -
       (lenderPositionsRef.current.get(b.lender_id)?.radius || 0)
     );
 
@@ -514,25 +523,25 @@ export default function LenderGraph({
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas || !canvasSize.width || !canvasSize.height) return;
-    
+
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     const foundLender = findLenderAtPosition(x, y);
     const foundLenderId = foundLender ? foundLender.lender_id : null;
-    
+
     // Update cursor immediately (no throttling needed for cursor)
     canvas.style.cursor = foundLender ? "pointer" : "default";
-    
+
     // CRITICAL: Only update state if lender CHANGED (not on every mouse pixel movement)
     // Use ref to compare to avoid unnecessary re-renders
     const currentHoveredId = hoveredLenderId;
-    
+
     if (foundLenderId !== currentHoveredId) {
       // Lender changed - update everything
       setHoveredLenderId(foundLenderId);
-      
+
       if (foundLender) {
         // Update card position ONLY when lender changes (fixed position relative to node)
         updateCardPositionForLender(foundLenderId);
@@ -574,9 +583,9 @@ export default function LenderGraph({
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     const clickedLender = findLenderAtPosition(x, y);
-    
+
     if (clickedLender) {
       if (allFiltersSelected && clickedLender.match_score > 0) {
         setSelectedLender(prev => {
@@ -613,7 +622,7 @@ export default function LenderGraph({
       <div
         className="fixed z-[99999] p-3 bg-gray-800 text-gray-200 text-xs rounded-md shadow-xl pointer-events-none ring-1 ring-gray-600"
         style={{
-          top: tooltipCenterPosition.y, 
+          top: tooltipCenterPosition.y,
           left: tooltipCenterPosition.x,
           maxWidth: '230px',
           transform: 'translate(-50%, -50%)', // Center the tooltip
@@ -652,7 +661,7 @@ export default function LenderGraph({
           style={{ display: 'block' }}
         />
 
-        {selectedLender && allFiltersSelected && selectedLender.match_score > 0 && mounted && 
+        {selectedLender && allFiltersSelected && selectedLender.match_score > 0 && mounted &&
           createPortal(
             <div
               id={`lender-card-${selectedLender.lender_id}`}
@@ -665,9 +674,9 @@ export default function LenderGraph({
               onMouseLeave={(e) => {
                 // If mouse leaves card and doesn't go to canvas, hide the card
                 // Fix: Check if relatedTarget exists and is a Node before calling contains
-                if (canvasRef.current && e.relatedTarget !== canvasRef.current && 
-                    e.relatedTarget && e.relatedTarget instanceof Node && 
-                    !canvasRef.current.contains(e.relatedTarget)) {
+                if (canvasRef.current && e.relatedTarget !== canvasRef.current &&
+                  e.relatedTarget && e.relatedTarget instanceof Node &&
+                  !canvasRef.current.contains(e.relatedTarget)) {
                   requestAnimationFrame(() => {
                     setSelectedLender(null);
                     if (onLenderClick) onLenderClick(null);
@@ -686,9 +695,9 @@ export default function LenderGraph({
           )
         }
 
-        {showIncompleteFiltersCard && !allFiltersSelected && hoveredLenderId !== null && 
-         (lenders.find(l => l.lender_id === hoveredLenderId)?.match_score ?? 0) > 0 &&
-         incompleteFiltersTooltip}
+        {showIncompleteFiltersCard && !allFiltersSelected && hoveredLenderId !== null &&
+          (lenders.find(l => l.lender_id === hoveredLenderId)?.match_score ?? 0) > 0 &&
+          incompleteFiltersTooltip}
       </div>
     </div>
   );

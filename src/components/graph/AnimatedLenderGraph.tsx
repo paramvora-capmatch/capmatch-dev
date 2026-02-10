@@ -1,0 +1,184 @@
+"use client";
+
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import LenderGraph from "./LenderGraph";
+import { useLenderStore, LenderFilters } from "@/stores/useLenderStore";
+import { Search, MapPin, Building2, Briefcase } from "lucide-react";
+
+const ASSET_TYPES = [
+    "Multifamily",
+    "Office",
+    "Retail",
+    "Industrial",
+    "Hospitality",
+    "Land",
+];
+const DEAL_TYPES = ["Acquisition", "Refinance", "Construction", "Bridge"];
+const LOCATIONS = [
+    "nationwide",
+    "Northeast",
+    "Southeast",
+    "Midwest",
+    "Southwest",
+    "West Coast",
+];
+
+export function AnimatedLenderGraph() {
+    const { lenders, loadLenders } = useLenderStore();
+    const [filters, setFilters] = useState<Partial<LenderFilters>>({
+        asset_types: [],
+        deal_types: [],
+        locations: [],
+        capital_types: [],
+        debt_ranges: [],
+    });
+    const [phase, setPhase] = useState<0 | 1 | 2 | 3 | 4>(0);
+    const [isPaused, setIsPaused] = useState(false);
+
+    // Load lenders if not already loaded
+    useEffect(() => {
+        if (lenders.length === 0) {
+            loadLenders();
+        }
+    }, [lenders.length, loadLenders]);
+
+    useEffect(() => {
+        if (isPaused) return;
+
+        let timer: NodeJS.Timeout;
+
+        const runAnimation = () => {
+            if (phase === 0) {
+                // Reset
+                setFilters({
+                    asset_types: [],
+                    deal_types: [],
+                    locations: [],
+                    capital_types: [],
+                    debt_ranges: [],
+                });
+                timer = setTimeout(() => setPhase(1), 1500);
+            } else if (phase === 1) {
+                // Select Asset Type
+                setFilters((prev) => ({ ...prev, asset_types: ["Multifamily"] }));
+                timer = setTimeout(() => setPhase(2), 2000);
+            } else if (phase === 2) {
+                // Select Deal Type
+                setFilters((prev) => ({ ...prev, deal_types: ["Refinance"] }));
+                timer = setTimeout(() => setPhase(3), 2000);
+            } else if (phase === 3) {
+                // Select Location
+                setFilters((prev) => ({ ...prev, locations: ["Northeast"] }));
+                timer = setTimeout(() => setPhase(4), 2000);
+            } else if (phase === 4) {
+                // Final State Pause
+                timer = setTimeout(() => {
+                    setPhase(0);
+                }, 6000);
+            }
+        };
+
+        runAnimation();
+
+        return () => clearTimeout(timer);
+    }, [phase, isPaused]);
+
+    const filtersApplied = useMemo(() => {
+        return (
+            (filters.asset_types?.length ?? 0) > 0 ||
+            (filters.deal_types?.length ?? 0) > 0 ||
+            (filters.locations?.length ?? 0) > 0
+        );
+    }, [filters]);
+
+    const allFiltersSelected = phase === 4 || phase === 3; // roughly
+
+    return (
+        <div className="w-full h-full flex flex-col overflow-hidden p-0">
+            <div className="flex-grow relative min-h-[400px]">
+                <LenderGraph
+                    lenders={lenders}
+                    formData={filters}
+                    filtersApplied={filtersApplied}
+                    allFiltersSelected={phase >= 3}
+                />
+
+                {/* Phase indicator / selection display overlay */}
+                <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none">
+                    <AnimatePresence>
+                        {filters.asset_types?.[0] && (
+                            <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
+                            >
+                                <Building2 size={14} />
+                                {filters.asset_types[0]}
+                            </motion.div>
+                        )}
+                        {filters.deal_types?.[0] && (
+                            <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                className="bg-white/90 backdrop-blur-sm border border-emerald-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-emerald-700"
+                            >
+                                <Briefcase size={14} />
+                                {filters.deal_types[0]}
+                            </motion.div>
+                        )}
+                        {filters.locations?.[0] && (
+                            <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                className="bg-white/90 backdrop-blur-sm border border-orange-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-orange-700"
+                            >
+                                <MapPin size={14} />
+                                {filters.locations[0]}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {phase === 4 && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="absolute bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-bold flex items-center gap-2"
+                    >
+                        <Search size={16} />
+                        Matches Found
+                    </motion.div>
+                )}
+            </div>
+
+            <div className="mt-4 pb-8 flex flex-col items-center justify-center gap-4">
+                <div className="flex gap-4 items-center h-12">
+                    <div className={`flex flex-col items-center transition-opacity duration-300 ${phase >= 1 ? 'opacity-100' : 'opacity-30'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${phase === 1 ? 'bg-blue-500 text-white animate-pulse' : phase > 1 ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>
+                            1
+                        </div>
+                        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">Asset</span>
+                    </div>
+                    <div className="w-8 h-[2px] bg-slate-200 mt-[-10px]" />
+                    <div className={`flex flex-col items-center transition-opacity duration-300 ${phase >= 2 ? 'opacity-100' : 'opacity-30'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${phase === 2 ? 'bg-blue-500 text-white animate-pulse' : phase > 2 ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>
+                            2
+                        </div>
+                        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">Deal</span>
+                    </div>
+                    <div className="w-8 h-[2px] bg-slate-200 mt-[-10px]" />
+                    <div className={`flex flex-col items-center transition-opacity duration-300 ${phase >= 3 ? 'opacity-100' : 'opacity-30'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${phase === 3 ? 'bg-blue-500 text-white animate-pulse' : phase > 3 ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>
+                            3
+                        </div>
+                        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">Location</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
