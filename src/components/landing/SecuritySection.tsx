@@ -40,19 +40,19 @@ const securityFeatures = [
 ];
 
 const partnerLogos = [
-	{ src: "/Landing-Page/SecuritySectionLogos/image.png", name: "CoStar" },
-	{ src: "/Landing-Page/SecuritySectionLogos/FHFA-image (5)-new.png", name: "FHFA" },
-	{ src: "/Landing-Page/SecuritySectionLogos/image (3).png", name: "Census" },
-	{ src: "/Landing-Page/SecuritySectionLogos/BLS - image (4) -new.png", name: "BLS" },
-	{ src: "/Landing-Page/SecuritySectionLogos/fema-1-new.png", name: "FEMA" },
-	{ src: "/Landing-Page/SecuritySectionLogos/US Census image(2) - new.png", name: "Census Bureau" },
-	{ src: "/Landing-Page/SecuritySectionLogos/Yardi-new.png", name: "Yardi" },
+	{ src: "/Landing-Page/SecuritySectionLogos/CoStar.png", name: "CoStar", scale: 1.5 },
+	{ src: "/Landing-Page/SecuritySectionLogos/FHFA.png", name: "FHFA", scale: 1.0 },
+	{ src: "/Landing-Page/SecuritySectionLogos/US Census.png", name: "US Census", scale: 1.5 },
+	{ src: "/Landing-Page/SecuritySectionLogos/BLS.png", name: "BLS", scale: 1.0 },
+	{ src: "/Landing-Page/SecuritySectionLogos/FEMA.png", name: "FEMA", scale: 1.5 },
+	{ src: "/Landing-Page/SecuritySectionLogos/US HUD.png", name: "US HUD", scale: 1.0 },
+	{ src: "/Landing-Page/SecuritySectionLogos/YARDI.png", name: "YARDI", scale: 1.5 },
 ];
 
 export function SecuritySection() {
 	return (
 		<section
-			className="relative py-32 overflow-hidden border-t border-gray-100 bg-white"
+			className="relative pt-24 pb-8 overflow-hidden border-t border-gray-100 bg-white"
 			style={{
 				backgroundImage: `
 					repeating-linear-gradient(
@@ -89,7 +89,7 @@ export function SecuritySection() {
 			</div>
 
 			<div className="relative z-10 w-full max-w-7xl mx-auto px-6">
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10 items-stretch mb-20">
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10 items-stretch mb-6">
 					{securityFeatures.map((feature, idx) => (
 						<div key={feature.id} className="h-full">
 							<SecurityCard feature={feature} delay={0.1 * (idx + 1)} />
@@ -103,7 +103,7 @@ export function SecuritySection() {
 					whileInView={{ opacity: 1, y: 0 }}
 					viewport={{ once: true }}
 					transition={{ duration: 0.6, delay: 0.4 }}
-					className="pt-16 border-t border-gray-100/50"
+					className="pt-6 border-t border-gray-100/50"
 				>
 					<div className="relative">
 						{/* Gradient Mask for fading edges */}
@@ -113,11 +113,14 @@ export function SecuritySection() {
 								background: 'linear-gradient(to right, white, transparent 15%, transparent 85%, white)'
 							}}
 						/>
-						<InfiniteSlider gap={100} speed={40} className="py-12">
+						<InfiniteSlider gap={100} speed={40} className="py-2">
 							{partnerLogos.map((logo, idx) => (
 								<div
 									key={idx}
-									className="relative grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all duration-500 flex items-center justify-center h-24 lg:h-32 w-24 lg:w-32"
+									className={`relative grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all duration-500 flex items-center justify-center ${logo.scale === 1.5
+										? "h-36 lg:h-48 w-36 lg:w-48 -translate-y-5"
+										: "h-24 lg:h-32 w-24 lg:w-32"
+										}`}
 								>
 									<Image
 										src={logo.src}
@@ -148,12 +151,9 @@ function SecurityCard({ feature, delay }: { feature: typeof securityFeatures[0];
 			<div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
 
 			<div className="relative z-10">
-				<div className="flex items-start justify-between mb-6">
+				<div className="flex items-start mb-6">
 					<div className="p-3 bg-white rounded-2xl shadow-sm border border-gray-100 group-hover:scale-110 transition-transform duration-300">
 						{feature.icon}
-					</div>
-					<div className="px-3 py-1 bg-gray-50 rounded-full text-[10px] font-bold tracking-widest text-gray-400 uppercase">
-						Active Protection
 					</div>
 				</div>
 
