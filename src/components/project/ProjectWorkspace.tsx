@@ -1520,7 +1520,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 													}
 													context="project"
 													collapsible={true}
-													maxRows={2}
+													defaultOpen={true}
 												/>
 											</motion.div>
 										) : null}

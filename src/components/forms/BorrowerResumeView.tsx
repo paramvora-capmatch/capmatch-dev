@@ -328,7 +328,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 			const stored = localStorage.getItem(`borrowerResumeCollapsed:${projectId}`);
 			return stored ? JSON.parse(stored) : false;
 		} catch {
-			return true;
+			return false;
 		}
 	});
 
