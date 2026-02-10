@@ -47,7 +47,11 @@ function VideoBlock({ step, index }: { step: (typeof steps)[0]; index: number })
 				whileInView={{ opacity: 1, y: 0 }}
 				viewport={{ once: true, margin: "-80px" }}
 				transition={{ duration: 0.4 }}
-				className="w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 shadow-lg bg-white"
+				className="w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-xl"
+				style={{
+					boxShadow:
+						"0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05)",
+				}}
 			>
 				{step.showGraph ? (
 					<AnimatedLenderGraph />
@@ -92,7 +96,28 @@ function TextBlock({ step }: { step: (typeof steps)[0] }) {
 
 export function HowItWorksSection() {
 	return (
-		<section id="how-it-works" className="relative w-full bg-white">
+		<section
+			id="how-it-works"
+			className="relative w-full bg-white"
+			style={{
+				backgroundImage: `
+					repeating-linear-gradient(
+						45deg,
+						transparent,
+						transparent 10px,
+						rgba(209, 213, 219, 0.097) 10px,
+						rgba(209, 213, 219, 0.097) 11px
+					),
+					repeating-linear-gradient(
+						-45deg,
+						transparent,
+						transparent 10px,
+						rgba(209, 213, 219, 0.097) 10px,
+						rgba(209, 213, 219, 0.097) 11px
+					)
+				`,
+			}}
+		>
 			{/* Section title — separate block so first video aligns with first point */}
 			<div className="w-full max-w-[90%] 2xl:max-w-[1600px] mx-auto pt-16 lg:pt-24 px-6 sm:px-8 lg:px-12 pb-2">
 				<motion.div
