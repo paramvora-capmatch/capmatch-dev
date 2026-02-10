@@ -66,7 +66,7 @@ export function CaseStudiesSection() {
 		<section
 			id="case-studies"
 			ref={ref}
-			className="min-h-screen py-20 md:py-28 flex flex-col justify-center"
+			className="min-h-screen pt-20 md:pt-28 pb-1 md:pb-1.5 flex flex-col justify-center"
 			style={{
 				backgroundImage: `
 					repeating-linear-gradient(
@@ -130,25 +130,7 @@ export function CaseStudiesSection() {
 
 				{/* Carousel */}
 				<motion.div
-					className="relative rounded-xl overflow-hidden border border-gray-200 shadow-lg flex-1 min-h-0 flex flex-col"
-					style={{
-						backgroundImage: `
-							repeating-linear-gradient(
-								45deg,
-								transparent,
-								transparent 10px,
-								rgba(209, 213, 219, 0.097) 10px,
-								rgba(209, 213, 219, 0.097) 11px
-							),
-							repeating-linear-gradient(
-								-45deg,
-								transparent,
-								transparent 10px,
-								rgba(209, 213, 219, 0.097) 10px,
-								rgba(209, 213, 219, 0.097) 11px
-							)
-						`,
-					}}
+					className="relative rounded-xl overflow-hidden border border-blue-200/50 bg-white shadow-sm flex-1 min-h-0 flex flex-col"
 					initial={{ opacity: 0, y: 24 }}
 					animate={isInView ? { opacity: 1, y: 0 } : {}}
 					transition={{ duration: 0.6, delay: 0.1 }}

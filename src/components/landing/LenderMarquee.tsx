@@ -30,7 +30,7 @@ export function LenderMarquee() {
 
     return (
         <section
-            className="pt-0 pb-20 overflow-hidden"
+            className="pt-0.5 pb-20 overflow-hidden"
             style={{
                 backgroundImage: `
                     repeating-linear-gradient(
