@@ -36,7 +36,7 @@ const caseStudies = [
 		loanAmount: "$18M",
 		location: "Dallas, TX",
 		description:
-			"116-unit mixed-use development in an Opportunity Zone with 30,000 SF pre-leased to GSV Holdings. Construction financing arranged by Northmarq; sponsor Hoque Global with ACARA as equity partner.",
+			"Disconnected docs and competing lender assumptions stalled underwriting. CapMatch built a living underwriting model, generated lender-specific outputs on demand, and answered questions in real time—compressing response cycles from days to minutes.",
 		image: "/SoGood-CaseStudy/MainImage.webp",
 		slug: "sogood",
 	},
