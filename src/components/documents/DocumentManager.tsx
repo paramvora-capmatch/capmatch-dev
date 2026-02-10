@@ -27,6 +27,8 @@ import {
 	ChevronDown,
 	LayoutGrid,
 	List,
+	Expand,
+	Shrink,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -460,9 +462,18 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     // Use all files, let CSS handle the scroll
     const displayedFiles = isCollapsed ? [] : (collapsible ? files : files);
     
+	const hasDocuments = folders.length > 0 || files.length > 0;
+	const handleHeaderClick = collapsible ? () => setIsCollapsed(!isCollapsed) : undefined;
+
 	return (
 		<Card className="group shadow-xl h-full flex flex-col rounded-2xl p-0 relative overflow-visible border-2 border-gray-300 bg-white hover:shadow-2xl transition-shadow duration-300">
-			<CardHeader className="pb-3 px-4 pt-4 border-b-2 border-gray-300 flex flex-row items-center justify-between space-y-0">
+			<CardHeader
+				className={cn(
+					"pb-3 px-4 pt-4 border-b-2 border-gray-300 flex flex-row items-center justify-between space-y-0",
+					collapsible && "cursor-pointer"
+				)}
+				onClick={handleHeaderClick}
+			>
 				<div className="flex items-center gap-3">
 					<div className="p-2 bg-blue-50 rounded-lg">
 						<FileText className="h-5 w-5 text-blue-600" />
@@ -474,7 +485,10 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 						<Button
 							variant="outline"
 							size="sm"
-							onClick={() => fileInputRef.current?.click()}
+							onClick={(e) => {
+								e.stopPropagation();
+								fileInputRef.current?.click();
+							}}
 							disabled={isUploading || isCollapsed}
 							className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all font-medium text-gray-700 ml-2"
 							aria-label="Upload"
@@ -485,7 +499,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 					)}
 				</div>
                 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
 					{/* View Toggle */}
 					<div className="flex items-center bg-gray-100 p-0.5 rounded-lg border-2 border-gray-300 mr-2">
 						<button
@@ -514,12 +528,36 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 						</button>
 					</div>
 
+					{/* Expand / Collapse documents list - same style as list/grid toggle */}
+					{!isCollapsed && hasDocuments && (
+						<div className="flex items-center bg-gray-100 p-0.5 rounded-lg border-2 border-gray-300 mr-2">
+							<button
+								onClick={() => setIsExpandedAll(!isExpandedAll)}
+								className={cn(
+									"p-1.5 rounded-md transition-all",
+									isExpandedAll
+										? "bg-white text-blue-600 shadow-sm"
+										: "text-gray-500 hover:text-gray-700"
+								)}
+								title={isExpandedAll ? "Collapse documents" : "Expand documents"}
+								aria-label={isExpandedAll ? "Collapse documents" : "Expand documents"}
+							>
+								{isExpandedAll ? (
+									<Shrink className="h-4 w-4" />
+								) : (
+									<Expand className="h-4 w-4" />
+								)}
+							</button>
+						</div>
+					)}
+
                     {collapsible && (
                          <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsCollapsed(!isCollapsed)}
                             className="h-8 w-8 p-0 rounded-full hover:bg-gray-100"
+							aria-label={isCollapsed ? "Expand section" : "Collapse section"}
                          >
                             <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isCollapsed ? "" : "rotate-180")} />
                          </Button>
@@ -908,23 +946,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 								</div>
 							)}
 
-                            {/* Show All Toggle */}
-                            {!isLoading && (displayedFolders.length > 0 || displayedFiles.length > 0) && (
-                                <div className="flex justify-center mt-2 pt-2 border-t border-gray-50">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setIsExpandedAll(!isExpandedAll)}
-                                        className="h-6 w-full max-w-[40px] p-0 flex flex-col items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-transparent transition-all group"
-                                        title={isExpandedAll ? "Show Less" : "Show All"}
-                                    >
-                                        <ChevronDown className={cn(
-                                            "h-5 w-5 transition-transform duration-300",
-                                            isExpandedAll && "rotate-180"
-                                        )} />
-                                    </Button>
-                                </div>
-                            )}
 			</CardContent>
                 </motion.div>
             )}
