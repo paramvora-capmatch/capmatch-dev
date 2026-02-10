@@ -1,36 +1,43 @@
 "use client";
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
+import Link from "next/link";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const caseStudies = [
 	{
 		id: "1",
-		headline: "LaSalle",
-		assetType: "Multifamily",
-		loanAmount: "$XXM",
-		location: "City, State",
-		description: "Brief description of the deal and outcome.",
+		headline: "300 East LaSalle",
+		assetType: "Multifamily + Commercial",
+		loanAmount: "$46M–$50M",
+		location: "South Bend, IN",
+		description:
+			"144-unit Class A multifamily in the East Bank neighborhood with ground-floor retail. IPA/Marcus & Millichap offering; strong rent comps and 10-year stabilized NOI growth.",
 		image: "/LaSalle-CaseStudy/img-0.jpeg",
+		slug: "lasalle",
 	},
 	{
 		id: "2",
 		headline: "Marshall",
 		assetType: "Office",
-		loanAmount: "$XXM",
-		location: "City, State",
-		description: "Brief description of the deal and outcome.",
+		loanAmount: "—",
+		location: "—",
+		description:
+			"Office case study. Full details coming soon.",
 		image: "/Marshall-CaseStudy/R01-2_DUSK-PERSPECTIVE_MARSHALL-MO_4KTV_01.16.24-scaled.webp",
+		slug: null,
 	},
 	{
 		id: "3",
-		headline: "SoGood",
-		assetType: "Industrial",
-		loanAmount: "$XXM",
-		location: "City, State",
-		description: "Brief description of the deal and outcome.",
+		headline: "SoGood Apartments",
+		assetType: "Mixed-Use (Multifamily + Innovation Center)",
+		loanAmount: "$18M",
+		location: "Dallas, TX",
+		description:
+			"116-unit mixed-use development in an Opportunity Zone with 30,000 SF pre-leased to GSV Holdings. Construction financing arranged by Northmarq; sponsor Hoque Global with ACARA as equity partner.",
 		image: "/SoGood-CaseStudy/MainImage.webp",
+		slug: "sogood",
 	},
 ];
 
@@ -71,7 +78,7 @@ export function CaseStudiesSection() {
 						$291M in Active Deal Volume
 					</h2>
 					<p className="text-lg text-gray-600">
-						Live deals on the platform. Case studies coming soon.
+						Live deals on the platform. Explore our case studies.
 					</p>
 				</motion.div>
 
@@ -113,12 +120,18 @@ export function CaseStudiesSection() {
 									<p className="text-gray-600 mb-6">
 										{deal.description}
 									</p>
-									<button
-										type="button"
-										className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
-									>
-										Read case study →
-									</button>
+									{deal.slug ? (
+										<Link
+											href={`/case-studies/${deal.slug}`}
+											className="inline-block text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+										>
+											Read case study →
+										</Link>
+									) : (
+										<span className="text-sm font-medium text-gray-400">
+											Read case study →
+										</span>
+									)}
 								</motion.div>
 							</AnimatePresence>
 						</div>
