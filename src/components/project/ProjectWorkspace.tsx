@@ -1124,6 +1124,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		<div className="bg-white rounded-2xl shadow-xl border-2 border-gray-300 overflow-hidden max-w-full">
 			<BorrowerResumeForm
 				projectId={projectId}
+				dealType={activeProject?.deal_type ?? 'ground_up'}
 				progressPercent={borrowerProgress}
 				onProgressChange={(percent) => setBorrowerProgress(percent)}
 				onFormDataChange={(data) => setBorrowerResumeSnapshot(data)}
