@@ -276,7 +276,7 @@ export default function HomePage() {
 				<section
 					ref={platformPreviewRef}
 					className="relative z-[25] -mt-[38vh]"
-					style={{ height: "200vh" }}
+					style={{ height: "100vh" }}
 				>
 					<div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden pointer-events-none">
 						<motion.div
