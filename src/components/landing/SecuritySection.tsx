@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Lock, CheckCircle2 } from "lucide-react";
+import { DottedGlowBackground } from "@/components/ui/dotted-glow-background";
 
 const bullets = [
 	{
@@ -45,8 +46,31 @@ export function SecuritySection() {
 				`,
 			}}
 		>
-			{/* Card — same styling as How It Works step cards */}
-			<div className="w-full max-w-[90%] 2xl:max-w-[1000px] mx-auto px-6 sm:px-8 lg:px-12 py-16 lg:py-24 rounded-2xl border-2 border-gray-200/80 bg-white/70 shadow-lg backdrop-blur-sm">
+			{/* Dotted glow background with radial mask */}
+			<div
+				className="absolute inset-0 pointer-events-none"
+				style={{
+					maskImage:
+						"radial-gradient(circle at 50% 30%, black 0%, transparent 50%)",
+					WebkitMaskImage:
+						"radial-gradient(circle at 50% 30%, black 0%, transparent 50%)",
+				}}
+			>
+				<DottedGlowBackground
+					className="w-full h-full opacity-60"
+					opacity={1}
+					gap={12}
+					radius={1.5}
+					colorLightVar="--color-blue-900"
+					glowColorLightVar="--color-blue-700"
+					backgroundOpacity={0}
+					speedMin={0.2}
+					speedMax={1.0}
+					speedScale={1}
+				/>
+			</div>
+
+			<div className="relative z-10 w-full max-w-[90%] 2xl:max-w-[1000px] mx-auto px-6 sm:px-8 lg:px-12 py-16 lg:py-24">
 				{/* Centered Lock icon */}
 				<motion.div
 					className="flex justify-center mb-10"

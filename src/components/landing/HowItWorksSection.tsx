@@ -141,7 +141,7 @@ export function HowItWorksSection() {
 				return (
 					<div
 						key={index}
-						className={`min-h-[50vh] flex flex-col lg:flex-row lg:items-center gap-8 lg:gap-12 w-full max-w-[90%] 2xl:max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12 ${index === 0 ? "pt-6 lg:pt-10 pb-16 lg:pb-24" : "py-16 lg:py-24"} rounded-2xl border-2 border-gray-200/80 bg-white/70 shadow-lg backdrop-blur-sm ${index > 0 ? "mt-6" : ""}`}
+						className={`min-h-[50vh] flex flex-col lg:flex-row lg:items-center gap-8 lg:gap-12 w-full max-w-[90%] 2xl:max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12 ${index === 0 ? "pt-6 lg:pt-10 pb-16 lg:pb-24" : "py-16 lg:py-24"}`}
 					>
 						{videoOnRight ? (
 							<>
