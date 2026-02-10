@@ -1114,6 +1114,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				canUpload={true}
 				canDelete={true}
 				context="borrower"
+				collapsible={true}
+				defaultOpen={true}
 			/>
 		</div>
 	);

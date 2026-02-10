@@ -574,7 +574,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 						{!isLoading && (
 							<div className={cn(
                                 "flex flex-col gap-3 overflow-y-auto pr-1",
-                                viewMode === "grid" ? "max-h-[220px]" : "space-y-2 max-h-[110px]"
+                                "max-h-[220px]"
                             )}>
 								{/* Folders */}
                                 <div className={cn(
@@ -591,14 +591,14 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 										}}
 										// onClick={() => handleFolderClick(folder.id)} // TODO: Implement folder navigation
 										className={cn(
-                                            "w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-200 transition-all shadow-sm hover:shadow-md",
+                                            "w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-200 transition-all shadow-sm hover:shadow-md",
                                             viewMode === "list" && "flex-row py-2"
                                         )}
 									>
 										<div className="flex items-center">
 											<FolderOpen className="h-5 w-5 text-blue-500 mr-3" />
 											<div className="text-left">
-												<p className="text-sm font-medium text-gray-900 group-hover:text-blue-700">
+												<p className="text-sm font-medium text-gray-900">
 													{folder.name}
 												</p>
 												<p className="text-xs text-gray-500">
@@ -679,7 +679,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                                                     )} />
                                                 </div>
 												<div className="min-w-0 flex-1">
-													<p className="text-sm font-medium text-gray-900 truncate group-hover/file:text-blue-600 transition-colors">
+													<p className="text-sm font-medium text-gray-900 truncate transition-colors">
 														{file.name}
 													</p>
 												</div>
@@ -774,7 +774,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                                                         type="button"
                                                         aria-label="More actions"
                                                         title="More actions"
-                                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-gray-100 border border-transparent hover:border-gray-200 opacity-0 pointer-events-none group-hover/file:opacity-100 group-hover/file:pointer-events-auto transition-opacity"
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-white border border-transparent hover:border-gray-200 hover:shadow-sm opacity-0 pointer-events-none group-hover/file:opacity-100 group-hover/file:pointer-events-auto transition-all duration-200"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setOpenMenuId((prev) => {
