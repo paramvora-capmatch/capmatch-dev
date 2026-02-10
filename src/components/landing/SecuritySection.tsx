@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Lock, ShieldCheck, UserCheck, Shield } from "lucide-react";
 import Image from "next/image";
 import { InfiniteSlider } from "@/components/ui/InfiniteSlider";
+
+type PartnerLogo = { src: string; name: string; scale: number };
 
 const securityFeatures = [
 	{
@@ -39,17 +41,18 @@ const securityFeatures = [
 	},
 ];
 
-const partnerLogos = [
-	{ src: "/Landing-Page/SecuritySectionLogos/CoStar.png", name: "CoStar", scale: 1.5 },
-	{ src: "/Landing-Page/SecuritySectionLogos/FHFA.png", name: "FHFA", scale: 1.0 },
-	{ src: "/Landing-Page/SecuritySectionLogos/US Census.png", name: "US Census", scale: 1.5 },
-	{ src: "/Landing-Page/SecuritySectionLogos/BLS.png", name: "BLS", scale: 1.0 },
-	{ src: "/Landing-Page/SecuritySectionLogos/FEMA.png", name: "FEMA", scale: 1.5 },
-	{ src: "/Landing-Page/SecuritySectionLogos/US HUD.png", name: "US HUD", scale: 1.0 },
-	{ src: "/Landing-Page/SecuritySectionLogos/YARDI.png", name: "YARDI", scale: 1.5 },
-];
-
 export function SecuritySection() {
+	const [partnerLogos, setPartnerLogos] = useState<PartnerLogo[]>([]);
+
+	useEffect(() => {
+		fetch("/api/security-logos")
+			.then((res) => res.json())
+			.then((data) => {
+				if (Array.isArray(data.logos)) setPartnerLogos(data.logos);
+			})
+			.catch((err) => console.error("Failed to load security logos:", err));
+	}, []);
+
 	return (
 		<section
 			className="relative pt-24 pb-8 overflow-hidden border-t border-gray-100 bg-white"
@@ -116,10 +119,10 @@ export function SecuritySection() {
 						<InfiniteSlider gap={100} speed={40} className="py-2">
 							{partnerLogos.map((logo, idx) => (
 								<div
-									key={idx}
+									key={`${logo.name}-${idx}`}
 									className={`relative grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all duration-500 flex items-center justify-center ${logo.scale === 1.5
-										? "h-36 lg:h-48 w-36 lg:w-48 -translate-y-5"
-										: "h-24 lg:h-32 w-24 lg:w-32"
+										? "h-44 lg:h-60 w-44 lg:w-60 -translate-y-5"
+										: "h-32 lg:h-44 w-32 lg:w-44"
 										}`}
 								>
 									<Image
@@ -127,6 +130,7 @@ export function SecuritySection() {
 										alt={logo.name}
 										fill
 										className="object-contain p-4"
+										unoptimized={logo.src.endsWith(".svg")}
 									/>
 								</div>
 							))}
