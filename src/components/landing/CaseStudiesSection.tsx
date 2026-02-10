@@ -130,7 +130,25 @@ export function CaseStudiesSection() {
 
 				{/* Carousel */}
 				<motion.div
-					className="relative rounded-xl overflow-hidden border border-gray-200 shadow-lg bg-gray-50 flex-1 min-h-0 flex flex-col"
+					className="relative rounded-xl overflow-hidden border border-gray-200 shadow-lg flex-1 min-h-0 flex flex-col"
+					style={{
+						backgroundImage: `
+							repeating-linear-gradient(
+								45deg,
+								transparent,
+								transparent 10px,
+								rgba(209, 213, 219, 0.097) 10px,
+								rgba(209, 213, 219, 0.097) 11px
+							),
+							repeating-linear-gradient(
+								-45deg,
+								transparent,
+								transparent 10px,
+								rgba(209, 213, 219, 0.097) 10px,
+								rgba(209, 213, 219, 0.097) 11px
+							)
+						`,
+					}}
 					initial={{ opacity: 0, y: 24 }}
 					animate={isInView ? { opacity: 1, y: 0 } : {}}
 					transition={{ duration: 0.6, delay: 0.1 }}

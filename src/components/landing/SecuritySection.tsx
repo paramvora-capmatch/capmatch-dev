@@ -106,14 +106,32 @@ export function SecuritySection() {
 					whileInView={{ opacity: 1, y: 0 }}
 					viewport={{ once: true }}
 					transition={{ duration: 0.6, delay: 0.4 }}
-					className="pt-6 border-t border-gray-100/50"
+					className="pt-6 border-t border-gray-100/50 -mx-6 px-6 rounded-xl"
+					style={{
+						backgroundImage: `
+							repeating-linear-gradient(
+								45deg,
+								transparent,
+								transparent 10px,
+								rgba(209, 213, 219, 0.1) 10px,
+								rgba(209, 213, 219, 0.1) 11px
+							),
+							repeating-linear-gradient(
+								-45deg,
+								transparent,
+								transparent 10px,
+								rgba(209, 213, 219, 0.1) 10px,
+								rgba(209, 213, 219, 0.1) 11px
+							)
+						`,
+					}}
 				>
 					<div className="relative">
 						{/* Gradient Mask for fading edges */}
 						<div
-							className="absolute inset-0 z-10 pointer-events-none"
+							className="absolute inset-0 z-10 pointer-events-none rounded-xl"
 							style={{
-								background: 'linear-gradient(to right, white, transparent 15%, transparent 85%, white)'
+								background: 'linear-gradient(to right, rgba(255,255,255,0.85), transparent 15%, transparent 85%, rgba(255,255,255,0.85))'
 							}}
 						/>
 						<InfiniteSlider gap={100} speed={40} className="py-2">
