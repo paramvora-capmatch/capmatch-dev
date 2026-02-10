@@ -3230,7 +3230,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			fieldOptionsRegistry,
 			getDefaultControlForDataType,
 			fieldMetadata,
-			existingProject.deal_type,
+			existingProject?.id,
+			existingProject?.deal_type,
 		]
 	);
 

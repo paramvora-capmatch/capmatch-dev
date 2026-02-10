@@ -101,7 +101,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
       setIsChatCollapsed(false);
       underwritingStore.setRequestedTab(null); // Clear once consumed
     }
-  }, [underwritingStore.requestedTab]);
+  }, [underwritingStore]);
 
   const isUnderwritingMode = mode === "underwriter";
 

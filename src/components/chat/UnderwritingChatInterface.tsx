@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -158,6 +158,18 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
         }
     }, [draftMessage, setDraftMessage]);
 
+    const handleSendMessage = useCallback(async () => {
+        if (!newMessage.trim() || !activeThreadId) return;
+        try {
+            const content = newMessage.trim();
+            richTextInputRef.current?.clear();
+            setNewMessage("");
+            await sendMessage(content, clientContext);
+        } catch (e) {
+            console.error("Failed to send", e);
+        }
+    }, [newMessage, activeThreadId, sendMessage, clientContext]);
+
     // Handle auto-send trigger
     useEffect(() => {
         const { autoSendDraft, setAutoSendDraft } = useUnderwritingStore.getState();
@@ -165,7 +177,7 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
             handleSendMessage();
             setAutoSendDraft(false);
         }
-    }, [newMessage, activeThreadId, isSending]);
+    }, [newMessage, activeThreadId, isSending, handleSendMessage]);
 
     // Select default or active thread
     useEffect(() => {
@@ -200,19 +212,6 @@ export const UnderwritingChatInterface: React.FC<UnderwritingChatInterfaceProps>
             messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
         }
     }, [messages]);
-
-    const handleSendMessage = async () => {
-        if (!newMessage.trim() || !activeThreadId) return;
-        try {
-            const content = newMessage.trim();
-            // Clear input immediately or after success
-            richTextInputRef.current?.clear();
-            setNewMessage("");
-            await sendMessage(content, clientContext);
-        } catch (e) {
-            console.error("Failed to send", e);
-        }
-    };
 
     // Group messages
     const groupedMessages = useMemo(() => {
