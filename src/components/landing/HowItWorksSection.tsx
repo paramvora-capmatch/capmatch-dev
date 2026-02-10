@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
-import { motion, useInView } from "framer-motion";
+import React from "react";
 import {
 	Upload,
 	Sparkles,
@@ -10,167 +9,85 @@ import {
 	Search,
 	Send,
 } from "lucide-react";
-import { cn } from "@/utils/cn";
+import { StickyScroll } from "@/components/ui/sticky-scroll-reveal";
 
-const steps = [
+const howItWorksContent = [
 	{
-		tag: "/ Step 1",
 		title: "Upload Your Documents",
-		bullets: [
-			"Drop in whatever you have—PDF, Excel, Word",
-			"Messy or polished, CapMatch handles it",
-		],
-		icon: Upload,
-		layout: "left" as const,
+		description:
+			"Drop in whatever you have—PDF, Excel, Word. Messy or polished, CapMatch handles it.",
+		content: (
+			<div className="flex h-full w-full items-center justify-center p-4">
+				<Upload size={64} className="text-white/80" />
+			</div>
+		),
 	},
 	{
-		tag: "/ Step 2",
 		title: "AI Auto-Fill",
-		bullets: [
-			"Our AI extracts data from your documents",
-			"Project and borrower resumes populate automatically",
-		],
-		icon: Sparkles,
-		layout: "right" as const,
+		description:
+			"Our AI extracts data from your documents. Project and borrower resumes populate automatically.",
+		content: (
+			<div className="flex h-full w-full items-center justify-center p-4">
+				<Sparkles size={64} className="text-white/80" />
+			</div>
+		),
 	},
 	{
-		tag: "/ Step 3",
 		title: "Lender-Ready Resumes",
-		bullets: [
-			"Complete project and borrower profiles",
-			"Version history, real-time collaboration, AI validation",
-		],
-		icon: FileText,
-		layout: "left" as const,
+		description:
+			"Complete project and borrower profiles. Version history, real-time collaboration, AI validation.",
+		content: (
+			<div className="flex h-full w-full items-center justify-center p-4">
+				<FileText size={64} className="text-white/80" />
+			</div>
+		),
 	},
 	{
-		tag: "/ Step 4",
 		title: "Live Offering Memorandum",
-		bullets: [
-			"Dynamic OM dashboard—not a static PDF",
-			"Deal snapshots, market maps, scenario modeling",
-		],
-		icon: LayoutDashboard,
-		layout: "right" as const,
+		description:
+			"Dynamic OM dashboard—not a static PDF. Deal snapshots, market maps, scenario modeling.",
+		content: (
+			<div className="flex h-full w-full items-center justify-center p-4">
+				<LayoutDashboard size={64} className="text-white/80" />
+			</div>
+		),
 	},
 	{
-		tag: "/ Step 5",
 		title: "Intelligent Lender Matching",
-		bullets: [
-			"AI-powered matching by asset, deal type, location",
-			"LenderLine™ visualizes your ideal capital partners",
-		],
-		icon: Search,
-		layout: "left" as const,
+		description:
+			"AI-powered matching by asset, deal type, location. LenderLine™ visualizes your ideal capital partners.",
+		content: (
+			<div className="flex h-full w-full items-center justify-center p-4">
+				<Search size={64} className="text-white/80" />
+			</div>
+		),
 	},
 	{
-		tag: "/ Step 6",
 		title: "Personalized Delivery",
-		bullets: [
-			"Materials formatted for each lender’s preferences",
-			"PDF, Excel, or live dashboard—we deliver it",
-		],
-		icon: Send,
-		layout: "right" as const,
+		description:
+			"Materials formatted for each lender's preferences. PDF, Excel, or live dashboard—we deliver it.",
+		content: (
+			<div className="flex h-full w-full items-center justify-center p-4">
+				<Send size={64} className="text-white/80" />
+			</div>
+		),
 	},
 ];
 
-function StepBlock({
-	step,
-	index,
-	isInView,
-}: {
-	step: (typeof steps)[0];
-	index: number;
-	isInView: boolean;
-}) {
-	const Icon = step.icon;
-	const isLeft = step.layout === "left";
-
-	return (
-		<motion.div
-			className={cn(
-				"flex flex-col lg:flex-row gap-10 lg:gap-16 items-center py-12 lg:py-16",
-				index > 0 && "border-t border-gray-100"
-			)}
-			initial={{ opacity: 0, y: 32 }}
-			animate={isInView ? { opacity: 1, y: 0 } : {}}
-			transition={{ duration: 0.6, delay: index * 0.08 }}
-		>
-			<div
-				className={cn(
-					"w-full lg:w-1/2 flex flex-col justify-center order-2 lg:order-none",
-					!isLeft && "lg:order-2"
-				)}
-			>
-				<span className="text-sm font-medium text-blue-600 mb-2">
-					{step.tag}
-				</span>
-				<h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-					{step.title}
-				</h3>
-				<ul className="space-y-2">
-					{step.bullets.map((b) => (
-						<li
-							key={b}
-							className="flex items-start gap-2 text-gray-600"
-						>
-							<span className="text-blue-500 mt-1">✓</span>
-							<span>{b}</span>
-						</li>
-					))}
-				</ul>
-			</div>
-			<div
-				className={cn(
-					"w-full lg:w-1/2 flex justify-center order-1 lg:order-none",
-					!isLeft && "lg:order-1"
-				)}
-			>
-				{/* Placeholder for product visual / screenshot */}
-				<div className="w-full max-w-xl aspect-video rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center">
-					<Icon size={48} className="text-gray-400" />
-				</div>
-			</div>
-		</motion.div>
-	);
-}
-
 export function HowItWorksSection() {
-	const ref = useRef<HTMLDivElement>(null);
-	const isInView = useInView(ref, { once: true, amount: 0.1 });
-
 	return (
-		<section
-			id="how-it-works"
-			ref={ref}
-			className="py-20 md:py-28 bg-white"
-		>
+		<section id="how-it-works" className="py-16 md:py-20 bg-white">
 			<div className="container mx-auto px-4 max-w-7xl">
-				<motion.div
-					className="text-center mb-16"
-					initial={{ opacity: 0, y: 20 }}
-					animate={isInView ? { opacity: 1, y: 0 } : {}}
-					transition={{ duration: 0.6 }}
-				>
+				<div className="text-center mb-12">
 					<h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
 						How It Works
 					</h2>
 					<p className="text-lg text-gray-600 max-w-2xl mx-auto">
-						From messy documents to funded loan—one vertically
-						integrated platform.
+						From messy documents to funded loan—one vertically integrated
+						platform.
 					</p>
-				</motion.div>
-				<div className="max-w-5xl mx-auto">
-					{steps.map((step, index) => (
-						<StepBlock
-							key={step.tag}
-							step={step}
-							index={index}
-							isInView={isInView}
-						/>
-					))}
 				</div>
+				<StickyScroll content={howItWorksContent} />
 			</div>
 		</section>
 	);
