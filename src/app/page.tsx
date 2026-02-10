@@ -192,8 +192,8 @@ export default function HomePage() {
 					</motion.div>
 				</section>
 
-				<HowItWorksSection />
 				<CaseStudiesSection />
+				<HowItWorksSection />
 				<SecuritySection />
 			</main>
 
