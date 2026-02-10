@@ -1,150 +1,78 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Lock } from "lucide-react";
+import React from "react";
+import { motion } from "framer-motion";
+import { Lock, ShieldCheck, UserCheck, Shield } from "lucide-react";
 import Image from "next/image";
+import { InfiniteSlider } from "@/components/ui/InfiniteSlider";
 
-// Data for the sections — 3 words evenly spaced at 120° apart
-const sections = [
+const securityFeatures = [
 	{
 		id: "correct",
 		title: "CORRECT",
 		shortDescription: "Sanity checks & Human review",
 		description:
 			"We enforce rigorous correctness checks. Every piece of data is subjected to automated sanity checks, and a human is always in the loop to review and confirm critical details.",
-		// Start offset on the circular path (percentage of the circumference)
-		startOffset: "0%",
-		baseAngle: 0,
+		icon: <UserCheck className="w-6 h-6 text-blue-600" />,
+		gradient: "from-blue-500/10 to-indigo-500/10",
+		borderColor: "border-blue-200/50",
 	},
 	{
 		id: "secure",
 		title: "SECURE",
-		shortDescription: "RBAC, AES256 & Permissions",
+		shortDescription: "SOC2, RBAC & AES256",
 		description:
-			"Your data privacy is paramount. We use AES-256 encryption, strict Role-Based Access Control (RBAC), and permission sanity checks to ensure total security.",
-		startOffset: "33.33%",
-		baseAngle: 120,
+			"Your data privacy is paramount. We use AES-256 encryption, strict Role-Based Access Control (RBAC), and SOC2-compliant permission sanity checks to ensure total security.",
+		icon: <ShieldCheck className="w-6 h-6 text-blue-600" />,
+		gradient: "from-blue-500/10 to-cyan-500/10",
+		borderColor: "border-blue-200/50",
 	},
 	{
 		id: "verified",
 		title: "VERIFIED",
-		shortDescription: "Cap Match Verified Data",
+		shortDescription: "CapMatch Verified Data",
 		description:
-			"Trust in data you can rely on. 'Cap Match Verified' is our certification for data sourced from trusted partners like CoStar and government records.",
-		startOffset: "66.66%",
-		baseAngle: 240,
+			"Trust in data you can rely on. 'CapMatch Verified' is our certification for data sourced from trusted partners and government records.",
+		icon: <Shield className="w-6 h-6 text-blue-600" />,
+		gradient: "from-blue-600/10 to-blue-400/10",
+		borderColor: "border-blue-200/50",
 	},
 ];
 
-// Simple left/right positioning for content card.
-// If the word is on the right half of the circle, card goes to the right.
-// If on the left half, card goes to the left.
-function getCardStyle(angle: number): {
-	key: string;
-	style: React.CSSProperties;
-} {
-	const a = ((angle % 360) + 360) % 360;
-	// Right half: word angle 315°-135° (top and right side)
-	const isRight = a >= 315 || a < 135;
-
-	return {
-		key: isRight ? "right" : "left",
-		style: {
-			top: "50%",
-			transform: "translateY(-50%)",
-			...(isRight
-				? { left: "calc(100% + 24px)" }
-				: { right: "calc(100% + 24px)" }),
-		},
-	};
-}
-
-
-const ROTATION_DURATION = 30; // seconds for full rotation
-const SVG_SIZE = 600;
-const CIRCLE_RADIUS = 240;
-const CENTER = SVG_SIZE / 2;
+const partnerLogos = [
+	{ src: "/Landing-Page/SecuritySectionLogos/image.png", name: "CoStar" },
+	{ src: "/Landing-Page/SecuritySectionLogos/FHFA-image (5)-new.png", name: "FHFA" },
+	{ src: "/Landing-Page/SecuritySectionLogos/image (3).png", name: "Census" },
+	{ src: "/Landing-Page/SecuritySectionLogos/BLS - image (4) -new.png", name: "BLS" },
+	{ src: "/Landing-Page/SecuritySectionLogos/fema-1-new.png", name: "FEMA" },
+	{ src: "/Landing-Page/SecuritySectionLogos/US Census image(2) - new.png", name: "Census Bureau" },
+	{ src: "/Landing-Page/SecuritySectionLogos/Yardi-new.png", name: "Yardi" },
+];
 
 export function SecuritySection() {
-	const [hoveredSection, setHoveredSection] = useState<string | null>(null);
-	const [currentRotation, setCurrentRotation] = useState(0);
-	const animationRef = useRef<number | null>(null);
-	const startTimeRef = useRef<number>(Date.now());
-	const pausedRotationRef = useRef<number>(0);
-
-	const isPaused = hoveredSection !== null;
-
-	// Track the current rotation angle
-	const updateRotation = useCallback(() => {
-		if (!isPaused) {
-			const elapsed = (Date.now() - startTimeRef.current) / 1000;
-			const angle =
-				(pausedRotationRef.current +
-					(elapsed / ROTATION_DURATION) * 360) %
-				360;
-			setCurrentRotation(angle);
-		}
-		animationRef.current = requestAnimationFrame(updateRotation);
-	}, [isPaused]);
-
-	useEffect(() => {
-		animationRef.current = requestAnimationFrame(updateRotation);
-		return () => {
-			if (animationRef.current) {
-				cancelAnimationFrame(animationRef.current);
-			}
-		};
-	}, [updateRotation]);
-
-	useEffect(() => {
-		if (isPaused) {
-			pausedRotationRef.current = currentRotation;
-		} else {
-			startTimeRef.current = Date.now();
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isPaused]);
-
-	const getSectionAngle = (baseAngle: number) => {
-		return (baseAngle + currentRotation) % 360;
-	};
-
 	return (
 		<section
-			className="relative py-32 overflow-visible border-t border-gray-100 bg-white"
+			className="relative py-32 overflow-hidden border-t border-gray-100 bg-white"
 			style={{
 				backgroundImage: `
 					repeating-linear-gradient(
 						45deg,
 						transparent,
 						transparent 10px,
-						rgba(209, 213, 219, 0.22) 10px,
-						rgba(209, 213, 219, 0.22) 11px
+						rgba(209, 213, 219, 0.1) 10px,
+						rgba(209, 213, 219, 0.1) 11px
 					),
 					repeating-linear-gradient(
 						-45deg,
 						transparent,
 						transparent 10px,
-						rgba(209, 213, 219, 0.22) 10px,
-						rgba(209, 213, 219, 0.22) 11px
+						rgba(209, 213, 219, 0.1) 10px,
+						rgba(209, 213, 219, 0.1) 11px
 					)
 				`,
 			}}
 		>
-			<style jsx global>{`
-				@keyframes security-spin {
-					from {
-						transform: rotate(0deg);
-					}
-					to {
-						transform: rotate(360deg);
-					}
-				}
-			`}</style>
-
-
-			<div className="relative z-10 w-full max-w-7xl mx-auto px-6 pt-12 text-center">
+			<div className="relative z-10 w-full max-w-7xl mx-auto px-6 mb-20 text-center">
 				<motion.div
 					initial={{ opacity: 0, y: 20 }}
 					whileInView={{ opacity: 1, y: 0 }}
@@ -160,167 +88,87 @@ export function SecuritySection() {
 				</motion.div>
 			</div>
 
-			<div className="relative z-10 w-full max-w-7xl mx-auto px-6 h-[700px] flex items-center justify-center">
-				<div className="relative flex items-center justify-center w-[700px] h-[700px]">
-					{/* The Centerpiece: Lock + Logo */}
-					<div className="absolute z-10 w-56 h-56 flex items-center justify-center bg-white rounded-full shadow-2xl border border-blue-50">
-						<div className="absolute inset-0 bg-blue-50/50 rounded-full animate-pulse blur-xl" />
-						<div className="relative z-20 flex flex-col items-center justify-center">
-							<div className="relative flex items-center justify-center">
-								<Lock
-									strokeWidth={1}
-									className="w-36 h-36 text-blue-100/80 absolute"
-								/>
-								<div className="relative z-10 w-28 h-28 flex items-center justify-center">
+			<div className="relative z-10 w-full max-w-7xl mx-auto px-6">
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10 items-stretch mb-20">
+					{securityFeatures.map((feature, idx) => (
+						<div key={feature.id} className="h-full">
+							<SecurityCard feature={feature} delay={0.1 * (idx + 1)} />
+						</div>
+					))}
+				</div>
+
+				{/* Partner Logos Infinite Slider */}
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					whileInView={{ opacity: 1, y: 0 }}
+					viewport={{ once: true }}
+					transition={{ duration: 0.6, delay: 0.4 }}
+					className="pt-16 border-t border-gray-100/50"
+				>
+					<div className="relative">
+						{/* Gradient Mask for fading edges */}
+						<div
+							className="absolute inset-0 z-10 pointer-events-none"
+							style={{
+								background: 'linear-gradient(to right, white, transparent 15%, transparent 85%, white)'
+							}}
+						/>
+						<InfiniteSlider gap={100} speed={40} className="py-12">
+							{partnerLogos.map((logo, idx) => (
+								<div
+									key={idx}
+									className="relative grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all duration-500 flex items-center justify-center h-24 lg:h-32 w-24 lg:w-32"
+								>
 									<Image
-										src="/CapMatchLogo.png"
-										alt="Cap Match"
-										width={90}
-										height={90}
-										className="object-contain"
+										src={logo.src}
+										alt={logo.name}
+										fill
+										className="object-contain p-4"
 									/>
 								</div>
-							</div>
-						</div>
-					</div>
-
-					{/* SVG Circular Text Ring */}
-					<div
-						className="absolute"
-						style={{
-							width: `${SVG_SIZE}px`,
-							height: `${SVG_SIZE}px`,
-							animation: `security-spin ${ROTATION_DURATION}s linear infinite`,
-							animationPlayState: isPaused
-								? "paused"
-								: "running",
-						}}
-					>
-						<svg
-							width={SVG_SIZE}
-							height={SVG_SIZE}
-							viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
-							className="overflow-visible"
-						>
-							{/* Define the circular path for text to follow */}
-							<defs>
-								<path
-									id="security-text-circle"
-									d={`
-										M ${CENTER}, ${CENTER - CIRCLE_RADIUS}
-										A ${CIRCLE_RADIUS},${CIRCLE_RADIUS} 0 1,1 ${CENTER - 0.01},${CENTER - CIRCLE_RADIUS}
-									`}
-									fill="none"
-								/>
-							</defs>
-
-							{/* Faint circle ring visual */}
-							<circle
-								cx={CENTER}
-								cy={CENTER}
-								r={CIRCLE_RADIUS}
-								fill="none"
-								stroke="rgba(191, 219, 254, 0.2)"
-								strokeWidth="1"
-							/>
-
-							{/* Text along the circle path */}
-							{sections.map((section) => (
-								<text
-									key={section.id}
-									className="select-none"
-									style={{
-										cursor: "pointer",
-										transition:
-											"fill 0.3s ease, filter 0.3s ease",
-										filter:
-											hoveredSection === section.id
-												? "drop-shadow(0 0 12px rgba(59, 130, 246, 0.4))"
-												: "none",
-									}}
-									fill={
-										hoveredSection === section.id
-											? "#2563EB"
-											: "#374151"
-									}
-									fontSize="28"
-									fontWeight="900"
-									letterSpacing="0.25em"
-									onMouseEnter={() =>
-										setHoveredSection(section.id)
-									}
-									onMouseLeave={() =>
-										setHoveredSection(null)
-									}
-								>
-									<textPath
-										href="#security-text-circle"
-										startOffset={section.startOffset}
-									>
-										{section.title}
-									</textPath>
-								</text>
 							))}
-						</svg>
+						</InfiniteSlider>
 					</div>
-
-					{/* Content Cards — positioned radially outward from the word */}
-					<AnimatePresence>
-						{hoveredSection !== null &&
-							(() => {
-								const section = sections.find(
-									(s) => s.id === hoveredSection
-								);
-								if (!section) return null;
-
-								const absoluteAngle = getSectionAngle(
-									section.baseAngle
-								);
-								const cardPos =
-									getCardStyle(absoluteAngle);
-
-								return (
-									<motion.div
-										key={`${section.id}-${cardPos.key}`}
-										initial={{
-											opacity: 0,
-											scale: 0.85,
-										}}
-										animate={{
-											opacity: 1,
-											scale: 1,
-										}}
-										exit={{
-											opacity: 0,
-											scale: 0.85,
-										}}
-										transition={{
-											duration: 0.25,
-											ease: "easeOut",
-										}}
-										className="absolute w-72 z-50 pointer-events-none"
-										style={cardPos.style}
-									>
-										<div className="bg-white/95 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-blue-100/60">
-											<div className="w-10 h-1 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full mb-4" />
-											<div className="font-semibold text-blue-600 mb-2 uppercase text-xs tracking-wider">
-												{
-													section.shortDescription
-												}
-											</div>
-											<h4 className="text-lg font-bold text-gray-900 mb-2">
-												{section.title}
-											</h4>
-											<p className="text-gray-600 text-sm leading-relaxed">
-												{section.description}
-											</p>
-										</div>
-									</motion.div>
-								);
-							})()}
-					</AnimatePresence>
-				</div>
+				</motion.div>
 			</div>
-		</section>
+		</section >
+	);
+}
+
+function SecurityCard({ feature, delay }: { feature: typeof securityFeatures[0]; delay: number }) {
+	return (
+		<motion.div
+			initial={{ opacity: 0, scale: 0.95, y: 20 }}
+			whileInView={{ opacity: 1, scale: 1, y: 0 }}
+			viewport={{ once: true }}
+			transition={{ duration: 0.5, delay, ease: "easeOut" }}
+			className={`group relative h-full overflow-hidden bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-sm border ${feature.borderColor} hover:shadow-xl hover:-translate-y-1 transition-all duration-300`}
+		>
+			{/* Subtle Gradient Background */}
+			<div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+
+			<div className="relative z-10">
+				<div className="flex items-start justify-between mb-6">
+					<div className="p-3 bg-white rounded-2xl shadow-sm border border-gray-100 group-hover:scale-110 transition-transform duration-300">
+						{feature.icon}
+					</div>
+					<div className="px-3 py-1 bg-gray-50 rounded-full text-[10px] font-bold tracking-widest text-gray-400 uppercase">
+						Active Protection
+					</div>
+				</div>
+
+				<h4 className="text-xl font-bold text-gray-900 mb-2 tracking-tight group-hover:text-blue-600 transition-colors duration-300">
+					{feature.title}
+				</h4>
+
+				<div className="text-blue-600/80 font-semibold text-xs mb-4 uppercase tracking-wider">
+					{feature.shortDescription}
+				</div>
+
+				<p className="text-gray-600 text-[15px] leading-relaxed font-medium">
+					{feature.description}
+				</p>
+			</div>
+		</motion.div>
 	);
 }
