@@ -244,7 +244,7 @@ export default function HomePage() {
 				</section>
 
 				{/* Platform preview — Static, wide, no scroll animation */}
-				<section className="relative z-[25] -mt-[15vh] pb-20 px-4">
+				<section className="relative z-[25] pt-20 pb-20 px-4">
 					<div className="container mx-auto max-w-[80%]">
 						<div className="aspect-video w-full rounded-xl shadow-2xl overflow-hidden bg-black">
 							<iframe
