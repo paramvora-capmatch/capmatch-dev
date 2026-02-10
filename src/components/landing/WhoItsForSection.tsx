@@ -3,6 +3,7 @@
 import React, { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import { Building2, Landmark } from "lucide-react";
+import { DottedGlowBackground } from "@/components/ui/dotted-glow-background";
 
 const developersPoints = [
 	"Stop spending months packaging your deal",
@@ -26,8 +27,30 @@ export function WhoItsForSection() {
 		<section
 			id="who-its-for"
 			ref={ref}
-			className="py-20 md:py-28 bg-white"
+			className="relative py-20 md:py-28 bg-white overflow-hidden"
 		>
+			{/* Section-wide background with radial mask */}
+			<div
+				className="absolute inset-0 pointer-events-none"
+				style={{
+					maskImage: "radial-gradient(circle at 50% 50%, black 0%, transparent 50%)",
+					WebkitMaskImage: "radial-gradient(circle at 50% 50%, black 0%, transparent 50%)",
+				}}
+			>
+				<DottedGlowBackground
+					className="w-full h-full opacity-30"
+					opacity={0.4}
+					gap={12}
+					radius={1.2}
+					colorLightVar="--color-blue-900"
+					glowColorLightVar="--color-blue-700"
+					backgroundOpacity={0}
+					speedMin={0.2}
+					speedMax={1.0}
+					speedScale={1}
+				/>
+			</div>
+
 			<div className="container mx-auto px-4 max-w-7xl">
 				<motion.div
 					className="text-center mb-14"

@@ -65,7 +65,7 @@ export function CaseStudiesSection() {
 		<section
 			id="case-studies"
 			ref={ref}
-			className="min-h-screen py-20 md:py-28 bg-white flex flex-col justify-center"
+			className="min-h-screen py-20 md:py-28 bg-blue-50/50 flex flex-col justify-center"
 		>
 			<div className="container mx-auto px-4 max-w-6xl flex-1 flex flex-col justify-center">
 				<motion.div
@@ -153,11 +153,10 @@ export function CaseStudiesSection() {
 									key={i}
 									type="button"
 									onClick={() => setIndex(i)}
-									className={`w-2.5 h-2.5 rounded-full transition-colors ${
-										i === index
+									className={`w-2.5 h-2.5 rounded-full transition-colors ${i === index
 											? "bg-blue-600"
 											: "bg-gray-300 hover:bg-gray-400"
-									}`}
+										}`}
 									aria-label={`Go to case study ${i + 1}`}
 								/>
 							))}
