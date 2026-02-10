@@ -11,7 +11,6 @@ import { cn } from "@/utils/cn";
 import {
 	BusinessModelSection,
 	HowItWorksSection,
-	UnderTheHoodSection,
 	WhoItsForSection,
 	CaseStudiesSection,
 	SecuritySection,
@@ -258,7 +257,6 @@ export default function HomePage() {
 				</section>
 
 				<HowItWorksSection />
-				<UnderTheHoodSection />
 				<BusinessModelSection />
 				<WhoItsForSection />
 				<CaseStudiesSection />
