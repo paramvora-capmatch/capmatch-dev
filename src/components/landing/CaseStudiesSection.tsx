@@ -10,11 +10,11 @@ const caseStudies = [
 	{
 		id: "1",
 		headline: "300 East LaSalle",
-		assetType: "Multifamily + Commercial",
-		loanAmount: "$46M–$50M",
+		assetType: "Mixed-Use Multifamily",
+		loanAmount: "$31.5M",
 		location: "South Bend, IN",
 		description:
-			"144-unit Class A multifamily in the East Bank neighborhood with ground-floor retail. IPA/Marcus & Millichap offering; strong rent comps and 10-year stabilized NOI growth.",
+			"Fragmented BPO and Excel models created version chaos and lender friction. CapMatch reconciled everything into a single source of truth, generated lender-specific outputs without rework, and cut back-and-forth by ~40%.",
 		image: "/LaSalle-CaseStudy/img-0.jpeg",
 		slug: "lasalle",
 	},
