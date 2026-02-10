@@ -3,74 +3,50 @@
 import React, { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import {
+	UsersRound,
 	Upload,
 	Sparkles,
-	FileText,
-	LayoutDashboard,
 	Search,
-	Send,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 
 const steps = [
 	{
 		tag: "/ Step 1",
-		title: "Upload Your Documents",
+		title: "Assemble Your War Room",
 		bullets: [
-			"Drop in whatever you have—PDF, Excel, Word",
-			"Messy or polished, CapMatch handles it",
+			"Don't work in a silo. Invite analysts, advisors, and partners to the deal before you start building.",
+			"Set granular permissions so your team can help validate data and refine the narrative from day one.",
 		],
-		icon: Upload,
+		icon: UsersRound,
 		layout: "left" as const,
 	},
 	{
 		tag: "/ Step 2",
-		title: "AI Auto-Fill",
+		title: "Upload Raw Documents",
 		bullets: [
-			"Our AI extracts data from your documents",
-			"Project and borrower resumes populate automatically",
+			"Drop in whatever you have—Rent Rolls, T-12s, Appraisals (PDF or Excel).",
+			"CapMatch accepts messy data and prepares it for processing immediately.",
 		],
-		icon: Sparkles,
+		icon: Upload,
 		layout: "right" as const,
 	},
 	{
 		tag: "/ Step 3",
-		title: "Lender-Ready Resumes",
+		title: "AI Auto-Fill & Live OM",
 		bullets: [
-			"Complete project and borrower profiles",
-			"Version history, real-time collaboration, AI validation",
+			"Watch the system work. Our AI extracts data to populate the Borrower Resume and generates a dynamic \"Live Offering Memorandum\"—a fully interactive dashboard, not a static PDF.",
 		],
-		icon: FileText,
+		icon: Sparkles,
 		layout: "left" as const,
 	},
 	{
 		tag: "/ Step 4",
-		title: "Live Offering Memorandum",
+		title: "Intelligent Matching",
 		bullets: [
-			"Dynamic OM dashboard—not a static PDF",
-			"Deal snapshots, market maps, scenario modeling",
-		],
-		icon: LayoutDashboard,
-		layout: "right" as const,
-	},
-	{
-		tag: "/ Step 5",
-		title: "Intelligent Lender Matching",
-		bullets: [
-			"AI-powered matching by asset, deal type, location",
-			"LenderLine™ visualizes your ideal capital partners",
+			"Target with precision. Once your data is verified, our LenderLine™ engine matches your deal against thousands of active capital mandates to find the partners ready to fund.",
 		],
 		icon: Search,
-		layout: "left" as const,
-	},
-	{
-		tag: "/ Step 6",
-		title: "Personalized Delivery",
-		bullets: [
-			"Materials formatted for each lender’s preferences",
-			"PDF, Excel, or live dashboard—we deliver it",
-		],
-		icon: Send,
 		layout: "right" as const,
 	},
 ];

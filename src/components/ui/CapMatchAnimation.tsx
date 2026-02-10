@@ -17,31 +17,32 @@ import {
   Store,
   Warehouse,
   MapPin,
-  TreePine
+  TreePine,
+  type LucideIcon,
 } from 'lucide-react';
 
-// Finance icons data (left side)
-const financeIcons = [
-  { icon: DollarSign, name: 'Dollar' },
-  { icon: CreditCard, name: 'Credit Card' },
-  { icon: Banknote, name: 'Banknote' },
-  { icon: TrendingUp, name: 'Trending Up' },
-  { icon: Calculator, name: 'Calculator' },
-  { icon: PieChart, name: 'Pie Chart' },
-  { icon: BarChart3, name: 'Bar Chart' },
-  { icon: Wallet, name: 'Wallet' },
+// Finance / lender deal cards (left side)
+const financeCards = [
+  { icon: DollarSign, label1: 'Bridge Loan', label2: '$12M' },
+  { icon: CreditCard, label1: 'CMBS', label2: '$25M' },
+  { icon: Banknote, label1: 'Perm Debt', label2: '$8M' },
+  { icon: TrendingUp, label1: 'Mezz Debt', label2: '$4.5M' },
+  { icon: Calculator, label1: 'Construction', label2: '$18M' },
+  { icon: PieChart, label1: 'Equity', label2: '$6M' },
+  { icon: BarChart3, label1: 'HUD/FHA', label2: '$15M' },
+  { icon: Wallet, label1: 'SBA 504', label2: '$3M' },
 ];
 
-// Real estate icons data (right side)
-const realEstateIcons = [
-  { icon: Building2, name: 'Office Building' },
-  { icon: Home, name: 'House' },
-  { icon: Building, name: 'Building' },
-  { icon: Factory, name: 'Factory' },
-  { icon: Store, name: 'Store' },
-  { icon: Warehouse, name: 'Warehouse' },
-  { icon: MapPin, name: 'Location' },
-  { icon: TreePine, name: 'Land' },
+// Real estate / asset cards (right side)
+const realEstateCards = [
+  { icon: Building2, label1: 'Multifamily', label2: '240 Units' },
+  { icon: Home, label1: 'Single Family', label2: '12 Homes' },
+  { icon: Building, label1: 'Office', label2: '85K SF' },
+  { icon: Factory, label1: 'Industrial', label2: '120K SF' },
+  { icon: Store, label1: 'Retail', label2: '45K SF' },
+  { icon: Warehouse, label1: 'Self-Storage', label2: '350 Units' },
+  { icon: MapPin, label1: 'Mixed-Use', label2: '60K SF' },
+  { icon: TreePine, label1: 'Land', label2: '15 Acres' },
 ];
 
 interface AnimationState {
@@ -56,12 +57,64 @@ interface AnimationState {
   phase: 'idle' | 'moving-to-center' | 'moving-horizontal' | 'connecting' | 'connected' | 'resetting';
 }
 
-export function CapMatchAnimation() {
+interface CapMatchAnimationProps {
+  /** Scale the animation size (0–1). e.g. 0.4 = 40% size. Default 1. */
+  sizeRatio?: number;
+}
+
+// ── Mini Deal Card component ──
+function DealCard({
+  Icon,
+  label1,
+  label2,
+  color,
+  iconSize,
+  compact,
+  className = '',
+}: {
+  Icon: LucideIcon;
+  label1: string;
+  label2: string;
+  color: 'green' | 'blue';
+  iconSize: number;
+  compact?: boolean;
+  className?: string;
+}) {
+  const iconColor = color === 'green' ? 'text-green-500' : 'text-blue-500';
+  const iconBg = color === 'green' ? 'bg-green-50' : 'bg-blue-50';
+
+  return (
+    <div
+      className={`flex items-center gap-2 bg-white border border-gray-200 rounded-lg shadow-sm px-2.5 py-1.5 ${className}`}
+    >
+      <div className={`shrink-0 flex items-center justify-center rounded-md ${iconBg} ${iconColor}`}
+        style={{ width: `${iconSize + 8}px`, height: `${iconSize + 8}px` }}
+      >
+        <Icon size={iconSize} strokeWidth={1.8} />
+      </div>
+      {!compact && (
+        <div className="min-w-0">
+          <div className="text-[10px] leading-tight font-medium text-gray-800 truncate">{label1}</div>
+          <div className="text-[9px] leading-tight text-gray-500 truncate">{label2}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Column x-positions (percentage)
+const LEFT_COL = 14;
+const RIGHT_COL = 86;
+// Where animated cards meet in the middle
+const MEET_LEFT = 33;
+const MEET_RIGHT = 67;
+
+export function CapMatchAnimation({ sizeRatio = 1 }: CapMatchAnimationProps) {
   const [animationState, setAnimationState] = useState<AnimationState>({
     leftIconIndex: 0,
     rightIconIndex: 0,
-    leftIconPosition: { x: 8, y: 20 },
-    rightIconPosition: { x: 92, y: 80 },
+    leftIconPosition: { x: LEFT_COL, y: 20 },
+    rightIconPosition: { x: RIGHT_COL, y: 80 },
     leftStartY: 20,
     rightStartY: 80,
     showConnection: false,
@@ -69,52 +122,48 @@ export function CapMatchAnimation() {
     phase: 'idle',
   });
 
-  // State to control progressive drawing of the connection line
   const [lineDrawn, setLineDrawn] = useState(false);
 
   useEffect(() => {
     const runAnimation = () => {
-      // Phase 1: Select random icons and their starting positions
-      const leftIndex = Math.floor(Math.random() * financeIcons.length);
-      const rightIndex = Math.floor(Math.random() * realEstateIcons.length);
-      
-      // Random Y positions for starting points (simulate different positions in columns)
-      const leftStartY = 15 + Math.random() * 70; // Random Y between 15% and 85%
+      const leftIndex = Math.floor(Math.random() * financeCards.length);
+      const rightIndex = Math.floor(Math.random() * realEstateCards.length);
+      const leftStartY = 15 + Math.random() * 70;
       const rightStartY = 15 + Math.random() * 70;
-      
+
       setAnimationState(prev => ({
         ...prev,
         leftIconIndex: leftIndex,
         rightIconIndex: rightIndex,
         leftStartY,
         rightStartY,
-        leftIconPosition: { x: 8, y: leftStartY },
-        rightIconPosition: { x: 92, y: rightStartY },
+        leftIconPosition: { x: LEFT_COL, y: leftStartY },
+        rightIconPosition: { x: RIGHT_COL, y: rightStartY },
         phase: 'moving-to-center',
         showConnection: false,
         connectionComplete: false,
       }));
 
-      // Phase 1: Move icons diagonally to center Y position
+      // Move to center Y
       setTimeout(() => {
         setAnimationState(prev => ({
           ...prev,
-          leftIconPosition: { x: 8, y: 50 },
-          rightIconPosition: { x: 92, y: 50 },
+          leftIconPosition: { x: LEFT_COL, y: 50 },
+          rightIconPosition: { x: RIGHT_COL, y: 50 },
         }));
       }, 100);
 
-      // Phase 2: Move icons horizontally toward each other
+      // Move horizontally toward each other
       setTimeout(() => {
         setAnimationState(prev => ({
           ...prev,
           phase: 'moving-horizontal',
-          leftIconPosition: { x: 35, y: 50 },
-          rightIconPosition: { x: 65, y: 50 },
+          leftIconPosition: { x: MEET_LEFT, y: 50 },
+          rightIconPosition: { x: MEET_RIGHT, y: 50 },
         }));
       }, 1200);
 
-      // Phase 3: Show connection line
+      // Show connection line
       setTimeout(() => {
         setAnimationState(prev => ({
           ...prev,
@@ -123,7 +172,7 @@ export function CapMatchAnimation() {
         }));
       }, 2200);
 
-      // Phase 4: Complete connection (turn green)
+      // Complete connection (turn green)
       setTimeout(() => {
         setAnimationState(prev => ({
           ...prev,
@@ -132,241 +181,242 @@ export function CapMatchAnimation() {
         }));
       }, 3200);
 
-      // Phase 5: Reset
+      // Reset
       setTimeout(() => {
         setAnimationState(prev => ({
           ...prev,
           phase: 'resetting',
-          leftIconPosition: { x: 8, y: prev.leftStartY },
-          rightIconPosition: { x: 92, y: prev.rightStartY },
+          leftIconPosition: { x: LEFT_COL, y: prev.leftStartY },
+          rightIconPosition: { x: RIGHT_COL, y: prev.rightStartY },
           showConnection: false,
           connectionComplete: false,
         }));
       }, 4200);
 
-      // Phase 6: Return to idle and restart
+      // Idle
       setTimeout(() => {
-        setAnimationState(prev => ({
-          ...prev,
-          phase: 'idle',
-        }));
+        setAnimationState(prev => ({ ...prev, phase: 'idle' }));
       }, 4700);
     };
 
     const interval = setInterval(runAnimation, 5000);
-    runAnimation(); // Start immediately
-
+    runAnimation();
     return () => clearInterval(interval);
   }, []);
 
-  // Trigger progressive line drawing when entering the "connecting" phase
+  // Progressive line drawing
   useEffect(() => {
     if (animationState.phase === 'connecting') {
-      // Reset line to hidden state first
       setLineDrawn(false);
-      // Use double requestAnimationFrame to ensure DOM updates before drawing
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setLineDrawn(true);
-        });
+        requestAnimationFrame(() => setLineDrawn(true));
       });
     } else if (animationState.phase === 'resetting' || animationState.phase === 'idle') {
       setLineDrawn(false);
     }
   }, [animationState.phase]);
 
-  const LeftIcon = financeIcons[animationState.leftIconIndex].icon;
-  const RightIcon = realEstateIcons[animationState.rightIconIndex].icon;
+  const leftCard = financeCards[animationState.leftIconIndex];
+  const rightCard = realEstateCards[animationState.rightIconIndex];
 
-  // Calculate actual pixel positions for the line
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const [containerDimensions, setContainerDimensions] = React.useState({ width: 0, height: 0 });
+  const [containerWidth, setContainerWidth] = React.useState(0);
+
+  // Container height
+  const containerHeight = sizeRatio < 0.6 ? 340 : Math.round(560 * sizeRatio);
 
   useLayoutEffect(() => {
-    const updateDimensions = () => {
+    const update = () => {
       if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const dynamicHeight = window.innerHeight - rect.top; // remaining viewport height
-        setContainerDimensions({ width: rect.width, height: dynamicHeight });
+        setContainerWidth(containerRef.current.getBoundingClientRect().width);
       }
     };
-
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
 
-  // Utility clamp function
-  const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+  // Sizing
+  const h = containerHeight;
+  const verticalPad = 12;
+  const usableHeight = h - verticalPad * 2;
+  const staticIconSize = Math.max(14, Math.min(Math.round(usableHeight / 12), 18));
+  const staticCardGap = Math.max(4, Math.round((usableHeight - 32 * 8) / 7));
 
-  // Responsive sizing – boundary smaller ratio for mobile and prevents oversized boxes
-  const iconBoundarySize = clamp(containerDimensions.height / 7, 40, 96);
-  const iconSize       = clamp(iconBoundarySize * 0.6, 18, iconBoundarySize - 16);
-  const staticIconSize = clamp(iconBoundarySize * 0.45, 18, 42);
+  // Animated card dimensions
+  const animatedCardWidth = Math.max(120, Math.min(Math.round(containerWidth * 0.18), 180));
+  const animatedCardHeight = Math.max(40, Math.round(animatedCardWidth * 0.4));
+  const animatedIconSize = Math.round(animatedCardHeight * 0.45);
 
-  // Pixel positions for icons based on percentage coordinates and container size
-  const leftIconPixelPos = {
-    x: (animationState.leftIconPosition.x / 100) * containerDimensions.width,
-    y: (animationState.leftIconPosition.y / 100) * containerDimensions.height,
-  };
-
-  const rightIconPixelPos = {
-    x: (animationState.rightIconPosition.x / 100) * containerDimensions.width,
-    y: (animationState.rightIconPosition.y / 100) * containerDimensions.height,
-  };
-
-  // Calculate connection points at the edges of icon boundaries
-  const calculateConnectionPoints = () => {
-    const centerToCenter = {
-      x: rightIconPixelPos.x - leftIconPixelPos.x,
-      y: rightIconPixelPos.y - leftIconPixelPos.y
-    };
-    
-    const distance = Math.sqrt(centerToCenter.x * centerToCenter.x + centerToCenter.y * centerToCenter.y);
-    
-    if (distance === 0) return { start: leftIconPixelPos, end: rightIconPixelPos };
-    
-    // Normalize the direction vector
-    const direction = {
-      x: centerToCenter.x / distance,
-      y: centerToCenter.y / distance
-    };
-    
-    // Calculate connection points at boundary edges
-    const startPoint = {
-      x: leftIconPixelPos.x + direction.x * (iconBoundarySize / 2),
-      y: leftIconPixelPos.y + direction.y * (iconBoundarySize / 2)
-    };
-    
-    const endPoint = {
-      x: rightIconPixelPos.x - direction.x * (iconBoundarySize / 2),
-      y: rightIconPixelPos.y - direction.y * (iconBoundarySize / 2)
-    };
-    
-    return { start: startPoint, end: endPoint };
-  };
-  
-  const connectionPoints = calculateConnectionPoints();
-  
-  // Calculate line length for proper animation
-  const lineLength = Math.sqrt(
-    Math.pow(connectionPoints.end.x - connectionPoints.start.x, 2) + 
-    Math.pow(connectionPoints.end.y - connectionPoints.start.y, 2)
-  );
+  // Line offset: half the animated card width
+  const halfCardWidth = animatedCardWidth / 2;
 
   return (
     <div
       ref={containerRef}
-      className="w-full mt-8 relative overflow-hidden"
-      style={{ height: containerDimensions.height ? `${containerDimensions.height}px` : '16rem' }}
+      className="w-full relative overflow-hidden"
+      style={{ height: `${containerHeight}px` }}
     >
-
-
-      {/* Static Icon Columns */}
-      <div className="absolute left-4 top-0 h-full flex flex-col justify-center space-y-4">
-        {financeIcons.map((iconData, index) => {
-          const IconComponent = iconData.icon;
-          return (
-            <div
-              key={`static-left-${index}`}
-              className={`text-green-500 ${index === animationState.leftIconIndex && animationState.phase !== 'idle' ? 'opacity-0' : 'opacity-60'}`}
-            >
-              <IconComponent size={staticIconSize} />
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="absolute right-4 top-0 h-full flex flex-col justify-center space-y-4">
-        {realEstateIcons.map((iconData, index) => {
-          const IconComponent = iconData.icon;
-          return (
-            <div
-              key={`static-right-${index}`}
-              className={`text-blue-500 ${index === animationState.rightIconIndex && animationState.phase !== 'idle' ? 'opacity-0' : 'opacity-60'}`}
-            >
-              <IconComponent size={staticIconSize} />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Animated Icons with Boundaries */}
+      {/* Static left column — deal cards */}
       <div
-        className={`absolute transition-all duration-1000 ease-in-out transform -translate-x-1/2 -translate-y-1/2 ${
-          animationState.phase === 'connected' ? 'scale-110' : ''
+        className="absolute flex flex-col items-end"
+        style={{
+          left: `${LEFT_COL}%`,
+          transform: 'translateX(-50%)',
+          gap: `${staticCardGap}px`,
+          top: `${verticalPad}px`,
+          bottom: `${verticalPad}px`,
+          justifyContent: 'center',
+        }}
+      >
+        {financeCards.map((card, index) => (
+          <div
+            key={`static-left-${index}`}
+            className={`transition-opacity duration-300 ${
+              index === animationState.leftIconIndex && animationState.phase !== 'idle' ? 'opacity-0' : 'opacity-50'
+            }`}
+          >
+            <DealCard
+              Icon={card.icon}
+              label1={card.label1}
+              label2={card.label2}
+              color="green"
+              iconSize={staticIconSize}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Static right column — deal cards */}
+      <div
+        className="absolute flex flex-col items-start"
+        style={{
+          left: `${RIGHT_COL}%`,
+          transform: 'translateX(-50%)',
+          gap: `${staticCardGap}px`,
+          top: `${verticalPad}px`,
+          bottom: `${verticalPad}px`,
+          justifyContent: 'center',
+        }}
+      >
+        {realEstateCards.map((card, index) => (
+          <div
+            key={`static-right-${index}`}
+            className={`transition-opacity duration-300 ${
+              index === animationState.rightIconIndex && animationState.phase !== 'idle' ? 'opacity-0' : 'opacity-50'
+            }`}
+          >
+            <DealCard
+              Icon={card.icon}
+              label1={card.label1}
+              label2={card.label2}
+              color="blue"
+              iconSize={staticIconSize}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Connection Line */}
+      {animationState.showConnection && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: '50%',
+            left: `${MEET_LEFT}%`,
+            right: `${100 - MEET_RIGHT}%`,
+            transform: 'translateY(-50%)',
+            paddingLeft: `${halfCardWidth}px`,
+            paddingRight: `${halfCardWidth}px`,
+          }}
+        >
+          <div
+            className="h-[2.5px] rounded-full"
+            style={{
+              backgroundColor: animationState.connectionComplete ? '#10b981' : '#3b82f6',
+              transform: `scaleX(${lineDrawn ? 1 : 0})`,
+              transformOrigin: 'left center',
+              transition: 'transform 0.8s ease-in-out, background-color 0.5s',
+            }}
+          />
+        </div>
+      )}
+
+      {/* Animated left deal card */}
+      <div
+        className={`absolute transition-all duration-1000 ease-in-out -translate-x-1/2 -translate-y-1/2 ${
+          animationState.phase === 'connected' ? 'scale-105' : ''
         }`}
         style={{
           left: `${animationState.leftIconPosition.x}%`,
           top: `${animationState.leftIconPosition.y}%`,
-          width: `${iconBoundarySize}px`,
-          height: `${iconBoundarySize}px`,
           opacity: animationState.phase === 'idle' ? 0 : 1,
         }}
       >
-        {/* Icon boundary - visible during connection */}
-        <div 
-          className={`absolute inset-0 border-2 border-green-400 rounded-lg transition-opacity duration-300 ${
-            animationState.showConnection ? 'opacity-30' : 'opacity-0'
+        <div
+          className={`flex items-center gap-2.5 bg-white border-2 rounded-xl shadow-md px-3 py-2 transition-all duration-500 ${
+            animationState.connectionComplete
+              ? 'border-green-400 shadow-green-100'
+              : animationState.showConnection
+                ? 'border-green-300 shadow-green-50'
+                : 'border-gray-200'
           }`}
-        />
-        <div className="flex items-center justify-center w-full h-full relative z-10 text-green-500">
-          <LeftIcon size={iconSize} />
-        </div>
-      </div>
-
-      <div
-         className={`absolute transition-all duration-1000 ease-in-out transform -translate-x-1/2 -translate-y-1/2 ${
-           animationState.connectionComplete ? 'scale-110' : ''
-         }`}
-         style={{
-           left: `${animationState.rightIconPosition.x}%`,
-           top: `${animationState.rightIconPosition.y}%`,
-           width: `${iconBoundarySize}px`,
-           height: `${iconBoundarySize}px`,
-           opacity: animationState.phase === 'idle' ? 0 : 1,
-        }}
-       >
-         {/* Icon boundary - visible during connection */}
-        <div 
-          className={`absolute inset-0 border-2 rounded-lg transition-all duration-300 ${
-            animationState.showConnection 
-              ? (animationState.connectionComplete ? 'border-green-400 opacity-30' : 'border-blue-400 opacity-30')
-              : 'opacity-0'
-          }`}
-        />
-        <div className={`flex items-center justify-center w-full h-full relative z-10 transition-colors duration-500 ${
-          animationState.connectionComplete ? 'text-green-500' : 'text-blue-500'
-        }`}>
-          <RightIcon size={iconSize} />
-        </div>
-      </div>
-
-      {/* Connection Line */}
-      {animationState.showConnection && containerDimensions.width > 0 && (
-        <svg 
-          className="absolute inset-0 pointer-events-none" 
-          width={containerDimensions.width} 
-          height={containerDimensions.height}
+          style={{ width: `${animatedCardWidth}px`, height: `${animatedCardHeight}px` }}
         >
-          <line
-            x1={connectionPoints.start.x}
-            y1={connectionPoints.start.y}
-            x2={connectionPoints.end.x}
-            y2={connectionPoints.end.y}
-            stroke={animationState.connectionComplete ? '#10b981' : '#3b82f6'}
-            strokeWidth="3"
-            className="transition-colors duration-500"
-            style={{
-              strokeDasharray: lineLength > 0 ? `${lineLength}` : '1000',
-              strokeDashoffset: lineDrawn ? '0' : (lineLength > 0 ? `${lineLength}` : '1000'),
-              transition: 'stroke-dashoffset 1s ease-in-out',
-            }}
-          />
-        </svg>
-      )}
+          <div className={`shrink-0 flex items-center justify-center rounded-lg transition-colors duration-500 ${
+            animationState.connectionComplete ? 'bg-green-100' : 'bg-green-50'
+          }`}
+            style={{ width: `${animatedIconSize + 10}px`, height: `${animatedIconSize + 10}px` }}
+          >
+            <leftCard.icon size={animatedIconSize} strokeWidth={1.8} className="text-green-500" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold text-gray-800 truncate">{leftCard.label1}</div>
+            <div className="text-[10px] text-gray-500 truncate">{leftCard.label2}</div>
+          </div>
+        </div>
+      </div>
 
-
+      {/* Animated right deal card */}
+      <div
+        className={`absolute transition-all duration-1000 ease-in-out -translate-x-1/2 -translate-y-1/2 ${
+          animationState.connectionComplete ? 'scale-105' : ''
+        }`}
+        style={{
+          left: `${animationState.rightIconPosition.x}%`,
+          top: `${animationState.rightIconPosition.y}%`,
+          opacity: animationState.phase === 'idle' ? 0 : 1,
+        }}
+      >
+        <div
+          className={`flex items-center gap-2.5 bg-white border-2 rounded-xl shadow-md px-3 py-2 transition-all duration-500 ${
+            animationState.connectionComplete
+              ? 'border-green-400 shadow-green-100'
+              : animationState.showConnection
+                ? 'border-blue-300 shadow-blue-50'
+                : 'border-gray-200'
+          }`}
+          style={{ width: `${animatedCardWidth}px`, height: `${animatedCardHeight}px` }}
+        >
+          <div className={`shrink-0 flex items-center justify-center rounded-lg transition-colors duration-500 ${
+            animationState.connectionComplete ? 'bg-green-100' : 'bg-blue-50'
+          }`}
+            style={{ width: `${animatedIconSize + 10}px`, height: `${animatedIconSize + 10}px` }}
+          >
+            <rightCard.icon
+              size={animatedIconSize}
+              strokeWidth={1.8}
+              className={`transition-colors duration-500 ${
+                animationState.connectionComplete ? 'text-green-500' : 'text-blue-500'
+              }`}
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold text-gray-800 truncate">{rightCard.label1}</div>
+            <div className="text-[10px] text-gray-500 truncate">{rightCard.label2}</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
-} 
+}

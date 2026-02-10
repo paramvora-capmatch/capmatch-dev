@@ -12,7 +12,7 @@ import { useLenders } from "../hooks/useLenders";
 import { LenderFilters } from "@/stores/useLenderStore";
 import { LenderProfile } from "@/types/lender";
 import { Button } from "@/components/ui/Button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check, Play } from "lucide-react";
 import { cn } from "@/utils/cn";
 import {
 	BusinessModelSection,
@@ -23,6 +23,7 @@ import {
 	CaseStudiesSection,
 	ClosingSection,
 } from "@/components/landing";
+import { CapMatchAnimation } from "@/components/ui/CapMatchAnimation";
 
 export default function HomePage() {
 	const router = useRouter();
@@ -178,140 +179,166 @@ export default function HomePage() {
 			<main className="flex-grow transition-colors duration-300 relative z-10">
 				{/* Hero */}
 				<section
-					className="relative overflow-hidden transition-colors duration-300 pt-24 pb-24"
-					style={{
-						minHeight: "100vh",
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-						backgroundColor: "transparent",
-					}}
+					className="relative overflow-visible min-h-[90vh] flex items-center bg-gradient-to-br from-white via-blue-50/20 to-white pt-28 pb-20 lg:pt-32 lg:pb-24"
 				>
 					<motion.div
-						className="container mx-auto px-4 max-w-7xl text-center relative z-20"
+						className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl relative z-20"
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						transition={{ duration: 0.8 }}
 					>
-						<motion.div className="mb-8">
-							<div className="overflow-hidden">
+						<div className="lg:grid lg:grid-cols-12 lg:gap-8 xl:gap-10 items-start">
+							{/* Left Column — Text */}
+							<div className="lg:col-span-5 flex flex-col justify-center text-center lg:text-left mb-12 lg:mb-0 lg:pt-1">
+								{/* Main Headline */}
+								<div className="overflow-visible">
+									<motion.h1
+										initial={{ opacity: 0, y: 20 }}
+										animate={{
+											opacity: textAnimation.part2Visible ? 1 : 0,
+											y: textAnimation.part2Visible ? 0 : 20,
+										}}
+										transition={{ duration: 0.6 }}
+										className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.2] text-gray-900"
+									>
+										CRE Funding,
+										From{" "}
+										<span className="text-blue-500">Months</span>
+										<br />
+										to{" "}
+										<span className="relative inline-block text-blue-500 pb-2">
+											<span className="relative">Minutes!</span>
+											{/* Double underline */}
+											<motion.span
+												className="absolute bottom-[5px] left-0 right-0 h-[2px] bg-blue-500 origin-left"
+												initial={{ scaleX: 0 }}
+												animate={{ scaleX: 1 }}
+												transition={{
+													duration: 0.5,
+													delay: 1.0,
+													ease: [0.22, 0.61, 0.36, 1],
+												}}
+											/>
+											<motion.span
+												className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-500 origin-left"
+												initial={{ scaleX: 0 }}
+												animate={{ scaleX: 1 }}
+												transition={{
+													duration: 0.5,
+													delay: 1.15,
+													ease: [0.22, 0.61, 0.36, 1],
+												}}
+											/>
+										</span>
+									</motion.h1>
+								</div>
+
+								{/* Subhead */}
+								<div className="overflow-hidden mt-6">
+									<motion.p
+										initial={{ opacity: 0, y: 20 }}
+										animate={{
+											opacity: textAnimation.part3Visible ? 1 : 0,
+											y: textAnimation.part3Visible ? 0 : 20,
+										}}
+										transition={{ duration: 0.6 }}
+										className="text-lg md:text-xl text-gray-600 max-w-md mx-auto lg:mx-0"
+									>
+										The Operating System for Commercial Real Estate Financing. We combine AI speed with human expertise to match the right projects with the right capital.
+									</motion.p>
+								</div>
+
+								{/* The CapMatch Guarantee */}
 								<motion.div
-									initial={{ opacity: 0, y: 20 }}
+									className="mt-8 flex flex-nowrap items-center gap-x-5 text-sm font-bold text-gray-600 whitespace-nowrap"
+									initial={{ opacity: 0, y: 8 }}
 									animate={{
-										opacity: textAnimation.part1Visible
-											? 1
-											: 0,
-										y: textAnimation.part1Visible ? 0 : 20,
+										opacity: textAnimation.part4Visible ? 1 : 0,
+										y: textAnimation.part4Visible ? 0 : 8,
 									}}
-									transition={{ duration: 0.6 }}
-									className="text-5xl md:text-6xl lg:text-7xl leading-tight text-gray-900"
+									transition={{ duration: 0.5, delay: 0.4 }}
 								>
-									CRE Funding
+									
+									<span className="inline-flex items-center gap-1.5">
+										<Check className="h-4 w-4 shrink-0 text-blue-500" strokeWidth={2.5} />
+										No Subscriptions.
+									</span>
+									<span className="inline-flex items-center gap-1.5">
+										<Check className="h-4 w-4 shrink-0 text-blue-500" strokeWidth={2.5} />
+										No SaaS Fees.
+									</span>
+									<span className="inline-flex items-center gap-1.5">
+										<Check className="h-4 w-4 shrink-0 text-blue-500" strokeWidth={2.5} />
+										Pay When You Close.
+									</span>
 								</motion.div>
 							</div>
-							<div className="overflow-hidden mt-2">
+
+							{/* Right Column — Visual */}
+							<div className="lg:col-span-7 flex justify-center items-center">
 								<motion.div
-									initial={{ opacity: 0, y: 20 }}
+									className="w-full"
+									initial={{ opacity: 0, y: 24, scale: 0.97 }}
 									animate={{
-										opacity: textAnimation.part2Visible
-											? 1
-											: 0,
-										y: textAnimation.part2Visible ? 0 : 20,
+										opacity: textAnimation.part4Visible ? 1 : 0,
+										y: textAnimation.part4Visible ? 0 : 24,
+										scale: textAnimation.part4Visible ? 1 : 0.97,
 									}}
-									transition={{ duration: 0.6 }}
-									className="text-5xl md:text-6xl lg:text-7xl leading-tight text-gray-900"
+									transition={{ duration: 0.7, delay: 0.25 }}
 								>
-									From{" "}
-									<span className="text-blue-500">Months</span>{" "}
-									to{" "}
-									<span className="text-blue-500">Minutes</span>
+									<div className="bg-white border border-gray-100 rounded-2xl shadow-xl p-6 sm:p-8">
+										<CapMatchAnimation sizeRatio={0.45} />
+									</div>
 								</motion.div>
 							</div>
-							<div className="overflow-hidden mt-4">
-								<motion.div
-									initial={{ opacity: 0, y: 20 }}
-									animate={{
-										opacity: textAnimation.part3Visible
-											? 1
-											: 0,
-										y: textAnimation.part3Visible ? 0 : 20,
-									}}
-									transition={{ duration: 0.6 }}
-									className="text-xl md:text-2xl text-gray-600 font-medium"
-								>
-									The Operating System for Commercial Real
-									Estate Financing
-								</motion.div>
-							</div>
-							<div className="overflow-hidden mt-6">
-								<motion.div
-									initial={{ opacity: 0, y: 20 }}
-									animate={{
-										opacity: textAnimation.part4Visible
-											? 1
-											: 0,
-										y: textAnimation.part4Visible ? 0 : 20,
-									}}
-									transition={{ duration: 0.6 }}
-									className="text-lg md:text-xl max-w-3xl mx-auto text-gray-600"
-								>
-									CapMatch is a fully integrated, AI-enabled
-									brokerage—from document intake to loan
-									closing. We handle everything in between.
-								</motion.div>
-							</div>
-						</motion.div>
+						</div>
+
+						{/* CTA Buttons — full-width bar */}
 						<motion.div
-							initial={{ opacity: 0 }}
+							className="mt-10 lg:mt-12 w-full flex flex-col sm:flex-row gap-4 justify-center items-center"
+							initial={{ opacity: 0, y: 12 }}
 							animate={{
 								opacity: textAnimation.part4Visible ? 1 : 0,
+								y: textAnimation.part4Visible ? 0 : 12,
 							}}
-							transition={{ duration: 0.6, delay: 0.3 }}
+							transition={{ duration: 0.6, delay: 0.15 }}
 						>
-							<div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center">
-								<Button
-									variant="primary"
-									size="lg"
-									className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8"
-									style={{
-										boxShadow:
-											"0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-									}}
-									onClick={handleScrollToHowItWorks}
-								>
-									See How It Works
-								</Button>
-								<Button
-									variant="outline"
-									size="lg"
-									onClick={handleAccessDealRoom}
-									className="rounded-full border-gray-300 !text-blue-600 hover:bg-gray-100 hover:border-gray-400 bg-white"
-									style={{
-										boxShadow:
-											"0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-									}}
-								>
-									Access Deal Room
-								</Button>
-							</div>
+							<Button
+								variant="primary"
+								size="lg"
+								className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8"
+								style={{
+									boxShadow:
+										"0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+								}}
+								onClick={handleScrollToHowItWorks}
+							>
+								See How It Works
+							</Button>
+							<Button
+								variant="outline"
+								size="lg"
+								onClick={handleAccessDealRoom}
+								className="rounded-full border-gray-300 !text-blue-600 hover:bg-gray-100 hover:border-gray-400 bg-white"
+								style={{
+									boxShadow:
+										"0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+								}}
+							>
+								Access Deal Room
+							</Button>
 						</motion.div>
-						{/* Placeholder for platform preview video or auto-fill animation */}
-						<motion.div
-							className="mt-16 mx-auto max-w-4xl"
-							initial={{ opacity: 0, y: 24 }}
-							animate={{
-								opacity: textAnimation.part4Visible ? 1 : 0,
-								y: textAnimation.part4Visible ? 0 : 24,
-							}}
-							transition={{ duration: 0.6, delay: 0.5 }}
-						>
-							<div className="aspect-video rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
-								<span className="text-gray-500 text-sm">
-									[ Platform preview video or auto-fill
-									animation placeholder ]
-								</span>
-							</div>
-						</motion.div>
+
+						{/* Video placeholder */}
+						<div className="mt-8 w-full aspect-video max-w-4xl mx-auto rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+							<button
+								type="button"
+								className="flex items-center justify-center w-16 h-16 rounded-full bg-white/90 text-blue-500 shadow-lg hover:bg-white hover:scale-105 transition-transform focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+								aria-label="Play video"
+							>
+								<Play className="h-8 w-8 ml-1" fill="currentColor" stroke="none" />
+							</button>
+						</div>
 					</motion.div>
 				</section>
 
