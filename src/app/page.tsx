@@ -179,7 +179,17 @@ export default function HomePage() {
 									From{" "}
 									<span className="text-blue-600">Months</span>{" "}
 									to{" "}
-									<span className="text-blue-600">Minutes</span>
+									<span className="relative inline-block">
+										<span className="text-blue-600">Minutes</span>
+										<motion.span
+											className="absolute left-0 bottom-0.5 h-0.5 w-full bg-black origin-left"
+											initial={{ scaleX: 0 }}
+											animate={{
+												scaleX: textAnimation.part2Visible ? 1 : 0,
+											}}
+											transition={{ duration: 0.5, delay: 0.3 }}
+										/>
+									</span>
 								</motion.div>
 							</div>
 							<div className="overflow-hidden mt-6">
