@@ -5,6 +5,9 @@ import { motion } from "framer-motion";
 import { Lock, CheckCircle2 } from "lucide-react";
 import { DottedGlowBackground } from "@/components/ui/dotted-glow-background";
 
+import { InfiniteSlider } from "@/components/ui/InfiniteSlider";
+import Image from "next/image";
+
 const bullets = [
 	{
 		title: "Correct",
@@ -21,6 +24,15 @@ const bullets = [
 		description:
 			"We pull data from trusted sources—CoStar, Yardi, and U.S. government sources—so your underwriting and market data are verified and reliable.",
 	},
+];
+
+const securityLogos = [
+	"/Landing-Page/SecuritySectionLogos/image (1).png",
+	"/Landing-Page/SecuritySectionLogos/image (2).png",
+	"/Landing-Page/SecuritySectionLogos/image (3).png",
+	"/Landing-Page/SecuritySectionLogos/image (4).png",
+	"/Landing-Page/SecuritySectionLogos/image (5).png",
+	"/Landing-Page/SecuritySectionLogos/image.png",
 ];
 
 export function SecuritySection() {
@@ -121,6 +133,33 @@ export function SecuritySection() {
 						</motion.div>
 					))}
 				</div>
+
+				{/* Logo Slider */}
+				<motion.div
+					className="mt-20 pt-10 border-t border-gray-100"
+					initial={{ opacity: 0, y: 20 }}
+					whileInView={{ opacity: 1, y: 0 }}
+					viewport={{ once: true }}
+					transition={{ duration: 0.8, delay: 0.4 }}
+				>
+					<InfiniteSlider gap={60} speed={40}>
+						{securityLogos.map((logo, index) => (
+							<div
+								key={index}
+								className="flex items-center justify-center px-4"
+							>
+								<div className="relative h-12 w-32 grayscale hover:grayscale-0 transition-all duration-300 opacity-60 hover:opacity-100">
+									<Image
+										src={logo}
+										alt={`Security Partner ${index + 1}`}
+										fill
+										className="object-contain"
+									/>
+								</div>
+							</div>
+						))}
+					</InfiniteSlider>
+				</motion.div>
 			</div>
 		</section>
 	);
