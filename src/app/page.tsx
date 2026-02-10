@@ -241,21 +241,6 @@ export default function HomePage() {
 					</motion.div>
 				</section>
 
-				{/* Platform preview — Static, wide, no scroll animation */}
-				<section className="relative z-[25] pt-20 pb-20 px-4">
-					<div className="container mx-auto max-w-[80%]">
-						<div className="aspect-video w-full rounded-xl shadow-2xl overflow-hidden bg-black">
-							<iframe
-								className="w-full h-full"
-								src="https://www.youtube.com/embed/Suy8VlbZ1yY?rel=0&autoplay=1&mute=1"
-								title="CapMatch Demo"
-								allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-								allowFullScreen
-							/>
-						</div>
-					</div>
-				</section>
-
 				<HowItWorksSection />
 				<BusinessModelSection />
 				<WhoItsForSection />
