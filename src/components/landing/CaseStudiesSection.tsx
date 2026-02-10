@@ -10,11 +10,11 @@ const caseStudies = [
 	{
 		id: "1",
 		headline: "300 East LaSalle",
-		assetType: "Multifamily + Commercial",
-		loanAmount: "$46M–$50M",
+		assetType: "Mixed-Use Multifamily",
+		loanAmount: "$31.5M",
 		location: "South Bend, IN",
 		description:
-			"144-unit Class A multifamily in the East Bank neighborhood with ground-floor retail. IPA/Marcus & Millichap offering; strong rent comps and 10-year stabilized NOI growth.",
+			"Fragmented BPO and Excel models created version chaos and lender friction. CapMatch reconciled everything into a single source of truth, generated lender-specific outputs without rework, and cut back-and-forth by ~40%.",
 		image: "/LaSalle-CaseStudy/img-0.jpeg",
 		slug: "lasalle",
 	},
@@ -66,7 +66,25 @@ export function CaseStudiesSection() {
 		<section
 			id="case-studies"
 			ref={ref}
-			className="min-h-screen py-20 md:py-28 bg-blue-50/50 flex flex-col justify-center"
+			className="min-h-screen py-20 md:py-28 flex flex-col justify-center"
+			style={{
+				backgroundImage: `
+					repeating-linear-gradient(
+						45deg,
+						transparent,
+						transparent 10px,
+						rgba(209, 213, 219, 0.097) 10px,
+						rgba(209, 213, 219, 0.097) 11px
+					),
+					repeating-linear-gradient(
+						-45deg,
+						transparent,
+						transparent 10px,
+						rgba(209, 213, 219, 0.097) 10px,
+						rgba(209, 213, 219, 0.097) 11px
+					)
+				`,
+			}}
 		>
 			<div className="container mx-auto px-4 max-w-6xl flex-1 flex flex-col justify-center">
 				<motion.div
@@ -112,7 +130,25 @@ export function CaseStudiesSection() {
 
 				{/* Carousel */}
 				<motion.div
-					className="relative rounded-xl overflow-hidden border border-gray-200 shadow-lg bg-gray-50 flex-1 min-h-0 flex flex-col"
+					className="relative rounded-xl overflow-hidden border border-gray-200 shadow-lg flex-1 min-h-0 flex flex-col"
+					style={{
+						backgroundImage: `
+							repeating-linear-gradient(
+								45deg,
+								transparent,
+								transparent 10px,
+								rgba(209, 213, 219, 0.097) 10px,
+								rgba(209, 213, 219, 0.097) 11px
+							),
+							repeating-linear-gradient(
+								-45deg,
+								transparent,
+								transparent 10px,
+								rgba(209, 213, 219, 0.097) 10px,
+								rgba(209, 213, 219, 0.097) 11px
+							)
+						`,
+					}}
 					initial={{ opacity: 0, y: 24 }}
 					animate={isInView ? { opacity: 1, y: 0 } : {}}
 					transition={{ duration: 0.6, delay: 0.1 }}

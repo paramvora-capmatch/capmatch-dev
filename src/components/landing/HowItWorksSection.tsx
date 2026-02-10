@@ -128,7 +128,7 @@ export function HowItWorksSection() {
 					transition={{ duration: 0.4 }}
 				>
 					<h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-1">
-						Operating System For CRE
+						Operating System
 					</h2>
 					<p className="text-lg text-gray-500">
 						From messy documents to funded loan—one vertically integrated

@@ -59,10 +59,10 @@ export const Footer: React.FC = () => {
 								href="/#how-it-works"
 								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
 							>
-								Operating System For CRE
+								Operating System
 							</Link>
 							<Link
-								href="/#who-its-for"
+								href="/borrowers"
 								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
 							>
 								For Borrowers

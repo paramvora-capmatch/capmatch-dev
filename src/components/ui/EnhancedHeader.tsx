@@ -135,17 +135,10 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 									: "text-gray-700 hover:text-blue-600"
 							)}
 						>
-							Operating System For CRE
+							Operating System
 						</Link>
 						<Link
-							href="/#who-its-for"
-							scroll={false}
-							onClick={(e) => {
-								e.preventDefault();
-								document
-									.getElementById("who-its-for")
-									?.scrollIntoView({ behavior: "smooth" });
-							}}
+							href="/borrowers"
 							className={cn(
 								"text-base font-medium transition-colors hover:underline whitespace-nowrap px-2 py-1",
 								scrolled
@@ -245,14 +238,12 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 									handleNav("#how-it-works", true)
 								}
 							>
-								Operating System For CRE
+								Operating System
 							</Link>
 							<Link
-								href="/#who-its-for"
+								href="/borrowers"
 								className="py-2 text-base font-medium block text-gray-700 hover:text-blue-600 hover:underline"
-								onClick={() =>
-									handleNav("#who-its-for", true)
-								}
+								onClick={() => handleNav("/borrowers", false)}
 							>
 								For Borrowers
 							</Link>
