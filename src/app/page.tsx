@@ -14,6 +14,7 @@ import {
 	UnderTheHoodSection,
 	WhoItsForSection,
 	CaseStudiesSection,
+	SecuritySection,
 } from "@/components/landing";
 
 export default function HomePage() {
@@ -300,6 +301,7 @@ export default function HomePage() {
 				<BusinessModelSection />
 				<WhoItsForSection />
 				<CaseStudiesSection />
+				<SecuritySection />
 			</main>
 
 			<Footer />
