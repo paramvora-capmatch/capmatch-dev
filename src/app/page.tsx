@@ -10,6 +10,7 @@ import {
 	HowItWorksSection,
 	CaseStudiesSection,
 	SecuritySection,
+	LenderMarquee
 } from "@/components/landing";
 
 export default function HomePage() {
@@ -193,6 +194,7 @@ export default function HomePage() {
 				</section>
 
 				<CaseStudiesSection />
+				<LenderMarquee />
 				<HowItWorksSection />
 				<SecuritySection />
 			</main>

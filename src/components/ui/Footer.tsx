@@ -14,16 +14,14 @@ export const Footer: React.FC = () => {
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
 					{/* Brand */}
 					<div className="lg:col-span-1">
-						<Link href="/" className="flex items-center gap-2 mb-4">
+						<Link href="/" className="flex items-center mb-4">
 							<Image
-								src="/CapMatchLogo.png"
+								src="/CapMatch-FullREs-Logo.png"
 								alt="CapMatch"
-								width={40}
-								height={40}
+								width={240}
+								height={72}
+								className="h-10 w-auto"
 							/>
-							<span className="font-bold text-lg text-gray-900">
-								CapMatch
-							</span>
 						</Link>
 						<p className="text-sm text-gray-600 mb-4 max-w-xs">
 							The Operating System for Commercial Real Estate
@@ -61,13 +59,7 @@ export const Footer: React.FC = () => {
 								href="/#how-it-works"
 								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
 							>
-								How It Works
-							</Link>
-							<Link
-								href="/#lender-matching-section"
-								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-							>
-								LenderLine
+								Operating System For CRE
 							</Link>
 							<Link
 								href="/#who-its-for"
@@ -80,12 +72,6 @@ export const Footer: React.FC = () => {
 								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
 							>
 								For Lenders
-							</Link>
-							<Link
-								href="/#case-studies"
-								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-							>
-								Case Studies
 							</Link>
 						</nav>
 					</div>
@@ -103,22 +89,10 @@ export const Footer: React.FC = () => {
 								About
 							</Link>
 							<Link
-								href="/contact"
-								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-							>
-								Contact
-							</Link>
-							<Link
 								href="/blog"
 								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
 							>
 								Blog
-							</Link>
-							<Link
-								href="/careers"
-								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-							>
-								Careers
 							</Link>
 						</nav>
 					</div>
