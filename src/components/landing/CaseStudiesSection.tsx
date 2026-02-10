@@ -4,33 +4,33 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const placeholderDeals = [
+const caseStudies = [
 	{
 		id: "1",
-		headline: "Case study one",
+		headline: "LaSalle",
 		assetType: "Multifamily",
 		loanAmount: "$XXM",
 		location: "City, State",
 		description: "Brief description of the deal and outcome.",
-		imagePlaceholder: true,
+		image: "/LaSalle-CaseStudy/img-0.jpeg",
 	},
 	{
 		id: "2",
-		headline: "Case study two",
+		headline: "Marshall",
 		assetType: "Office",
 		loanAmount: "$XXM",
 		location: "City, State",
 		description: "Brief description of the deal and outcome.",
-		imagePlaceholder: true,
+		image: "/Marshall-CaseStudy/R01-2_DUSK-PERSPECTIVE_MARSHALL-MO_4KTV_01.16.24-scaled.webp",
 	},
 	{
 		id: "3",
-		headline: "Case study three",
+		headline: "SoGood",
 		assetType: "Industrial",
 		loanAmount: "$XXM",
 		location: "City, State",
 		description: "Brief description of the deal and outcome.",
-		imagePlaceholder: true,
+		image: "/SoGood-CaseStudy/MainImage.webp",
 	},
 ];
 
@@ -38,7 +38,7 @@ export function CaseStudiesSection() {
 	const ref = useRef<HTMLDivElement>(null);
 	const isInView = useInView(ref, { once: true, amount: 0.2 });
 	const [index, setIndex] = useState(0);
-	const total = placeholderDeals.length;
+	const total = caseStudies.length;
 
 	const goNext = useCallback(() => {
 		setIndex((i) => (i + 1) % total);
@@ -52,7 +52,7 @@ export function CaseStudiesSection() {
 		return () => clearInterval(t);
 	}, [goNext]);
 
-	const deal = placeholderDeals[index];
+	const deal = caseStudies[index];
 
 	return (
 		<section
@@ -84,10 +84,12 @@ export function CaseStudiesSection() {
 				>
 					<div className="flex flex-col md:flex-row flex-1 min-h-[50vh]">
 						{/* Image / visual side - larger share of the card */}
-						<div className="w-full md:w-3/5 min-h-[240px] md:min-h-[40vh] flex-shrink-0 bg-gray-200 flex items-center justify-center rounded-l-xl md:rounded-l-xl">
-							<span className="text-gray-500 text-sm px-4 text-center">
-								[ Case study image placeholder ]
-							</span>
+						<div className="w-full md:w-3/5 min-h-[240px] md:min-h-[40vh] flex-shrink-0 bg-gray-200 flex items-center justify-center rounded-l-xl md:rounded-l-xl overflow-hidden">
+							<img
+								src={deal.image}
+								alt={deal.headline}
+								className="w-full h-full object-cover"
+							/>
 						</div>
 						{/* Content side */}
 						<div className="w-full md:w-2/5 p-8 flex flex-col justify-center">
@@ -133,7 +135,7 @@ export function CaseStudiesSection() {
 							<ChevronLeft size={20} />
 						</button>
 						<div className="flex gap-1.5">
-							{placeholderDeals.map((_, i) => (
+							{caseStudies.map((_, i) => (
 								<button
 									key={i}
 									type="button"
