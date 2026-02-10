@@ -71,7 +71,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 			className={cn(
 				"fixed top-0 left-0 right-0 z-30 transition-all duration-300",
 				scrolled
-					? "bg-white/95 backdrop-blur-sm shadow-lg shadow-gray-200/20 py-3"
+					? "bg-white/70 backdrop-blur-md shadow-lg shadow-gray-200/20 py-3 border-b border-white/20"
 					: "bg-transparent py-5"
 			)}
 		>
@@ -121,7 +121,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 								"ml-3 transition-all duration-300 font-bold flex items-center",
 								scrolled
 									? "text-lg text-gray-900"
-									: "text-2xl text-white drop-shadow-md"
+									: "text-2xl text-gray-900"
 							)}
 						>
 							CapMatch
@@ -149,7 +149,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 								"text-sm font-medium transition-colors",
 								scrolled
 									? "text-gray-700 hover:text-blue-600"
-									: "text-white/95 hover:text-white"
+									: "text-gray-700 hover:text-blue-600"
 							)}
 						>
 							How It Works
@@ -167,7 +167,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 								"text-sm font-medium transition-colors",
 								scrolled
 									? "text-gray-700 hover:text-blue-600"
-									: "text-white/95 hover:text-white"
+									: "text-gray-700 hover:text-blue-600"
 							)}
 						>
 							Who It&apos;s For
@@ -185,7 +185,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 								"text-sm font-medium transition-colors",
 								scrolled
 									? "text-gray-700 hover:text-blue-600"
-									: "text-white/95 hover:text-white"
+									: "text-gray-700 hover:text-blue-600"
 							)}
 						>
 							Case Studies
@@ -217,7 +217,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 					transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
 					className={cn(
 						"md:hidden p-2 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded transition-colors",
-						scrolled ? "text-gray-900" : "text-white"
+						scrolled ? "text-gray-900" : "text-gray-900"
 					)}
 					onClick={toggleMobileMenu}
 					aria-label="Toggle mobile menu"

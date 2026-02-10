@@ -135,7 +135,6 @@ export default function HomePage() {
 							disableRemotePlayback
 							tabIndex={-1}
 							className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-							style={{ filter: "brightness(0.45)" }}
 						>
 							<source
 								src="/CapMatchHeroBackgroundV1.mp4"
@@ -143,7 +142,7 @@ export default function HomePage() {
 							/>
 						</video>
 						<div
-							className="absolute inset-0 bg-black/30 pointer-events-none"
+							className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/80 to-white pointer-events-none"
 							aria-hidden
 						/>
 					</div>
@@ -164,7 +163,7 @@ export default function HomePage() {
 										y: textAnimation.part1Visible ? 0 : 20,
 									}}
 									transition={{ duration: 0.6 }}
-									className="text-5xl md:text-6xl lg:text-7xl leading-tight text-white"
+									className="text-5xl md:text-6xl lg:text-7xl leading-tight text-gray-900"
 								>
 									CRE Funding
 								</motion.div>
@@ -179,12 +178,12 @@ export default function HomePage() {
 										y: textAnimation.part2Visible ? 0 : 20,
 									}}
 									transition={{ duration: 0.6 }}
-									className="text-5xl md:text-6xl lg:text-7xl leading-tight text-white"
+									className="text-5xl md:text-6xl lg:text-7xl leading-tight text-gray-900"
 								>
 									From{" "}
-									<span className="text-blue-300">Months</span>{" "}
+									<span className="text-blue-600">Months</span>{" "}
 									to{" "}
-									<span className="text-blue-300">Minutes</span>
+									<span className="text-blue-600">Minutes</span>
 								</motion.div>
 							</div>
 							<div className="overflow-hidden mt-6">
@@ -197,7 +196,7 @@ export default function HomePage() {
 										y: textAnimation.part3Visible ? 0 : 20,
 									}}
 									transition={{ duration: 0.6 }}
-									className="text-lg md:text-xl max-w-3xl mx-auto text-gray-300"
+									className="text-lg md:text-xl max-w-3xl mx-auto text-gray-600"
 								>
 									CapMatch is the Operating System for
 									Commercial Real Estate Financing—from
@@ -230,7 +229,7 @@ export default function HomePage() {
 									variant="outline"
 									size="lg"
 									onClick={handleAccessDealRoom}
-									className="rounded-full border-white/70 !text-white hover:bg-white/10 hover:border-white bg-transparent"
+									className="rounded-full border-gray-300 !text-gray-900 hover:bg-gray-100 hover:border-gray-400 bg-transparent"
 									style={{
 										boxShadow:
 											"0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1)",
