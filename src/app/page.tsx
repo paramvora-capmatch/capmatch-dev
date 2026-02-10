@@ -96,7 +96,7 @@ export default function HomePage() {
 						backgroundColor: "transparent",
 					}}
 				>
-					{/* Dimmed background video — loop, no controls, non-interactive */}
+					{/* Dimmed background video - loop, no controls, non-interactive */}
 					<div
 						className="absolute inset-0 z-0"
 						aria-hidden
@@ -184,7 +184,7 @@ export default function HomePage() {
 									className="text-lg md:text-xl max-w-3xl mx-auto text-gray-600"
 								>
 									CapMatch is the Operating System for
-									Commercial Real Estate Financing—from
+									Commercial Real Estate Financing-from
 									document intake to loan closing. We handle
 									everything in between.
 								</motion.div>

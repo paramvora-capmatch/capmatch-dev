@@ -25,7 +25,7 @@ const caseStudies = [
 		loanAmount: "$30.1M",
 		location: "St. Louis, MO",
 		description:
-			"Generic docs couldn't capture student-housing and OZ nuances. CapMatch built an investor-ready intelligence layer, generated tailored outputs for each investor, and answered questions in real time—accelerating diligence and capital formation.",
+			"Generic docs couldn't capture student-housing and OZ nuances. CapMatch built an investor-ready intelligence layer, generated tailored outputs for each investor, and answered questions in real time-accelerating diligence and capital formation.",
 		image: "/Marshall-CaseStudy/R01-2_DUSK-PERSPECTIVE_MARSHALL-MO_4KTV_01.16.24-scaled.webp",
 		slug: "marshall",
 	},
@@ -36,7 +36,7 @@ const caseStudies = [
 		loanAmount: "$18M",
 		location: "Dallas, TX",
 		description:
-			"Disconnected docs and competing lender assumptions stalled underwriting. CapMatch built a living underwriting model, generated lender-specific outputs on demand, and answered questions in real time—compressing response cycles from days to minutes.",
+			"Disconnected docs and competing lender assumptions stalled underwriting. CapMatch built a living underwriting model, generated lender-specific outputs on demand, and answered questions in real time-compressing response cycles from days to minutes.",
 		image: "/SoGood-CaseStudy/MainImage.webp",
 		slug: "sogood",
 	},

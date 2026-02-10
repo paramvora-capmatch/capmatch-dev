@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
 	title: "300 East LaSalle | Case Study | CapMatch",
 	description:
-		"CapMatch case study: 300 East LaSalle — 144-unit Class A mixed-use multifamily acquisition in South Bend, IN. $31.5M senior debt; reconciled BPO/Excel data and tax abatement into a single source of truth.",
+		"CapMatch case study: 300 East LaSalle - 144-unit Class A mixed-use multifamily acquisition in South Bend, IN. $31.5M senior debt; reconciled BPO/Excel data and tax abatement into a single source of truth.",
 };
 
 export default function LaSalleCaseStudyPage() {
@@ -46,7 +46,7 @@ export default function LaSalleCaseStudyPage() {
 						with 29,007 SF of ground-floor commercial space
 					</li>
 					<li>
-						<strong>Capital Sought:</strong> Acquisition financing —
+						<strong>Capital Sought:</strong> Acquisition financing -
 						$31.5 million senior debt facility
 					</li>
 					<li>
@@ -62,14 +62,14 @@ export default function LaSalleCaseStudyPage() {
 					fragmented. The property is a 2022-vintage mixed-use
 					development in South Bend&apos;s East Bank neighborhood,
 					combining 144 residential units with two long-term
-					commercial tenants — East Race Market (NNN, 10-year term) and
+					commercial tenants - East Race Market (NNN, 10-year term) and
 					DMTM office space (gross lease, 8-year term). The deal also
 					carried a multi-year property tax abatement, which
 					materially affected valuation depending on whether lenders
 					underwrote to abated NOI or applied a net present value
 					adjustment. These layered income streams, lease structures,
 					and tax assumptions created multiple &quot;correct&quot;
-					answers depending on underwriting methodology — and no
+					answers depending on underwriting methodology - and no
 					single static document could accommodate them all.
 				</p>
 			</section>
@@ -95,7 +95,7 @@ export default function LaSalleCaseStudyPage() {
 					</li>
 					<li>
 						Separate Excel models with trailing-12, trailing-8,
-						trailing-3, and trailing-1 income statements — each
+						trailing-3, and trailing-1 income statements - each
 						showing slightly different expense treatments
 					</li>
 					<li>
@@ -114,7 +114,7 @@ export default function LaSalleCaseStudyPage() {
 					</li>
 				</ul>
 				<p className="text-gray-700 leading-relaxed mb-4">
-					The advisor&apos;s challenge was not a lack of information —
+					The advisor&apos;s challenge was not a lack of information -
 					it was an excess of overlapping, partially contradictory
 					information. The historical expense line excluded certain
 					legal and management fees; the pro forma assumed $216,000 in
@@ -134,7 +134,7 @@ export default function LaSalleCaseStudyPage() {
 					schedule. A life company asked for a sensitivity table
 					showing cap rate compression scenarios. Each request
 					required a return to the source PDF, a re-extraction of
-					data, and a custom rebuild — all while the underlying deal
+					data, and a custom rebuild - all while the underlying deal
 					documents remained frozen in time.
 				</p>
 			</section>
@@ -146,23 +146,23 @@ export default function LaSalleCaseStudyPage() {
 					Deal System
 				</h2>
 				<p className="text-gray-700 leading-relaxed mb-4">
-					CapMatch ingested the full document set — including the
+					CapMatch ingested the full document set - including the
 					broker price opinion, rent roll, lease abstracts, and Excel
-					models — and began automated classification and
+					models - and began automated classification and
 					reconciliation. Within hours, the platform had:
 				</p>
 				<ul className="list-disc pl-6 space-y-2 text-gray-700 leading-relaxed mb-4">
 					<li>
 						Identified that the trailing-12 financials excluded
 						replacement reserves and certain fee categories, while
-						the pro forma included them — and flagged the
+						the pro forma included them - and flagged the
 						discrepancy for advisor review
 					</li>
 					<li>
 						Detected that the &quot;As Stabilized Trailing 1&quot;
 						NOI of $2,991,512 assumed 94% occupancy and $1,851/unit
 						effective rent, while the actual March 2024 rent roll
-						showed 90% occupancy and $1,848/unit — a $135,000+
+						showed 90% occupancy and $1,848/unit - a $135,000+
 						variance in projected income
 					</li>
 					<li>
@@ -171,8 +171,8 @@ export default function LaSalleCaseStudyPage() {
 						commercial NOI into a distinct underwriting layer
 					</li>
 					<li>
-						Reconciled the two valuation methodologies — blended cap
-						rate vs. NPV-adjusted — and preserved both as selectable
+						Reconciled the two valuation methodologies - blended cap
+						rate vs. NPV-adjusted - and preserved both as selectable
 						options for lender-facing outputs
 					</li>
 				</ul>
@@ -180,7 +180,7 @@ export default function LaSalleCaseStudyPage() {
 					Rather than producing a single &quot;corrected&quot; PDF,
 					CapMatch created a unified data model from which all
 					downstream outputs could be generated. The system became
-					the single source of truth — not a synthesis of competing
+					the single source of truth - not a synthesis of competing
 					documents, but a reconciled dataset with full version
 					history and audit trails.
 				</p>
@@ -203,7 +203,7 @@ export default function LaSalleCaseStudyPage() {
 					standalone cash flow with lease rollover assumptions and
 					tenant credit profiles. For a life company running cap rate
 					sensitivity, CapMatch generated an interactive table
-					showing valuation outcomes across a 25-basis-point range —
+					showing valuation outcomes across a 25-basis-point range -
 					all linked to the same underlying rent and expense
 					assumptions.
 				</p>
@@ -218,7 +218,7 @@ export default function LaSalleCaseStudyPage() {
 					represented a 71% increase over the trailing-12 actual of
 					$264/unit, suggesting the sponsor was conservatively
 					budgeting for post-stabilization rate increases. The advisor
-					relayed this to the lender in real time — no email chain, no
+					relayed this to the lender in real time - no email chain, no
 					document hunt, no delay.
 				</p>
 			</section>
@@ -229,8 +229,8 @@ export default function LaSalleCaseStudyPage() {
 					5. Embedded AI Assistance & Real-Time Deal Intelligence
 				</h2>
 				<p className="text-gray-700 leading-relaxed mb-4">
-					Every CapMatch deliverable — whether a lender-facing model,
-					an investor dashboard, or an internal memo — included an
+					Every CapMatch deliverable - whether a lender-facing model,
+					an investor dashboard, or an internal memo - included an
 					embedded AI assistant capable of answering questions
 					directly against the underlying data. This capability proved
 					especially valuable given the deal&apos;s structural
@@ -243,7 +243,7 @@ export default function LaSalleCaseStudyPage() {
 					the DSCR would decline from 1.85x to 1.36x as real estate
 					taxes normalized from $0 to over $800,000 annually. The
 					lender didn&apos;t need to request a new model or wait for
-					a sensitivity run — the answer was already embedded in the
+					a sensitivity run - the answer was already embedded in the
 					system.
 				</p>
 				<p className="text-gray-700 leading-relaxed">
@@ -253,7 +253,7 @@ export default function LaSalleCaseStudyPage() {
 					East Race Market&apos;s 10-year NNN term with $1.00/SF CAM
 					recovery, and DMTM&apos;s 8-year gross lease with no
 					escalations. The information was pulled from the same
-					reconciled dataset powering the lender outputs — ensuring
+					reconciled dataset powering the lender outputs - ensuring
 					consistency across all parties.
 				</p>
 			</section>
@@ -290,7 +290,7 @@ export default function LaSalleCaseStudyPage() {
 						<strong>Better borrower understanding:</strong> The
 						sponsor&apos;s team used the same CapMatch dashboard to
 						track lender feedback, compare term sheet structures,
-						and model post-close performance — all without switching
+						and model post-close performance - all without switching
 						systems
 					</li>
 				</ul>
@@ -310,7 +310,7 @@ export default function LaSalleCaseStudyPage() {
 				<p className="text-gray-700 leading-relaxed mb-4">
 					The 300 East LaSalle transaction illustrates a broader truth
 					about commercial real estate debt placement: the bottleneck
-					is rarely information scarcity — it&apos;s information
+					is rarely information scarcity - it&apos;s information
 					fragmentation. Static PDFs age the moment they&apos;re
 					created. Rent rolls drift out of sync with pro formas.
 					Commercial and residential components get underwritten in
@@ -320,13 +320,13 @@ export default function LaSalleCaseStudyPage() {
 				</p>
 				<p className="text-gray-700 leading-relaxed mb-4">
 					CapMatch replaces this fragmented workflow with a unified
-					operating system — one that ingests messy, real-world deal
+					operating system - one that ingests messy, real-world deal
 					data; reconciles it into a single source of truth; and
 					generates lender-native outputs without rework. For advisors,
 					this means less time on document management and more time on
 					deal strategy. For lenders, it means faster, higher-confidence
 					underwriting. For borrowers, it means a structurally better
-					loan product — and a clearer path to close.
+					loan product - and a clearer path to close.
 				</p>
 				<p className="text-gray-700 leading-relaxed">
 					This is not a marginal improvement. It is a fundamentally

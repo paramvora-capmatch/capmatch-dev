@@ -67,7 +67,7 @@ export function WhoItsForSection() {
 				</motion.div>
 				<div className="relative max-w-6xl mx-auto">
 					<div className="grid md:grid-cols-2 gap-0 relative">
-						{/* Developers — left */}
+						{/* Developers - left */}
 						<motion.div
 							className="p-8 md:p-12 md:pr-16"
 							initial={{ opacity: 0, x: -24 }}
@@ -99,7 +99,7 @@ export function WhoItsForSection() {
 						{/* Vertical Divider Line (Desktop Only) */}
 						<div className="hidden md:block absolute left-1/2 top-12 bottom-12 w-[1px] bg-gray-200 -translate-x-1/2" />
 
-						{/* Lenders — right */}
+						{/* Lenders - right */}
 						<motion.div
 							className="p-8 md:p-12 md:pl-16 border-t md:border-t-0 border-gray-100"
 							initial={{ opacity: 0, x: 24 }}

@@ -110,7 +110,7 @@ export function UnderTheHoodSection() {
 						</Link>
 					</div>
 
-					{/* Right: clean list — icon + label, no cards */}
+					{/* Right: clean list - icon + label, no cards */}
 					<div className="flex-1 lg:max-w-md h-full min-h-[400px] lg:min-h-0 flex items-center overflow-hidden py-10">
 						<motion.div
 							style={{

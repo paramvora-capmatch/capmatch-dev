@@ -46,7 +46,7 @@ export function LenderLineSection() {
 					</p>
 					<p className="text-lg text-gray-500 max-w-2xl mx-auto mb-8">
 						Visualize your ideal capital partners. Materials are formatted for
-						each lender&apos;s preferences—PDF, Excel, or live dashboard.
+						each lender&apos;s preferences-PDF, Excel, or live dashboard.
 					</p>
 					<Link href="/login?from=lenderline">
 						<Button

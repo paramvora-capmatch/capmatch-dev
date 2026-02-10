@@ -15,7 +15,7 @@ const steps: {
 		{
 			title: "Upload, AI Auto-Fill & Lender-Ready Resumes",
 			description:
-				"Drop in whatever you have—PDF, Excel, Word. Our AI extracts data and populates project and borrower resumes automatically. Complete profiles with version history, real-time collaboration, and AI validation.",
+				"Drop in whatever you have-PDF, Excel, Word. Our AI extracts data and populates project and borrower resumes automatically. Complete profiles with version history, real-time collaboration, and AI validation.",
 			youtubeEmbedId: "vtNPigx49gQ",
 		},
 		{
@@ -27,13 +27,13 @@ const steps: {
 		{
 			title: "Live Offering Memorandum & Underwriting Documentation",
 			description:
-				"Dynamic OM dashboard—not a static PDF. Deal snapshots, market maps, scenario modeling. Plus full underwriting documentation so lenders have everything they need in one place.",
+				"Dynamic OM dashboard-not a static PDF. Deal snapshots, market maps, scenario modeling. Plus full underwriting documentation so lenders have everything they need in one place.",
 			youtubeEmbedId: "IK8B8306ILc",
 		},
 		{
 			title: "Intelligent Lender Matching & Personalized Delivery",
 			description:
-				"AI-powered matching by asset, deal type, and location. LenderLine™ visualizes your ideal capital partners. Materials are then formatted for each lender's preferences—PDF, Excel, or live dashboard.",
+				"AI-powered matching by asset, deal type, and location. LenderLine™ visualizes your ideal capital partners. Materials are then formatted for each lender's preferences-PDF, Excel, or live dashboard.",
 			youtubeEmbedId: "", // No video yet
 			showGraph: true,
 		},
@@ -118,7 +118,7 @@ export function HowItWorksSection() {
 				`,
 			}}
 		>
-			{/* Section title — centered */}
+			{/* Section title - centered */}
 			<div className="w-full max-w-[90%] 2xl:max-w-[1600px] mx-auto pt-16 lg:pt-24 px-6 sm:px-8 lg:px-12 pb-2">
 				<motion.div
 					className="text-center"
@@ -131,7 +131,7 @@ export function HowItWorksSection() {
 						Operating System
 					</h2>
 					<p className="text-lg text-gray-500">
-						From messy documents to funded loan—one vertically integrated
+						From messy documents to funded loan-one vertically integrated
 						platform.
 					</p>
 				</motion.div>

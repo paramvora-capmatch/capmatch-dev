@@ -25,7 +25,7 @@ export function PlatformDemoSection() {
 						See CapMatch in Action
 					</h2>
 					<p className="text-lg text-gray-600 mb-10 max-w-xl mx-auto">
-						Platform walkthrough and auto-fill demo—coming soon.
+						Platform walkthrough and auto-fill demo-coming soon.
 					</p>
 					{/* Placeholder: video or interactive demo */}
 					<div className="aspect-video max-w-4xl mx-auto rounded-xl bg-gray-200 border-2 border-dashed border-gray-300 flex items-center justify-center">

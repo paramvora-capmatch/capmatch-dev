@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
 	title: "SoGood Apartments | Case Study | CapMatch",
 	description:
-		"CapMatch case study: SoGood Apartments — $18M construction financing in Dallas. CapMatch structured a living underwriting model from disconnected docs and enabled real-time lender-specific outputs.",
+		"CapMatch case study: SoGood Apartments - $18M construction financing in Dallas. CapMatch structured a living underwriting model from disconnected docs and enabled real-time lender-specific outputs.",
 };
 
 export default function SoGoodCaseStudyPage() {
@@ -64,8 +64,8 @@ export default function SoGoodCaseStudyPage() {
 					Apartments financing presented a layered underwriting
 					challenge that static offering memoranda struggle to
 					accommodate. The project combines seven distinct
-					residential unit types — including 76 affordable units
-					restricted to 80% AMI — with three separate commercial
+					residential unit types - including 76 affordable units
+					restricted to 80% AMI - with three separate commercial
 					income streams operating under different lease structures. A
 					30,000 SF Innovation Center carries a signed 10-year lease
 					with GSV Holdings LLC featuring annual rent escalations. The
@@ -104,7 +104,7 @@ export default function SoGoodCaseStudyPage() {
 					<li>
 						Commercial lease abstracts for the Innovation Center
 						(NNN with scheduled escalations), retail suite, and
-						office space — each with distinct economics
+						office space - each with distinct economics
 					</li>
 					<li>
 						A developer budget breaking down $29.8 million in uses
@@ -133,7 +133,7 @@ export default function SoGoodCaseStudyPage() {
 					sensitivity tables showing valuation at 6.00%, 6.25%, and
 					6.50%. Each question required the advisor to return to the
 					source documents, extract data, rebuild assumptions, and
-					generate a custom response — a process that consumed days
+					generate a custom response - a process that consumed days
 					and introduced reconciliation risk.
 				</p>
 				<p className="text-gray-700 leading-relaxed">
@@ -143,7 +143,7 @@ export default function SoGoodCaseStudyPage() {
 					and market-rate units, each with different vacancy and
 					concession assumptions. The commercial income of $1.06
 					million annually included a pre-leased Innovation Center,
-					speculative office space, and a small retail suite — three
+					speculative office space, and a small retail suite - three
 					distinct risk profiles treated as a single line item.
 					Lenders couldn&apos;t easily decompose the deal into its
 					constituent parts, and the static PDF format offered no
@@ -158,9 +158,9 @@ export default function SoGoodCaseStudyPage() {
 					Underwriting Model
 				</h2>
 				<p className="text-gray-700 leading-relaxed mb-4">
-					CapMatch ingested the complete document package — including
+					CapMatch ingested the complete document package - including
 					the Northmarq offering memorandum, architectural plans,
-					lease abstracts, and developer budget — and constructed a
+					lease abstracts, and developer budget - and constructed a
 					unified deal model that preserved the relationships between
 					components while enabling flexible output generation. The
 					platform&apos;s automated processing identified several
@@ -172,7 +172,7 @@ export default function SoGoodCaseStudyPage() {
 						The pro forma vacancy assumption of 5% applied
 						uniformly to residential units, but the
 						affordable-restricted studios had materially different
-						lease-up dynamics than the market-rate two-bedrooms — a
+						lease-up dynamics than the market-rate two-bedrooms - a
 						distinction that warranted separate treatment
 					</li>
 					<li>
@@ -184,7 +184,7 @@ export default function SoGoodCaseStudyPage() {
 					<li>
 						The developer budget included a $1.15 million interest
 						reserve sized at an 8.00% construction rate, but the
-						permanent takeout was modeled at 6.00% — a 200-basis-point
+						permanent takeout was modeled at 6.00% - a 200-basis-point
 						spread that affected refinance proceeds and sponsor
 						equity return
 					</li>
@@ -209,7 +209,7 @@ export default function SoGoodCaseStudyPage() {
 				</p>
 				<p className="text-gray-700 leading-relaxed">
 					The result was not a revised PDF but an interactive
-					underwriting environment — a deal operating system that
+					underwriting environment - a deal operating system that
 					could generate tailored outputs without requiring manual
 					reconstruction.
 				</p>
@@ -226,9 +226,9 @@ export default function SoGoodCaseStudyPage() {
 					them for overnight turnaround. When a construction lender
 					asked for a uses-of-funds schedule aligned to their draw
 					format, CapMatch exported the $29.8 million budget with line
-					items mapped to the lender&apos;s categories — land, hard
+					items mapped to the lender&apos;s categories - land, hard
 					costs (including 5% contingency), soft costs, financing, and
-					reserves — without manual reclassification. When a debt fund
+					reserves - without manual reclassification. When a debt fund
 					requested a stressed cash flow showing the Innovation Center
 					at 75% of contracted rent, the advisor toggled the lease
 					assumption and generated an updated pro forma in minutes.
@@ -249,7 +249,7 @@ export default function SoGoodCaseStudyPage() {
 					on the comparable tax burden for Downtown Dallas multifamily,
 					normalized taxes would reduce Year 6 NOI by approximately
 					$350,000, compressing the debt yield from 12.6% to 10.7%.
-					The lender had their answer before the call ended — no
+					The lender had their answer before the call ended - no
 					follow-up email, no revised model, no delay.
 				</p>
 			</section>
@@ -260,9 +260,9 @@ export default function SoGoodCaseStudyPage() {
 					5. Embedded AI Assistance & Dynamic Deal Intelligence
 				</h2>
 				<p className="text-gray-700 leading-relaxed mb-4">
-					Every output generated by CapMatch — whether a
+					Every output generated by CapMatch - whether a
 					lender-facing pro forma, an investor summary, or an internal
-					memo — included an embedded AI assistant capable of
+					memo - included an embedded AI assistant capable of
 					answering questions directly against the deal data. This
 					proved especially valuable given the project&apos;s
 					Opportunity Zone structure and affordable housing
@@ -285,10 +285,10 @@ export default function SoGoodCaseStudyPage() {
 					The embedded intelligence eliminated the need for the
 					advisor to serve as a human lookup layer between lenders and
 					deal documents. Questions that previously required a return
-					to source materials — &quot;What are the escalations in the
+					to source materials - &quot;What are the escalations in the
 					GSV lease?&quot; &quot;How is the management fee
 					calculated?&quot; &quot;What&apos;s the basis for the
-					$257,000 per-unit cost?&quot; — could now be answered
+					$257,000 per-unit cost?&quot; - could now be answered
 					instantaneously, with full traceability to the underlying
 					data.
 				</p>
@@ -349,7 +349,7 @@ export default function SoGoodCaseStudyPage() {
 					The SoGood Apartments transaction illustrates a structural
 					limitation in how construction financing is typically
 					originated. Ground-up mixed-use deals are inherently complex
-					— they combine development risk, lease-up risk, and
+					- they combine development risk, lease-up risk, and
 					operational risk across multiple asset types, each with
 					distinct underwriting considerations. Static documents
 					flatten this complexity into fixed narratives that cannot
@@ -375,7 +375,7 @@ export default function SoGoodCaseStudyPage() {
 				<p className="text-gray-700 leading-relaxed">
 					This is not an incremental efficiency gain. It is a
 					fundamental reimagining of how construction debt gets
-					placed — and a template for how complex commercial real
+					placed - and a template for how complex commercial real
 					estate transactions should operate.
 				</p>
 			</section>

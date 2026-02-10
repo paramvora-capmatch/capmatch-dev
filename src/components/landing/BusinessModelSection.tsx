@@ -25,7 +25,7 @@ export function BusinessModelSection() {
 					</h2>
 					<p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
 						CapMatch is not a subscription product. We earn when you
-						close—so our incentives are aligned with yours.
+						close-so our incentives are aligned with yours.
 					</p>
 					<ul className="space-y-6 text-left max-w-2xl mx-auto mb-16">
 						{[

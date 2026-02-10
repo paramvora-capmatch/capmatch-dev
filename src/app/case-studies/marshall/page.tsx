@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
 	title: "The Marshall | Case Study | CapMatch",
 	description:
-		"CapMatch case study: The Marshall — $30.1M equity recapitalization for purpose-built student housing at Saint Louis University. CapMatch built an investor-ready intelligence layer and accelerated capital formation.",
+		"CapMatch case study: The Marshall - $30.1M equity recapitalization for purpose-built student housing at Saint Louis University. CapMatch built an investor-ready intelligence layer and accelerated capital formation.",
 };
 
 export default function MarshallCaseStudyPage() {
@@ -66,7 +66,7 @@ export default function MarshallCaseStudyPage() {
 					conventional documentation approaches. The project operates
 					in the specialized student housing sector, where
 					underwriting conventions differ materially from traditional
-					multifamily — beds rather than units drive revenue, lease
+					multifamily - beds rather than units drive revenue, lease
 					terms align to academic calendars, and demand is tied to
 					enrollment trends rather than employment statistics. The
 					investment also carries Opportunity Zone tax benefits that
@@ -75,7 +75,7 @@ export default function MarshallCaseStudyPage() {
 					appreciation taxes after a 10-year hold. With 99%
 					construction complete and over 60% pre-leased, the deal sits
 					at an inflection point between development and
-					stabilization — a transitional moment that static documents
+					stabilization - a transitional moment that static documents
 					struggle to capture accurately.
 				</p>
 			</section>
@@ -103,9 +103,9 @@ export default function MarshallCaseStudyPage() {
 						against a student population exceeding 15,200
 					</li>
 					<li>
-						Rent comparables from three competing properties —
+						Rent comparables from three competing properties -
 						Verve St Louis, The Standard, and City Lofts at Laclede
-						— each showing 96-100% occupancy and rent growth ranging
+						- each showing 96-100% occupancy and rent growth ranging
 						from 18% to 37% annually
 					</li>
 					<li>
@@ -143,7 +143,7 @@ export default function MarshallCaseStudyPage() {
 					short-term or long-term gains, and how the 10-year clock
 					interacted with the projected 2035 exit. A student housing
 					specialist wanted granular detail on the pre-lease velocity
-					— were the 60%+ pre-leases concentrated in certain unit
+					- were the 60%+ pre-leases concentrated in certain unit
 					types, and what did absorption look like by bedroom count?
 				</p>
 				<p className="text-gray-700 leading-relaxed">
@@ -161,9 +161,9 @@ export default function MarshallCaseStudyPage() {
 					Intelligence Layer
 				</h2>
 				<p className="text-gray-700 leading-relaxed mb-4">
-					CapMatch processed the complete document package — market
+					CapMatch processed the complete document package - market
 					analysis, competitive set data, pro forma projections, and
-					OZ structuring details — and constructed an integrated
+					OZ structuring details - and constructed an integrated
 					model that connected the deal&apos;s disparate components
 					into a queryable system. The platform&apos;s automated
 					analysis surfaced several insights that would otherwise
@@ -173,7 +173,7 @@ export default function MarshallCaseStudyPage() {
 					<li>
 						The 60%+ pre-lease rate was concentrated in 2-bedroom
 						and 4-bedroom configurations, with 1-bedroom units
-						lagging — a pattern consistent with student preference
+						lagging - a pattern consistent with student preference
 						for shared living arrangements that reduce individual
 						rent burden
 					</li>
@@ -187,7 +187,7 @@ export default function MarshallCaseStudyPage() {
 					<li>
 						The pro forma assumed 3% annual rent growth, but the
 						competitive set had achieved 18-37% growth in recent
-						years — a conservative assumption that provided
+						years - a conservative assumption that provided
 						meaningful upside if market conditions persisted
 					</li>
 					<li>
@@ -244,7 +244,7 @@ export default function MarshallCaseStudyPage() {
 					growth?&quot; The advisor queried the embedded AI assistant
 					directly. Within seconds, CapMatch returned a stress analysis:
 					even if enrollment held flat at current levels, the
-					supply-demand imbalance would persist — SLU&apos;s 15,200
+					supply-demand imbalance would persist - SLU&apos;s 15,200
 					students were served by only 1,035 purpose-built beds
 					including The Marshall, implying a bed-to-student ratio of
 					6.8% versus the national average of approximately 10%. The
@@ -260,8 +260,8 @@ export default function MarshallCaseStudyPage() {
 					5. Embedded AI Assistance & Real-Time Investor Intelligence
 				</h2>
 				<p className="text-gray-700 leading-relaxed mb-4">
-					Every CapMatch deliverable — whether an investor summary, a
-					tax modeling schedule, or a competitive analysis — included
+					Every CapMatch deliverable - whether an investor summary, a
+					tax modeling schedule, or a competitive analysis - included
 					an embedded AI assistant capable of answering questions
 					directly against the underlying data. This capability proved
 					especially valuable given the specialized nature of student
@@ -273,14 +273,14 @@ export default function MarshallCaseStudyPage() {
 					assistant itemized the comparison: professional fitness
 					center, hot-tub complex, collaborative study spaces,
 					individual study pods, entertainment room, café, and
-					grilling stations — a modern amenity package that the
+					grilling stations - a modern amenity package that the
 					2006-vintage City Lofts and 2015-vintage Standard could not
 					match. When a different investor asked about the major
 					employers driving non-student demand, the assistant
 					surfaced the proximity data: BJC Healthcare with 8,500+
 					employees at 0.6 miles, Washington University with 6,200+
 					at 0.6 miles, and the Cortex Innovation District with
-					5,700+ jobs at 0.5 miles — a secondary demand driver that
+					5,700+ jobs at 0.5 miles - a secondary demand driver that
 					provided occupancy support beyond the student population.
 				</p>
 				<p className="text-gray-700 leading-relaxed">
@@ -327,14 +327,14 @@ export default function MarshallCaseStudyPage() {
 						<strong>Sponsor efficiency:</strong> The development
 						team used the same CapMatch environment to track
 						investor feedback, model different capital structures,
-						and prepare for closing — all without switching between
+						and prepare for closing - all without switching between
 						disconnected systems
 					</li>
 				</ul>
 				<p className="text-gray-700 leading-relaxed">
 					The capital advisor, rather than spending days fielding
 					repetitive questions and manually customizing materials,
-					focused on relationship management and deal execution — the
+					focused on relationship management and deal execution - the
 					high-value activities that actually drive capital formation.
 				</p>
 			</section>
@@ -348,7 +348,7 @@ export default function MarshallCaseStudyPage() {
 				<p className="text-gray-700 leading-relaxed mb-4">
 					The Marshall transaction illustrates a broader truth about
 					capital formation for specialized real estate assets.
-					Student housing, senior living, self-storage, data centers —
+					Student housing, senior living, self-storage, data centers -
 					each sector carries its own underwriting conventions,
 					demand drivers, and risk factors. Generic documentation
 					formats designed for conventional multifamily or office
@@ -378,7 +378,7 @@ export default function MarshallCaseStudyPage() {
 				<p className="text-gray-700 leading-relaxed">
 					The Marshall is not an isolated example. It represents a new
 					standard for how specialized real estate transactions
-					should be capitalized — with intelligence, precision, and
+					should be capitalized - with intelligence, precision, and
 					the adaptive responsiveness that modern investors expect.
 				</p>
 			</section>
