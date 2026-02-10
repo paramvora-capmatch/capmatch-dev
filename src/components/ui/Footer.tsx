@@ -1,94 +1,154 @@
-// src/components/ui/Footer.tsx
 "use client";
 
 import React from "react";
 import Link from "next/link";
-import { Linkedin, Twitter, Facebook } from "lucide-react";
-import { cn } from "@/utils/cn";
+import Image from "next/image";
+import { Linkedin, Twitter } from "lucide-react";
 
 export const Footer: React.FC = () => {
 	const currentYear = new Date().getFullYear();
 
 	return (
-		<footer className="py-6 transition-colors duration-300 bg-gray-50 text-gray-900">
-			<div className="container mx-auto px-4 max-w-7xl">
-				<div className="flex flex-col md:flex-row justify-between items-center">
-					{/* Logo and tagline */}
-					<div className="mb-4 md:mb-0 text-center md:text-left">
-						<h2 className="text-xl font-bold mb-1 text-gray-900">
-							CapMatch
-						</h2>
-						<p className="text-sm text-gray-600">
-							AI-Powered. Borrower-Controlled. Commercial Lending,
-							Simplified.
+		<footer className="bg-gray-100 border-t border-gray-200 text-gray-900">
+			<div className="container mx-auto px-4 max-w-7xl py-12 md:py-16">
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
+					{/* Brand */}
+					<div className="lg:col-span-1">
+						<Link href="/" className="flex items-center gap-2 mb-4">
+							<Image
+								src="/CapMatchLogo.png"
+								alt="CapMatch"
+								width={40}
+								height={40}
+							/>
+							<span className="font-bold text-lg text-gray-900">
+								CapMatch
+							</span>
+						</Link>
+						<p className="text-sm text-gray-600 mb-4 max-w-xs">
+							The Operating System for Commercial Real Estate
+							Financing.
 						</p>
-						<p
-							className="text-sm md:text-base mt-1 text-gray-500"
-							style={{ fontSize: "clamp(14px, 0.875rem, 16px)" }}
-						>
-							Join thousands of borrowers who have found the
-							perfect financing solution through our platform.
-						</p>
-					</div>
-
-					{/* Navigation links and social icons */}
-					<div className="flex flex-wrap justify-center md:justify-end">
-						<div className="flex space-x-4 mr-6">
-							<Link
-								href="/terms"
-								className="text-sm transition-colors text-gray-600 hover:text-gray-900"
-							>
-								Terms
-							</Link>
-							<Link
-								href="/privacy"
-								className="text-sm transition-colors text-gray-600 hover:text-gray-900"
-							>
-								Privacy
-							</Link>
-							<Link
-								href="/contact"
-								className="text-sm transition-colors text-gray-600 hover:text-gray-900"
-							>
-								Contact
-							</Link>
-						</div>
-
-						<div className="flex space-x-4 mt-3 md:mt-0">
+						<div className="flex gap-4">
 							<a
 								href="https://linkedin.com"
 								target="_blank"
 								rel="noopener noreferrer"
-								className="transition-colors text-gray-600 hover:text-blue-600"
+								className="text-gray-500 hover:text-blue-600 transition-colors"
+								aria-label="LinkedIn"
 							>
-								<Linkedin size={18} />
+								<Linkedin size={20} />
 							</a>
 							<a
 								href="https://twitter.com"
 								target="_blank"
 								rel="noopener noreferrer"
-								className="transition-colors text-gray-600 hover:text-blue-600"
+								className="text-gray-500 hover:text-blue-600 transition-colors"
+								aria-label="Twitter"
 							>
-								<Twitter size={18} />
-							</a>
-							<a
-								href="https://facebook.com"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="transition-colors text-gray-600 hover:text-blue-600"
-							>
-								<Facebook size={18} />
+								<Twitter size={20} />
 							</a>
 						</div>
 					</div>
+
+					{/* Platform */}
+					<div>
+						<h3 className="font-semibold text-gray-900 mb-4">
+							Platform
+						</h3>
+						<nav className="flex flex-col gap-3">
+							<Link
+								href="/#how-it-works"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								How It Works
+							</Link>
+							<Link
+								href="/#lender-matching-section"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								LenderLine
+							</Link>
+							<Link
+								href="/#who-its-for"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								For Borrowers
+							</Link>
+							<Link
+								href="/#who-its-for"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								For Lenders
+							</Link>
+							<Link
+								href="/#case-studies"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								Case Studies
+							</Link>
+						</nav>
+					</div>
+
+					{/* Company */}
+					<div>
+						<h3 className="font-semibold text-gray-900 mb-4">
+							Company
+						</h3>
+						<nav className="flex flex-col gap-3">
+							<Link
+								href="/about"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								About
+							</Link>
+							<Link
+								href="/contact"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								Contact
+							</Link>
+							<Link
+								href="/blog"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								Blog
+							</Link>
+							<Link
+								href="/careers"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								Careers
+							</Link>
+						</nav>
+					</div>
+
+					{/* Legal */}
+					<div>
+						<h3 className="font-semibold text-gray-900 mb-4">
+							Legal
+						</h3>
+						<nav className="flex flex-col gap-3">
+							<Link
+								href="/terms"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								Terms of Service
+							</Link>
+							<Link
+								href="/privacy"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								Privacy Policy
+							</Link>
+						</nav>
+					</div>
 				</div>
 
-				{/* Copyright line */}
-				<div
-					className="text-sm text-center mt-4 text-gray-400"
-					style={{ fontSize: "clamp(14px, 0.875rem, 16px)" }}
-				>
-					© {currentYear} CapMatch. All rights reserved.
+				<div className="mt-12 pt-8 border-t border-gray-200 text-center">
+					<p className="text-sm text-gray-500">
+						© {currentYear} CapMatch. All rights reserved.
+					</p>
 				</div>
 			</div>
 		</footer>

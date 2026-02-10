@@ -135,6 +135,42 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 				>
 					<nav className="flex items-center space-x-6">
 						<Link
+							href="/#how-it-works"
+							scroll={false}
+							onClick={(e) => {
+								e.preventDefault();
+								document
+									.getElementById("how-it-works")
+									?.scrollIntoView({ behavior: "smooth" });
+							}}
+							className={cn(
+								"text-sm font-medium transition-colors",
+								scrolled
+									? "text-gray-700 hover:text-blue-600"
+									: "text-gray-800 hover:text-blue-600"
+							)}
+						>
+							How It Works
+						</Link>
+						<Link
+							href="/#who-its-for"
+							scroll={false}
+							onClick={(e) => {
+								e.preventDefault();
+								document
+									.getElementById("who-its-for")
+									?.scrollIntoView({ behavior: "smooth" });
+							}}
+							className={cn(
+								"text-sm font-medium transition-colors",
+								scrolled
+									? "text-gray-700 hover:text-blue-600"
+									: "text-gray-800 hover:text-blue-600"
+							)}
+						>
+							Who It&apos;s For
+						</Link>
+						<Link
 							href="/#lender-matching-section"
 							scroll={false}
 							onClick={(e) => {
@@ -150,17 +186,15 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 									: "text-gray-800 hover:text-blue-600"
 							)}
 						>
-							<span className="font-semibold">
-								Lender Matching
-							</span>
+							LenderLine
 						</Link>
 						<Link
-							href="/#process-section"
+							href="/#case-studies"
 							scroll={false}
 							onClick={(e) => {
 								e.preventDefault();
 								document
-									.getElementById("process-section")
+									.getElementById("case-studies")
 									?.scrollIntoView({ behavior: "smooth" });
 							}}
 							className={cn(
@@ -170,7 +204,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 									: "text-gray-800 hover:text-blue-600"
 							)}
 						>
-							Process
+							Case Studies
 						</Link>
 					</nav>
 
@@ -217,24 +251,40 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 					<div className="container mx-auto max-w-7xl py-4 px-4">
 						<nav className="flex flex-col space-y-4">
 							<Link
+								href="/#how-it-works"
+								className="py-2 text-sm font-medium block text-gray-700 hover:text-blue-600"
+								onClick={() =>
+									handleNav("#how-it-works", true)
+								}
+							>
+								How It Works
+							</Link>
+							<Link
+								href="/#who-its-for"
+								className="py-2 text-sm font-medium block text-gray-700 hover:text-blue-600"
+								onClick={() =>
+									handleNav("#who-its-for", true)
+								}
+							>
+								Who It&apos;s For
+							</Link>
+							<Link
 								href="/#lender-matching-section"
 								className="py-2 text-sm font-medium block text-gray-700 hover:text-blue-600"
 								onClick={() =>
 									handleNav("#lender-matching-section", true)
 								}
 							>
-								<span className="font-semibold">
-									Lender Matching
-								</span>
+								LenderLine
 							</Link>
 							<Link
-								href="/#process-section"
+								href="/#case-studies"
 								className="py-2 text-sm font-medium block text-gray-700 hover:text-blue-600"
 								onClick={() =>
-									handleNav("#process-section", true)
+									handleNav("#case-studies", true)
 								}
 							>
-								Process
+								Case Studies
 							</Link>
 							<Button
 								variant="primary"

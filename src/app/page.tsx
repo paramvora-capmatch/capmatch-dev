@@ -10,12 +10,19 @@ import FilterSection from "../components/filter-section";
 import LenderGraph from "../components/graph/LenderGraph";
 import { useLenders } from "../hooks/useLenders";
 import { LenderFilters } from "@/stores/useLenderStore";
-
 import { LenderProfile } from "@/types/lender";
 import { Button } from "@/components/ui/Button";
 import { ArrowRight } from "lucide-react";
-import { ProcessSection } from "../components/ui/ProcessSection";
 import { cn } from "@/utils/cn";
+import {
+	BusinessModelSection,
+	HowItWorksSection,
+	FeatureGridSection,
+	WhoItsForSection,
+	PlatformDemoSection,
+	CaseStudiesSection,
+	ClosingSection,
+} from "@/components/landing";
 
 export default function HomePage() {
 	const router = useRouter();
@@ -27,9 +34,9 @@ export default function HomePage() {
 		part1Visible: false,
 		part2Visible: false,
 		part3Visible: false,
+		part4Visible: false,
 	});
 
-	// Optimized scroll handler with requestAnimationFrame
 	useEffect(() => {
 		let ticking = false;
 		const handleScroll = () => {
@@ -41,33 +48,36 @@ export default function HomePage() {
 				ticking = true;
 			}
 		};
-		handleScroll(); // Initial check
+		handleScroll();
 		window.addEventListener("scroll", handleScroll, { passive: true });
 		return () => window.removeEventListener("scroll", handleScroll);
 	}, []);
 
-	// Animate text when component mounts
 	useEffect(() => {
-		const timeout1 = setTimeout(
+		const t1 = setTimeout(
 			() => setTextAnimation((p) => ({ ...p, part1Visible: true })),
 			300
 		);
-		const timeout2 = setTimeout(
+		const t2 = setTimeout(
 			() => setTextAnimation((p) => ({ ...p, part2Visible: true })),
 			800
 		);
-		const timeout3 = setTimeout(
+		const t3 = setTimeout(
 			() => setTextAnimation((p) => ({ ...p, part3Visible: true })),
 			1300
 		);
+		const t4 = setTimeout(
+			() => setTextAnimation((p) => ({ ...p, part4Visible: true })),
+			1700
+		);
 		return () => {
-			clearTimeout(timeout1);
-			clearTimeout(timeout2);
-			clearTimeout(timeout3);
+			clearTimeout(t1);
+			clearTimeout(t2);
+			clearTimeout(t3);
+			clearTimeout(t4);
 		};
 	}, []);
 
-	// Load lenders only once on mount
 	useEffect(() => {
 		const load = async () => {
 			try {
@@ -77,10 +87,8 @@ export default function HomePage() {
 			}
 		};
 		load();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []); // Only run once on mount
+	}, [loadLenders]);
 
-	// Memoized event handlers
 	const handleFilterChange = useCallback(
 		(newFilters: Partial<LenderFilters>) => {
 			setFilters(newFilters);
@@ -104,9 +112,9 @@ export default function HomePage() {
 		[selectLender]
 	);
 
-	const handleScrollToLenderMatching = useCallback(() => {
+	const handleScrollToHowItWorks = useCallback(() => {
 		document
-			.getElementById("lender-matching-section")
+			.getElementById("how-it-works")
 			?.scrollIntoView({ behavior: "smooth" });
 	}, []);
 
@@ -114,7 +122,6 @@ export default function HomePage() {
 		router.push("/login");
 	}, [router]);
 
-	// Memoized computed values
 	const allFilterCategoriesSelected = useMemo(
 		() =>
 			filters.asset_types.length > 0 &&
@@ -141,38 +148,11 @@ export default function HomePage() {
 		[filteredLenders]
 	);
 
-	// Memoized className strings
-	const containerClasses = useMemo(
-		() =>
-			cn(
-				"min-h-screen flex flex-col transition-colors duration-300 relative z-10"
-			),
-		[]
-	);
-
-	const mainClasses = useMemo(
-		() => cn("flex-grow transition-colors duration-300 relative z-10"),
-		[]
-	);
-
-	const heroSectionClasses = useMemo(
-		() => cn("relative overflow-hidden transition-colors duration-300"),
-		[]
-	);
-
-	const lenderMatchingSectionClasses = useMemo(
-		() =>
-			cn(
-				// Removed max-h-content to allow natural growth
-				// Changed py-24 pb-12 to just py-24 for better spacing
-				"min-h-screen py-24 relative flex items-center transition-colors duration-300"
-			),
-		[]
-	);
-
 	return (
 		<div
-			className={containerClasses}
+			className={cn(
+				"min-h-screen flex flex-col transition-colors duration-300 relative z-10"
+			)}
 			style={{
 				backgroundColor: "#ffffff",
 				backgroundImage: `
@@ -195,12 +175,10 @@ export default function HomePage() {
 		>
 			<EnhancedHeader scrolled={scrolled} textVisible={true} />
 
-			<main
-				className={mainClasses}
-				style={{ backgroundColor: "transparent" }}
-			>
+			<main className="flex-grow transition-colors duration-300 relative z-10">
+				{/* Hero */}
 				<section
-					className={heroSectionClasses}
+					className="relative overflow-hidden transition-colors duration-300 pt-24 pb-24"
 					style={{
 						minHeight: "100vh",
 						display: "flex",
@@ -213,7 +191,6 @@ export default function HomePage() {
 						className="container mx-auto px-4 max-w-7xl text-center relative z-20"
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
 						transition={{ duration: 0.8 }}
 					>
 						<motion.div className="mb-8">
@@ -245,16 +222,12 @@ export default function HomePage() {
 									className="text-5xl md:text-6xl lg:text-7xl leading-tight text-gray-900"
 								>
 									From{" "}
-									<span className="text-blue-500">
-										Months
-									</span>{" "}
+									<span className="text-blue-500">Months</span>{" "}
 									to{" "}
-									<span className="text-blue-500">
-										Minutes
-									</span>
+									<span className="text-blue-500">Minutes</span>
 								</motion.div>
 							</div>
-							<div className="overflow-hidden mt-6">
+							<div className="overflow-hidden mt-4">
 								<motion.div
 									initial={{ opacity: 0, y: 20 }}
 									animate={{
@@ -264,18 +237,34 @@ export default function HomePage() {
 										y: textAnimation.part3Visible ? 0 : 20,
 									}}
 									transition={{ duration: 0.6 }}
+									className="text-xl md:text-2xl text-gray-600 font-medium"
+								>
+									The Operating System for Commercial Real
+									Estate Financing
+								</motion.div>
+							</div>
+							<div className="overflow-hidden mt-6">
+								<motion.div
+									initial={{ opacity: 0, y: 20 }}
+									animate={{
+										opacity: textAnimation.part4Visible
+											? 1
+											: 0,
+										y: textAnimation.part4Visible ? 0 : 20,
+									}}
+									transition={{ duration: 0.6 }}
 									className="text-lg md:text-xl max-w-3xl mx-auto text-gray-600"
 								>
-									CapMatch&apos;s intelligent platform
-									automates and accelerates every step of your
-									commercial real estate financing.
+									CapMatch is a fully integrated, AI-enabled
+									brokerage—from document intake to loan
+									closing. We handle everything in between.
 								</motion.div>
 							</div>
 						</motion.div>
 						<motion.div
 							initial={{ opacity: 0 }}
 							animate={{
-								opacity: textAnimation.part3Visible ? 1 : 0,
+								opacity: textAnimation.part4Visible ? 1 : 0,
 							}}
 							transition={{ duration: 0.6, delay: 0.3 }}
 						>
@@ -288,9 +277,9 @@ export default function HomePage() {
 										boxShadow:
 											"0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
 									}}
-									onClick={handleScrollToLenderMatching}
+									onClick={handleScrollToHowItWorks}
 								>
-									Lender Matching
+									See How It Works
 								</Button>
 								<Button
 									variant="outline"
@@ -306,12 +295,37 @@ export default function HomePage() {
 								</Button>
 							</div>
 						</motion.div>
+						{/* Placeholder for platform preview video or auto-fill animation */}
+						<motion.div
+							className="mt-16 mx-auto max-w-4xl"
+							initial={{ opacity: 0, y: 24 }}
+							animate={{
+								opacity: textAnimation.part4Visible ? 1 : 0,
+								y: textAnimation.part4Visible ? 0 : 24,
+							}}
+							transition={{ duration: 0.6, delay: 0.5 }}
+						>
+							<div className="aspect-video rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
+								<span className="text-gray-500 text-sm">
+									[ Platform preview video or auto-fill
+									animation placeholder ]
+								</span>
+							</div>
+						</motion.div>
 					</motion.div>
 				</section>
 
+				<BusinessModelSection />
+				<HowItWorksSection />
+				<FeatureGridSection />
+				<WhoItsForSection />
+				<PlatformDemoSection />
+				<CaseStudiesSection />
+
+				{/* LenderLine section — repositioned with intro and callout */}
 				<section
 					id="lender-matching-section"
-					className={lenderMatchingSectionClasses}
+					className="min-h-screen py-24 relative flex items-center"
 					style={{
 						backgroundColor: "transparent",
 						position: "relative",
@@ -320,49 +334,42 @@ export default function HomePage() {
 				>
 					<div className="container mx-auto px-4 max-w-7xl w-full">
 						<motion.div
-							className="text-center mb-12"
+							className="text-center mb-8"
 							initial={{ opacity: 0, y: 20 }}
 							whileInView={{ opacity: 1, y: 0 }}
 							viewport={{ once: true, margin: "-100px" }}
 							transition={{ duration: 0.6 }}
 						>
-							<div className="flex items-center justify-center mb-4">
-								<h2 className="text-4xl md:text-5xl font-bold text-gray-900">
-									Lender Matching
-								</h2>
-							</div>
-							<p className="text-lg max-w-3xl mx-auto text-gray-600">
-								Select your project criteria below to visualize
-								matching lenders in real-time.
+							<h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+								LenderLine™
+							</h2>
+							<p className="text-lg max-w-2xl mx-auto text-gray-600 mb-2">
+								CapMatch&apos;s intelligent lender matching
+								engine. Select your project criteria below to
+								see matching lenders visualized in real-time.
+							</p>
+							<p className="text-sm max-w-xl mx-auto text-gray-500">
+								After matching, CapMatch handles
+								everything—from document preparation to OM
+								generation to deal closing.
 							</p>
 						</motion.div>
 
-						{/* 
-                            Layout Changes:
-                            1. Added 'items-center' to vertically center the graph relative to filters.
-                            2. Removed fixed heights on parent container.
-                        */}
 						<div className="flex flex-col lg:flex-row gap-8 items-center">
 							<motion.div
-								className={cn(
-									"w-full lg:w-1/2 flex flex-col"
-									// Removed fixed height (lg:h-[75vh]) so it grows with content
-									// Removed min-h that might be too small
-								)}
+								className="w-full lg:w-1/2 flex flex-col"
 								initial={{ opacity: 0, x: -50 }}
 								whileInView={{ opacity: 1, x: 0 }}
 								viewport={{ once: true, margin: "-100px" }}
 								transition={{ duration: 0.6, ease: "easeOut" }}
 							>
-								{/* Filter card container */}
 								<div
-									className="border rounded-xl p-6 flex-grow flex flex-col transition-colors duration-300 bg-white border-gray-200"
+									className="border rounded-xl p-6 flex-grow flex flex-col bg-white border-gray-200"
 									style={{
 										boxShadow:
 											"0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
 									}}
 								>
-									{/* Reduced gap from 8 to 6 to save some vertical space */}
 									<div className="flex-grow flex flex-col justify-between space-y-6 md:space-y-8 gap-6">
 										<FilterSection
 											formData={filters}
@@ -390,7 +397,7 @@ export default function HomePage() {
 											filterType="debt_ranges"
 										/>
 									</div>
-									<div className="mt-6 pt-6 border-t text-center transition-colors duration-300 border-gray-200">
+									<div className="mt-6 pt-6 border-t text-center border-gray-200">
 										{allFilterCategoriesSelected &&
 											topLenders.length > 0 && (
 												<>
@@ -425,13 +432,7 @@ export default function HomePage() {
 															? "s"
 															: ""}
 													</Button>
-													<p
-														className="text-sm md:text-base mt-2 text-gray-500"
-														style={{
-															fontSize:
-																"clamp(14px, 0.875rem, 16px)",
-														}}
-													>
+													<p className="text-sm md:text-base mt-2 text-gray-500">
 														Sign in to connect and
 														share your project.
 													</p>
@@ -440,22 +441,10 @@ export default function HomePage() {
 										{allFilterCategoriesSelected &&
 											topLenders.length === 0 && (
 												<div className="p-4 border rounded-lg bg-amber-50 border-amber-200">
-													<p
-														className="font-medium text-sm md:text-base text-amber-700"
-														style={{
-															fontSize:
-																"clamp(14px, 0.875rem, 16px)",
-														}}
-													>
+													<p className="font-medium text-sm md:text-base text-amber-700">
 														No exact matches found.
 													</p>
-													<p
-														className="text-sm md:text-base text-amber-600"
-														style={{
-															fontSize:
-																"clamp(14px, 0.875rem, 16px)",
-														}}
-													>
+													<p className="text-sm md:text-base text-amber-600">
 														Try broadening your
 														filters.
 													</p>
@@ -463,23 +452,11 @@ export default function HomePage() {
 											)}
 										{!allFilterCategoriesSelected && (
 											<div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
-												<p
-													className="font-medium text-sm md:text-base text-blue-700"
-													style={{
-														fontSize:
-															"clamp(14px, 0.875rem, 16px)",
-													}}
-												>
+												<p className="font-medium text-sm md:text-base text-blue-700">
 													Select filters in all
 													categories above
 												</p>
-												<p
-													className="text-sm md:text-base text-blue-600"
-													style={{
-														fontSize:
-															"clamp(14px, 0.875rem, 16px)",
-													}}
-												>
+												<p className="text-sm md:text-base text-blue-600">
 													to see matches and connect.
 												</p>
 											</div>
@@ -489,10 +466,7 @@ export default function HomePage() {
 							</motion.div>
 
 							<motion.div
-								// Changed height strategy:
-								// 1. Removed h-[75vh] to prevent forcing parent height issues
-								// 2. Added fixed height h-[600px] and lg:h-[700px] to ensure graph is visible and matches approx height of filters
-								className="w-full lg:w-1/2 h-[600px] lg:h-[700px] relative overflow-visible lg:-mr-8 xl:-mr-16 transition-colors duration-300"
+								className="w-full lg:w-1/2 h-[600px] lg:h-[700px] relative overflow-visible lg:-mr-8 xl:-mr-16"
 								initial={{ opacity: 0, x: 50 }}
 								whileInView={{ opacity: 1, x: 0 }}
 								viewport={{ once: true, margin: "-100px" }}
@@ -512,8 +486,7 @@ export default function HomePage() {
 					</div>
 				</section>
 
-				{/* The process section will now naturally be pushed down */}
-				<ProcessSection />
+				<ClosingSection />
 			</main>
 
 			<Footer />
