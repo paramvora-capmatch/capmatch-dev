@@ -4,6 +4,7 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Counter } from "@/components/ui/Counter";
 
 const caseStudies = [
 	{
@@ -16,6 +17,10 @@ const caseStudies = [
 			"144-unit Class A multifamily in the East Bank neighborhood with ground-floor retail. IPA/Marcus & Millichap offering; strong rent comps and 10-year stabilized NOI growth.",
 		image: "/LaSalle-CaseStudy/img-0.jpeg",
 		slug: "lasalle",
+		lenders: [
+			"/LaSalle-CaseStudy/lenders/northmarq.svg",
+			"/LaSalle-CaseStudy/lenders/acara.png",
+		],
 	},
 	{
 		id: "2",
@@ -27,6 +32,9 @@ const caseStudies = [
 			"Office case study. Full details coming soon.",
 		image: "/Marshall-CaseStudy/R01-2_DUSK-PERSPECTIVE_MARSHALL-MO_4KTV_01.16.24-scaled.webp",
 		slug: null,
+		lenders: [
+			"/Marshall-CaseStudy/lenders/northmarq.svg",
+		],
 	},
 	{
 		id: "3",
@@ -38,6 +46,9 @@ const caseStudies = [
 			"116-unit mixed-use development in an Opportunity Zone with 30,000 SF pre-leased to GSV Holdings. Construction financing arranged by Northmarq; sponsor Hoque Global with ACARA as equity partner.",
 		image: "/SoGood-CaseStudy/MainImage.webp",
 		slug: "sogood",
+		lenders: [
+			"/SoGood-CaseStudy/lenders/northmarq.svg",
+		],
 	},
 ];
 
@@ -65,7 +76,7 @@ export function CaseStudiesSection() {
 		<section
 			id="case-studies"
 			ref={ref}
-			className="pt-20 md:pt-28 pb-8 md:pb-12 bg-blue-50/50 flex flex-col justify-center"
+			className="min-h-screen py-20 md:py-28 bg-blue-50/50 flex flex-col justify-center"
 		>
 			<div className="container mx-auto px-4 max-w-6xl flex-1 flex flex-col justify-center">
 				<motion.div
@@ -74,10 +85,37 @@ export function CaseStudiesSection() {
 					animate={isInView ? { opacity: 1, y: 0 } : {}}
 					transition={{ duration: 0.6 }}
 				>
-					<h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-						$291M in Active Deal Volume
+					<h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-3 flex flex-wrap items-center justify-center gap-0.5 md:gap-1 tabular-nums tracking-tight">
+						<span className="text-blue-600">$</span>
+						<Counter
+							value={290}
+							direction="up"
+							className="text-4xl md:text-5xl lg:text-6xl font-bold text-blue-600"
+						/>
+						{isInView &&
+							[" M+", " in", " Active", " Deal", " Volume"].map((word, i) => (
+								<motion.span
+									key={word}
+									className={`inline-block overflow-hidden tabular-nums mr-1.5 md:mr-2 last:mr-0 ${i === 0 ? "text-blue-600 font-bold" : ""}`}
+									initial={{ opacity: 0, y: 12 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{
+										duration: 0.35,
+										delay: 0.5 + i * 0.08,
+										ease: [0.22, 1, 0.36, 1],
+									}}
+								>
+									{word}
+								</motion.span>
+							))}
+						{!isInView && (
+							<>
+								<span className="text-blue-600 font-bold"> M+</span>
+								<span> in Active Deal Volume</span>
+							</>
+						)}
 					</h2>
-					<p className="text-lg text-gray-600">
+					<p className="text-xl md:text-2xl text-gray-600">
 						Live deals on the platform. Explore our case studies.
 					</p>
 				</motion.div>
@@ -121,7 +159,20 @@ export function CaseStudiesSection() {
 										{deal.description}
 									</p>
 
-
+                                    {/* Lender Badges */}
+                                    {deal.lenders && deal.lenders.length > 0 && (
+                                        <div className="flex items-center gap-1 mb-6">
+                                            {deal.lenders.map((lender, i) => (
+                                                <div key={i} className="h-8 relative w-20 grayscale opacity-80 hover:grayscale-0 hover:opacity-100 transition-all duration-300">
+                                                    <img
+                                                        src={lender}
+                                                        alt="Lender/Partner"
+                                                        className="h-full w-full object-contain object-left"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
 									{deal.slug ? (
 										<Link
 											href={`/case-studies/${deal.slug}`}
