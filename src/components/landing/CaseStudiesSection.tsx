@@ -17,10 +17,6 @@ const caseStudies = [
 			"144-unit Class A multifamily in the East Bank neighborhood with ground-floor retail. IPA/Marcus & Millichap offering; strong rent comps and 10-year stabilized NOI growth.",
 		image: "/LaSalle-CaseStudy/img-0.jpeg",
 		slug: "lasalle",
-		lenders: [
-			"/LaSalle-CaseStudy/lenders/northmarq.svg",
-			"/LaSalle-CaseStudy/lenders/acara.png",
-		],
 	},
 	{
 		id: "2",
@@ -32,9 +28,6 @@ const caseStudies = [
 			"Office case study. Full details coming soon.",
 		image: "/Marshall-CaseStudy/R01-2_DUSK-PERSPECTIVE_MARSHALL-MO_4KTV_01.16.24-scaled.webp",
 		slug: null,
-		lenders: [
-			"/Marshall-CaseStudy/lenders/northmarq.svg",
-		],
 	},
 	{
 		id: "3",
@@ -46,9 +39,6 @@ const caseStudies = [
 			"116-unit mixed-use development in an Opportunity Zone with 30,000 SF pre-leased to GSV Holdings. Construction financing arranged by Northmarq; sponsor Hoque Global with ACARA as equity partner.",
 		image: "/SoGood-CaseStudy/MainImage.webp",
 		slug: "sogood",
-		lenders: [
-			"/SoGood-CaseStudy/lenders/northmarq.svg",
-		],
 	},
 ];
 
@@ -159,20 +149,6 @@ export function CaseStudiesSection() {
 										{deal.description}
 									</p>
 
-                                    {/* Lender Badges */}
-                                    {deal.lenders && deal.lenders.length > 0 && (
-                                        <div className="flex items-center gap-1 mb-6">
-                                            {deal.lenders.map((lender, i) => (
-                                                <div key={i} className="h-8 relative w-20 grayscale opacity-80 hover:grayscale-0 hover:opacity-100 transition-all duration-300">
-                                                    <img
-                                                        src={lender}
-                                                        alt="Lender/Partner"
-                                                        className="h-full w-full object-contain object-left"
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
 									{deal.slug ? (
 										<Link
 											href={`/case-studies/${deal.slug}`}
