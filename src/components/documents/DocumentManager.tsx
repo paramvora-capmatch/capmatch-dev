@@ -461,8 +461,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     const displayedFiles = isCollapsed ? [] : (collapsible ? files : files);
     
 	return (
-		<Card className="group shadow-sm h-full flex flex-col rounded-2xl p-0 relative overflow-visible border-gray-200 bg-white">
-			<CardHeader className="pb-3 px-4 pt-4 border-b border-gray-100 flex flex-row items-center justify-between space-y-0">
+		<Card className="group shadow-xl h-full flex flex-col rounded-2xl p-0 relative overflow-visible border-2 border-gray-300 bg-white hover:shadow-2xl transition-shadow duration-300">
+			<CardHeader className="pb-3 px-4 pt-4 border-b-2 border-gray-300 flex flex-row items-center justify-between space-y-0">
 				<div className="flex items-center gap-3">
 					<div className="p-2 bg-blue-50 rounded-lg">
 						<FileText className="h-5 w-5 text-blue-600" />
@@ -487,7 +487,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                 
                 <div className="flex items-center gap-2">
 					{/* View Toggle */}
-					<div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 mr-2">
+					<div className="flex items-center bg-gray-100 p-0.5 rounded-lg border-2 border-gray-300 mr-2">
 						<button
 							onClick={() => setViewMode("grid")}
 							className={cn(
@@ -592,7 +592,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 										}}
 										// onClick={() => handleFolderClick(folder.id)} // TODO: Implement folder navigation
 										className={cn(
-                                            "w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-200 transition-all shadow-sm hover:shadow-md",
+                                            "w-full flex items-center justify-between p-3 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-300 transition-all shadow-md hover:shadow-lg",
                                             viewMode === "list" && "flex-row py-2"
                                         )}
 									>
@@ -657,7 +657,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 														delay: index * 0.03,
 													}}
 													className={cn(
-														"group/file w-full bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 text-left flex relative overflow-visible",
+														"group/file w-full bg-white border-2 border-gray-300 rounded-xl shadow-md hover:shadow-lg hover:border-blue-300 transition-all duration-200 text-left flex relative overflow-visible",
 														file.id === highlightedResourceId && "border-blue-500 ring-2 ring-blue-100",
                                                         viewMode === "grid" ? "flex-col p-3 justify-between" : "flex-row items-center p-3 h-auto"
 													)}

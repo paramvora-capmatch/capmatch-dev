@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from '../ui/card';
 
 export const ProjectResumeViewSkeleton: React.FC = () => {
   return (
-    <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <Card className="bg-white rounded-2xl shadow-xl border-2 border-gray-300 overflow-hidden">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="h-7 bg-gray-200 rounded w-48 animate-pulse"></div>
