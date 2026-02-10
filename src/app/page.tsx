@@ -84,11 +84,11 @@ export default function HomePage() {
 		target: platformPreviewRef,
 		offset: ["start end", "center center", "end start"],
 	});
-	// Smoother scale: longer plateau at full size, gentler in/out
+	// Scale 40% → 70% → 40% (never full viewport); sits above hero buttons via z-index
 	const previewScale = useTransform(
 		scrollYProgress,
 		[0, 0.2, 0.4, 0.6, 0.8, 1],
-		[0.55, 0.78, 1, 1, 0.78, 0.55]
+		[0.4, 0.58, 0.7, 0.7, 0.58, 0.4]
 	);
 	const previewOpacity = useTransform(
 		scrollYProgress,
@@ -272,13 +272,13 @@ export default function HomePage() {
 					</motion.div>
 				</section>
 
-				{/* Platform preview — top half visible below hero; expands to full viewport on scroll, then back */}
+				{/* Platform preview — top half visible below hero; expands to 70% on scroll (above hero buttons via z-index), then back */}
 				<section
 					ref={platformPreviewRef}
-					className="relative -mt-[38vh]"
+					className="relative z-[25] -mt-[38vh]"
 					style={{ height: "200vh" }}
 				>
-					<div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden">
+					<div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden pointer-events-none">
 						<motion.div
 							className="w-screen h-screen flex items-center justify-center origin-center will-change-transform"
 							style={{

@@ -118,8 +118,10 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 							animate={{ opacity: textVisible ? 1 : 0 }}
 							transition={{ duration: 0.6 }}
 							className={cn(
-								"ml-3 transition-all duration-300 font-bold flex items-center text-gray-900",
-								scrolled ? "text-lg" : "text-2xl drop-shadow-sm"
+								"ml-3 transition-all duration-300 font-bold flex items-center",
+								scrolled
+									? "text-lg text-gray-900"
+									: "text-2xl text-white drop-shadow-md"
 							)}
 						>
 							CapMatch
@@ -147,7 +149,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 								"text-sm font-medium transition-colors",
 								scrolled
 									? "text-gray-700 hover:text-blue-600"
-									: "text-gray-800 hover:text-blue-600"
+									: "text-white/95 hover:text-white"
 							)}
 						>
 							How It Works
@@ -165,28 +167,10 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 								"text-sm font-medium transition-colors",
 								scrolled
 									? "text-gray-700 hover:text-blue-600"
-									: "text-gray-800 hover:text-blue-600"
+									: "text-white/95 hover:text-white"
 							)}
 						>
 							Who It&apos;s For
-						</Link>
-						<Link
-							href="/#lender-matching-section"
-							scroll={false}
-							onClick={(e) => {
-								e.preventDefault();
-								document
-									.getElementById("lender-matching-section")
-									?.scrollIntoView({ behavior: "smooth" });
-							}}
-							className={cn(
-								"text-sm font-medium transition-colors",
-								scrolled
-									? "text-gray-700 hover:text-blue-600"
-									: "text-gray-800 hover:text-blue-600"
-							)}
-						>
-							LenderLine
 						</Link>
 						<Link
 							href="/#case-studies"
@@ -201,7 +185,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 								"text-sm font-medium transition-colors",
 								scrolled
 									? "text-gray-700 hover:text-blue-600"
-									: "text-gray-800 hover:text-blue-600"
+									: "text-white/95 hover:text-white"
 							)}
 						>
 							Case Studies
@@ -231,7 +215,10 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 					initial={{ opacity: 0, scale: 0.8 }}
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
-					className="md:hidden p-2 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded transition-colors text-gray-900"
+					className={cn(
+						"md:hidden p-2 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded transition-colors",
+						scrolled ? "text-gray-900" : "text-white"
+					)}
 					onClick={toggleMobileMenu}
 					aria-label="Toggle mobile menu"
 					aria-expanded={mobileMenuOpen}
@@ -267,15 +254,6 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 								}
 							>
 								Who It&apos;s For
-							</Link>
-							<Link
-								href="/#lender-matching-section"
-								className="py-2 text-sm font-medium block text-gray-700 hover:text-blue-600"
-								onClick={() =>
-									handleNav("#lender-matching-section", true)
-								}
-							>
-								LenderLine
 							</Link>
 							<Link
 								href="/#case-studies"
