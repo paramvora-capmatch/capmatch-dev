@@ -127,11 +127,11 @@ export function HowItWorksSection() {
 					viewport={{ once: true, margin: "-80px" }}
 					transition={{ duration: 0.4 }}
 				>
-					<h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-1">
+					<h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4">
 						Operating System
 					</h2>
-					<p className="text-lg text-gray-500">
-						From messy documents to funded loan-one vertically integrated
+					<p className="text-xl md:text-2xl text-gray-500">
+						From messy documents to funded loan - one vertically integrated
 						platform.
 					</p>
 				</motion.div>
