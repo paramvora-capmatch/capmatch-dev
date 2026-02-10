@@ -94,38 +94,21 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 							}
 						}}
 					>
-						<div className="flex items-center justify-center">
+						<div className="flex items-center justify-center px-4">
 							<Image
 								ref={logoRef}
-								src="/CapMatchLogo.png"
+								src="/CapMatch-FullREs-Logo.png"
 								alt="CapMatch"
-								width={56}
-								height={56}
+								width={240}
+								height={72}
 								className={cn(
-									"transition-all duration-300",
-									scrolled ? "h-12" : "h-14 drop-shadow-sm",
+									"transition-all duration-300 w-auto",
+									scrolled ? "h-8" : "h-10",
 									logoHidden && "invisible"
 								)}
-								onError={(e) => {
-									const target = e.target as HTMLImageElement;
-									target.onerror = null;
-									target.outerHTML = `<span class=\"font-bold text-lg text-blue-400\">CapMatch</span>`;
-								}}
+								priority
 							/>
 						</div>
-						<motion.span
-							initial={{ opacity: 0 }}
-							animate={{ opacity: textVisible ? 1 : 0 }}
-							transition={{ duration: 0.6 }}
-							className={cn(
-								"ml-3 transition-all duration-300 font-bold flex items-center",
-								scrolled
-									? "text-lg text-gray-900"
-									: "text-2xl text-gray-900"
-							)}
-						>
-							CapMatch
-						</motion.span>
 					</Link>
 				</div>
 
