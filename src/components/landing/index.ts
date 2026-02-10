@@ -1,8 +1,9 @@
-export { BusinessModelSection } from "./BusinessModelSection";
-export { HowItWorksSection } from "./HowItWorksSection";
-export { FeatureGridSection } from "./FeatureGridSection";
-export { UnderTheHoodSection } from "./UnderTheHoodSection";
-export { WhoItsForSection } from "./WhoItsForSection";
-export { PlatformDemoSection } from "./PlatformDemoSection";
-export { CaseStudiesSection } from "./CaseStudiesSection";
-export { SecuritySection } from "./SecuritySection";
+export * from "./BusinessModelSection";
+export * from "./CaseStudiesSection";
+export * from "./FeatureGridSection";
+export * from "./HowItWorksSection";
+export * from "./LenderMarquee";
+export * from "./PlatformDemoSection";
+export * from "./SecuritySection";
+export * from "./UnderTheHoodSection";
+export * from "./WhoItsForSection";

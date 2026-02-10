@@ -23,23 +23,6 @@ export default function LaSalleCaseStudyPage() {
 					South Bend, Indiana · East Bank
 				</p>
 
-                {/* Lenders & Partners Badges */}
-                <div className="flex items-center gap-3 mb-8">
-                    <div className="h-10 relative w-28 grayscale opacity-90 hover:grayscale-0 hover:opacity-100 transition-all duration-300">
-                        <img
-                            src="/LaSalle-CaseStudy/lenders/northmarq.svg"
-                            alt="Northmarq"
-                            className="h-full w-full object-contain object-left"
-                        />
-                    </div>
-                    <div className="h-10 relative w-28 grayscale opacity-90 hover:grayscale-0 hover:opacity-100 transition-all duration-300">
-                        <img
-                            src="/LaSalle-CaseStudy/lenders/acara.png"
-                            alt="Acara"
-                            className="h-full w-full object-contain object-left"
-                        />
-                    </div>
-                </div>
 			</header>
 
 			<div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-gray-100 mb-12">
