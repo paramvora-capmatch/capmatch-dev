@@ -19,9 +19,20 @@ export default function SoGoodCaseStudyPage() {
 				<h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
 					SoGood Apartments
 				</h1>
-				<p className="text-xl text-gray-600">
+				<p className="text-xl text-gray-600 mb-8">
 					2300 Hickory St · Dallas, TX 75215
 				</p>
+
+                {/* Lenders & Partners Badges */}
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="h-10 relative w-28 grayscale opacity-90 hover:grayscale-0 hover:opacity-100 transition-all duration-300">
+                        <img
+                            src="/SoGood-CaseStudy/lenders/northmarq.svg"
+                            alt="Northmarq"
+                            className="h-full w-full object-contain object-left"
+                        />
+                    </div>
+                </div>
 			</header>
 
 			<div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-gray-100 mb-12">
