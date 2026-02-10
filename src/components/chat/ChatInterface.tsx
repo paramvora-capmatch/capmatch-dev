@@ -905,7 +905,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <>
             <div
               ref={messageListRef}
-              className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-3 max-w-full"
+              className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-6 max-w-full"
             >
               {/* Loading shimmer when switching channels */}
               {isLoading && messages.length === 0 && (
@@ -918,7 +918,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
               {/* Group messages by day with date dividers */}
               {groupedMessages.map((g) => (
-                <div key={g.key} className="space-y-3">
+                <div key={g.key} className="space-y-6">
                   <div className="flex items-center justify-center my-2">
                     <div className="h-px bg-gray-200 flex-1" />
                     <span className="mx-3 text-[11px] font-medium text-gray-500 px-2 py-1 rounded-full bg-white/80 border border-gray-200 shadow-sm">

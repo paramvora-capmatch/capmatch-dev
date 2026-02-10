@@ -24,6 +24,9 @@ import {
 	FileVideo,
 	FileCode,
 	File,
+	ChevronDown,
+	LayoutGrid,
+	List,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -55,6 +58,9 @@ interface DocumentManagerProps {
 	// Explicit context: project vs borrower
 	context?: "project" | "borrower";
 	// folderPath and bucketId removed as they are managed internally by the hook
+	collapsible?: boolean;
+	defaultOpen?: boolean;
+	maxRows?: number;
 }
 
 const formatFileSize = (bytes: number) => {
@@ -85,6 +91,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 	highlightedResourceId,
 	orgId,
 	context,
+	collapsible = false,
+	defaultOpen = true,
+	maxRows = 2,
 }) => {
 	// Convert special string values to null before passing to the hook
 	const actualResourceId = React.useMemo(() => {
@@ -133,6 +142,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 	const menuButtonRefs = React.useRef<Map<string, HTMLButtonElement>>(
 		new Map()
 	);
+
+	const [isCollapsed, setIsCollapsed] = useState(!defaultOpen);
+	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
 	// Handle mounting for portal
 	useEffect(() => {
@@ -443,37 +455,87 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 	const isOwner = currentOrgRole === "owner";
 	const canEdit = isBorrowerDocs ? isOwner || canEditRoot : canEditRoot;
 
+	const displayedFolders = isCollapsed ? [] : (collapsible ? folders : folders);
+    // Use all files, let CSS handle the scroll
+    const displayedFiles = isCollapsed ? [] : (collapsible ? files : files);
+    
 	return (
-		<Card className="group shadow-sm h-full flex flex-col rounded-2xl p-2 relative overflow-visible">
-			<CardHeader className="pb-4 px-3">
-				<div className="flex items-center justify-start gap-3">
-					<div className="flex items-center gap-2 ml-3">
-						<FileText className="h-5 w-5 md:h-6 md:w-6 text-blue-600 animate-pulse" />
-						<h3 className="text-xl md:text-2xl font-semibold text-gray-900">
-							{title}
-						</h3>
+		<Card className="group shadow-sm h-full flex flex-col rounded-2xl p-0 relative overflow-visible border-gray-200 bg-white">
+			<CardHeader className="pb-3 px-4 pt-4 border-b border-gray-100 flex flex-row items-center justify-between space-y-0">
+				<div className="flex items-center gap-3">
+					<div className="p-2 bg-blue-50 rounded-lg">
+						<FileText className="h-5 w-5 text-blue-600" />
 					</div>
-					{canEdit && (
-						<div className="relative">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => fileInputRef.current?.click()}
-								disabled={isUploading}
-								className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
-								aria-label="Upload"
-							>
-								<Upload className="h-5 w-5 text-gray-600 flex-shrink-0" />
-								<span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
-									{isUploading ? "Uploading..." : "Upload"}
-								</span>
-							</Button>
-						</div>
+					<h3 className="text-lg font-semibold text-gray-900">
+						{title}
+					</h3>
+                    {canEdit && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => fileInputRef.current?.click()}
+							disabled={isUploading || isCollapsed}
+							className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all font-medium text-gray-700 ml-2"
+							aria-label="Upload"
+						>
+							<Upload className="h-4 w-4 text-gray-600" />
+                            <span>{isUploading ? "Uploading..." : "Upload"}</span>
+						</Button>
 					)}
 				</div>
+                
+                <div className="flex items-center gap-2">
+					{/* View Toggle */}
+					<div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200 mr-2">
+						<button
+							onClick={() => setViewMode("grid")}
+							className={cn(
+								"p-1.5 rounded-md transition-all",
+								viewMode === "grid"
+									? "bg-white text-blue-600 shadow-sm"
+									: "text-gray-500 hover:text-gray-700"
+							)}
+							title="Grid View"
+						>
+							<LayoutGrid className="h-4 w-4" />
+						</button>
+						<button
+							onClick={() => setViewMode("list")}
+							className={cn(
+								"p-1.5 rounded-md transition-all",
+								viewMode === "list"
+									? "bg-white text-blue-600 shadow-sm"
+									: "text-gray-500 hover:text-gray-700"
+							)}
+							title="List View"
+						>
+							<List className="h-4 w-4" />
+						</button>
+					</div>
+
+                    {collapsible && (
+                         <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsCollapsed(!isCollapsed)}
+                            className="h-8 w-8 p-0 rounded-full hover:bg-gray-100"
+                         >
+                            <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isCollapsed ? "" : "rotate-180")} />
+                         </Button>
+                    )}
+                </div>
 			</CardHeader>
 
-			<CardContent className="flex-1 p-4 overflow-visible">
+			<AnimatePresence>
+				{!isCollapsed && (
+					<motion.div
+						initial={{ height: 0, opacity: 0 }}
+						animate={{ height: "auto", opacity: 1 }}
+						exit={{ height: 0, opacity: 0 }}
+						transition={{ duration: 0.2 }}
+                        className="overflow-visible"
+					>
+			            <CardContent className="flex-1 p-4 overflow-visible">
 				{/* Upload permissions handled via modal after file selection */}
 
 				{/* Hidden file input */}
@@ -507,328 +569,326 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 					</div>
 				)}
 
-				{/* Documents List */}
-				{!isLoading && (
-					<div className="space-y-4">
-						{/* Folders */}
-						{folders.map((folder, index) => (
-							<motion.button
-								key={folder.id}
-								initial={{ opacity: 0, y: 10 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{
-									duration: 0.3,
-									delay: index * 0.05,
-								}}
-								// onClick={() => handleFolderClick(folder.id)} // TODO: Implement folder navigation
-								className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-left"
-							>
-								<div className="flex items-center">
-									<FolderOpen className="h-5 w-5 text-blue-600 mr-3" />
-									<div>
-										<p className="text-sm font-medium text-gray-900">
-											{folder.name}
-										</p>
-										<p className="text-xs text-gray-500">
-											Folder
-										</p>
-									</div>
-								</div>
-								<div className="flex items-center space-x-2">
-									<span className="text-xs text-gray-500">
-										{formatDate(folder.created_at)}
-									</span>
-									{canEdit && (
-										<Button
-											size="sm"
-											variant="outline"
-											onClick={() =>
-												handleDeleteFolder(folder)
-											}
-										>
-											<Trash2 className="h-4 w-4 mr-1" />
-											Delete
-										</Button>
-									)}
-								</div>
-							</motion.button>
-						))}
 
-						{/* Files */}
-						<div className="max-h-[300px] overflow-y-auto pr-2">
-							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-								{files.map((file, index) => {
-									const fileCanEdit =
-										getPermission(file.resource_id) ===
-										"edit";
-									const isEditable =
-										/\.(docx|xlsx|pptx|pdf)$/i.test(
-											file.name
-										);
-									const filePermission = getPermission(
-										file.resource_id
-									);
-									return (
-										<motion.div
-											key={file.id}
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: index * 0.05,
-											}}
-											className={cn(
-												"group/file w-full bg-white border border-gray-200 rounded-2xl hover:shadow-md transition-all duration-300 text-left flex flex-col p-4 relative overflow-visible",
-												file.id ===
-													highlightedResourceId &&
-													"border-blue-500 ring-2 ring-blue-300 ring-offset-1"
+						{/* Documents List */}
+						{!isLoading && (
+							<div className={cn(
+                                "flex flex-col gap-3 overflow-y-auto pr-1",
+                                viewMode === "grid" ? "max-h-[220px]" : "space-y-2 max-h-[110px]"
+                            )}>
+								{/* Folders */}
+                                <div className={cn(
+                                    viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" : "flex flex-col gap-2"
+                                )}>
+								    {displayedFolders.map((folder, index) => (
+									<motion.button
+										key={folder.id}
+										initial={{ opacity: 0, y: 10 }}
+										animate={{ opacity: 1, y: 0 }}
+										transition={{
+											duration: 0.2,
+											delay: index * 0.03,
+										}}
+										// onClick={() => handleFolderClick(folder.id)} // TODO: Implement folder navigation
+										className={cn(
+                                            "w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-200 transition-all shadow-sm hover:shadow-md",
+                                            viewMode === "list" && "flex-row py-2"
+                                        )}
+									>
+										<div className="flex items-center">
+											<FolderOpen className="h-5 w-5 text-blue-500 mr-3" />
+											<div className="text-left">
+												<p className="text-sm font-medium text-gray-900 group-hover:text-blue-700">
+													{folder.name}
+												</p>
+												<p className="text-xs text-gray-500">
+													Folder
+												</p>
+											</div>
+										</div>
+										<div className="flex items-center space-x-2">
+											<span className="text-xs text-gray-400">
+												{formatDate(folder.created_at)}
+											</span>
+											{canEdit && (
+												<Button
+													size="sm"
+													variant="ghost"
+													onClick={(e) => {
+                                                        e.stopPropagation();
+												        handleDeleteFolder(folder);
+                                                    }}
+                                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+												>
+													<Trash2 className="h-4 w-4" />
+												</Button>
 											)}
-										>
-											{/* Kebab menu trigger */}
-											<button
-												ref={(el) => {
-													if (el) {
-														menuButtonRefs.current.set(
-															file.id,
-															el
-														);
-													} else {
-														menuButtonRefs.current.delete(
-															file.id
-														);
-													}
-												}}
-												type="button"
-												aria-label="More actions"
-												title="More actions"
-												className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-gray-100 border border-transparent hover:border-gray-200 opacity-0 pointer-events-none group-hover/file:opacity-100 group-hover/file:pointer-events-auto transition-opacity"
-												onClick={(e) => {
-													e.stopPropagation();
-													setOpenMenuId((prev) => {
-														if (prev === file.id) {
-															// Closing menu
-															setMenuPosition(
-																null
-															);
-															return null;
-														} else {
-															// Opening menu - calculate position
-															const buttonElement =
-																e.currentTarget;
-															const position =
-																calculateMenuPosition(
-																	buttonElement
-																);
-															setMenuPosition(
-																position
-															);
-															return file.id;
-														}
-													});
-												}}
-												data-dm-trigger="true"
-											>
-												<EllipsisVertical className="h-5 w-5 text-gray-600" />
-											</button>
+										</div>
+									</motion.button>
+								    ))}
+                                </div>
 
-											{/* Dropdown menu - rendered in portal to escape overflow */}
-											{mounted &&
-												createPortal(
-													<AnimatePresence>
-														{openMenuId ===
-															file.id &&
-															menuPosition && (
-																<motion.div
-																	key={`menu-${file.id}`}
-																	initial={{
-																		opacity: 0,
-																		scale: 0.95,
-																		y: -5,
-																	}}
-																	animate={{
-																		opacity: 1,
-																		scale: 1,
-																		y: 0,
-																	}}
-																	exit={{
-																		opacity: 0,
-																		scale: 0.95,
-																		y: -5,
-																	}}
-																	transition={{
-																		duration: 0.2,
-																		ease: "easeOut",
-																	}}
-																	className="fixed z-[99999] w-40 bg-white border border-gray-200 rounded-md shadow-xl py-1 text-left"
-																	style={{
-																		top: `${menuPosition.top}px`,
-																		left: `${menuPosition.left}px`,
-																		transform:
-																			"translateY(-50%)", // Center vertically on button
-																	}}
-																	onClick={(
-																		e
-																	) =>
-																		e.stopPropagation()
-																	}
-																	onMouseDown={(
-																		e
-																	) =>
-																		e.stopPropagation()
-																	}
-																	data-dm-menu="true"
-																>
-																	{isEditable &&
-																		fileCanEdit && (
-																			<button
-																				className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
-																				onMouseDown={(
-																					e
-																				) => {
-																					e.preventDefault();
-																					e.stopPropagation();
-																					const url = `/documents/edit?bucket=${
-																						activeOrg?.id
-																					}&path=${encodeURIComponent(
-																						file.storage_path
-																					)}`;
-																					window.location.assign(
-																						url
-																					);
-																					setOpenMenuId(
-																						null
-																					);
-																					setMenuPosition(
-																						null
-																					);
-																				}}
-																				title="Edit"
-																			>
-																				<Edit className="h-4 w-4" />
-																				<span>
-																					Edit
-																				</span>
-																			</button>
-																		)}
-																	<button
-																		className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
-																		onMouseDown={(
-																			e
-																		) => {
-																			e.preventDefault();
-																			e.stopPropagation();
-																			setOpenMenuId(
-																				null
-																			);
-																			setMenuPosition(
-																				null
-																			);
-																			handleDownload(
-																				file
-																			);
-																		}}
-																	>
-																		<Download className="h-4 w-4" />
-																		<span>
-																			Download
-																		</span>
-																	</button>
-																	{fileCanEdit &&
-																		currentOrgRole ===
-																			"owner" && (
-																			<button
-																				className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
-																				onMouseDown={(
-																					e
-																				) => {
-																					e.preventDefault();
-																					e.stopPropagation();
-																					setOpenMenuId(
-																						null
-																					);
-																					setMenuPosition(
-																						null
-																					);
-																					setSharingFile(
-																						file
-																					);
-																				}}
-																			>
-																				<Share2 className="h-4 w-4" />
-																				<span>
-																					Share
-																				</span>
-																			</button>
-																		)}
-																	{fileCanEdit && (
-																		<button
-																			className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-red-600 text-left"
-																			onMouseDown={(
-																				e
-																			) => {
-																				e.preventDefault();
-																				e.stopPropagation();
-																				setOpenMenuId(
-																					null
-																				);
-																				setMenuPosition(
-																					null
-																				);
-																				handleDeleteFile(
-																					file
-																				);
-																			}}
-																		>
-																			<Trash2 className="h-4 w-4" />
-																			<span>
-																				Delete
-																			</span>
-																		</button>
-																	)}
-																</motion.div>
-															)}
-													</AnimatePresence>,
-													document.body
-												)}
+								{/* Files */}
+								<div className={cn(
+                                    "overflow-visible",
+                                    viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" : "flex flex-col gap-2"
+                                )}>
+										{displayedFiles.map((file, index) => {
+											const fileCanEdit =
+												getPermission(file.resource_id) ===
+												"edit";
+											const isEditable =
+												/\.(docx|xlsx|pptx|pdf)$/i.test(
+													file.name
+												);
+											const filePermission = getPermission(
+												file.resource_id
+											);
+                                            const fileVisual = getFileVisual(file.name);
+                                            
+											return (
+												<motion.div
+													key={file.id}
+													initial={{ opacity: 0, y: 10 }}
+													animate={{ opacity: 1, y: 0 }}
+													transition={{
+														duration: 0.2,
+														delay: index * 0.03,
+													}}
+													className={cn(
+														"group/file w-full bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 text-left flex relative overflow-visible",
+														file.id === highlightedResourceId && "border-blue-500 ring-2 ring-blue-100",
+                                                        viewMode === "grid" ? "flex-col p-3 justify-between" : "flex-row items-center p-3 h-auto"
+													)}
+												>
 											<button
 												onClick={() =>
 													setPreviewingResourceId(
 														file.resource_id
 													)
 												}
-												className="flex items-center space-x-3 overflow-hidden text-left pr-0 group-hover/file:pr-10 transition-[padding] duration-200"
+												className="flex-1 flex items-center space-x-3 overflow-hidden text-left"
 											>
-												{(() => {
-													const visual =
-														getFileVisual(
-															file.name
-														);
-													const IconComp =
-														visual.Icon;
-													return (
-														<div
-															className={`flex-shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-lg ${visual.bg} border ${visual.border}`}
-														>
-															<IconComp
-																className={`h-5 w-5 ${visual.color}`}
-															/>
-														</div>
-													);
-												})()}
-												<div className="truncate">
-													<p className="text-sm font-semibold text-gray-900 truncate">
+                                                <div className={cn(
+                                                    "flex-shrink-0 flex items-center justify-center rounded-lg bg-gray-50",
+                                                    viewMode === "grid" ? "h-10 w-10" : "h-8 w-8"
+                                                )}>
+                                                    <fileVisual.Icon className={cn(
+                                                        "text-blue-600",
+                                                        viewMode === "grid" ? "h-6 w-6" : "h-4 w-4"
+                                                    )} />
+                                                </div>
+												<div className="min-w-0 flex-1">
+													<p className="text-sm font-medium text-gray-900 truncate group-hover/file:text-blue-600 transition-colors">
 														{file.name}
 													</p>
-													{/* timestamp removed per design */}
 												</div>
 											</button>
 
-											{/* Bottom quick actions removed; all actions are now in kebab menu */}
+                                            {/* Action Buttons (List Mode) or Kebab Menu (Grid Mode) */}
+                                            {viewMode === "list" ? (
+                                                <div className="flex items-center gap-1.5 ml-auto shrink-0 pr-1">
+                                                    {isEditable && fileCanEdit && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="flex items-center gap-0 group-hover/file:gap-2 px-2 group-hover/file:px-3 h-8 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-300 overflow-hidden border border-transparent hover:border-blue-100"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const url = `/documents/edit?bucket=${activeOrg?.id}&path=${encodeURIComponent(file.storage_path)}`;
+                                                                window.location.assign(url);
+                                                            }}
+                                                            title="Edit"
+                                                        >
+                                                            <Edit className="h-4 w-4 flex-shrink-0" />
+                                                            <span className="text-xs font-medium whitespace-nowrap max-w-0 group-hover/file:max-w-[60px] opacity-0 group-hover/file:opacity-100 transition-all duration-300 overflow-hidden">
+                                                                Edit
+                                                            </span>
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="flex items-center gap-0 group-hover/file:gap-2 px-2 group-hover/file:px-3 h-8 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-300 overflow-hidden border border-transparent hover:border-blue-100"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDownload(file);
+                                                        }}
+                                                        title="Download"
+                                                    >
+                                                        <Download className="h-4 w-4 flex-shrink-0" />
+                                                        <span className="text-xs font-medium whitespace-nowrap max-w-0 group-hover/file:max-w-[70px] opacity-0 group-hover/file:opacity-100 transition-all duration-300 overflow-hidden">
+                                                            Download
+                                                        </span>
+                                                    </Button>
+                                                    {fileCanEdit && currentOrgRole === "owner" && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="flex items-center gap-0 group-hover/file:gap-2 px-2 group-hover/file:px-3 h-8 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-300 overflow-hidden border border-transparent hover:border-blue-100"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSharingFile(file);
+                                                            }}
+                                                            title="Share"
+                                                        >
+                                                            <Share2 className="h-4 w-4 flex-shrink-0" />
+                                                            <span className="text-xs font-medium whitespace-nowrap max-w-0 group-hover/file:max-w-[60px] opacity-0 group-hover/file:opacity-100 transition-all duration-300 overflow-hidden">
+                                                                Share
+                                                            </span>
+                                                        </Button>
+                                                    )}
+                                                    {fileCanEdit && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="flex items-center gap-0 group-hover/file:gap-2 px-2 group-hover/file:px-3 h-8 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all duration-300 overflow-hidden border border-transparent hover:border-red-100"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteFile(file);
+                                                            }}
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 className="h-4 w-4 flex-shrink-0" />
+                                                            <span className="text-xs font-medium whitespace-nowrap max-w-0 group-hover/file:max-w-[60px] opacity-0 group-hover/file:opacity-100 transition-all duration-300 overflow-hidden">
+                                                                Delete
+                                                            </span>
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        ref={(el) => {
+                                                            if (el) {
+                                                                menuButtonRefs.current.set(
+                                                                    file.id,
+                                                                    el
+                                                                );
+                                                            } else {
+                                                                menuButtonRefs.current.delete(
+                                                                    file.id
+                                                                );
+                                                            }
+                                                        }}
+                                                        type="button"
+                                                        aria-label="More actions"
+                                                        title="More actions"
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-gray-100 border border-transparent hover:border-gray-200 opacity-0 pointer-events-none group-hover/file:opacity-100 group-hover/file:pointer-events-auto transition-opacity"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOpenMenuId((prev) => {
+                                                                if (prev === file.id) {
+                                                                    setMenuPosition(null);
+                                                                    return null;
+                                                                } else {
+                                                                    const buttonElement = e.currentTarget;
+                                                                    const position = calculateMenuPosition(buttonElement);
+                                                                    setMenuPosition(position);
+                                                                    return file.id;
+                                                                }
+                                                            });
+                                                        }}
+                                                        data-dm-trigger="true"
+                                                    >
+                                                        <EllipsisVertical className="h-5 w-5 text-gray-600" />
+                                                    </button>
+                                                    
+                                                    {/* Dropdown menu - rendered in portal to escape overflow */}
+                                                    {mounted && createPortal(
+                                                        <AnimatePresence>
+                                                            {openMenuId === file.id && menuPosition && (
+                                                                <motion.div
+                                                                    key={`menu-${file.id}`}
+                                                                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                                                                    transition={{ duration: 0.2, ease: "easeOut" }}
+                                                                    className="fixed z-[99999] w-40 bg-white border border-gray-200 rounded-md shadow-xl py-1 text-left"
+                                                                    style={{
+                                                                        top: `${menuPosition.top}px`,
+                                                                        left: `${menuPosition.left}px`,
+                                                                        transform: "translateY(-50%)",
+                                                                    }}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                                    data-dm-menu="true"
+                                                                >
+                                                                    {isEditable && fileCanEdit && (
+                                                                        <button
+                                                                            className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
+                                                                            onMouseDown={(e) => {
+                                                                                e.preventDefault();
+                                                                                e.stopPropagation();
+                                                                                const url = `/documents/edit?bucket=${activeOrg?.id}&path=${encodeURIComponent(file.storage_path)}`;
+                                                                                window.location.assign(url);
+                                                                                setOpenMenuId(null);
+                                                                                setMenuPosition(null);
+                                                                            }}
+                                                                            title="Edit"
+                                                                        >
+                                                                            <Edit className="h-4 w-4" />
+                                                                            <span>Edit</span>
+                                                                        </button>
+                                                                    )}
+                                                                    <button
+                                                                        className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
+                                                                        onMouseDown={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            setOpenMenuId(null);
+                                                                            setMenuPosition(null);
+                                                                            handleDownload(file);
+                                                                        }}
+                                                                    >
+                                                                        <Download className="h-4 w-4" />
+                                                                        <span>Download</span>
+                                                                    </button>
+                                                                    {fileCanEdit && currentOrgRole === "owner" && (
+                                                                        <button
+                                                                            className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
+                                                                            onMouseDown={(e) => {
+                                                                                e.preventDefault();
+                                                                                e.stopPropagation();
+                                                                                setOpenMenuId(null);
+                                                                                setMenuPosition(null);
+                                                                                setSharingFile(file);
+                                                                            }}
+                                                                        >
+                                                                            <Share2 className="h-4 w-4" />
+                                                                            <span>Share</span>
+                                                                        </button>
+                                                                    )}
+                                                                    {fileCanEdit && (
+                                                                        <button
+                                                                            className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-red-600 text-left"
+                                                                            onMouseDown={(e) => {
+                                                                                e.preventDefault();
+                                                                                e.stopPropagation();
+                                                                                setOpenMenuId(null);
+                                                                                setMenuPosition(null);
+                                                                                handleDeleteFile(file);
+                                                                            }}
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                            <span>Delete</span>
+                                                                        </button>
+                                                                    )}
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>,
+                                                        document.body
+                                                    )}
+                                                </>
+                                            )}
 										</motion.div>
 									);
 								})}
 							</div>
 						</div>
+
+				)}
+
 
 						{/* Empty State */}
 						{files.length === 0 &&
@@ -846,9 +906,10 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 									</p>
 								</div>
 							)}
-					</div>
-				)}
 			</CardContent>
+                </motion.div>
+            )}
+            </AnimatePresence>
 			{/* Permissions modal for uploads */}
 			{showUploadPerms && canEdit && (
 				<UploadPermissionsModal

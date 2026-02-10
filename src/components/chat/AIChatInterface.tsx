@@ -96,7 +96,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
       <div className="flex-1 mx-3 mb-3 min-h-0">
         <Card className="h-full transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30">
           <CardContent className="p-3 h-full">
-            <div className="h-full overflow-y-auto space-y-3">
+            <div className="h-full overflow-y-auto space-y-6">
               {messages.map((message) => (
                 <div
                   key={message.id}

@@ -1517,6 +1517,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 														highlightedResourceId
 													}
 													context="project"
+													collapsible={true}
+													maxRows={2}
 												/>
 											</motion.div>
 										) : null}
