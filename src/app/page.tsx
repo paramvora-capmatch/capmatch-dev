@@ -1,9 +1,9 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { EnhancedHeader } from "../components/ui/EnhancedHeader";
 import { Footer } from "../components/ui/Footer";
 import { Button } from "@/components/ui/Button";
@@ -79,23 +79,6 @@ export default function HomePage() {
 		router.push("/login");
 	}, [router]);
 
-	const platformPreviewRef = useRef<HTMLElement>(null);
-	const { scrollYProgress } = useScroll({
-		target: platformPreviewRef,
-		offset: ["start end", "center center", "end start"],
-	});
-	// Scale 40% → 70% → 40% (never full viewport); sits above hero buttons via z-index
-	const previewScale = useTransform(
-		scrollYProgress,
-		[0, 0.2, 0.4, 0.6, 0.8, 1],
-		[0.4, 0.58, 0.7, 0.7, 0.58, 0.4]
-	);
-	const previewOpacity = useTransform(
-		scrollYProgress,
-		[0, 0.15, 0.4, 0.6, 0.85, 1],
-		[0.7, 1, 1, 1, 1, 0.7]
-	);
-
 	return (
 		<div
 			className={cn(
@@ -126,11 +109,11 @@ export default function HomePage() {
 			<main className="flex-grow transition-colors duration-300 relative z-10">
 				{/* Hero */}
 				<section
-					className="relative overflow-hidden transition-colors duration-300 pt-24 pb-24"
+					className="relative overflow-hidden transition-colors duration-300 pt-64 pb-20"
 					style={{
 						minHeight: "100vh",
 						display: "flex",
-						alignItems: "center",
+						alignItems: "flex-start",
 						justifyContent: "center",
 						backgroundColor: "transparent",
 					}}
@@ -201,7 +184,7 @@ export default function HomePage() {
 									<span className="text-blue-300">Minutes</span>
 								</motion.div>
 							</div>
-							<div className="overflow-hidden mt-4">
+							<div className="overflow-hidden mt-6">
 								<motion.div
 									initial={{ opacity: 0, y: 20 }}
 									animate={{
@@ -211,27 +194,12 @@ export default function HomePage() {
 										y: textAnimation.part3Visible ? 0 : 20,
 									}}
 									transition={{ duration: 0.6 }}
-									className="text-xl md:text-2xl text-gray-200 font-medium"
-								>
-									The Operating System for Commercial Real
-									Estate Financing
-								</motion.div>
-							</div>
-							<div className="overflow-hidden mt-6">
-								<motion.div
-									initial={{ opacity: 0, y: 20 }}
-									animate={{
-										opacity: textAnimation.part4Visible
-											? 1
-											: 0,
-										y: textAnimation.part4Visible ? 0 : 20,
-									}}
-									transition={{ duration: 0.6 }}
 									className="text-lg md:text-xl max-w-3xl mx-auto text-gray-300"
 								>
-									CapMatch is a fully integrated, AI-enabled
-									brokerage—from document intake to loan
-									closing. We handle everything in between.
+									CapMatch is the Operating System for
+									Commercial Real Estate Financing—from
+									document intake to loan closing. We handle
+									everything in between.
 								</motion.div>
 							</div>
 						</motion.div>
@@ -272,27 +240,18 @@ export default function HomePage() {
 					</motion.div>
 				</section>
 
-				{/* Platform preview — top half visible below hero; expands to 70% on scroll (above hero buttons via z-index), then back */}
-				<section
-					ref={platformPreviewRef}
-					className="relative z-[25] -mt-[38vh]"
-					style={{ height: "100vh" }}
-				>
-					<div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden pointer-events-none">
-						<motion.div
-							className="w-screen h-screen flex items-center justify-center origin-center will-change-transform"
-							style={{
-								scale: previewScale,
-								opacity: previewOpacity,
-							}}
-						>
-							<div className="w-full h-full min-w-full min-h-full rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center shadow-lg">
-								<span className="text-gray-500 text-sm">
-									[ Platform preview video or auto-fill
-									animation placeholder ]
-								</span>
-							</div>
-						</motion.div>
+				{/* Platform preview — Static, wide, no scroll animation */}
+				<section className="relative z-[25] -mt-[15vh] pb-20 px-4">
+					<div className="container mx-auto max-w-[80%]">
+						<div className="aspect-video w-full rounded-xl shadow-2xl overflow-hidden bg-black">
+							<iframe
+								className="w-full h-full"
+								src="https://www.youtube.com/embed/Suy8VlbZ1yY?rel=0"
+								title="CapMatch Demo"
+								allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+								allowFullScreen
+							/>
+						</div>
 					</div>
 				</section>
 
