@@ -111,7 +111,7 @@ export default function HomePage() {
 							className="absolute inset-0 w-full h-full object-cover pointer-events-none"
 						>
 							<source
-								src="/CapMatchHeroBackgroundV1.mp4"
+								src="/CapMatchHeroBackgroundV3.mp4"
 								type="video/mp4"
 							/>
 						</video>
