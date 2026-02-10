@@ -259,6 +259,7 @@ export const apiClient = {
     owner_org_id: string;
     assigned_advisor_id?: string;
     address?: string;
+    deal_type?: 'ground_up' | 'refinance';
   }) => {
     return apiRequest<{
       project: any;

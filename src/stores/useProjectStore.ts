@@ -463,6 +463,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		// Use the create-project FastAPI endpoint (advisor auto-assignment happens server-side)
 		const projectSections = projectData.projectSections as any;
 		const address = projectSections?.propertyAddress;
+		const dealType = (projectData as any).dealType || 'ground_up';
 
 		const { data, error } = await apiClient.createProject({
 			name:
@@ -470,6 +471,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				`New Project ${get().projects.length + 1}`,
 			owner_org_id: activeOrg.id,
 			address: address || undefined,
+			deal_type: dealType,
 			// assigned_advisor_id is optional - FastAPI will auto-assign if not provided
 		});
 

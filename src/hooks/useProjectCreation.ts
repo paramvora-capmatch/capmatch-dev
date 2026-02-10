@@ -133,7 +133,8 @@ export const useProjectCreation = (): UseProjectCreationReturn => {
           project = await createProject({
             projectName: projectData.projectName,
             projectSections,
-          });
+            dealType: projectData.dealType,
+          } as any);
           setCreatedProject(project);
         }
 

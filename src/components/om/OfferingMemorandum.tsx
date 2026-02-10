@@ -704,237 +704,237 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
       {(project.opportunityZone !== undefined ||
         project.affordableHousing !== undefined ||
         project.taxExemption !== undefined) && (
-        <Section title="Special Considerations" icon={<FileText />}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-            {project.opportunityZone !== undefined && (
-              <KeyValueDisplay
-                label="Opportunity Zone"
-                value={project.opportunityZone ? "Yes" : "No"}
-              />
-            )}
-            {project.affordableHousing !== undefined && (
-              <KeyValueDisplay
-                label="Affordable Housing"
-                value={project.affordableHousing ? "Yes" : "No"}
-              />
-            )}
-            {project.affordableUnitsNumber !== undefined && (
-              <KeyValueDisplay
-                label="Affordable Units #"
-                value={project.affordableUnitsNumber.toString()}
-              />
-            )}
-            {project.amiTargetPercent !== undefined && (
-              <KeyValueDisplay
-                label="AMI Target %"
-                value={`${project.amiTargetPercent}%`}
-              />
-            )}
-            {project.taxExemption !== undefined && (
-              <KeyValueDisplay
-                label="Tax Exemption"
-                value={project.taxExemption ? "Yes" : "No"}
-              />
-            )}
-            {project.exemptionStructure && (
-              <KeyValueDisplay
-                label="Exemption Structure"
-                value={project.exemptionStructure}
-              />
-            )}
-            {project.sponsoringEntity && (
-              <KeyValueDisplay
-                label="Sponsoring Entity"
-                value={project.sponsoringEntity}
-              />
-            )}
-            {project.exemptionTerm !== undefined && (
-              <KeyValueDisplay
-                label="Exemption Term"
-                value={`${project.exemptionTerm} years`}
-              />
-            )}
-            {project.incentiveStacking && project.incentiveStacking.length > 0 && (
-              <KeyValueDisplay
-                label="Incentive Stacking"
-                value={project.incentiveStacking.join(", ")}
-              />
-            )}
-            {project.tifDistrict !== undefined && (
-              <KeyValueDisplay
-                label="TIF District"
-                value={project.tifDistrict ? "Yes" : "No"}
-              />
-            )}
-            {project.taxAbatement !== undefined && (
-              <KeyValueDisplay
-                label="Tax Abatement"
-                value={project.taxAbatement ? "Yes" : "No"}
-              />
-            )}
-            {project.seismicPMLRisk && (
-              <KeyValueDisplay
-                label="Seismic/PML Risk"
-                value={project.seismicPMLRisk}
-              />
-            )}
-          </div>
-        </Section>
-      )}
+          <Section title="Special Considerations" icon={<FileText />}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+              {project.opportunityZone !== undefined && (
+                <KeyValueDisplay
+                  label="Opportunity Zone"
+                  value={project.opportunityZone ? "Yes" : "No"}
+                />
+              )}
+              {project.affordableHousing !== undefined && (
+                <KeyValueDisplay
+                  label="Affordable Housing"
+                  value={project.affordableHousing ? "Yes" : "No"}
+                />
+              )}
+              {project.affordableUnitsNumber !== undefined && (
+                <KeyValueDisplay
+                  label="Affordable Units #"
+                  value={project.affordableUnitsNumber.toString()}
+                />
+              )}
+              {project.amiTargetPercent !== undefined && (
+                <KeyValueDisplay
+                  label="AMI Target %"
+                  value={`${project.amiTargetPercent}%`}
+                />
+              )}
+              {project.taxExemption !== undefined && (
+                <KeyValueDisplay
+                  label="Tax Exemption"
+                  value={project.taxExemption ? "Yes" : "No"}
+                />
+              )}
+              {project.exemptionStructure && (
+                <KeyValueDisplay
+                  label="Exemption Structure"
+                  value={project.exemptionStructure}
+                />
+              )}
+              {project.sponsoringEntity && (
+                <KeyValueDisplay
+                  label="Sponsoring Entity"
+                  value={project.sponsoringEntity}
+                />
+              )}
+              {project.exemptionTerm !== undefined && (
+                <KeyValueDisplay
+                  label="Exemption Term"
+                  value={`${project.exemptionTerm} years`}
+                />
+              )}
+              {project.incentiveStacking && project.incentiveStacking.length > 0 && (
+                <KeyValueDisplay
+                  label="Incentive Stacking"
+                  value={project.incentiveStacking.join(", ")}
+                />
+              )}
+              {project.tifDistrict !== undefined && (
+                <KeyValueDisplay
+                  label="TIF District"
+                  value={project.tifDistrict ? "Yes" : "No"}
+                />
+              )}
+              {project.taxAbatement !== undefined && (
+                <KeyValueDisplay
+                  label="Tax Abatement"
+                  value={project.taxAbatement ? "Yes" : "No"}
+                />
+              )}
+              {project.seismicPMLRisk && (
+                <KeyValueDisplay
+                  label="Seismic/PML Risk"
+                  value={project.seismicPMLRisk}
+                />
+              )}
+            </div>
+          </Section>
+        )}
 
       {/* Timeline & Milestones */}
       {(project.groundbreakingDate ||
         project.completionDate ||
         project.landAcqClose) && (
-        <Section title="Timeline & Milestones" icon={<FileText />}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-            <KeyValueDisplay
-              label="Land Acq. Close"
-              value={formatDate(project.landAcqClose)}
-            />
-            <KeyValueDisplay
-              label="Entitlements"
-              value={project.entitlements || "N/A"}
-            />
-            <KeyValueDisplay
-              label="Final Plans"
-              value={project.finalPlans || "N/A"}
-            />
-            <KeyValueDisplay
-              label="Permits Issued"
-              value={project.permitsIssued || "N/A"}
-            />
-            <KeyValueDisplay
-              label="Groundbreaking"
-              value={formatDate(project.groundbreakingDate)}
-            />
-            <KeyValueDisplay
-              label="Vertical Start"
-              value={formatDate(project.verticalStart)}
-            />
-            <KeyValueDisplay
-              label="Completion Date"
-              value={formatDate(project.completionDate)}
-            />
-            <KeyValueDisplay
-              label="First Occupancy"
-              value={formatDate(project.firstOccupancy)}
-            />
-            <KeyValueDisplay
-              label="Stabilization"
-              value={formatDate(project.stabilization)}
-            />
-            {project.preLeasedSF !== undefined && (
+          <Section title="Timeline & Milestones" icon={<FileText />}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
               <KeyValueDisplay
-                label="Pre-Leased SF"
-                value={project.preLeasedSF.toLocaleString()}
+                label="Land Acq. Close"
+                value={formatDate(project.landAcqClose)}
               />
-            )}
-            {project.absorptionProjection !== undefined && (
               <KeyValueDisplay
-                label="Absorption Projection"
-                value={`${project.absorptionProjection} units/month`}
+                label="Entitlements"
+                value={project.entitlements || "N/A"}
               />
-            )}
-          </div>
-        </Section>
-      )}
+              <KeyValueDisplay
+                label="Final Plans"
+                value={project.finalPlans || "N/A"}
+              />
+              <KeyValueDisplay
+                label="Permits Issued"
+                value={project.permitsIssued || "N/A"}
+              />
+              <KeyValueDisplay
+                label="Groundbreaking"
+                value={formatDate(project.groundbreakingDate)}
+              />
+              <KeyValueDisplay
+                label="Vertical Start"
+                value={formatDate(project.verticalStart)}
+              />
+              <KeyValueDisplay
+                label="Completion Date"
+                value={formatDate(project.completionDate)}
+              />
+              <KeyValueDisplay
+                label="First Occupancy"
+                value={formatDate(project.firstOccupancy)}
+              />
+              <KeyValueDisplay
+                label="Stabilization"
+                value={formatDate(project.stabilization)}
+              />
+              {project.preLeasedSF !== undefined && (
+                <KeyValueDisplay
+                  label="Pre-Leased SF"
+                  value={project.preLeasedSF.toLocaleString()}
+                />
+              )}
+              {project.absorptionProjection !== undefined && (
+                <KeyValueDisplay
+                  label="Absorption Projection"
+                  value={`${project.absorptionProjection} units/month`}
+                />
+              )}
+            </div>
+          </Section>
+        )}
 
       {/* Site & Context */}
       {(project.totalSiteAcreage ||
         project.currentSiteStatus ||
         project.floodZone) && (
-        <Section title="Site & Context" icon={<MapPin />}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-            {project.totalSiteAcreage !== undefined && (
+          <Section title="Site & Context" icon={<MapPin />}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+              {project.totalSiteAcreage !== undefined && (
+                <KeyValueDisplay
+                  label="Total Site Acreage"
+                  value={`${project.totalSiteAcreage} acres`}
+                />
+              )}
               <KeyValueDisplay
-                label="Total Site Acreage"
-                value={`${project.totalSiteAcreage} acres`}
+                label="Current Site Status"
+                value={project.currentSiteStatus || "N/A"}
               />
-            )}
-            <KeyValueDisplay
-              label="Current Site Status"
-              value={project.currentSiteStatus || "N/A"}
-            />
-            <KeyValueDisplay
-              label="Topography"
-              value={project.topography || "N/A"}
-            />
-            <KeyValueDisplay
-              label="Environmental"
-              value={project.environmental || "N/A"}
-            />
-            <KeyValueDisplay
-              label="Utilities"
-              value={project.utilities || "N/A"}
-            />
-            {project.utilityCapacity && (
               <KeyValueDisplay
-                label="Utility Capacity"
-                value={project.utilityCapacity}
-                fullWidth={true}
+                label="Topography"
+                value={project.topography || "N/A"}
               />
-            )}
-            {project.geotechSoilsRep && (
               <KeyValueDisplay
-                label="Geotech/Soils Rep"
-                value={project.geotechSoilsRep}
-                fullWidth={true}
+                label="Environmental"
+                value={project.environmental || "N/A"}
               />
-            )}
-            {project.floodZone && (
               <KeyValueDisplay
-                label="Flood Zone"
-                value={project.floodZone}
+                label="Utilities"
+                value={project.utilities || "N/A"}
               />
-            )}
-            {project.siteAccess && (
-              <KeyValueDisplay
-                label="Site Access"
-                value={project.siteAccess}
-                fullWidth={true}
-              />
-            )}
-            {project.proximityShopping && (
-              <KeyValueDisplay
-                label="Proximity Shopping"
-                value={project.proximityShopping}
-              />
-            )}
-            {project.proximityRestaurants && (
-              <KeyValueDisplay
-                label="Proximity Dining"
-                value={project.proximityRestaurants}
-              />
-            )}
-            {project.proximityParks && (
-              <KeyValueDisplay
-                label="Proximity Parks"
-                value={project.proximityParks}
-              />
-            )}
-            {project.proximitySchools && (
-              <KeyValueDisplay
-                label="Proximity Schools"
-                value={project.proximitySchools}
-              />
-            )}
-            {project.proximityHospitals && (
-              <KeyValueDisplay
-                label="Proximity Hospitals"
-                value={project.proximityHospitals}
-              />
-            )}
-            {project.topEmployers && (
-              <KeyValueDisplay
-                label="Top Employers"
-                value={project.topEmployers}
-                fullWidth={true}
-              />
-            )}
-          </div>
-        </Section>
-      )}
+              {project.utilityCapacity && (
+                <KeyValueDisplay
+                  label="Utility Capacity"
+                  value={project.utilityCapacity}
+                  fullWidth={true}
+                />
+              )}
+              {project.geotechSoilsRep && (
+                <KeyValueDisplay
+                  label="Geotech/Soils Rep"
+                  value={project.geotechSoilsRep}
+                  fullWidth={true}
+                />
+              )}
+              {project.floodZone && (
+                <KeyValueDisplay
+                  label="Flood Zone"
+                  value={project.floodZone}
+                />
+              )}
+              {project.siteAccess && (
+                <KeyValueDisplay
+                  label="Site Access"
+                  value={project.siteAccess}
+                  fullWidth={true}
+                />
+              )}
+              {project.proximityShopping && (
+                <KeyValueDisplay
+                  label="Proximity Shopping"
+                  value={project.proximityShopping}
+                />
+              )}
+              {project.proximityRestaurants && (
+                <KeyValueDisplay
+                  label="Proximity Dining"
+                  value={project.proximityRestaurants}
+                />
+              )}
+              {project.proximityParks && (
+                <KeyValueDisplay
+                  label="Proximity Parks"
+                  value={project.proximityParks}
+                />
+              )}
+              {project.proximitySchools && (
+                <KeyValueDisplay
+                  label="Proximity Schools"
+                  value={project.proximitySchools}
+                />
+              )}
+              {project.proximityHospitals && (
+                <KeyValueDisplay
+                  label="Proximity Hospitals"
+                  value={project.proximityHospitals}
+                />
+              )}
+              {project.topEmployers && (
+                <KeyValueDisplay
+                  label="Top Employers"
+                  value={project.topEmployers}
+                  fullWidth={true}
+                />
+              )}
+            </div>
+          </Section>
+        )}
 
       {/* Sponsor Information */}
       <Section title="Sponsor Information" icon={<User />}>

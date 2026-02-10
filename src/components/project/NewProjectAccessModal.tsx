@@ -52,6 +52,7 @@ const defaultPermissionsForLevel = (level: TriPermission): ProjectGrant["permiss
 export interface ProjectFormData {
   projectName: string;
   propertyAddress?: string;
+  dealType: 'ground_up' | 'refinance';
 }
 
 interface NewProjectAccessModalProps {
@@ -91,6 +92,7 @@ export const NewProjectAccessModal: React.FC<NewProjectAccessModalProps> = ({
   const [projectData, setProjectData] = useState<ProjectFormData>({
     projectName: "",
     propertyAddress: "",
+    dealType: 'ground_up',
   });
 
   // Initialize default grants when modal opens or member list changes
@@ -121,6 +123,7 @@ export const NewProjectAccessModal: React.FC<NewProjectAccessModalProps> = ({
     setProjectData({
       projectName: "",
       propertyAddress: "",
+      dealType: 'ground_up',
     });
   }, [isOpen, selectableMembers]);
 
@@ -238,6 +241,44 @@ export const NewProjectAccessModal: React.FC<NewProjectAccessModalProps> = ({
                       placeholder="Enter full address"
                       disabled={isSubmitting}
                     />
+                    
+                    {/* Deal Type Selection */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Deal Type</label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setProjectData({ ...projectData, dealType: 'ground_up' })}
+                          disabled={isSubmitting}
+                          className={cn(
+                            "flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all border",
+                            projectData.dealType === 'ground_up'
+                              ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                              : "bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50"
+                          )}
+                        >
+                          🏗️ Ground-Up
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProjectData({ ...projectData, dealType: 'refinance' })}
+                          disabled={isSubmitting}
+                          className={cn(
+                            "flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all border",
+                            projectData.dealType === 'refinance'
+                              ? "bg-green-600 text-white border-green-600 shadow-sm"
+                              : "bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:bg-green-50"
+                          )}
+                        >
+                          🔄 Refinance
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {projectData.dealType === 'ground_up' 
+                          ? 'New development or construction project'
+                          : 'Stabilized asset, acquisition, or recapitalization'}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="border-t pt-4">
