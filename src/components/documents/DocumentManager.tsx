@@ -145,6 +145,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
 	const [isCollapsed, setIsCollapsed] = useState(!defaultOpen);
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [isExpandedAll, setIsExpandedAll] = useState(false);
 
 	// Handle mounting for portal
 	useEffect(() => {
@@ -573,8 +574,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 						{/* Documents List */}
 						{!isLoading && (
 							<div className={cn(
-                                "flex flex-col gap-3 overflow-y-auto pr-1",
-                                "max-h-[220px]"
+                                "flex flex-col gap-3 overflow-y-auto pr-1 transition-all duration-300",
+                                !isExpandedAll && "max-h-[150px]"
                             )}>
 								{/* Folders */}
                                 <div className={cn(
@@ -906,6 +907,24 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 									</p>
 								</div>
 							)}
+
+                            {/* Show All Toggle */}
+                            {!isLoading && (displayedFolders.length > 0 || displayedFiles.length > 0) && (
+                                <div className="flex justify-center mt-2 pt-2 border-t border-gray-50">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setIsExpandedAll(!isExpandedAll)}
+                                        className="h-6 w-full max-w-[40px] p-0 flex flex-col items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-transparent transition-all group"
+                                        title={isExpandedAll ? "Show Less" : "Show All"}
+                                    >
+                                        <ChevronDown className={cn(
+                                            "h-5 w-5 transition-transform duration-300",
+                                            isExpandedAll && "rotate-180"
+                                        )} />
+                                    </Button>
+                                </div>
+                            )}
 			</CardContent>
                 </motion.div>
             )}

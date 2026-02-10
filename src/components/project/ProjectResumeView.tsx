@@ -451,7 +451,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 					: "false"
 			);
 		} catch {
-			return true;
+			return false;
 		}
 	});
 
