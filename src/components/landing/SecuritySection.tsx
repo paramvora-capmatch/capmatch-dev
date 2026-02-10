@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Lock, ShieldCheck, UserCheck, Shield } from "lucide-react";
+import { Lock, ShieldCheck, UserCheck, BadgeCheck } from "lucide-react";
 import Image from "next/image";
 import { InfiniteSlider } from "@/components/ui/InfiniteSlider";
 
@@ -35,7 +35,7 @@ const securityFeatures = [
 		shortDescription: "CapMatch Verified Data",
 		description:
 			"Trust in data you can rely on. 'CapMatch Verified' is our certification for data sourced from trusted partners and government records.",
-		icon: <Shield className="w-6 h-6 text-blue-600" />,
+		icon: <BadgeCheck className="w-6 h-6 text-blue-600" />,
 		gradient: "from-blue-600/10 to-blue-400/10",
 		borderColor: "border-blue-200/50",
 	},

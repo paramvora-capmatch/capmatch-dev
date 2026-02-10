@@ -2,6 +2,7 @@ export * from "./BusinessModelSection";
 export * from "./CaseStudiesSection";
 export * from "./FeatureGridSection";
 export * from "./HowItWorksSection";
+export * from "./LenderLineSection";
 export * from "./LenderMarquee";
 export * from "./PlatformDemoSection";
 export * from "./SecuritySection";
