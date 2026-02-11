@@ -162,35 +162,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 						>
 							Operating System
 						</Link>
-						<Link
-							href="/borrowers"
-							className={cn(
-								"text-base font-medium transition-colors hover:underline whitespace-nowrap px-2 py-1",
-								scrolled
-									? "text-gray-700 hover:text-blue-600"
-									: "text-gray-700 hover:text-blue-600"
-							)}
-						>
-							For Borrowers
-						</Link>
-						<Link
-							href="/#who-its-for"
-							scroll={false}
-							onClick={(e) => {
-								e.preventDefault();
-								document
-									.getElementById("who-its-for")
-									?.scrollIntoView({ behavior: "smooth" });
-							}}
-							className={cn(
-								"text-base font-medium transition-colors hover:underline whitespace-nowrap px-2 py-1",
-								scrolled
-									? "text-gray-700 hover:text-blue-600"
-									: "text-gray-700 hover:text-blue-600"
-							)}
-						>
-							For Lenders
-						</Link>
+
 						<Link
 							href="/refi-radar"
 							className={cn(
@@ -267,22 +239,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 							>
 								Operating System
 							</Link>
-							<Link
-								href="/borrowers"
-								className="py-2 text-base font-medium block text-gray-700 hover:text-blue-600 hover:underline"
-								onClick={() => handleNav("/borrowers", false)}
-							>
-								For Borrowers
-							</Link>
-							<Link
-								href="/#who-its-for"
-								className="py-2 text-base font-medium block text-gray-700 hover:text-blue-600 hover:underline"
-								onClick={() =>
-									handleNav("#who-its-for", true)
-								}
-							>
-								For Lenders
-							</Link>
+
 							<Link
 								href="/refi-radar"
 								className="py-2 text-base font-medium block text-gray-700 hover:text-blue-600 hover:underline"

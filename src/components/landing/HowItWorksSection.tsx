@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useEffect, useCallback, useState } from "react";
 import { motion } from "framer-motion";
 
 const steps: {
@@ -78,14 +78,54 @@ const steps: {
 	];
 
 function VideoBlock({ step, index }: { step: (typeof steps)[0]; index: number }) {
+	const videoRef = useRef<HTMLVideoElement>(null);
+	const containerRef = useRef<HTMLDivElement>(null);
+	const [progress, setProgress] = useState(0);
+
+	// Update progress bar as video plays
+	const handleTimeUpdate = useCallback(() => {
+		const video = videoRef.current;
+		if (video && video.duration) {
+			setProgress((video.currentTime / video.duration) * 100);
+		}
+	}, []);
+
+	// IntersectionObserver: play from beginning when in view, pause when out
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					const video = videoRef.current;
+					if (!video) return;
+
+					if (entry.isIntersecting) {
+						video.currentTime = 0;
+						setProgress(0);
+						video.play().catch(() => { });
+					} else {
+						video.pause();
+					}
+				});
+			},
+			{ threshold: 0.3 }
+		);
+
+		observer.observe(container);
+		return () => observer.disconnect();
+	}, []);
+
 	return (
 		<div className="w-full lg:w-[70%] min-h-0 flex items-center justify-center px-4">
 			<motion.div
+				ref={containerRef}
 				initial={{ opacity: 0, y: 56, scale: 0.92 }}
 				whileInView={{ opacity: 1, y: 0, scale: 1 }}
 				viewport={{ once: false, amount: 0.2, margin: "-80px" }}
 				transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
-				className="w-full aspect-video rounded-3xl overflow-hidden border-2 border-black bg-white shadow-xl"
+				className="w-full rounded-3xl overflow-hidden border-2 border-black bg-white shadow-xl"
 				style={{
 					boxShadow:
 						"0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.1)",
@@ -93,25 +133,34 @@ function VideoBlock({ step, index }: { step: (typeof steps)[0]; index: number })
 			>
 				{step.youtubeEmbedId ? (
 					<iframe
-						className="w-full h-full"
+						className="w-full aspect-video"
 						src={`https://www.youtube.com/embed/${step.youtubeEmbedId}?rel=0&autoplay=1&mute=1&loop=1&playlist=${step.youtubeEmbedId}`}
 						title={step.title}
 						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 						allowFullScreen
 					/>
 				) : step.localVideoSrc ? (
-					<video
-						className="w-full h-full object-cover"
-						src={step.localVideoSrc}
-						title={step.title}
-						playsInline
-						muted
-						loop
-						autoPlay
-						controls
-					/>
+					<>
+						<video
+							ref={videoRef}
+							className="w-full aspect-video object-cover"
+							src={step.localVideoSrc}
+							title={step.title}
+							playsInline
+							muted
+							loop
+							onTimeUpdate={handleTimeUpdate}
+						/>
+						{/* Blue progress bar */}
+						<div className="w-full h-[4px] bg-gray-200">
+							<div
+								className="h-full bg-blue-500 transition-[width] duration-150 ease-linear"
+								style={{ width: `${progress}%` }}
+							/>
+						</div>
+					</>
 				) : (
-					<div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-500 text-sm">
+					<div className="w-full aspect-video flex items-center justify-center bg-gray-100 text-gray-500 text-sm">
 						Video placeholder
 					</div>
 				)}
