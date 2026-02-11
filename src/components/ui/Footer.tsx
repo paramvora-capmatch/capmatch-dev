@@ -68,7 +68,7 @@ export const Footer: React.FC = () => {
 								Operating System
 							</Link>
 							<Link
-								href="/#refi-radar"
+								href="/refi-radar"
 								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
 							>
 								Refi Radar

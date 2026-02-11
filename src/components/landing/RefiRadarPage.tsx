@@ -444,7 +444,7 @@ export const RefiRadarContent: React.FC = () => {
                                     >
                                         <Signal
                                             size={16}
-                                            className="text-indigo-400 mt-0.5 shrink-0"
+                                            className="text-blue-500 mt-0.5 shrink-0"
                                         />
                                         {item}
                                     </li>
