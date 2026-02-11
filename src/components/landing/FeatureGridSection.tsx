@@ -83,7 +83,7 @@ export function FeatureGridSection() {
 					{featureGroups.map((group, gi) => (
 						<motion.div
 							key={group.title}
-							className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm"
+							className="bg-white rounded-xl border border-gray-200 p-6 shadow-md"
 							initial={{ opacity: 0, y: 20 }}
 							animate={
 								isInView

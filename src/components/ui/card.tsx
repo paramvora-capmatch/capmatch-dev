@@ -8,7 +8,7 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
     <div
       ref={ref}
       className={cn(
-        "bg-white rounded-lg shadow-sm border border-gray-200 transition-shadow duration-200 hover:shadow-md", 
+        "bg-white rounded-lg shadow-md border border-gray-200 transition-shadow duration-200 hover:shadow-xl",
         className
       )}
       {...props}
@@ -27,7 +27,7 @@ interface CardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
 const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
   ({ className, children, dataSourceFields, dataSourceSection, ...props }, ref) => {
     const hasTooltip = dataSourceFields || dataSourceSection;
-    
+
     return (
       <div
         ref={ref}
