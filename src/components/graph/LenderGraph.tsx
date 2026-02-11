@@ -76,8 +76,8 @@ function getLenderColor(
   // Color based on the authoritative match_score from the context.
   const scoreFromContext = lenderFromContext.match_score || 0;
 
-  if (scoreFromContext >= 0.8) return "hsl(199, 89%, 48%)"; // Teal (replaces green)
-  if (scoreFromContext >= 0.5) return "hsl(217, 91%, 60%)"; // Clean blue
+  if (scoreFromContext >= 0.8) return "#007BFF"; // CapMatch brand blue (primary)
+  if (scoreFromContext >= 0.5) return "hsl(217, 91%, 60%)"; // Lighter blue
 
   return "#94a3b8"; // Light slate grey for inactive
 }
@@ -298,10 +298,10 @@ export default function LenderGraph({
           ctx.moveTo(centerPoint.x, centerPoint.y);
           ctx.lineTo(pos.x, pos.y);
 
-          // Use node color for the radial line with appropriate alpha
+          // Use node color for the radial line with appropriate alpha (CapMatch brand blue)
           const radialColor = scoreFromContext >= 0.8
-            ? "rgba(6, 182, 212, 0.45)" // Teal line
-            : "rgba(59, 130, 246, 0.4)"; // Blue line
+            ? "rgba(0, 123, 255, 0.45)" // Brand blue #007BFF
+            : "rgba(59, 130, 246, 0.4)"; // Lighter blue line
 
           ctx.strokeStyle = radialColor;
           ctx.lineWidth = 1 + scoreFromContext * 1.5;
