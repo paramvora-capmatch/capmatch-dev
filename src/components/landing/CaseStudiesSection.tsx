@@ -33,7 +33,7 @@ export function CaseStudiesSection() {
 		<section
 			id="case-studies"
 			ref={ref}
-			className="min-h-screen pt-20 md:pt-28 pb-1 md:pb-1.5 flex flex-col justify-center"
+			className="min-h-0 pt-6 sm:pt-8 md:pt-10 pb-4 md:pb-6 flex flex-col justify-center"
 			style={{
 				backgroundImage: `
 					repeating-linear-gradient(
@@ -53,14 +53,14 @@ export function CaseStudiesSection() {
 				`,
 			}}
 		>
-			<div className="container mx-auto px-4 max-w-6xl flex-1 flex flex-col justify-center">
+			<div className="container mx-auto px-4 max-w-6xl flex-1 flex flex-col justify-center min-h-0">
 				<motion.div
-					className="text-center mb-12"
+					className="text-center mb-4 sm:mb-6 md:mb-8"
 					initial={{ opacity: 0, y: 20 }}
 					animate={isInView ? { opacity: 1, y: 0 } : {}}
 					transition={{ duration: 0.6 }}
 				>
-					<h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-3 flex flex-wrap items-center justify-center gap-0.5 md:gap-1 tabular-nums tracking-tight">
+					<h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-2 sm:mb-3 flex flex-wrap items-center justify-center gap-0.5 md:gap-1 tabular-nums tracking-tight">
 						<span className="text-blue-600">$</span>
 						<Counter
 							value={290}
@@ -90,29 +90,29 @@ export function CaseStudiesSection() {
 							</>
 						)}
 					</h2>
-					<p className="text-xl md:text-2xl text-gray-600">
+					<p className="text-base sm:text-xl md:text-2xl text-gray-600">
 						Live deals on the platform. Explore our case studies.
 					</p>
 				</motion.div>
 
-				{/* Carousel */}
+				{/* Carousel - fixed height so all three case studies match; image fills left column */}
 				<motion.div
-					className="relative rounded-xl overflow-hidden border border-blue-200/50 bg-white shadow-sm flex-1 min-h-0 flex flex-col"
+					className="relative rounded-xl overflow-hidden border border-blue-200/50 bg-white shadow-sm flex-1 min-h-0 flex flex-col h-[420px] sm:h-[460px] md:h-[500px]"
 					initial={{ opacity: 0, y: 24 }}
 					animate={isInView ? { opacity: 1, y: 0 } : {}}
 					transition={{ duration: 0.6, delay: 0.1 }}
 				>
-					<div className="flex flex-col md:flex-row flex-1 min-h-[50vh]">
-						{/* Image / visual side - larger share of the card */}
-						<div className="w-full md:w-3/5 min-h-[240px] md:min-h-[40vh] flex-shrink-0 bg-gray-200 flex items-center justify-center rounded-l-xl md:rounded-l-xl overflow-hidden">
+					<div className="flex flex-col md:flex-row flex-1 min-h-0 h-full">
+						{/* Image - fixed column height = card height; image fills with object-cover */}
+						<div className="w-full md:w-3/5 h-[220px] md:h-full flex-shrink-0 bg-gray-200 rounded-l-xl overflow-hidden">
 							<img
 								src={deal.image}
 								alt={deal.headline}
-								className="w-full h-full object-cover"
+								className="w-full h-full object-cover object-center"
 							/>
 						</div>
-						{/* Content side */}
-						<div className="w-full md:w-2/5 p-8 flex flex-col justify-center">
+						{/* Content side - scrolls if text is long */}
+						<div className="w-full md:w-2/5 p-5 sm:p-6 md:p-8 flex flex-col justify-center min-h-0 overflow-y-auto flex-1">
 							<AnimatePresence mode="wait">
 								<motion.div
 									key={deal.id}
