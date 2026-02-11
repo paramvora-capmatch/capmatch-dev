@@ -9,12 +9,12 @@ import { cn } from "@/utils/cn";
 const LEADERSHIP = [
 	{
 		name: "Dr. Jeff Richmond",
-		title: "Co-Founder & Chief Executive Officer",
+		title: "Chief Executive Officer",
 		bio: "Dr. Richmond brings decades of leadership across real estate, capital markets, and organizational scale. He has built and led real estate organizations responsible for $2B+ in annual transaction volume, with a focus on strategic growth, execution discipline, and long-term value creation. At CapMatch, he leads vision, partnerships, and the integration of market realities into a scalable operating company.",
 	},
 	{
 		name: "Todd Vitzthum",
-		title: "Co-Founder & Executive Chairman",
+		title: "Executive Chairman",
 		bio: "Todd has over 20 years of institutional commercial real estate experience, including senior leadership roles at Greystone, Cushman & Wakefield, and CBRE. He has personally originated, structured, and placed debt across market cycles, asset classes, and capital stacks. CapMatch is the productization of systems he built manually, refined through real deals, real lenders, and real borrower outcomes.",
 	},
 	{
