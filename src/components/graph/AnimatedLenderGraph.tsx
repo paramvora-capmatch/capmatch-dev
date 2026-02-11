@@ -24,6 +24,8 @@ const LOCATIONS = [
     "West Coast",
 ];
 
+const PHASE_INTERVAL_MS = 2000;
+
 type ChipLayout = "vertical" | "horizontal";
 
 export function AnimatedLenderGraph({
@@ -75,24 +77,24 @@ export function AnimatedLenderGraph({
                     capital_types: [],
                     debt_ranges: [],
                 });
-                timer = setTimeout(() => setPhase(1), 900);
+                timer = setTimeout(() => setPhase(1), PHASE_INTERVAL_MS);
             } else if (phase === 1) {
                 // Select Asset Type
                 setFilters((prev) => ({ ...prev, asset_types: ["Multifamily"] }));
-                timer = setTimeout(() => setPhase(2), 2000);
+                timer = setTimeout(() => setPhase(2), PHASE_INTERVAL_MS);
             } else if (phase === 2) {
                 // Select Deal Type
                 setFilters((prev) => ({ ...prev, deal_types: ["Refinance"] }));
-                timer = setTimeout(() => setPhase(3), 2000);
+                timer = setTimeout(() => setPhase(3), PHASE_INTERVAL_MS);
             } else if (phase === 3) {
                 // Select Location
                 setFilters((prev) => ({ ...prev, locations: ["Northeast"] }));
-                timer = setTimeout(() => setPhase(4), 2000);
+                timer = setTimeout(() => setPhase(4), PHASE_INTERVAL_MS);
             } else if (phase === 4) {
                 // Final State Pause
                 timer = setTimeout(() => {
                     setPhase(0);
-                }, 1500);
+                }, PHASE_INTERVAL_MS);
             }
         };
 
@@ -121,6 +123,7 @@ export function AnimatedLenderGraph({
                     formData={filters}
                     filtersApplied={filtersApplied}
                     allFiltersSelected={phase >= 3}
+                    showDetailCard={false}
                 />
 
                 {/* Phase indicator / selection display overlay (vertical layout only) */}
