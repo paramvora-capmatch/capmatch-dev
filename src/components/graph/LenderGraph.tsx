@@ -88,6 +88,8 @@ interface LenderGraphProps {
   filtersApplied: boolean; // True if ANY filter category is selected by the user on the page
   allFiltersSelected?: boolean;
   onLenderClick?: (lender: LenderProfile | null) => void;
+  /** When false, the lender detail card (and incomplete-filters tooltip) never show. Used for animation-only views. */
+  showDetailCard?: boolean;
 }
 
 export default function LenderGraph({
@@ -96,6 +98,7 @@ export default function LenderGraph({
   filtersApplied, // This prop tells the graph if any filter is active in the UI (from page.tsx)
   allFiltersSelected = false,
   onLenderClick,
+  showDetailCard = true,
 }: LenderGraphProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -480,13 +483,13 @@ export default function LenderGraph({
 
   // When all filters are selected (e.g. animation phase 4), auto-show the first matching lender's card so it's visible
   useEffect(() => {
-    if (!allFiltersSelected || selectedLender || !lenders.length) return;
+    if (!showDetailCard || !allFiltersSelected || selectedLender || !lenders.length) return;
     const firstMatch = lenders.find(
       (l) => (l.match_score ?? 0) > 0 && computeLenderScoreForGraphDisplay(l, formData) > 0
     );
     if (!firstMatch) return;
     setSelectedLender(firstMatch);
-  }, [allFiltersSelected, lenders, formData, selectedLender]);
+  }, [showDetailCard, allFiltersSelected, lenders, formData, selectedLender]);
 
   // When selectedLender is set (e.g. from auto-select), ensure card position is set so the card is visible
   useEffect(() => {
@@ -681,7 +684,7 @@ export default function LenderGraph({
           style={{ display: 'block' }}
         />
 
-        {selectedLender && allFiltersSelected && selectedLender.match_score > 0 && mounted &&
+        {showDetailCard && selectedLender && allFiltersSelected && selectedLender.match_score > 0 && mounted &&
           createPortal(
             <div
               id={`lender-card-${selectedLender.lender_id}`}
@@ -715,7 +718,7 @@ export default function LenderGraph({
           )
         }
 
-        {showIncompleteFiltersCard && !allFiltersSelected && hoveredLenderId !== null &&
+        {showDetailCard && showIncompleteFiltersCard && !allFiltersSelected && hoveredLenderId !== null &&
           (lenders.find(l => l.lender_id === hoveredLenderId)?.match_score ?? 0) > 0 &&
           incompleteFiltersTooltip}
       </div>
