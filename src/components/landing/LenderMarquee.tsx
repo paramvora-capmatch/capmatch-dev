@@ -31,24 +31,6 @@ export function LenderMarquee() {
     return (
         <section
             className="pt-0.5 pb-20 overflow-hidden"
-            style={{
-                backgroundImage: `
-                    repeating-linear-gradient(
-                        45deg,
-                        transparent,
-                        transparent 10px,
-                        rgba(209, 213, 219, 0.097) 10px,
-                        rgba(209, 213, 219, 0.097) 11px
-                    ),
-                    repeating-linear-gradient(
-                        -45deg,
-                        transparent,
-                        transparent 10px,
-                        rgba(209, 213, 219, 0.097) 10px,
-                        rgba(209, 213, 219, 0.097) 11px
-                    )
-                `,
-            }}
         >
             <div className="relative flex overflow-hidden group pt-10"> {/* Add top padding for hover "popout" headroom */}
                 {/* Gradient Masks - fade to transparent so cross-hatch shows */}

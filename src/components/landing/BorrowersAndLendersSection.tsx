@@ -44,25 +44,7 @@ export function BorrowersAndLendersSection() {
 	return (
 		<section
 			id="borrowers-and-lenders"
-			className="relative w-full min-h-screen flex flex-col border-t border-gray-200"
-			style={{
-				backgroundImage: `
-					repeating-linear-gradient(
-						45deg,
-						transparent,
-						transparent 10px,
-						rgba(209, 213, 219, 0.097) 10px,
-						rgba(209, 213, 219, 0.097) 11px
-					),
-					repeating-linear-gradient(
-						-45deg,
-						transparent,
-						transparent 10px,
-						rgba(209, 213, 219, 0.097) 10px,
-						rgba(209, 213, 219, 0.097) 11px
-					)
-				`,
-			}}
+			className="relative w-full min-h-screen flex flex-col"
 		>
 			{/* Title + byline - full width at top */}
 			<div className="w-full text-center pt-12 md:pt-16 pb-3 md:pb-4 px-4">

@@ -34,24 +34,6 @@ export function CaseStudiesSection() {
 			id="case-studies"
 			ref={ref}
 			className="min-h-screen pt-20 md:pt-28 pb-1 md:pb-1.5 flex flex-col justify-center"
-			style={{
-				backgroundImage: `
-					repeating-linear-gradient(
-						45deg,
-						transparent,
-						transparent 10px,
-						rgba(209, 213, 219, 0.097) 10px,
-						rgba(209, 213, 219, 0.097) 11px
-					),
-					repeating-linear-gradient(
-						-45deg,
-						transparent,
-						transparent 10px,
-						rgba(209, 213, 219, 0.097) 10px,
-						rgba(209, 213, 219, 0.097) 11px
-					)
-				`,
-			}}
 		>
 			<div className="container mx-auto px-4 max-w-6xl flex-1 flex flex-col justify-center">
 				<motion.div

@@ -55,25 +55,7 @@ export function SecuritySection() {
 
 	return (
 		<section
-			className="relative pt-24 pb-8 overflow-hidden border-t border-gray-100 bg-white"
-			style={{
-				backgroundImage: `
-					repeating-linear-gradient(
-						45deg,
-						transparent,
-						transparent 10px,
-						rgba(209, 213, 219, 0.22) 10px,
-						rgba(209, 213, 219, 0.22) 11px
-					),
-					repeating-linear-gradient(
-						-45deg,
-						transparent,
-						transparent 10px,
-						rgba(209, 213, 219, 0.22) 10px,
-						rgba(209, 213, 219, 0.22) 11px
-					)
-				`,
-			}}
+			className="relative pt-24 pb-8 overflow-hidden"
 		>
 			<div className="relative z-10 w-full max-w-7xl mx-auto px-6 mb-20 text-center">
 				<motion.div
