@@ -12,24 +12,6 @@ export function LenderLineSection() {
 		<section
 			id="lenderline-section"
 			className="relative min-h-screen py-20 md:py-28 flex flex-col justify-center overflow-hidden"
-			style={{
-				backgroundImage: `
-					repeating-linear-gradient(
-						45deg,
-						transparent,
-						transparent 10px,
-						rgba(209, 213, 219, 0.097) 10px,
-						rgba(209, 213, 219, 0.097) 11px
-					),
-					repeating-linear-gradient(
-						-45deg,
-						transparent,
-						transparent 10px,
-						rgba(209, 213, 219, 0.097) 10px,
-						rgba(209, 213, 219, 0.097) 11px
-					)
-				`,
-			}}
 		>
 			<div className="container mx-auto px-4 max-w-6xl flex-1 flex flex-col justify-center">
 				<motion.div

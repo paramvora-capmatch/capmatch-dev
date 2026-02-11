@@ -70,15 +70,15 @@ export default function HomePage() {
             45deg,
             transparent,
             transparent 10px,
-            rgba(209, 213, 219, 0.097) 10px,
-            rgba(209, 213, 219, 0.097) 11px
+            rgba(209, 213, 219, 0.22) 10px,
+            rgba(209, 213, 219, 0.22) 11px
           ),
           repeating-linear-gradient(
             -45deg,
             transparent,
             transparent 10px,
-            rgba(209, 213, 219, 0.097) 10px,
-            rgba(209, 213, 219, 0.097) 11px
+            rgba(209, 213, 219, 0.22) 10px,
+            rgba(209, 213, 219, 0.22) 11px
           )
         `,
 			}}

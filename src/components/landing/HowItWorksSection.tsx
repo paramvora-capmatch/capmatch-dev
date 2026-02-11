@@ -208,25 +208,7 @@ export function HowItWorksSection() {
 	return (
 		<section
 			id="how-it-works"
-			className="relative w-full bg-white"
-			style={{
-				backgroundImage: `
-					repeating-linear-gradient(
-						45deg,
-						transparent,
-						transparent 10px,
-						rgba(209, 213, 219, 0.22) 10px,
-						rgba(209, 213, 219, 0.22) 11px
-					),
-					repeating-linear-gradient(
-						-45deg,
-						transparent,
-						transparent 10px,
-						rgba(209, 213, 219, 0.22) 10px,
-						rgba(209, 213, 219, 0.22) 11px
-					)
-				`,
-			}}
+			className="relative w-full"
 		>
 			{/* Section title - centered */}
 			<div className="w-full max-w-[90%] 2xl:max-w-[1600px] mx-auto pt-16 lg:pt-24 px-6 sm:px-8 lg:px-12 pb-2">
