@@ -53,7 +53,7 @@ export function CaseStudiesSection() {
 				`,
 			}}
 		>
-			<div className="container mx-auto px-4 max-w-6xl flex-1 flex flex-col justify-center min-h-0">
+			<div className="container mx-auto px-4 max-w-6xl">
 				<motion.div
 					className="text-center mb-4 sm:mb-6 md:mb-8"
 					initial={{ opacity: 0, y: 20 }}
@@ -94,10 +94,9 @@ export function CaseStudiesSection() {
 						Live deals on the platform. Explore our case studies.
 					</p>
 				</motion.div>
-
 				{/* Carousel - fixed height so all three case studies match; image fills left column */}
 				<motion.div
-					className="relative rounded-xl overflow-hidden border border-blue-200/50 bg-white shadow-sm flex-1 min-h-0 flex flex-col h-[420px] sm:h-[460px] md:h-[500px]"
+					className="relative rounded-xl overflow-hidden border border-blue-200/50 bg-white shadow-sm flex flex-col h-[380px] sm:h-[420px] md:h-[460px]"
 					initial={{ opacity: 0, y: 24 }}
 					animate={isInView ? { opacity: 1, y: 0 } : {}}
 					transition={{ duration: 0.6, delay: 0.1 }}
@@ -168,8 +167,8 @@ export function CaseStudiesSection() {
 									type="button"
 									onClick={() => setIndex(i)}
 									className={`w-2.5 h-2.5 rounded-full transition-colors ${i === index
-											? "bg-blue-600"
-											: "bg-gray-300 hover:bg-gray-400"
+										? "bg-blue-600"
+										: "bg-gray-300 hover:bg-gray-400"
 										}`}
 									aria-label={`Go to case study ${i + 1}`}
 								/>
