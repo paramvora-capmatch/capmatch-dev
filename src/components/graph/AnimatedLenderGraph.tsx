@@ -92,7 +92,7 @@ export function AnimatedLenderGraph({
                 // Final State Pause
                 timer = setTimeout(() => {
                     setPhase(0);
-                }, 4500);
+                }, 1500);
             }
         };
 
@@ -147,7 +147,7 @@ export function AnimatedLenderGraph({
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
                                     transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                    className="bg-white/90 backdrop-blur-sm border border-sky-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-sky-700"
+                                    className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
                                 >
                                     <Briefcase size={14} />
                                     {filters.deal_types[0]}
@@ -160,7 +160,7 @@ export function AnimatedLenderGraph({
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
                                     transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                    className="bg-white/90 backdrop-blur-sm border border-orange-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-orange-700"
+                                    className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
                                 >
                                     <MapPin size={14} />
                                     {filters.locations[0]}
@@ -201,7 +201,7 @@ export function AnimatedLenderGraph({
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                    className="bg-white/90 backdrop-blur-sm border border-sky-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-sky-700"
+                                    className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
                                 >
                                     <Briefcase size={14} />
                                     {filters.deal_types[0]}
@@ -218,7 +218,7 @@ export function AnimatedLenderGraph({
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                    className="bg-white/90 backdrop-blur-sm border border-orange-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-orange-700"
+                                    className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
                                 >
                                     <MapPin size={14} />
                                     {filters.locations[0]}
