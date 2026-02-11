@@ -89,10 +89,10 @@ export const Footer: React.FC = () => {
 								About
 							</Link>
 							<Link
-								href="/blog"
+								href="/resources"
 								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
 							>
-								Blog
+								Resources
 							</Link>
 						</nav>
 					</div>

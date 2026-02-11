@@ -35,11 +35,11 @@ export default function CaseStudyLayoutWrapper({
             <main className="flex-1 pt-24 pb-16">
                 <div className="container mx-auto px-4 max-w-4xl mb-8">
                     <Link
-                        href="/#case-studies"
+                        href="/resources"
                         className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-blue-600"
                     >
                         <ChevronLeft size={18} />
-                        Back to case studies
+                        Back to resources
                     </Link>
                 </div>
                 {children}
