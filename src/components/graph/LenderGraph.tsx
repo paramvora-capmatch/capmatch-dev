@@ -76,7 +76,7 @@ function getLenderColor(
   // Color based on the authoritative match_score from the context.
   const scoreFromContext = lenderFromContext.match_score || 0;
 
-  if (scoreFromContext >= 0.8) return "hsl(142, 70%, 45%)"; // Vibrant green
+  if (scoreFromContext >= 0.8) return "hsl(199, 89%, 48%)"; // Teal (replaces green)
   if (scoreFromContext >= 0.5) return "hsl(217, 91%, 60%)"; // Clean blue
 
   return "#94a3b8"; // Light slate grey for inactive
@@ -300,7 +300,7 @@ export default function LenderGraph({
 
           // Use node color for the radial line with appropriate alpha
           const radialColor = scoreFromContext >= 0.8
-            ? "rgba(16, 185, 129, 0.4)" // Green line
+            ? "rgba(6, 182, 212, 0.45)" // Teal line
             : "rgba(59, 130, 246, 0.4)"; // Blue line
 
           ctx.strokeStyle = radialColor;
@@ -314,7 +314,8 @@ export default function LenderGraph({
           }
         }
 
-        const moveSpeed = 0.04;
+        // Smoother ease-out lerp so transitions between filter states feel less jarring
+        const moveSpeed = 0.032;
         pos.x += (pos.targetX - pos.x) * moveSpeed;
         pos.y += (pos.targetY - pos.y) * moveSpeed;
 
@@ -477,8 +478,27 @@ export default function LenderGraph({
     setContainerRect(containerRect);
   }, [calculateCardPositionFromNode]);
 
-  // Card position is fixed relative to node - no continuous updates needed
-  // Position only updates when lender changes, not when node moves
+  // When all filters are selected (e.g. animation phase 4), auto-show the first matching lender's card so it's visible
+  useEffect(() => {
+    if (!allFiltersSelected || selectedLender || !lenders.length) return;
+    const firstMatch = lenders.find(
+      (l) => (l.match_score ?? 0) > 0 && computeLenderScoreForGraphDisplay(l, formData) > 0
+    );
+    if (!firstMatch) return;
+    setSelectedLender(firstMatch);
+  }, [allFiltersSelected, lenders, formData, selectedLender]);
+
+  // When selectedLender is set (e.g. from auto-select), ensure card position is set so the card is visible
+  useEffect(() => {
+    if (!selectedLender || !containerRef.current) return;
+    const pos = lenderPositionsRef.current.get(selectedLender.lender_id);
+    if (!pos) return;
+    lastHoveredLenderIdRef.current = null;
+    const rect = containerRef.current.getBoundingClientRect();
+    const cardPos = calculateCardPositionFromNode(pos.x, pos.y, rect);
+    cardPositionRef.current = { relativeX: cardPos.x, relativeY: cardPos.y };
+    setContainerRect(rect);
+  }, [selectedLender?.lender_id, calculateCardPositionFromNode]);
 
   // Find lender at mouse position
   const findLenderAtPosition = useCallback((x: number, y: number): LenderProfile | null => {

@@ -31,7 +31,7 @@ export function AnimatedLenderGraph({
 }: {
 	chipLayout?: ChipLayout;
 }) {
-    const { lenders, loadLenders } = useLenderStore();
+    const { lenders, filteredLenders, loadLenders, setFilters: setStoreFilters } = useLenderStore();
     const [filters, setFilters] = useState<Partial<LenderFilters>>({
         asset_types: [],
         deal_types: [],
@@ -41,6 +41,17 @@ export function AnimatedLenderGraph({
     });
     const [phase, setPhase] = useState<0 | 1 | 2 | 3 | 4>(0);
     const [isPaused, setIsPaused] = useState(false);
+
+    // Sync animation filters to store so match_score is computed for current formData
+    useEffect(() => {
+        setStoreFilters({
+            asset_types: filters.asset_types ?? [],
+            deal_types: filters.deal_types ?? [],
+            locations: filters.locations ?? [],
+            capital_types: filters.capital_types ?? [],
+            debt_ranges: filters.debt_ranges ?? [],
+        });
+    }, [filters, setStoreFilters]);
 
     // Load lenders if not already loaded
     useEffect(() => {
@@ -106,7 +117,7 @@ export function AnimatedLenderGraph({
         <div className="w-full h-full flex flex-col overflow-hidden p-0 min-h-0">
             <div className={`flex-grow relative w-full ${graphHeight}`}>
                 <LenderGraph
-                    lenders={lenders}
+                    lenders={filteredLenders.length > 0 ? filteredLenders : lenders}
                     formData={filters}
                     filtersApplied={filtersApplied}
                     allFiltersSelected={phase >= 3}
@@ -122,7 +133,7 @@ export function AnimatedLenderGraph({
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
-                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                    transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
                                     className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
                                 >
                                     <Building2 size={14} />
@@ -135,8 +146,8 @@ export function AnimatedLenderGraph({
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
-                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                    className="bg-white/90 backdrop-blur-sm border border-emerald-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-emerald-700"
+                                    transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                    className="bg-white/90 backdrop-blur-sm border border-sky-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-sky-700"
                                 >
                                     <Briefcase size={14} />
                                     {filters.deal_types[0]}
@@ -148,7 +159,7 @@ export function AnimatedLenderGraph({
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
-                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                    transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
                                     className="bg-white/90 backdrop-blur-sm border border-orange-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-orange-700"
                                 >
                                     <MapPin size={14} />
@@ -172,7 +183,7 @@ export function AnimatedLenderGraph({
                                     initial={{ opacity: 0, y: 6 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                    transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
                                     className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
                                 >
                                     <Building2 size={14} />
@@ -189,8 +200,8 @@ export function AnimatedLenderGraph({
                                     initial={{ opacity: 0, y: 6 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                    className="bg-white/90 backdrop-blur-sm border border-emerald-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-emerald-700"
+                                    transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                    className="bg-white/90 backdrop-blur-sm border border-sky-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-sky-700"
                                 >
                                     <Briefcase size={14} />
                                     {filters.deal_types[0]}
@@ -206,7 +217,7 @@ export function AnimatedLenderGraph({
                                     initial={{ opacity: 0, y: 6 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                    transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
                                     className="bg-white/90 backdrop-blur-sm border border-orange-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-orange-700"
                                 >
                                     <MapPin size={14} />
