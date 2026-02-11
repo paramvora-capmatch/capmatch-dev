@@ -103,18 +103,13 @@ export function BorrowersAndLendersSection() {
 					</h2>
 					<ul className="space-y-5">
 						{borrowerPoints.map((item, i) => (
-							<li key={i} className="flex items-start gap-3">
-								<span className="text-blue-500 font-bold shrink-0">
-									{i + 1}.
-								</span>
-								<div>
-									<p className="font-semibold text-gray-900 text-sm md:text-base">
-										{item.title}
-									</p>
-									<p className="text-gray-600 text-sm md:text-base mt-0.5 leading-relaxed">
-										{item.description}
-									</p>
-								</div>
+							<li key={i}>
+								<p className="font-semibold text-gray-900 text-sm md:text-base">
+									{item.title}
+								</p>
+								<p className="text-gray-600 text-sm md:text-base mt-0.5 leading-relaxed">
+									{item.description}
+								</p>
 							</li>
 						))}
 					</ul>
@@ -155,18 +150,13 @@ export function BorrowersAndLendersSection() {
 					</h2>
 					<ul className="space-y-5">
 						{lenderPoints.map((item, i) => (
-							<li key={i} className="flex items-start gap-3">
-								<span className="text-blue-500 font-bold shrink-0">
-									{i + 1}.
-								</span>
-								<div>
-									<p className="font-semibold text-gray-900 text-sm md:text-base">
-										{item.title}
-									</p>
-									<p className="text-gray-600 text-sm md:text-base mt-0.5 leading-relaxed">
-										{item.description}
-									</p>
-								</div>
+							<li key={i}>
+								<p className="font-semibold text-gray-900 text-sm md:text-base">
+									{item.title}
+								</p>
+								<p className="text-gray-600 text-sm md:text-base mt-0.5 leading-relaxed">
+									{item.description}
+								</p>
 							</li>
 						))}
 					</ul>
