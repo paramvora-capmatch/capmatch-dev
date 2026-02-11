@@ -128,7 +128,7 @@ function VideoBlock({ step, index }: { step: (typeof steps)[0]; index: number })
 				className="w-full rounded-3xl overflow-hidden border-2 border-black bg-white shadow-xl"
 				style={{
 					boxShadow:
-						"0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.1)",
+						"0 25px 32px -5px rgba(0, 0, 0, 0.22), 0 10px 12px -6px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.15)",
 				}}
 			>
 				{step.youtubeEmbedId ? (
@@ -186,7 +186,7 @@ function TextBlock({
 				className="w-full max-w-sm bg-white rounded-3xl shadow-lg p-6 lg:p-8 relative overflow-hidden"
 				style={{
 					boxShadow:
-						"0 4px 24px -4px rgba(0, 0, 0, 0.12), 0 1.5px 6px -1.5px rgba(0, 0, 0, 0.08)",
+						"0 6px 30px -4px rgba(0, 0, 0, 0.28), 0 2px 8px -1.5px rgba(0, 0, 0, 0.18)",
 				}}
 			>
 				{/* Blue accent bar on the connector-facing edge */}

@@ -42,7 +42,7 @@ export const MemberCard: React.FC<MemberCardProps> = React.memo(({
   const showActionButtons = showActions && isOwner && !isCurrentUser && !isEditing;
 
   return (
-    <div className="group rounded-lg border border-gray-200 bg-white p-4 hover:shadow-md transition-shadow">
+    <div className="group rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-lg transition-shadow">
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">

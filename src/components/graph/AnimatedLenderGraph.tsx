@@ -25,6 +25,15 @@ const LOCATIONS = [
 ];
 
 const PHASE_INTERVAL_MS = 2000;
+/** Phase 0: no extra hold so Northeast→reset→Multifamily is one interval (same as Multifamily→Refinance, etc.) */
+const RESET_HOLD_MS = 0;
+
+const PHASE_LABELS: Record<0 | 1 | 2 | 3, string> = {
+	0: "Reset (empty)",
+	1: "Multifamily",
+	2: "Refinance",
+	3: "Northeast",
+};
 
 type ChipLayout = "vertical" | "horizontal";
 
@@ -41,8 +50,9 @@ export function AnimatedLenderGraph({
         capital_types: [],
         debt_ranges: [],
     });
-    const [phase, setPhase] = useState<0 | 1 | 2 | 3 | 4>(0);
+    const [phase, setPhase] = useState<0 | 1 | 2 | 3>(0);
     const [isPaused, setIsPaused] = useState(false);
+    const lastTransitionAt = useRef<number>(0);
 
     // Sync animation filters to store so match_score is computed for current formData
     useEffect(() => {
@@ -68,6 +78,11 @@ export function AnimatedLenderGraph({
         let timer: NodeJS.Timeout;
 
         const runAnimation = () => {
+            const now = Date.now();
+            const gapMs = lastTransitionAt.current ? now - lastTransitionAt.current : 0;
+            console.log(`[AnimatedLenderGraph] → ${PHASE_LABELS[phase]}, gap since last: ${gapMs}ms`);
+            lastTransitionAt.current = now;
+
             if (phase === 0) {
                 // Reset
                 setFilters({
@@ -77,7 +92,7 @@ export function AnimatedLenderGraph({
                     capital_types: [],
                     debt_ranges: [],
                 });
-                timer = setTimeout(() => setPhase(1), PHASE_INTERVAL_MS);
+                timer = setTimeout(() => setPhase(1), RESET_HOLD_MS); // 0 so Northeast→Reset→Multifamily = one interval
             } else if (phase === 1) {
                 // Select Asset Type
                 setFilters((prev) => ({ ...prev, asset_types: ["Multifamily"] }));
@@ -87,14 +102,9 @@ export function AnimatedLenderGraph({
                 setFilters((prev) => ({ ...prev, deal_types: ["Refinance"] }));
                 timer = setTimeout(() => setPhase(3), PHASE_INTERVAL_MS);
             } else if (phase === 3) {
-                // Select Location
+                // Select Location, then reset after one interval (same duration as other steps)
                 setFilters((prev) => ({ ...prev, locations: ["Northeast"] }));
-                timer = setTimeout(() => setPhase(4), PHASE_INTERVAL_MS);
-            } else if (phase === 4) {
-                // Final State Pause
-                timer = setTimeout(() => {
-                    setPhase(0);
-                }, PHASE_INTERVAL_MS);
+                timer = setTimeout(() => setPhase(0), PHASE_INTERVAL_MS);
             }
         };
 
@@ -111,7 +121,7 @@ export function AnimatedLenderGraph({
         );
     }, [filters]);
 
-    const allFiltersSelected = phase === 4 || phase === 3; // roughly
+    const allFiltersSelected = phase === 3;
 
     const graphHeight = chipLayout === "horizontal" ? "min-h-[50vh] h-[50vh] md:min-h-[55vh] md:h-[55vh]" : "min-h-[380px] h-[380px]";
 

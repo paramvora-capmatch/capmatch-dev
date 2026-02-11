@@ -134,7 +134,7 @@ function SecurityCard({ feature, delay }: { feature: typeof securityFeatures[0];
 			whileInView={{ opacity: 1, scale: 1, y: 0 }}
 			viewport={{ once: true }}
 			transition={{ duration: 0.5, delay, ease: "easeOut" }}
-			className={`group relative h-full overflow-hidden bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-sm border ${feature.borderColor}`}
+			className={`group relative h-full overflow-hidden bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-xl border ${feature.borderColor}`}
 		>
 			{/* Subtle Gradient Background - always visible (blue tint) */}
 			<div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-100`} />
