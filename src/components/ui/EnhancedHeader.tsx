@@ -120,6 +120,31 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 				>
 					<nav className="flex items-center gap-x-6">
 						<Link
+							href="/#case-studies"
+							scroll={false}
+							onClick={(e) => {
+								e.preventDefault();
+								if (
+									typeof window !== "undefined" &&
+									window.location.pathname === "/"
+								) {
+									document
+										.getElementById("case-studies")
+										?.scrollIntoView({ behavior: "smooth" });
+								} else {
+									router.push("/#case-studies");
+								}
+							}}
+							className={cn(
+								"text-base font-medium transition-colors hover:underline whitespace-nowrap px-2 py-1",
+								scrolled
+									? "text-gray-700 hover:text-blue-600"
+									: "text-gray-700 hover:text-blue-600"
+							)}
+						>
+							Case Studies
+						</Link>
+						<Link
 							href="/#how-it-works"
 							scroll={false}
 							onClick={(e) => {
@@ -224,6 +249,15 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 				>
 					<div className="container mx-auto max-w-7xl py-4 px-4">
 						<nav className="flex flex-col space-y-4">
+							<Link
+								href="/#case-studies"
+								className="py-2 text-base font-medium block text-gray-700 hover:text-blue-600 hover:underline"
+								onClick={() =>
+									handleNav("#case-studies", true)
+								}
+							>
+								Case Studies
+							</Link>
 							<Link
 								href="/#how-it-works"
 								className="py-2 text-base font-medium block text-gray-700 hover:text-blue-600 hover:underline"

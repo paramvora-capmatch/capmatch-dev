@@ -25,7 +25,7 @@ export const Footer: React.FC = () => {
 						</Link>
 						<p className="text-sm text-gray-600 mb-4 max-w-xs">
 							The Operating System for Commercial Real Estate
-							Financing.
+							Financing
 						</p>
 						<div className="flex gap-4">
 							<a
@@ -56,19 +56,31 @@ export const Footer: React.FC = () => {
 						</h3>
 						<nav className="flex flex-col gap-3">
 							<Link
+								href="/#case-studies"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								Case Studies
+							</Link>
+							<Link
 								href="/#how-it-works"
 								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
 							>
 								Operating System
 							</Link>
 							<Link
-								href="/borrowers"
+								href="/#refi-radar"
+								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+							>
+								Refi Radar
+							</Link>
+							<Link
+								href="/#borrowers-and-lenders"
 								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
 							>
 								For Borrowers
 							</Link>
 							<Link
-								href="/#who-its-for"
+								href="/#borrowers-and-lenders"
 								className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
 							>
 								For Lenders

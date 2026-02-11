@@ -16,7 +16,7 @@ const securityFeatures = [
 		description:
 			"We enforce rigorous correctness checks. Every piece of data is subjected to automated sanity checks, and a human is always in the loop to review and confirm critical details.",
 		icon: <UserCheck className="w-6 h-6 text-blue-600" />,
-		gradient: "from-blue-500/10 to-indigo-500/10",
+		gradient: "from-blue-500/10 to-cyan-500/10",
 		borderColor: "border-blue-200/50",
 	},
 	{
@@ -36,7 +36,7 @@ const securityFeatures = [
 		description:
 			"Trust in data you can rely on. 'CapMatch Verified' is our certification for data sourced from trusted partners and government records.",
 		icon: <BadgeCheck className="w-6 h-6 text-blue-600" />,
-		gradient: "from-blue-600/10 to-blue-400/10",
+		gradient: "from-blue-500/10 to-cyan-500/10",
 		borderColor: "border-blue-200/50",
 	},
 ];
@@ -108,6 +108,9 @@ export function SecuritySection() {
 					transition={{ duration: 0.6, delay: 0.4 }}
 					className="pt-6 border-t border-gray-100/50 -mx-6 px-6 rounded-xl"
 				>
+					<h3 className="text-center text-xl md:text-2xl font-bold text-gray-800 tracking-tight mb-2">
+						Trusted Data Sources
+					</h3>
 					<div className="relative">
 						{/* Gradient Mask for fading edges */}
 						<div
@@ -149,19 +152,19 @@ function SecurityCard({ feature, delay }: { feature: typeof securityFeatures[0];
 			whileInView={{ opacity: 1, scale: 1, y: 0 }}
 			viewport={{ once: true }}
 			transition={{ duration: 0.5, delay, ease: "easeOut" }}
-			className={`group relative h-full overflow-hidden bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-sm border ${feature.borderColor} hover:shadow-xl hover:-translate-y-1 transition-all duration-300`}
+			className={`group relative h-full overflow-hidden bg-white/80 backdrop-blur-md p-8 rounded-3xl shadow-sm border ${feature.borderColor}`}
 		>
-			{/* Subtle Gradient Background */}
-			<div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+			{/* Subtle Gradient Background - always visible (blue tint) */}
+			<div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-100`} />
 
 			<div className="relative z-10">
 				<div className="flex items-start mb-6">
-					<div className="p-3 bg-white rounded-2xl shadow-sm border border-gray-100 group-hover:scale-110 transition-transform duration-300">
+					<div className="p-3 bg-white rounded-2xl shadow-sm border border-gray-100">
 						{feature.icon}
 					</div>
 				</div>
 
-				<h4 className="text-xl font-bold text-gray-900 mb-2 tracking-tight group-hover:text-blue-600 transition-colors duration-300">
+				<h4 className="text-xl font-bold text-blue-600 mb-2 tracking-tight">
 					{feature.title}
 				</h4>
 
