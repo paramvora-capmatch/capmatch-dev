@@ -149,9 +149,16 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 							scroll={false}
 							onClick={(e) => {
 								e.preventDefault();
-								document
-									.getElementById("how-it-works")
-									?.scrollIntoView({ behavior: "smooth" });
+								if (
+									typeof window !== "undefined" &&
+									window.location.pathname === "/"
+								) {
+									document
+										.getElementById("how-it-works")
+										?.scrollIntoView({ behavior: "smooth" });
+								} else {
+									router.push("/#how-it-works");
+								}
 							}}
 							className={cn(
 								"text-base font-medium transition-colors hover:underline whitespace-nowrap px-2 py-1",
