@@ -3,39 +3,59 @@
 import React from "react";
 import { motion } from "framer-motion";
 
-import { AnimatedLenderGraph } from "../graph/AnimatedLenderGraph";
-
 const steps: {
 	title: string;
 	description: string;
 	/** YouTube embed video ID (e.g. Suy8VlbZ1yY). Leave empty for placeholder. */
 	youtubeEmbedId: string;
-	showGraph?: boolean;
 }[] = [
 		{
-			title: "Upload, AI Auto-Fill & Lender-Ready Resumes",
+			title: "Control Who Sees What",
 			description:
-				"Drop in whatever you have-PDF, Excel, Word. Our AI extracts data and populates project and borrower resumes automatically. Complete profiles with version history, real-time collaboration, and AI validation.",
-			youtubeEmbedId: "vtNPigx49gQ",
+				"Invite analysts, advisors, or external partners to your deal - without giving up control. Set granular permissions at the project and document level, ensuring every team member, advisor or lender accesses only what they need. Your deal, your rules.",
+			youtubeEmbedId: "",
 		},
 		{
-			title: "CapMatch Platform",
+			title: "One Vault. One Truth.",
 			description:
-				"In-app communications, meeting scheduling, support chat, and document version control. Everything you need to manage deals and collaborate with lenders lives inside the platform.",
-			youtubeEmbedId: "cC5d4nWtskU",
+				"Upload your entire deal package - rent rolls, T12s, appraisals - into a secure, centralized vault. No more email attachments. No more version chaos. Everyone works from the same verified files.",
+			youtubeEmbedId: "",
 		},
 		{
-			title: "Live Offering Memorandum & Underwriting Documentation",
+			title: "Edit In-Browser. Roll Back Instantly.",
 			description:
-				"Dynamic OM dashboard-not a static PDF. Deal snapshots, market maps, scenario modeling. Plus full underwriting documentation so lenders have everything they need in one place.",
-			youtubeEmbedId: "IK8B8306ILc",
+				"Open and edit documents directly in CapMatch with our built-in office suite. Every change is tracked automatically, and full version history means you can roll back in one click. The integrity of your deal stays protected and you're saved from email attachment purgatory.",
+			youtubeEmbedId: "",
 		},
 		{
-			title: "Intelligent Lender Matching & Personalized Delivery",
+			title: "From Documents to Data - Automatically.",
 			description:
-				"AI-powered matching by asset, deal type, and location. LenderLine™ visualizes your ideal capital partners. Materials are then formatted for each lender's preferences-PDF, Excel, or live dashboard.",
-			youtubeEmbedId: "", // No video yet
-			showGraph: true,
+				"Stop retyping what's already in your files. AutoFill extracts data directly from uploaded documents and cites its sources - hover over any field to see exactly where the value came from. Our system will flag discrepancies, resolve conflicts, and help you lock fields to signal verified, finalized data.",
+			youtubeEmbedId: "",
+		},
+		{
+			title: "AI Speed. Human Oversight.",
+			description:
+				"Let AI draft the financial picture from your P&L and help resolve data conflicts in real time. You stay in control - refine narratives, adjust bios, and verify every output. It's a hybrid workflow built for accuracy at scale.",
+			youtubeEmbedId: "",
+		},
+		{
+			title: "Keep the Conversation Next to the Deal.",
+			description:
+				"Keep everyone in the loop with an in-built notification system. Tag team members and documents in contextual chat. Schedule video meetings without leaving the platform. Every call generates searchable transcripts and summaries automatically - so nothing slips through the cracks.",
+			youtubeEmbedId: "",
+		},
+		{
+			title: "A Living OM. Not a Static PDF.",
+			description:
+				"Your Offering Memorandum generates automatically and stays current. Lenders can toggle financial scenarios, explore architectural plans, and interrogate the deal directly with Talk to OM - asking complex questions and generating custom projections from your verified data.",
+			youtubeEmbedId: "",
+		},
+		{
+			title: "Generate. Review. Finalize.",
+			description:
+				"Produce lender-ready underwriting documents in minutes, not days. Every version is tracked, every change is logged. When it's time to close, your documentation is airtight and audit-ready.",
+			youtubeEmbedId: "",
 		},
 	];
 
@@ -43,19 +63,17 @@ function VideoBlock({ step, index }: { step: (typeof steps)[0]; index: number })
 	return (
 		<div className="w-full lg:w-[70%] min-h-0 flex items-center justify-center px-4">
 			<motion.div
-				initial={{ opacity: 0, y: 12 }}
-				whileInView={{ opacity: 1, y: 0 }}
-				viewport={{ once: true, margin: "-80px" }}
-				transition={{ duration: 0.4 }}
+				initial={{ opacity: 0, y: 56, scale: 0.92 }}
+				whileInView={{ opacity: 1, y: 0, scale: 1 }}
+				viewport={{ once: false, amount: 0.2, margin: "-80px" }}
+				transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
 				className="w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-xl"
 				style={{
 					boxShadow:
 						"0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05)",
 				}}
 			>
-				{step.showGraph ? (
-					<AnimatedLenderGraph />
-				) : step.youtubeEmbedId ? (
+				{step.youtubeEmbedId ? (
 					<iframe
 						className="w-full h-full"
 						src={`https://www.youtube.com/embed/${step.youtubeEmbedId}?rel=0&autoplay=1&mute=1&loop=1&playlist=${step.youtubeEmbedId}`}
@@ -65,7 +83,7 @@ function VideoBlock({ step, index }: { step: (typeof steps)[0]; index: number })
 					/>
 				) : (
 					<div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-500 text-sm">
-						Video coming soon
+						Video placeholder
 					</div>
 				)}
 			</motion.div>
@@ -73,20 +91,34 @@ function VideoBlock({ step, index }: { step: (typeof steps)[0]; index: number })
 	);
 }
 
-function TextBlock({ step }: { step: (typeof steps)[0] }) {
+function TextBlock({
+	step,
+	isLeft,
+}: {
+	step: (typeof steps)[0];
+	isLeft: boolean;
+}) {
 	return (
 		<div className="w-full lg:w-[30%] min-h-0 flex flex-col justify-center px-4 lg:px-6">
 			<motion.div
-				initial={{ opacity: 0, y: 12 }}
-				whileInView={{ opacity: 1, y: 0 }}
-				viewport={{ once: true, margin: "-80px" }}
-				transition={{ duration: 0.4 }}
-				className="w-full max-w-sm"
+				initial={{ opacity: 0, y: 56, scale: 0.92 }}
+				whileInView={{ opacity: 1, y: 0, scale: 1 }}
+				viewport={{ once: false, amount: 0.2, margin: "-80px" }}
+				transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
+				className="w-full max-w-sm bg-white rounded-2xl border border-blue-100 shadow-lg p-6 lg:p-8 relative overflow-hidden"
+				style={{
+					boxShadow:
+						"0 4px 24px -4px rgba(0, 123, 255, 0.10), 0 1.5px 6px -1.5px rgba(0, 0, 0, 0.06)",
+				}}
 			>
-				<h3 className="text-2xl md:text-3xl font-semibold text-gray-900 mb-4">
+				{/* Blue accent bar on the connector-facing edge */}
+				<div
+					className={`absolute ${isLeft ? "right-0" : "left-0"} top-6 bottom-6 w-[3px] rounded-full bg-gradient-to-b from-blue-400 via-blue-500 to-blue-400 opacity-60`}
+				/>
+				<h3 className="text-2xl md:text-3xl font-semibold text-gray-900 mb-3">
 					{step.title}
 				</h3>
-				<p className="text-lg md:text-xl text-gray-600 leading-relaxed pl-0">
+				<p className="text-base md:text-lg text-gray-600 leading-relaxed">
 					{step.description}
 				</p>
 			</motion.div>
@@ -139,22 +171,23 @@ export function HowItWorksSection() {
 			{steps.map((step, index) => {
 				const videoOnRight = index % 2 === 0;
 				return (
-					<div
-						key={index}
-						className={`min-h-[50vh] flex flex-col lg:flex-row lg:items-center gap-8 lg:gap-12 w-full max-w-[90%] 2xl:max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12 ${index === 0 ? "pt-6 lg:pt-10 pb-16 lg:pb-24" : "py-16 lg:py-24"}`}
-					>
-						{videoOnRight ? (
-							<>
-								<TextBlock step={step} />
-								<VideoBlock step={step} index={index} />
-							</>
-						) : (
-							<>
-								<VideoBlock step={step} index={index} />
-								<TextBlock step={step} />
-							</>
-						)}
-					</div>
+					<React.Fragment key={index}>
+						<div
+							className={`min-h-[50vh] flex flex-col lg:flex-row lg:items-center gap-8 lg:gap-12 w-full max-w-[90%] 2xl:max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12 ${index === 0 ? "pt-6 lg:pt-10" : "pt-8 lg:pt-12"} ${index < steps.length - 1 ? "pb-8 lg:pb-12" : "pb-16 lg:pb-24"}`}
+						>
+							{videoOnRight ? (
+								<>
+									<TextBlock step={step} isLeft />
+									<VideoBlock step={step} index={index} />
+								</>
+							) : (
+								<>
+									<VideoBlock step={step} index={index} />
+									<TextBlock step={step} isLeft={false} />
+								</>
+							)}
+						</div>
+					</React.Fragment>
 				);
 			})}
 		</section>
