@@ -4,7 +4,7 @@ import React from 'react';
 export const ProjectSummaryCardSkeleton: React.FC = () => {
   return (
     <div className="relative">
-      <div className="group rounded-2xl p-4 bg-white shadow-sm animate-pulse">
+      <div className="group rounded-2xl p-4 bg-white shadow-lg border-2 border-gray-300 animate-pulse">
         <div className="flex justify-between items-center mb-2">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">

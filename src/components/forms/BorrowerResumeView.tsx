@@ -323,12 +323,12 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 
 	// Collapsed state with localStorage persistence
 	const [collapsed, setCollapsed] = useState<boolean>(() => {
-		if (typeof window === "undefined") return true;
+		if (typeof window === "undefined") return false;
 		try {
 			const stored = localStorage.getItem(`borrowerResumeCollapsed:${projectId}`);
-			return stored ? JSON.parse(stored) : true;
+			return stored ? JSON.parse(stored) : false;
 		} catch {
-			return true;
+			return false;
 		}
 	});
 
@@ -414,7 +414,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 		>
 			<div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-			<div className="sticky top-[-8px] z-20 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl flex flex-row items-center justify-between relative px-3 py-4">
+			<div className="sticky top-[-8px] z-20 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm rounded-t-2xl flex flex-row items-center justify-between relative px-4 py-4">
 				<div className="ml-3 flex items-center gap-3">
 					<h2 className="text-2xl font-semibold text-gray-800 flex items-center">
 						<AlertCircle className="h-5 w-5 text-blue-600 mr-2 animate-pulse" />
@@ -433,22 +433,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 							</span>
 						</Button>
 					)}
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleToggleCollapsed}
-						className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 text-base"
-					>
-						<ChevronDown
-							className={cn(
-								"h-5 w-5 text-gray-600 transition-transform duration-200",
-								collapsed ? "" : "rotate-180"
-							)}
-						/>
-						<span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[160px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
-							{collapsed ? "Show Details" : "Hide Details"}
-						</span>
-					</Button>
+
 					{canEdit && (
 						<>
 							<Button
@@ -486,6 +471,21 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 						</>
 					)}
 				</div>
+                <div className="flex items-center">
+                    <Button
+						variant="ghost"
+						size="sm"
+						onClick={handleToggleCollapsed}
+						className="h-8 w-8 p-0 rounded-full hover:bg-gray-100 text-gray-500"
+					>
+						<ChevronDown
+							className={cn(
+								"h-5 w-5 transition-transform duration-200",
+								collapsed ? "" : "rotate-180"
+							)}
+						/>
+					</Button>
+                </div>
 			</div>
 
 			<AnimatePresence initial={false}>

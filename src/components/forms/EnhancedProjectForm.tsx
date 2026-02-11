@@ -254,6 +254,10 @@ const supplyPressureOptions = ["Low", "Moderate", "High"];
 const luxuryTierOptions = ["Luxury", "Premium", "Value", "Economy"];
 const competitivePositionOptions = ["Top 20%", "Middle 60%", "Bottom 20%"];
 const zoningCompliantOptions = ["Compliant", "Non-Compliant"];
+const ownershipTypeOptions = [
+	"Fee Simple",
+	"Leased Fee Interest (Ground Lease)",
+];
 
 const isProjectValueProvided = (value: unknown): boolean => {
 	if (value === null || value === undefined) return false;
@@ -2836,6 +2840,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			luxuryTier: "button-select",
 			competitivePosition: "button-select",
 			zoningCompliant: "button-select",
+			ownershipType: "button-select",
 		}),
 		[]
 	);
@@ -2878,6 +2883,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			luxuryTier: luxuryTierOptions,
 			competitivePosition: competitivePositionOptions,
 			zoningCompliant: zoningCompliantOptions,
+			ownershipType: ownershipTypeOptions,
 		}),
 		[]
 	);

@@ -71,12 +71,12 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 			className={cn(
 				"fixed top-0 left-0 right-0 z-30 transition-all duration-300",
 				scrolled
-					? "bg-white/95 backdrop-blur-sm shadow-lg shadow-gray-200/20 py-3"
+					? "bg-white/70 backdrop-blur-md shadow-lg shadow-gray-200/20 py-3 border-b border-white/20"
 					: "bg-transparent py-5"
 			)}
 		>
 			<div className="container mx-auto max-w-7xl flex justify-between items-center px-4 h-16">
-				<div className="flex items-center">
+				<div className="flex items-center flex-1 min-w-0">
 					<Link
 						href="/"
 						className="flex items-center"
@@ -94,36 +94,21 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 							}
 						}}
 					>
-						<div className="flex items-center justify-center">
+						<div className="flex items-center justify-center px-4">
 							<Image
 								ref={logoRef}
-								src="/CapMatchLogo.png"
+								src="/CapMatch-FullREs-Logo.png"
 								alt="CapMatch"
-								width={56}
-								height={56}
+								width={240}
+								height={72}
 								className={cn(
-									"transition-all duration-300",
-									scrolled ? "h-12" : "h-14 drop-shadow-sm",
+									"transition-all duration-300 w-auto",
+									scrolled ? "h-8" : "h-10",
 									logoHidden && "invisible"
 								)}
-								onError={(e) => {
-									const target = e.target as HTMLImageElement;
-									target.onerror = null;
-									target.outerHTML = `<span class=\"font-bold text-lg text-blue-400\">CapMatch</span>`;
-								}}
+								priority
 							/>
 						</div>
-						<motion.span
-							initial={{ opacity: 0 }}
-							animate={{ opacity: textVisible ? 1 : 0 }}
-							transition={{ duration: 0.6 }}
-							className={cn(
-								"ml-3 transition-all duration-300 font-bold flex items-center text-gray-900",
-								scrolled ? "text-lg" : "text-2xl drop-shadow-sm"
-							)}
-						>
-							CapMatch
-						</motion.span>
 					</Link>
 				</div>
 
@@ -131,73 +116,93 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 					initial={{ opacity: 0, x: 20 }}
 					animate={{ opacity: 1, x: 0 }}
 					transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-					className="hidden md:flex items-center space-x-6"
+					className="hidden md:flex flex-1 items-center justify-center"
 				>
-					<nav className="flex items-center space-x-6">
+					<nav className="flex items-center gap-x-6">
 						<Link
-							href="/#lender-matching-section"
+							href="/#case-studies"
 							scroll={false}
 							onClick={(e) => {
 								e.preventDefault();
-								document
-									.getElementById("lender-matching-section")
-									?.scrollIntoView({ behavior: "smooth" });
+								if (
+									typeof window !== "undefined" &&
+									window.location.pathname === "/"
+								) {
+									document
+										.getElementById("case-studies")
+										?.scrollIntoView({ behavior: "smooth" });
+								} else {
+									router.push("/#case-studies");
+								}
 							}}
 							className={cn(
-								"text-sm font-medium transition-colors",
+								"text-base font-medium transition-colors hover:underline whitespace-nowrap px-2 py-1",
 								scrolled
 									? "text-gray-700 hover:text-blue-600"
-									: "text-gray-800 hover:text-blue-600"
+									: "text-gray-700 hover:text-blue-600"
 							)}
 						>
-							<span className="font-semibold">
-								Lender Matching
-							</span>
+							Case Studies
 						</Link>
 						<Link
-							href="/#process-section"
+							href="/#how-it-works"
 							scroll={false}
 							onClick={(e) => {
 								e.preventDefault();
 								document
-									.getElementById("process-section")
+									.getElementById("how-it-works")
 									?.scrollIntoView({ behavior: "smooth" });
 							}}
 							className={cn(
-								"text-sm font-medium transition-colors",
+								"text-base font-medium transition-colors hover:underline whitespace-nowrap px-2 py-1",
 								scrolled
 									? "text-gray-700 hover:text-blue-600"
-									: "text-gray-800 hover:text-blue-600"
+									: "text-gray-700 hover:text-blue-600"
 							)}
 						>
-							Process
+							Operating System
+						</Link>
+
+						<Link
+							href="/refi-radar"
+							className={cn(
+								"text-base font-medium transition-colors hover:underline whitespace-nowrap px-2 py-1",
+								scrolled
+									? "text-gray-700 hover:text-blue-600"
+									: "text-gray-700 hover:text-blue-600"
+							)}
+						>
+							Refi Radar
 						</Link>
 					</nav>
-
-					<div className="flex items-center space-x-4">
-						<Button
-							variant="primary"
-							size="sm"
-							leftIcon={<LogIn size={16} />}
-							onClick={() => router.push("/login")}
-							className={cn(
-								"bg-blue-500 hover:bg-blue-600 shadow-lg !text-white",
-								"font-medium transition-colors duration-200"
-							)}
-						>
-							<span>
-								Access{" "}
-								<span className="font-bold">Deal Room</span>
-							</span>
-						</Button>
-					</div>
 				</motion.div>
+
+				<div className="hidden md:flex flex-1 items-center justify-end">
+					<Button
+						variant="primary"
+						size="md"
+						leftIcon={<LogIn size={18} />}
+						onClick={() => router.push("/login")}
+						className={cn(
+							"bg-blue-500 hover:bg-blue-600 shadow-lg !text-white text-base",
+							"font-medium transition-colors duration-200"
+						)}
+					>
+						<span>
+							Access{" "}
+							<span className="font-bold">Deal Room</span>
+						</span>
+					</Button>
+				</div>
 
 				<motion.button
 					initial={{ opacity: 0, scale: 0.8 }}
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
-					className="md:hidden p-2 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded transition-colors text-gray-900"
+					className={cn(
+						"md:hidden p-2 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded transition-colors",
+						scrolled ? "text-gray-900" : "text-gray-900"
+					)}
 					onClick={toggleMobileMenu}
 					aria-label="Toggle mobile menu"
 					aria-expanded={mobileMenuOpen}
@@ -217,31 +222,39 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 					<div className="container mx-auto max-w-7xl py-4 px-4">
 						<nav className="flex flex-col space-y-4">
 							<Link
-								href="/#lender-matching-section"
-								className="py-2 text-sm font-medium block text-gray-700 hover:text-blue-600"
+								href="/#case-studies"
+								className="py-2 text-base font-medium block text-gray-700 hover:text-blue-600 hover:underline"
 								onClick={() =>
-									handleNav("#lender-matching-section", true)
+									handleNav("#case-studies", true)
 								}
 							>
-								<span className="font-semibold">
-									Lender Matching
-								</span>
+								Case Studies
 							</Link>
 							<Link
-								href="/#process-section"
-								className="py-2 text-sm font-medium block text-gray-700 hover:text-blue-600"
+								href="/#how-it-works"
+								className="py-2 text-base font-medium block text-gray-700 hover:text-blue-600 hover:underline"
 								onClick={() =>
-									handleNav("#process-section", true)
+									handleNav("#how-it-works", true)
 								}
 							>
-								Process
+								Operating System
+							</Link>
+
+							<Link
+								href="/refi-radar"
+								className="py-2 text-base font-medium block text-gray-700 hover:text-blue-600 hover:underline"
+								onClick={() =>
+									handleNav("/refi-radar", false)
+								}
+							>
+								Refi Radar
 							</Link>
 							<Button
 								variant="primary"
-								size="sm"
-								leftIcon={<LogIn size={16} />}
+								size="md"
+								leftIcon={<LogIn size={18} />}
 								onClick={() => handleNav("/login")}
-								className="mt-2 w-full bg-blue-500 hover:bg-blue-600 !text-white"
+								className="mt-2 w-full bg-blue-500 hover:bg-blue-600 !text-white text-base"
 							>
 								<span>
 									Access{" "}

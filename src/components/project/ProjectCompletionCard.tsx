@@ -53,7 +53,7 @@ export const ProjectCompletionCard: React.FC<ProjectCompletionCardProps> = ({
 		<div className="p-0">
 			{/* Project resume completion (full-width; no white card wrapper) */}
 			<div
-				className="rounded-2xl p-4 bg-white cursor-pointer hover:opacity-95 transition shadow-sm"
+				className="rounded-2xl p-4 bg-white cursor-pointer hover:opacity-95 transition-all shadow-lg border-2 border-gray-300 hover:shadow-xl"
 				onClick={() => onEdit?.()}
 				role="button"
 				aria-label="Edit project resume"
