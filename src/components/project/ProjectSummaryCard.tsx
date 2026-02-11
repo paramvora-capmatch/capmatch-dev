@@ -49,7 +49,7 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
         <>
           {/* Borrower resume completion (full-width; no white card wrapper) */}
           <div
-            className="group rounded-2xl p-3 bg-white cursor-pointer hover:opacity-95 transition p-4 shadow-sm"
+            className="group rounded-2xl p-4 bg-white cursor-pointer hover:opacity-95 transition-all shadow-lg border-2 border-gray-300 hover:shadow-xl"
             onClick={(e) => {
               e.stopPropagation();
               onBorrowerClick?.();

@@ -10,7 +10,7 @@ export const DocumentManagerSkeleton: React.FC<DocumentManagerSkeletonProps> = (
   title = "Documents",
 }) => {
   return (
-    <Card className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <Card className="bg-white rounded-2xl shadow-xl border-2 border-gray-300 overflow-hidden">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="h-6 bg-gray-200 rounded w-40 animate-pulse"></div>
@@ -23,7 +23,7 @@ export const DocumentManagerSkeleton: React.FC<DocumentManagerSkeletonProps> = (
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="flex items-center justify-between p-3 border border-gray-100 rounded-lg animate-pulse"
+              className="flex items-center justify-between p-3 border-2 border-gray-200 rounded-lg animate-pulse"
             >
               <div className="flex items-center gap-3 flex-1">
                 <div className="h-8 w-8 bg-gray-200 rounded"></div>

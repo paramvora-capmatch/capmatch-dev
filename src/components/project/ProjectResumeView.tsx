@@ -622,11 +622,11 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 			return JSON.parse(
 				typeof window !== "undefined"
 					? localStorage.getItem(`resumeCollapsed:${project.id}`) ||
-					"true"
-					: "true"
+					"false"
+					: "false"
 			);
 		} catch {
-			return true;
+			return false;
 		}
 	});
 
@@ -671,12 +671,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 
 	return (
 		<div
-			className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30"
+			className="h-full flex flex-col bg-white rounded-2xl shadow-xl border-2 border-gray-300 relative overflow-hidden group transition-all duration-300 hover:shadow-2xl hover:shadow-blue-100/50"
 			aria-expanded={!collapsed}
 		>
 			<div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-			<div className="sticky top-[-8px] z-20 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl flex flex-row items-center justify-between relative px-3 py-4">
+			<div className="sticky top-[-8px] z-20 bg-white/95 backdrop-blur-md border-b-2 border-gray-300 shadow-md rounded-t-2xl flex flex-row items-center justify-between relative px-4 py-4">
 				<div className="ml-3 flex items-center gap-3">
 					<h2 className="text-2xl font-semibold text-gray-800 flex items-center">
 						<AlertCircle className="h-5 w-5 text-blue-600 mr-2 animate-pulse" />
@@ -698,30 +698,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 							</span>
 						</Button>
 					)}
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={(e) => {
-							e.stopPropagation();
-							setCollapsed((v) => !v);
-						}}
-						aria-label={
-							collapsed ? "Expand resume" : "Collapse resume"
-						}
-						className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
-					>
-						<ChevronDown
-							className={cn(
-								"h-5 w-5 text-gray-600 flex-shrink-0 transition-transform duration-200",
-								collapsed ? "" : "rotate-180"
-							)}
-						/>
-						<span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[160px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
-							{collapsed
-								? "Show Project Details"
-								: "Hide Project Details"}
-						</span>
-					</Button>
+
 					{canEdit && (
 						<>
 							<Button
@@ -805,7 +782,27 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 						</>
 					)}
 				</div>
-				<div />
+                <div className="flex items-center">
+                    <Button
+						variant="ghost"
+						size="sm"
+						onClick={(e) => {
+							e.stopPropagation();
+							setCollapsed((v) => !v);
+						}}
+						aria-label={
+							collapsed ? "Expand resume" : "Collapse resume"
+						}
+						className="h-8 w-8 p-0 rounded-full hover:bg-gray-100 text-gray-500"
+					>
+						<ChevronDown
+							className={cn(
+								"h-5 w-5 transition-transform duration-200",
+								collapsed ? "" : "rotate-180"
+							)}
+						/>
+					</Button>
+                </div>
 			</div>
 
 			<AnimatePresence initial={false}>
@@ -1012,8 +1009,8 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 									}
 
 									return (
-										<div key={sectionId}>
-											<h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
+										<div key={sectionId} className="rounded-xl border-2 border-gray-200 bg-white p-4 shadow-md">
+											<h3 className="text-md font-semibold text-gray-800 mb-3 flex items-center">
 												<IconComponent className="h-4 w-4 mr-2 text-blue-600" />
 												{cleanTitledNumberPrefix(
 													step.title
@@ -1141,7 +1138,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	key={
 																		subsectionId
 																	}
-																	className="space-y-3 rounded-md border border-gray-100 bg-gray-50/60 p-3"
+																	className="space-y-3 rounded-lg border-2 border-gray-200 bg-gray-50/80 p-3 shadow-sm"
 																>
 																	<h4 className="text-sm font-semibold text-gray-800">
 																		{cleanTitledNumberPrefix(
@@ -1776,29 +1773,29 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 
 																					{/* Summary Cards */}
 																					<div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4">
-																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Total Units</div>
-																							<div className="text-sm font-bold text-gray-700">{totalUnits}</div>
+																						<div className="bg-gray-50 p-2 rounded-lg border-2 border-gray-200 shadow-sm">
+																							<div className="text-[10px] text-gray-500 uppercase font-semibold">Total Units</div>
+																							<div className="text-sm font-bold text-gray-800">{totalUnits}</div>
 																						</div>
-																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Occupied</div>
-																							<div className="text-sm font-bold text-gray-700">{occupied}</div>
+																						<div className="bg-gray-50 p-2 rounded-lg border-2 border-gray-200 shadow-sm">
+																							<div className="text-[10px] text-gray-500 uppercase font-semibold">Occupied</div>
+																							<div className="text-sm font-bold text-gray-800">{occupied}</div>
 																						</div>
-																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Vacant</div>
-																							<div className="text-sm font-bold text-gray-700">{vacant}</div>
+																						<div className="bg-gray-50 p-2 rounded-lg border-2 border-gray-200 shadow-sm">
+																							<div className="text-[10px] text-gray-500 uppercase font-semibold">Vacant</div>
+																							<div className="text-sm font-bold text-gray-800">{vacant}</div>
 																						</div>
-																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Occupancy</div>
-																							<div className="text-sm font-bold text-gray-700">{occupancy.toFixed(1)}%</div>
+																						<div className="bg-gray-50 p-2 rounded-lg border-2 border-gray-200 shadow-sm">
+																							<div className="text-[10px] text-gray-500 uppercase font-semibold">Occupancy</div>
+																							<div className="text-sm font-bold text-gray-800">{occupancy.toFixed(1)}%</div>
 																						</div>
-																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Total Rent</div>
-																							<div className="text-sm font-bold text-gray-700">{formatCurrency(totalRent)}</div>
+																						<div className="bg-gray-50 p-2 rounded-lg border-2 border-gray-200 shadow-sm">
+																							<div className="text-[10px] text-gray-500 uppercase font-semibold">Total Rent</div>
+																							<div className="text-sm font-bold text-gray-800">{formatCurrency(totalRent)}</div>
 																						</div>
-																						<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-																							<div className="text-[10px] text-gray-400 uppercase font-semibold">Avg Rent</div>
-																							<div className="text-sm font-bold text-gray-700">{formatCurrency(avgRent)}</div>
+																						<div className="bg-gray-50 p-2 rounded-lg border-2 border-gray-200 shadow-sm">
+																							<div className="text-[10px] text-gray-500 uppercase font-semibold">Avg Rent</div>
+																							<div className="text-sm font-bold text-gray-800">{formatCurrency(avgRent)}</div>
 																						</div>
 																					</div>
 

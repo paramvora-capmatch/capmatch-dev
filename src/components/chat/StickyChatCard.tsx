@@ -178,7 +178,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
           <button
             aria-label={`Open chat${unreadCount ? ` — ${Math.min(unreadCount, 99)} unread` : ""}${threadCount ? `, ${threadCount} channels` : ""}`}
             onClick={() => setIsChatCollapsed(false)}
-            className="h-[calc(100vh-8rem)] w-14 rounded-2xl shadow-lg border border-gray-200 bg-white/70 hover:bg-white/80 backdrop-blur-xl flex flex-col items-center justify-center gap-2 relative transition-colors"
+            className="h-[calc(100vh-8rem)] w-14 rounded-2xl shadow-xl border-2 border-gray-300 bg-white/80 hover:bg-white/90 backdrop-blur-xl flex flex-col items-center justify-center gap-2 relative transition-colors"
             title={`Open chat${unreadCount ? ` — ${Math.min(unreadCount, 99)} unread` : ""}${threadCount ? `, ${threadCount} channels` : ""}`}
           >
             <div className="relative">
@@ -195,8 +195,8 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
             </span>
           </button>
         ) : (
-          <div className="flex flex-col h-[calc(100vh-8rem)] rounded-2xl shadow-lg overflow-hidden border border-gray-200 bg-white/70 backdrop-blur-xl">
-            <div className="flex items-center justify-between border-b border-gray-200/70 bg-white/60 px-2 py-1">
+          <div className="flex flex-col h-[calc(100vh-8rem)] rounded-2xl shadow-xl overflow-hidden border-2 border-gray-300 bg-white/80 backdrop-blur-xl">
+            <div className="flex items-center justify-between border-b-2 border-gray-300 bg-white/70 px-2 py-1">
               {!hideTeamTab ? (
                 <div className="flex flex-1 bg-gradient-to-r from-gray-100 to-gray-50 p-1 rounded-lg shadow-inner">
                   <button

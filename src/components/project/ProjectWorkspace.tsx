@@ -1114,12 +1114,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				canUpload={true}
 				canDelete={true}
 				context="borrower"
+				collapsible={true}
+				defaultOpen={true}
 			/>
 		</div>
 	);
 
 	const renderBorrowerResumeSection = () => (
-		<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-full">
+		<div className="bg-white rounded-2xl shadow-xl border-2 border-gray-300 overflow-hidden max-w-full">
 			<BorrowerResumeForm
 				projectId={projectId}
 				dealType={activeProject?.deal_type ?? 'ground_up'}
@@ -1205,7 +1207,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 						{/* Advisor-only Mode Switcher */}
 						{user?.role === "advisor" && (
 							<div className="mb-6 flex justify-center">
-								<div className="flex bg-gray-100 p-1 rounded-lg shadow-sm border border-gray-200">
+								<div className="flex bg-gray-100 p-1 rounded-lg shadow-md border-2 border-gray-300">
 									<button
 										onClick={() =>
 											handleViewChange("resume")
@@ -1297,7 +1299,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 													delay: 0.2,
 												}}
 											>
-												<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-full">
+												<div className="bg-white rounded-2xl shadow-xl border-2 border-gray-300 overflow-hidden max-w-full">
 													<div className="p-6 space-y-4">
 														<div className="h-7 bg-gray-200 rounded w-48 animate-pulse"></div>
 														<div className="space-y-3">
@@ -1406,7 +1408,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 													duration: 0.3,
 													delay: 0.2,
 												}}
-												className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border border-emerald-200 rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group"
+												className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-300 rounded-xl p-4 flex items-center justify-between shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group"
 											>
 												{/* Animated background pattern */}
 												<div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-transparent to-green-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -1518,6 +1520,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 														highlightedResourceId
 													}
 													context="project"
+													collapsible={true}
+													defaultOpen={true}
 												/>
 											</motion.div>
 										) : null}
