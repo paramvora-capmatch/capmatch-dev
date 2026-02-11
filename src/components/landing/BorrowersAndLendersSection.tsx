@@ -1,0 +1,178 @@
+"use client";
+
+import React from "react";
+import { motion } from "framer-motion";
+import { AnimatedLenderGraph } from "@/components/graph/AnimatedLenderGraph";
+
+const borrowerPoints: { title: string; description: string }[] = [
+	{
+		title: "Direct access to the right lenders",
+		description:
+			"Not a spray-and-pray marketplace - your deal is matched to lenders who actually want it.",
+	},
+	{
+		title: "Institutional-grade deal presentation",
+		description:
+			"Your story, numbers, and risks structured the way lenders underwrite - not buried in PDFs.",
+	},
+	{
+		title: "Faster certainty of execution",
+		description:
+			"Less back-and-forth, fewer dead ends, quicker paths to real term sheets.",
+	},
+];
+
+const lenderPoints: { title: string; description: string }[] = [
+	{
+		title: "Curated, mandate-matched deal flow",
+		description:
+			"Only deals that fit your box - pre-screened, relevant, and investment-ready.",
+	},
+	{
+		title: "Standardized, comparable underwriting",
+		description:
+			"Every deal follows the structure you need, so you can compare apples to apples instantly.",
+	},
+	{
+		title: "Faster deployment of capital",
+		description:
+			"Cleaner inputs, clearer risks, and fewer friction points between interest and close.",
+	},
+];
+
+export function BorrowersAndLendersSection() {
+	return (
+		<section
+			id="borrowers-and-lenders"
+			className="relative w-full min-h-screen flex flex-col border-t border-gray-200"
+			style={{
+				backgroundImage: `
+					repeating-linear-gradient(
+						45deg,
+						transparent,
+						transparent 10px,
+						rgba(209, 213, 219, 0.097) 10px,
+						rgba(209, 213, 219, 0.097) 11px
+					),
+					repeating-linear-gradient(
+						-45deg,
+						transparent,
+						transparent 10px,
+						rgba(209, 213, 219, 0.097) 10px,
+						rgba(209, 213, 219, 0.097) 11px
+					)
+				`,
+			}}
+		>
+			{/* Title + byline - full width at top */}
+			<div className="w-full text-center pt-12 md:pt-16 pb-3 md:pb-4 px-4">
+				<motion.div
+					initial={{ opacity: 0, y: 12 }}
+					whileInView={{ opacity: 1, y: 0 }}
+					viewport={{ once: true, margin: "-40px" }}
+					transition={{ duration: 0.5 }}
+				>
+					<h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight whitespace-nowrap mb-4">
+						Built for Borrowers & Lenders
+					</h2>
+					<p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+						CapMatch isn&apos;t software. It&apos;s infrastructure - built to move
+						capital, and paid on performance.
+					</p>
+				</motion.div>
+			</div>
+
+			{/* Three columns: Borrowers card | graph | Lenders card */}
+			<div className="flex flex-col md:flex-row md:items-center md:gap-4 lg:gap-6 flex-1 w-full max-w-7xl mx-auto px-4 md:px-6">
+			{/* Left column - Borrowers card */}
+			<div className="w-full md:w-[28%] lg:w-1/4 min-h-[200px] md:min-h-0 flex flex-col justify-center pt-6 md:pt-8 pb-12 md:pb-16 md:pl-0">
+				<motion.div
+					initial={{ opacity: 0, y: 24, scale: 0.96 }}
+					whileInView={{ opacity: 1, y: 0, scale: 1 }}
+					viewport={{ once: true, margin: "-50px" }}
+					transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+					className="w-full max-w-sm bg-white rounded-3xl shadow-lg p-6 lg:p-8 relative overflow-hidden"
+					style={{
+						boxShadow:
+							"0 4px 24px -4px rgba(0, 0, 0, 0.12), 0 1.5px 6px -1.5px rgba(0, 0, 0, 0.08)",
+					}}
+				>
+					<div className="absolute right-0 top-6 bottom-6 w-[3px] rounded-full bg-gradient-to-b from-blue-400 via-blue-500 to-blue-400 opacity-60" />
+					<h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">
+						Borrowers
+					</h2>
+					<ul className="space-y-5">
+						{borrowerPoints.map((item, i) => (
+							<li key={i} className="flex items-start gap-3">
+								<span className="text-blue-500 font-bold shrink-0">
+									{i + 1}.
+								</span>
+								<div>
+									<p className="font-semibold text-gray-900 text-sm md:text-base">
+										{item.title}
+									</p>
+									<p className="text-gray-600 text-sm md:text-base mt-0.5 leading-relaxed">
+										{item.description}
+									</p>
+								</div>
+							</li>
+						))}
+					</ul>
+				</motion.div>
+			</div>
+
+			{/* Middle column - graph + horizontal chips */}
+			<div className="w-full md:flex-1 flex flex-col justify-center px-0 md:px-1 pt-4 md:pt-6 pb-8 md:pb-12 min-h-[600px] min-w-0">
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					whileInView={{ opacity: 1, y: 0 }}
+					viewport={{ once: true, margin: "-50px" }}
+					transition={{ duration: 0.5 }}
+					className="w-full max-w-4xl mx-auto"
+				>
+					<div className="w-full flex flex-col min-h-[55vh] md:min-h-[60vh]">
+						<AnimatedLenderGraph chipLayout="horizontal" />
+					</div>
+				</motion.div>
+			</div>
+
+			{/* Right column - Lenders card */}
+			<div className="w-full md:w-[28%] lg:w-1/4 min-h-[200px] md:min-h-0 flex flex-col justify-center pt-6 md:pt-8 pb-12 md:pb-16 md:pr-0">
+				<motion.div
+					initial={{ opacity: 0, y: 24, scale: 0.96 }}
+					whileInView={{ opacity: 1, y: 0, scale: 1 }}
+					viewport={{ once: true, margin: "-50px" }}
+					transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+					className="w-full max-w-sm ml-auto bg-white rounded-3xl shadow-lg p-6 lg:p-8 relative overflow-hidden"
+					style={{
+						boxShadow:
+							"0 4px 24px -4px rgba(0, 0, 0, 0.12), 0 1.5px 6px -1.5px rgba(0, 0, 0, 0.08)",
+					}}
+				>
+					<div className="absolute left-0 top-6 bottom-6 w-[3px] rounded-full bg-gradient-to-b from-blue-400 via-blue-500 to-blue-400 opacity-60" />
+					<h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">
+						Lenders
+					</h2>
+					<ul className="space-y-5">
+						{lenderPoints.map((item, i) => (
+							<li key={i} className="flex items-start gap-3">
+								<span className="text-blue-500 font-bold shrink-0">
+									{i + 1}.
+								</span>
+								<div>
+									<p className="font-semibold text-gray-900 text-sm md:text-base">
+										{item.title}
+									</p>
+									<p className="text-gray-600 text-sm md:text-base mt-0.5 leading-relaxed">
+										{item.description}
+									</p>
+								</div>
+							</li>
+						))}
+					</ul>
+				</motion.div>
+			</div>
+			</div>
+		</section>
+	);
+}

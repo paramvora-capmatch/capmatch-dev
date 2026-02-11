@@ -9,6 +9,7 @@ import { cn } from "@/utils/cn";
 import {
 	HowItWorksSection,
 	CaseStudiesSection,
+	BorrowersAndLendersSection,
 	SecuritySection,
 	LenderMarquee
 } from "@/components/landing";
@@ -196,6 +197,7 @@ export default function HomePage() {
 				<CaseStudiesSection />
 				<LenderMarquee />
 				<HowItWorksSection />
+				<BorrowersAndLendersSection />
 				<SecuritySection />
 			</main>
 

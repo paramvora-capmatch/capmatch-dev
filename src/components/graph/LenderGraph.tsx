@@ -314,7 +314,7 @@ export default function LenderGraph({
           }
         }
 
-        const moveSpeed = 0.075;
+        const moveSpeed = 0.04;
         pos.x += (pos.targetX - pos.x) * moveSpeed;
         pos.y += (pos.targetY - pos.y) * moveSpeed;
 

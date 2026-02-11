@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import LenderGraph from "./LenderGraph";
 import { useLenderStore, LenderFilters } from "@/stores/useLenderStore";
-import { Search, MapPin, Building2, Briefcase } from "lucide-react";
+import { MapPin, Building2, Briefcase } from "lucide-react";
 
 const ASSET_TYPES = [
     "Multifamily",
@@ -24,7 +24,13 @@ const LOCATIONS = [
     "West Coast",
 ];
 
-export function AnimatedLenderGraph() {
+type ChipLayout = "vertical" | "horizontal";
+
+export function AnimatedLenderGraph({
+	chipLayout = "vertical",
+}: {
+	chipLayout?: ChipLayout;
+}) {
     const { lenders, loadLenders } = useLenderStore();
     const [filters, setFilters] = useState<Partial<LenderFilters>>({
         asset_types: [],
@@ -58,24 +64,24 @@ export function AnimatedLenderGraph() {
                     capital_types: [],
                     debt_ranges: [],
                 });
-                timer = setTimeout(() => setPhase(1), 1500);
+                timer = setTimeout(() => setPhase(1), 2200);
             } else if (phase === 1) {
                 // Select Asset Type
                 setFilters((prev) => ({ ...prev, asset_types: ["Multifamily"] }));
-                timer = setTimeout(() => setPhase(2), 2000);
+                timer = setTimeout(() => setPhase(2), 3200);
             } else if (phase === 2) {
                 // Select Deal Type
                 setFilters((prev) => ({ ...prev, deal_types: ["Refinance"] }));
-                timer = setTimeout(() => setPhase(3), 2000);
+                timer = setTimeout(() => setPhase(3), 3200);
             } else if (phase === 3) {
                 // Select Location
                 setFilters((prev) => ({ ...prev, locations: ["Northeast"] }));
-                timer = setTimeout(() => setPhase(4), 2000);
+                timer = setTimeout(() => setPhase(4), 3200);
             } else if (phase === 4) {
                 // Final State Pause
                 timer = setTimeout(() => {
                     setPhase(0);
-                }, 6000);
+                }, 8000);
             }
         };
 
@@ -94,9 +100,11 @@ export function AnimatedLenderGraph() {
 
     const allFiltersSelected = phase === 4 || phase === 3; // roughly
 
+    const graphHeight = chipLayout === "horizontal" ? "min-h-[50vh] h-[50vh] md:min-h-[55vh] md:h-[55vh]" : "min-h-[380px] h-[380px]";
+
     return (
-        <div className="w-full h-full flex flex-col overflow-hidden p-0">
-            <div className="flex-grow relative min-h-[400px]">
+        <div className="w-full h-full flex flex-col overflow-hidden p-0 min-h-0">
+            <div className={`flex-grow relative w-full ${graphHeight}`}>
                 <LenderGraph
                     lenders={lenders}
                     formData={filters}
@@ -104,14 +112,59 @@ export function AnimatedLenderGraph() {
                     allFiltersSelected={phase >= 3}
                 />
 
-                {/* Phase indicator / selection display overlay */}
-                <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none">
+                {/* Phase indicator / selection display overlay (vertical layout only) */}
+                {chipLayout === "vertical" && (
+                    <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none">
+                        <AnimatePresence>
+                            {filters.asset_types?.[0] && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
+                                >
+                                    <Building2 size={14} />
+                                    {filters.asset_types[0]}
+                                </motion.div>
+                            )}
+                            {filters.deal_types?.[0] && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    className="bg-white/90 backdrop-blur-sm border border-emerald-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-emerald-700"
+                                >
+                                    <Briefcase size={14} />
+                                    {filters.deal_types[0]}
+                                </motion.div>
+                            )}
+                            {filters.locations?.[0] && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    className="bg-white/90 backdrop-blur-sm border border-orange-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-orange-700"
+                                >
+                                    <MapPin size={14} />
+                                    {filters.locations[0]}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                )}
+
+            </div>
+
+            {/* Horizontal chips below graph (when chipLayout === 'horizontal') */}
+            {chipLayout === "horizontal" && (
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                     <AnimatePresence>
                         {filters.asset_types?.[0] && (
                             <motion.div
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
                                 className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
                             >
                                 <Building2 size={14} />
@@ -120,9 +173,10 @@ export function AnimatedLenderGraph() {
                         )}
                         {filters.deal_types?.[0] && (
                             <motion.div
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
                                 className="bg-white/90 backdrop-blur-sm border border-emerald-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-emerald-700"
                             >
                                 <Briefcase size={14} />
@@ -131,9 +185,10 @@ export function AnimatedLenderGraph() {
                         )}
                         {filters.locations?.[0] && (
                             <motion.div
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
                                 className="bg-white/90 backdrop-blur-sm border border-orange-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-orange-700"
                             >
                                 <MapPin size={14} />
@@ -142,19 +197,9 @@ export function AnimatedLenderGraph() {
                         )}
                     </AnimatePresence>
                 </div>
+            )}
 
-                {phase === 4 && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="absolute bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-bold flex items-center gap-2"
-                    >
-                        <Search size={16} />
-                        Matches Found
-                    </motion.div>
-                )}
-            </div>
-
+            {chipLayout === "vertical" && (
             <div className="mt-4 pb-8 flex flex-col items-center justify-center gap-4">
                 <div className="flex gap-4 items-center h-12">
                     <div className={`flex flex-col items-center transition-opacity duration-300 ${phase >= 1 ? 'opacity-100' : 'opacity-30'}`}>
@@ -179,6 +224,7 @@ export function AnimatedLenderGraph() {
                     </div>
                 </div>
             </div>
+            )}
         </div>
     );
 }

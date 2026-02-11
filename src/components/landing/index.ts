@@ -1,3 +1,4 @@
+export * from "./BorrowersAndLendersSection";
 export * from "./BusinessModelSection";
 export * from "./CaseStudiesSection";
 export * from "./FeatureGridSection";

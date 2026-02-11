@@ -108,6 +108,9 @@ export function SecuritySection() {
 					transition={{ duration: 0.6, delay: 0.4 }}
 					className="pt-6 border-t border-gray-100/50 -mx-6 px-6 rounded-xl"
 				>
+					<h3 className="text-center text-xl md:text-2xl font-bold text-gray-800 tracking-tight mb-4">
+						Trusted Data Sources
+					</h3>
 					<div className="relative">
 						{/* Gradient Mask for fading edges */}
 						<div
