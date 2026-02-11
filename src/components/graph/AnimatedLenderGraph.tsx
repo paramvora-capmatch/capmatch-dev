@@ -64,24 +64,24 @@ export function AnimatedLenderGraph({
                     capital_types: [],
                     debt_ranges: [],
                 });
-                timer = setTimeout(() => setPhase(1), 2200);
+                timer = setTimeout(() => setPhase(1), 900);
             } else if (phase === 1) {
                 // Select Asset Type
                 setFilters((prev) => ({ ...prev, asset_types: ["Multifamily"] }));
-                timer = setTimeout(() => setPhase(2), 3200);
+                timer = setTimeout(() => setPhase(2), 2000);
             } else if (phase === 2) {
                 // Select Deal Type
                 setFilters((prev) => ({ ...prev, deal_types: ["Refinance"] }));
-                timer = setTimeout(() => setPhase(3), 3200);
+                timer = setTimeout(() => setPhase(3), 2000);
             } else if (phase === 3) {
                 // Select Location
                 setFilters((prev) => ({ ...prev, locations: ["Northeast"] }));
-                timer = setTimeout(() => setPhase(4), 3200);
+                timer = setTimeout(() => setPhase(4), 2000);
             } else if (phase === 4) {
                 // Final State Pause
                 timer = setTimeout(() => {
                     setPhase(0);
-                }, 8000);
+                }, 4500);
             }
         };
 
@@ -118,9 +118,11 @@ export function AnimatedLenderGraph({
                         <AnimatePresence>
                             {filters.asset_types?.[0] && (
                                 <motion.div
+                                    key="asset"
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
+                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
                                     className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
                                 >
                                     <Building2 size={14} />
@@ -129,9 +131,11 @@ export function AnimatedLenderGraph({
                             )}
                             {filters.deal_types?.[0] && (
                                 <motion.div
+                                    key="deal"
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
+                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
                                     className="bg-white/90 backdrop-blur-sm border border-emerald-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-emerald-700"
                                 >
                                     <Briefcase size={14} />
@@ -140,9 +144,11 @@ export function AnimatedLenderGraph({
                             )}
                             {filters.locations?.[0] && (
                                 <motion.div
+                                    key="location"
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
+                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
                                     className="bg-white/90 backdrop-blur-sm border border-orange-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-orange-700"
                                 >
                                     <MapPin size={14} />
@@ -155,47 +161,60 @@ export function AnimatedLenderGraph({
 
             </div>
 
-            {/* Horizontal chips below graph (when chipLayout === 'horizontal') */}
+            {/* Horizontal chips below graph (when chipLayout === 'horizontal') — fixed order: Asset | Deal | Location */}
             {chipLayout === "horizontal" && (
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                    <AnimatePresence>
-                        {filters.asset_types?.[0] && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
-                            >
-                                <Building2 size={14} />
-                                {filters.asset_types[0]}
-                            </motion.div>
-                        )}
-                        {filters.deal_types?.[0] && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                className="bg-white/90 backdrop-blur-sm border border-emerald-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-emerald-700"
-                            >
-                                <Briefcase size={14} />
-                                {filters.deal_types[0]}
-                            </motion.div>
-                        )}
-                        {filters.locations?.[0] && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                className="bg-white/90 backdrop-blur-sm border border-orange-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-orange-700"
-                            >
-                                <MapPin size={14} />
-                                {filters.locations[0]}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                <div className="mt-4 flex items-center justify-center gap-3">
+                    <div className="flex items-center justify-center min-w-[120px] h-9">
+                        <AnimatePresence mode="wait">
+                            {filters.asset_types?.[0] ? (
+                                <motion.div
+                                    key="asset"
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                    className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
+                                >
+                                    <Building2 size={14} />
+                                    {filters.asset_types[0]}
+                                </motion.div>
+                            ) : null}
+                        </AnimatePresence>
+                    </div>
+                    <div className="flex items-center justify-center min-w-[120px] h-9">
+                        <AnimatePresence mode="wait">
+                            {filters.deal_types?.[0] ? (
+                                <motion.div
+                                    key="deal"
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                    className="bg-white/90 backdrop-blur-sm border border-emerald-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-emerald-700"
+                                >
+                                    <Briefcase size={14} />
+                                    {filters.deal_types[0]}
+                                </motion.div>
+                            ) : null}
+                        </AnimatePresence>
+                    </div>
+                    <div className="flex items-center justify-center min-w-[120px] h-9">
+                        <AnimatePresence mode="wait">
+                            {filters.locations?.[0] ? (
+                                <motion.div
+                                    key="location"
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                                    className="bg-white/90 backdrop-blur-sm border border-orange-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-orange-700"
+                                >
+                                    <MapPin size={14} />
+                                    {filters.locations[0]}
+                                </motion.div>
+                            ) : null}
+                        </AnimatePresence>
+                    </div>
                 </div>
             )}
 
