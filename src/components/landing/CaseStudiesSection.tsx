@@ -33,7 +33,7 @@ export function CaseStudiesSection() {
 		<section
 			id="case-studies"
 			ref={ref}
-			className="min-h-0 pt-6 sm:pt-8 md:pt-10 pb-4 md:pb-6 flex flex-col justify-center"
+			className="min-h-0 pt-6 sm:pt-8 md:pt-10 pb-16 md:pb-20 flex flex-col justify-center"
 			style={{
 				backgroundImage: `
 					repeating-linear-gradient(
@@ -94,57 +94,24 @@ export function CaseStudiesSection() {
 						Live deals on the platform. Explore our case studies.
 					</p>
 				</motion.div>
-				{/* Carousel - fixed height so card size is consistent across case studies */}
+				{/* Carousel - fixed height so all three case studies match; image fills left column */}
 				<motion.div
-					className="relative rounded-xl overflow-hidden border border-blue-200/50 bg-white shadow-sm flex flex-col h-[535px] sm:h-[590px] md:h-[648px]"
+					className="relative rounded-xl overflow-hidden border border-blue-200/50 bg-white shadow-sm flex flex-col h-[380px] sm:h-[420px] md:h-[460px]"
 					initial={{ opacity: 0, y: 24 }}
 					animate={isInView ? { opacity: 1, y: 0 } : {}}
 					transition={{ duration: 0.6, delay: 0.1 }}
 				>
 					<div className="flex flex-col md:flex-row flex-1 min-h-0 h-full">
-						{/* Image - fixed column height; controls overlay image only */}
-						<div className="relative w-full md:w-3/5 h-[220px] md:h-full flex-shrink-0 bg-gray-200 rounded-l-xl overflow-hidden">
+						{/* Image - fixed column height = card height; image fills with object-cover */}
+						<div className="w-full md:w-3/5 h-[220px] md:h-full flex-shrink-0 bg-gray-200 rounded-l-xl overflow-hidden">
 							<img
 								src={deal.image}
 								alt={deal.headline}
 								className="w-full h-full object-cover object-center"
 							/>
-							{/* Carousel controls - over image only so they never cover text */}
-							<div className="absolute bottom-3 left-3 right-3 md:left-auto md:right-3 flex items-center justify-center md:justify-end gap-2">
-								<button
-									type="button"
-									onClick={goPrev}
-									className="p-2 rounded-full bg-white/95 border border-gray-200 shadow-sm hover:bg-white text-gray-600"
-									aria-label="Previous case study"
-								>
-									<ChevronLeft size={20} />
-								</button>
-								<div className="flex gap-1.5">
-									{caseStudies.map((_, i) => (
-										<button
-											key={i}
-											type="button"
-											onClick={() => setIndex(i)}
-											className={`w-2.5 h-2.5 rounded-full transition-colors ${i === index
-												? "bg-blue-600"
-												: "bg-gray-300 hover:bg-gray-400"
-												}`}
-											aria-label={`Go to case study ${i + 1}`}
-										/>
-									))}
-								</div>
-								<button
-									type="button"
-									onClick={goNext}
-									className="p-2 rounded-full bg-white/95 border border-gray-200 shadow-sm hover:bg-white text-gray-600"
-									aria-label="Next case study"
-								>
-									<ChevronRight size={20} />
-								</button>
-							</div>
 						</div>
-						{/* Content side - aligned to top so type of deal & headline stay visible; scrolls when text is long */}
-						<div className="w-full md:w-2/5 p-5 sm:p-6 md:p-8 flex flex-col justify-start min-h-0 overflow-y-auto flex-1">
+						{/* Content side - scrolls if text is long */}
+						<div className="w-full md:w-2/5 p-5 sm:p-6 md:p-8 flex flex-col justify-center min-h-0 overflow-y-auto flex-1">
 							<AnimatePresence mode="wait">
 								<motion.div
 									key={deal.id}
@@ -181,6 +148,40 @@ export function CaseStudiesSection() {
 								</motion.div>
 							</AnimatePresence>
 						</div>
+					</div>
+
+					{/* Carousel controls - bottom right of card, inside text area */}
+					<div className="absolute bottom-4 right-4 flex items-center gap-2">
+						<button
+							type="button"
+							onClick={goPrev}
+							className="p-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-600"
+							aria-label="Previous case study"
+						>
+							<ChevronLeft size={20} />
+						</button>
+						<div className="flex gap-1.5">
+							{caseStudies.map((_, i) => (
+								<button
+									key={i}
+									type="button"
+									onClick={() => setIndex(i)}
+									className={`w-2.5 h-2.5 rounded-full transition-colors ${i === index
+										? "bg-blue-600"
+										: "bg-gray-300 hover:bg-gray-400"
+										}`}
+									aria-label={`Go to case study ${i + 1}`}
+								/>
+							))}
+						</div>
+						<button
+							type="button"
+							onClick={goNext}
+							className="p-2 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-600"
+							aria-label="Next case study"
+						>
+							<ChevronRight size={20} />
+						</button>
 					</div>
 				</motion.div>
 			</div>

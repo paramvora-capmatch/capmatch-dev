@@ -3,8 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Lock, ShieldCheck, UserCheck, BadgeCheck } from "lucide-react";
-import Image from "next/image";
-import { InfiniteSlider } from "@/components/ui/InfiniteSlider";
 
 type PartnerLogo = { src: string; name: string; scale: number };
 
@@ -81,48 +79,68 @@ export function SecuritySection() {
 						</div>
 					))}
 				</div>
-
-				{/* Partner Logos Infinite Slider */}
-				<motion.div
-					initial={{ opacity: 0, y: 20 }}
-					whileInView={{ opacity: 1, y: 0 }}
-					viewport={{ once: true }}
-					transition={{ duration: 0.6, delay: 0.4 }}
-					className="pt-6 border-t border-gray-100/50 -mx-6 px-6 rounded-xl"
-				>
-					<h3 className="text-center text-xl md:text-2xl font-bold text-gray-800 tracking-tight mb-2">
-						Trusted Data Sources
-					</h3>
-					<div className="relative">
-						{/* Gradient Mask for fading edges */}
-						<div
-							className="absolute inset-0 z-10 pointer-events-none rounded-xl"
-							style={{
-								background: 'linear-gradient(to right, rgba(255,255,255,0.85), transparent 15%, transparent 85%, rgba(255,255,255,0.85))'
-							}}
-						/>
-						<InfiniteSlider gap={100} speed={40} className="py-2">
-							{partnerLogos.map((logo, idx) => (
-								<div
-									key={`${logo.name}-${idx}`}
-									className={`relative grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all duration-500 flex items-center justify-center ${logo.scale === 1.5
-										? "h-44 lg:h-60 w-44 lg:w-60 -translate-y-5"
-										: "h-32 lg:h-44 w-32 lg:w-44"
-										}`}
-								>
-									<Image
-										src={logo.src}
-										alt={logo.name}
-										fill
-										className="object-contain p-4"
-										unoptimized={logo.src.endsWith(".svg")}
-									/>
-								</div>
-							))}
-						</InfiniteSlider>
-					</div>
-				</motion.div>
 			</div>
+
+			{/* Partner Logos Marquee - same design as Active Deal Volume, full viewport width */}
+			<motion.div
+				initial={{ opacity: 0, y: 20 }}
+				whileInView={{ opacity: 1, y: 0 }}
+				viewport={{ once: true }}
+				transition={{ duration: 0.6, delay: 0.4 }}
+				className="pt-6 border-t border-gray-100/50 mt-6"
+				style={{
+					backgroundImage: `
+						repeating-linear-gradient(
+							45deg,
+							transparent,
+							transparent 10px,
+							rgba(209, 213, 219, 0.097) 10px,
+							rgba(209, 213, 219, 0.097) 11px
+						),
+						repeating-linear-gradient(
+							-45deg,
+							transparent,
+							transparent 10px,
+							rgba(209, 213, 219, 0.097) 10px,
+							rgba(209, 213, 219, 0.097) 11px
+						)
+					`,
+				}}
+			>
+				<h3 className="text-center text-xl md:text-2xl font-bold text-gray-800 tracking-tight mb-4 sm:mb-6">
+					Trusted Data Sources
+				</h3>
+				<div className="relative flex overflow-hidden group pt-4 sm:pt-6 md:pt-10">
+					{/* Gradient Masks - fade to transparent so cross-hatch shows */}
+					<div className="absolute left-0 top-0 bottom-0 w-24 z-10 bg-gradient-to-r from-white to-transparent pointer-events-none" />
+					<div className="absolute right-0 top-0 bottom-0 w-24 z-10 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+					{/* Marquee Track - same as LenderMarquee */}
+					<motion.div
+						className="flex items-center gap-12 pr-12"
+						animate={{
+							x: partnerLogos.length > 0 ? [0, -100 * partnerLogos.length * 2] : 0,
+						}}
+						transition={{
+							repeat: Infinity,
+							duration: Math.max(25, partnerLogos.length * 6),
+							ease: "linear",
+						}}
+					>
+						{[...partnerLogos, ...partnerLogos, ...partnerLogos, ...partnerLogos].map((logo, index) => (
+							<div
+								key={`${logo.name}-${index}`}
+								className="relative h-24 w-52 sm:h-28 sm:w-60 flex-shrink-0 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-500 transform hover:scale-110 hover:-translate-y-4 hover:z-50 cursor-pointer filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)]"
+							>
+								<img
+									src={logo.src}
+									alt={logo.name}
+									className="h-full w-full object-contain mix-blend-multiply"
+								/>
+							</div>
+						))}
+					</motion.div>
+				</div>
+			</motion.div>
 		</section >
 	);
 }
