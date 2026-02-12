@@ -33,7 +33,7 @@ export function CaseStudiesSection() {
 		<section
 			id="case-studies"
 			ref={ref}
-			className="min-h-0 pt-6 sm:pt-8 md:pt-10 pb-16 md:pb-20 flex flex-col justify-center"
+			className="min-h-0 pt-6 sm:pt-8 md:pt-10 pb-8 md:pb-10 flex flex-col justify-center"
 			style={{
 				backgroundImage: `
 					repeating-linear-gradient(
