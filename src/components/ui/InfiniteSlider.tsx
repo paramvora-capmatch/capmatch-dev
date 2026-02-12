@@ -1,8 +1,37 @@
 'use client';
 import { cn } from '@/lib/utils';
 import { useMotionValue, animate, motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
-import useMeasure from 'react-use-measure';
+import { useState, useEffect, useCallback, useRef } from 'react';
+
+function useMeasure(): [
+	React.RefCallback<HTMLDivElement>,
+	{ width: number; height: number }
+] {
+	const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+	const roRef = useRef<ResizeObserver | null>(null);
+
+	const ref = useCallback((node: HTMLDivElement | null) => {
+		if (roRef.current) {
+			roRef.current.disconnect();
+			roRef.current = null;
+		}
+		if (node) {
+			roRef.current = new ResizeObserver((entries) => {
+				const entry = entries[0];
+				if (entry) {
+					const { width, height } = entry.contentRect;
+					setDimensions({ width, height });
+				}
+			});
+			roRef.current.observe(node);
+			setDimensions({ width: node.offsetWidth, height: node.offsetHeight });
+		} else {
+			setDimensions({ width: 0, height: 0 });
+		}
+	}, []);
+
+	return [ref, dimensions];
+}
 
 export type InfiniteSliderProps = {
     children: React.ReactNode;

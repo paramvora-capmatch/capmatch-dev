@@ -30,7 +30,7 @@ export function LenderMarquee() {
 
     return (
         <section
-            className="pt-0.5 pb-8 sm:pb-12 md:pb-20 overflow-hidden"
+            className="pt-12 pb-16 sm:pb-20 md:pb-24 overflow-hidden"
             style={{
                 backgroundImage: `
                     repeating-linear-gradient(
@@ -57,7 +57,7 @@ export function LenderMarquee() {
 
                 {/* Marquee Track */}
                 <motion.div
-                    className="flex items-center gap-20 pr-16"
+                    className="flex items-center gap-12 pr-12"
                     animate={{
                         x: [0, -100 * lenders.length * 2], 
                     }}
@@ -71,7 +71,7 @@ export function LenderMarquee() {
                     {[...lenders, ...lenders, ...lenders, ...lenders].map((logo, index) => (
                         <div 
                             key={index} 
-                            className="relative h-20 w-44 sm:h-24 sm:w-52 flex-shrink-0 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-500 transform hover:scale-110 hover:-translate-y-4 hover:z-50 cursor-pointer filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)]"
+                            className="relative h-24 w-52 sm:h-28 sm:w-60 flex-shrink-0 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-500 transform hover:scale-110 hover:-translate-y-4 hover:z-50 cursor-pointer filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)]"
                         >
                             <img
                                 src={logo}

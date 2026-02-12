@@ -47,7 +47,7 @@ export function BorrowersAndLendersSection() {
 			className="relative w-full min-h-screen flex flex-col pb-24"
 		>
 			{/* Title + byline - full width at top */}
-			<div className="w-full text-center pt-12 md:pt-16 pb-3 md:pb-4 px-4">
+			<div className="w-full text-center pt-20 md:pt-24 pb-3 md:pb-4 px-4">
 				<motion.div
 					initial={{ opacity: 0, y: 12 }}
 					whileInView={{ opacity: 1, y: 0 }}
@@ -58,8 +58,7 @@ export function BorrowersAndLendersSection() {
 						Built for Borrowers & Lenders
 					</h2>
 					<p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-						CapMatch isn&apos;t software. It&apos;s infrastructure - built to move
-						capital, and paid on performance.
+						Like Uber for CRE - connect borrowers and lenders directly, on demand.
 					</p>
 				</motion.div>
 			</div>
