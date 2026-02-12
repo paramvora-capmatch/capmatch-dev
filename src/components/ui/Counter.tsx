@@ -26,13 +26,14 @@ export function Counter({
 		}
 	}, [motionValue, isInView, value, direction]);
 
+	// When not in view, show target value so we never show $0M+ before scroll
 	useEffect(() => {
-		if (ref.current) {
+		if (ref.current && !isInView) {
 			ref.current.textContent = Intl.NumberFormat("en-US").format(
-				direction === "down" ? value : 0
+				direction === "down" ? 0 : value
 			);
 		}
-	}, [direction, value]);
+	}, [direction, value, isInView]);
 
 	useEffect(
 		() =>
