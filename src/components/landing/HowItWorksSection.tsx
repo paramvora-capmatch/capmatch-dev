@@ -118,12 +118,12 @@ function VideoBlock({ step, index }: { step: (typeof steps)[0]; index: number })
 	}, []);
 
 	return (
-		<div className="w-full lg:w-[70%] min-h-0 flex items-center justify-center px-4">
+		<div className="w-full min-h-0 flex items-center justify-center px-4">
 			<motion.div
 				ref={containerRef}
 				initial={{ opacity: 0, y: 56, scale: 0.92 }}
 				whileInView={{ opacity: 1, y: 0, scale: 1 }}
-				viewport={{ once: false, amount: 0.2, margin: "-80px" }}
+				viewport={{ once: true, amount: 0.2, margin: "-80px" }}
 				transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
 				className="w-full rounded-3xl overflow-hidden border-2 border-black bg-white shadow-xl"
 				style={{
@@ -177,11 +177,11 @@ function TextBlock({
 	isLeft: boolean;
 }) {
 	return (
-		<div className="w-full lg:w-[30%] min-h-0 flex flex-col justify-center px-4 lg:px-6">
+		<div className="w-full min-h-0 flex flex-col justify-center px-4 lg:px-6">
 			<motion.div
 				initial={{ opacity: 0, y: 56, scale: 0.92 }}
 				whileInView={{ opacity: 1, y: 0, scale: 1 }}
-				viewport={{ once: false, amount: 0.2, margin: "-80px" }}
+				viewport={{ once: true, amount: 0.2, margin: "-80px" }}
 				transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
 				className="w-full max-w-sm bg-white rounded-3xl shadow-lg p-6 lg:p-8 relative overflow-hidden"
 				style={{
@@ -232,18 +232,31 @@ export function HowItWorksSection() {
 				const videoOnRight = index % 2 === 0;
 				return (
 					<React.Fragment key={index}>
+						{/* On mobile: always text first, then video (order-1, order-2). On lg: natural DOM order for alternating left/right. */}
 						<div
 							className={`min-h-[50vh] flex flex-col lg:flex-row lg:items-center gap-8 lg:gap-12 w-full max-w-[90%] 2xl:max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12 ${index === 0 ? "pt-6 lg:pt-10" : "pt-8 lg:pt-12"} ${index < steps.length - 1 ? "pb-8 lg:pb-12" : "pb-16 lg:pb-24"}`}
 						>
 							{videoOnRight ? (
 								<>
-									<TextBlock step={step} isLeft />
-									<VideoBlock step={step} index={index} />
+									{/* Mobile: text first (order-1). Desktop: text left, 30%. */}
+									<div className="order-1 lg:order-1 w-full lg:w-[30%] min-w-0 flex-shrink-0">
+										<TextBlock step={step} isLeft />
+									</div>
+									{/* Mobile: video second (order-2). Desktop: video right, 70%. */}
+									<div className="order-2 lg:order-2 w-full lg:w-[70%] min-w-0">
+										<VideoBlock step={step} index={index} />
+									</div>
 								</>
 							) : (
 								<>
-									<VideoBlock step={step} index={index} />
-									<TextBlock step={step} isLeft={false} />
+									{/* Mobile: video second (order-2) but we want text first so order-1. Desktop: video left, 70%. */}
+									<div className="order-2 lg:order-1 w-full lg:w-[70%] min-w-0">
+										<VideoBlock step={step} index={index} />
+									</div>
+									{/* Mobile: text first (order-1). Desktop: text right, 30%. */}
+									<div className="order-1 lg:order-2 w-full lg:w-[30%] min-w-0 flex-shrink-0">
+										<TextBlock step={step} isLeft={false} />
+									</div>
 								</>
 							)}
 						</div>

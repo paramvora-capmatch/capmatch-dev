@@ -185,10 +185,10 @@ export function AnimatedLenderGraph({
 
             </div>
 
-            {/* Horizontal chips below graph (when chipLayout === 'horizontal') — fixed order: Asset | Deal | Location */}
+            {/* Horizontal chips below graph (when chipLayout === 'horizontal'). On small screens: max 2 per line, third wraps; on md+ single row. */}
             {chipLayout === "horizontal" && (
-                <div className="mt-4 flex items-center justify-center gap-3">
-                    <div className="flex items-center justify-center min-w-[120px] h-9">
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-3 px-1 sm:flex-nowrap">
+                    <div className="w-[calc(50%-6px)] sm:w-auto min-h-9 flex items-center justify-center sm:justify-center">
                         <AnimatePresence mode="wait">
                             {filters.asset_types?.[0] ? (
                                 <motion.div
@@ -197,7 +197,7 @@ export function AnimatedLenderGraph({
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                    className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
+                                    className="w-full sm:w-auto bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center justify-center gap-2 text-sm font-medium text-blue-700 whitespace-nowrap"
                                 >
                                     <Building2 size={14} />
                                     {filters.asset_types[0]}
@@ -205,7 +205,7 @@ export function AnimatedLenderGraph({
                             ) : null}
                         </AnimatePresence>
                     </div>
-                    <div className="flex items-center justify-center min-w-[120px] h-9">
+                    <div className="w-[calc(50%-6px)] sm:w-auto min-h-9 flex items-center justify-center sm:justify-center">
                         <AnimatePresence mode="wait">
                             {filters.deal_types?.[0] ? (
                                 <motion.div
@@ -214,7 +214,7 @@ export function AnimatedLenderGraph({
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                    className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
+                                    className="w-full sm:w-auto bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center justify-center gap-2 text-sm font-medium text-blue-700 whitespace-nowrap"
                                 >
                                     <Briefcase size={14} />
                                     {filters.deal_types[0]}
@@ -222,7 +222,7 @@ export function AnimatedLenderGraph({
                             ) : null}
                         </AnimatePresence>
                     </div>
-                    <div className="flex items-center justify-center min-w-[120px] h-9">
+                    <div className="w-full sm:w-auto min-h-9 flex items-center justify-center sm:justify-center">
                         <AnimatePresence mode="wait">
                             {filters.locations?.[0] ? (
                                 <motion.div
@@ -231,7 +231,7 @@ export function AnimatedLenderGraph({
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                    className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-medium text-blue-700"
+                                    className="bg-white/90 backdrop-blur-sm border border-blue-200 px-3 py-1.5 rounded-full shadow-sm flex items-center justify-center gap-2 text-sm font-medium text-blue-700 whitespace-nowrap"
                                 >
                                     <MapPin size={14} />
                                     {filters.locations[0]}

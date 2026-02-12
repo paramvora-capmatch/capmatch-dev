@@ -44,7 +44,7 @@ export function BorrowersAndLendersSection() {
 	return (
 		<section
 			id="borrowers-and-lenders"
-			className="relative w-full min-h-screen flex flex-col"
+			className="relative w-full min-h-screen flex flex-col pb-24"
 		>
 			{/* Title + byline - full width at top */}
 			<div className="w-full text-center pt-12 md:pt-16 pb-3 md:pb-4 px-4">
@@ -54,7 +54,7 @@ export function BorrowersAndLendersSection() {
 					viewport={{ once: true, margin: "-40px" }}
 					transition={{ duration: 0.5 }}
 				>
-					<h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight whitespace-nowrap mb-4">
+					<h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight mb-4">
 						Built for Borrowers & Lenders
 					</h2>
 					<p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
@@ -64,10 +64,10 @@ export function BorrowersAndLendersSection() {
 				</motion.div>
 			</div>
 
-			{/* Three columns: Borrowers card | graph | Lenders card */}
-			<div className="flex flex-col md:flex-row md:items-center md:gap-4 lg:gap-6 flex-1 w-full max-w-7xl mx-auto px-4 md:px-6">
+			{/* Three columns: Borrowers card | graph | Lenders card. flex-nowrap + shrink-0 so desktop stays in one row. */}
+			<div className="flex flex-col lg:flex-row flex-nowrap lg:items-center gap-6 lg:gap-8 flex-1 w-full max-w-7xl mx-auto px-4 md:px-6">
 			{/* Left column - Borrowers card */}
-			<div className="w-full md:w-[28%] lg:w-1/4 min-h-[200px] md:min-h-0 flex flex-col justify-center pt-6 md:pt-8 pb-12 md:pb-16 md:pl-0">
+			<div className="w-full lg:w-1/4 flex-shrink-0 min-h-[200px] lg:min-h-0 flex flex-col justify-center pt-6 lg:pt-8 pb-8 lg:pb-16 lg:pl-0">
 				<motion.div
 					initial={{ opacity: 0, y: 24, scale: 0.96 }}
 					whileInView={{ opacity: 1, y: 0, scale: 1 }}
@@ -99,7 +99,7 @@ export function BorrowersAndLendersSection() {
 			</div>
 
 			{/* Middle column - graph + horizontal chips */}
-			<div className="w-full md:flex-1 flex flex-col justify-center px-0 md:px-1 pt-4 md:pt-6 pb-8 md:pb-12 min-h-[600px] min-w-0">
+			<div className="w-full lg:flex-1 flex flex-col justify-center px-0 lg:px-2 pt-4 lg:pt-6 pb-8 lg:pb-12 min-h-[420px] lg:min-h-[60vh] min-w-0 flex-shrink">
 				<motion.div
 					initial={{ opacity: 0, y: 20 }}
 					whileInView={{ opacity: 1, y: 0 }}
@@ -113,8 +113,8 @@ export function BorrowersAndLendersSection() {
 				</motion.div>
 			</div>
 
-			{/* Right column - Lenders card */}
-			<div className="w-full md:w-[28%] lg:w-1/4 min-h-[200px] md:min-h-0 flex flex-col justify-center pt-6 md:pt-8 pb-12 md:pb-16 md:pr-0">
+			{/* Right column - Lenders card — extra bottom padding on mobile so card content isn't cut off */}
+			<div className="w-full lg:w-1/4 flex-shrink-0 min-h-[200px] lg:min-h-0 flex flex-col justify-center pt-6 lg:pt-8 pb-12 lg:pb-16 lg:pr-0 mb-8 lg:mb-0">
 				<motion.div
 					initial={{ opacity: 0, y: 24, scale: 0.96 }}
 					whileInView={{ opacity: 1, y: 0, scale: 1 }}

@@ -207,6 +207,13 @@ h6 {
   font-family: var(--font-sans) !important;
 }
 
+/* Prevent horizontal overflow on mobile (fixes right-side gap) */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body {
   background: #ffffff;
   color: #111827;
