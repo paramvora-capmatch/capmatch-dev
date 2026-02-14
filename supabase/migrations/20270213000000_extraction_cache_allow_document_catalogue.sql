@@ -1,5 +1,6 @@
--- Allow document_catalogue as a source_type in extraction_cache for document catalogue caching.
--- Catalogue is keyed by (project_id, signature, resume_label) and stored in extracted_data JSONB.
+-- Allow document_catalogue and subsection_extraction as source_types in extraction_cache.
+-- document_catalogue: relevance map cache (Pass 1)
+-- subsection_extraction: per-subsection extraction cache (Pass 2)
 DO $$
 DECLARE
   conname text;
@@ -17,6 +18,6 @@ END $$;
 
 ALTER TABLE extraction_cache
   ADD CONSTRAINT extraction_cache_source_type_check
-  CHECK (source_type IN ('document', 'knowledge_base', 'document_catalogue'));
+  CHECK (source_type IN ('document', 'knowledge_base', 'document_catalogue', 'subsection_extraction'));
 
-COMMENT ON COLUMN extraction_cache.source_type IS 'Type of source: document, knowledge_base, or document_catalogue';
+COMMENT ON COLUMN extraction_cache.source_type IS 'Type of source: document, knowledge_base, document_catalogue, or subsection_extraction';
