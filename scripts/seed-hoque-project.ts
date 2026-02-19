@@ -2428,6 +2428,7 @@ async function createThread(
 			.insert({
 				project_id: projectId,
 				topic,
+				stage: null, // Team chat; only "AI Underwriter" thread should have stage = 'underwriting'
 			})
 			.select()
 			.single();
@@ -3734,12 +3735,13 @@ async function createProject(
 			}
 		}
 
-		// 9. Create default chat thread
+		// 9. Create default chat thread (team chat, no AI replies)
 		const { data: chatThread, error: chatThreadError } = await supabaseAdmin
 			.from("chat_threads")
 			.insert({
 				project_id: projectId,
 				topic: "General",
+				stage: null,
 			})
 			.select()
 			.single();

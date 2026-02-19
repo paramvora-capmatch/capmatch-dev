@@ -388,6 +388,7 @@ async function createProject(
       .insert({
         project_id: projectId,
         topic: 'General',
+        stage: null, // Team chat; only "AI Underwriter" thread should have stage = 'underwriting'
       })
       .select()
       .single();

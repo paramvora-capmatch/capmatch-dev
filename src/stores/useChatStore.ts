@@ -89,7 +89,7 @@ interface ChatState {
 interface ChatActions {
   // Thread management
   loadThreadsForProject: (projectId: string) => Promise<void>;
-  createThread: (projectId: string, topic?: string, participantIds?: string[]) => Promise<string>;
+  createThread: (projectId: string, topic?: string, participantIds?: string[], stage?: string) => Promise<string>;
   setActiveThread: (threadId: string | null) => void;
   resolveThread: (threadId: string) => Promise<void>;
 
@@ -220,14 +220,15 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       }
     },
 
-    createThread: async (projectId: string, topic?: string, participantIds?: string[]) => {
+    createThread: async (projectId: string, topic?: string, participantIds?: string[], stage?: string) => {
       set({ isLoading: true, error: null });
       try {
         const { data, error } = await apiClient.manageChatThread({
           action: 'create',
           project_id: projectId,
           topic,
-          participant_ids: participantIds
+          participant_ids: participantIds,
+          ...(stage != null && { stage }),
         });
 
         if (error) throw error;

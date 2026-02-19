@@ -343,15 +343,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     );
 
     if (!targetThread && !isLoading) {
-       // Check if we are already creating it to avoid loops
-       // Simple approach: call createThread. createThread handles optimistic updates? 
-       // We should be careful. useChatStore createThread handles backend call.
-       
-       // To avoid React double-invocation issues, we can just log for now 
-       // or assume the user will create it manually? 
-       // No, user wants it to work.
-       // Let's just create it.
-       createThread(projectId, defaultTopic, [])
+       // Only AI Underwriter thread gets stage='underwriting' so backend generates AI responses there
+       const stage = defaultTopic?.trim().toLowerCase() === 'ai underwriter' ? 'underwriting' : undefined;
+       createThread(projectId, defaultTopic, [], stage)
         .then((newThreadId) => {
             if (newThreadId) setActiveThread(newThreadId);
         })
