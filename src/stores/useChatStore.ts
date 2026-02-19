@@ -572,7 +572,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
           throw new Error(insertError.message || 'Failed to send message');
         }
 
-        // result is now a JSON object { message_id: 123, event_id: 456 }
+        // result is { message_id, response }. For underwriting threads, response is empty and the AI reply arrives via Realtime (subscribeToMessages).
         // Need to handle old version (bigint) or new version (json) during migration transition
         let messageId = null;
         let eventId = null;
