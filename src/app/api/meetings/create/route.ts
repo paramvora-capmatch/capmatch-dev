@@ -237,12 +237,19 @@ export async function POST(request: NextRequest) {
     let inviteResults: CreateMeetingResponse['inviteResults'] = [];
 
     try {
-      const attendees = participants
-        .filter((p) => p.id !== user.id)
-        .map((p) => ({
-          email: p.email,
-          name: p.full_name,
-        }));
+      const attendees = participants.map((p) => ({
+        email: p.email,
+        name: p.full_name,
+      }));
+
+      // Ensure the organizer is included as a guest (in case they weren't in participantIds)
+      const organizerIncluded = attendees.some((a) => a.email?.toLowerCase() === user.email?.toLowerCase());
+      if (!organizerIncluded && user.email) {
+        attendees.unshift({
+          email: user.email,
+          name: (user.user_metadata?.full_name as string) || user.email || 'Organizer',
+        });
+      }
 
       // Only create the event on the organizer's calendar.
       // The provider (Google/Outlook) will handle sending invites to attendees.

@@ -58,6 +58,9 @@ async function createGoogleCalendarEvent(
 		description = `📹 Join Video Meeting: ${invite.meetingLink}\n\n${description}`;
 	}
 
+	// Organizer email (event is created on their calendar) — show as accepted on their calendar
+	const organizerEmail = connection.provider_email?.toLowerCase();
+
 	// Build the event object for Google Calendar API
 	const event = {
 		summary: invite.title,
@@ -71,10 +74,15 @@ async function createGoogleCalendarEvent(
 			dateTime: invite.endTime,
 			timeZone: "UTC",
 		},
-		attendees: invite.attendees.map((attendee) => ({
-			email: attendee.email,
-			displayName: attendee.name,
-		})),
+		attendees: invite.attendees.map((attendee) => {
+			const isOrganizer =
+				organizerEmail && attendee.email?.toLowerCase() === organizerEmail;
+			return {
+				email: attendee.email,
+				displayName: attendee.name,
+				...(isOrganizer && { responseStatus: "accepted" }),
+			};
+		}),
 		reminders: {
 			useDefault: true,
 		},
@@ -131,11 +139,12 @@ async function updateGoogleCalendarEvent(
 		description = `📹 Join Video Meeting: ${invite.meetingLink}\n\n${description}`;
 	}
 
-	// Filter out the organizer from attendees to prevent their status from being reset
-	// The organizer owns the event and should not be in the attendees list
+	// Filter out the organizer from attendees so we don't overwrite their response status
 	const organizerEmail = connection.provider_email?.toLowerCase();
 	const filteredAttendees = invite.attendees.filter(
-		(attendee) => attendee.email.toLowerCase() !== organizerEmail
+		(attendee) =>
+			!organizerEmail ||
+			attendee.email?.toLowerCase() !== organizerEmail
 	);
 
 	const event = {

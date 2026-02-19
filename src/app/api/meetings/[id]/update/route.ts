@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendCalendarInvites, cancelCalendarEvent } from '@/services/calendarInviteService';
+import { sendCalendarInvites, updateCalendarInvites } from '@/services/calendarInviteService';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -228,17 +228,30 @@ export async function PUT(
       };
 
       // Run in background to not block response
-      // Cancel old calendar events and create new ones
+      // Update existing calendar events in place so the same event stays on the user's calendar
       (async () => {
         try {
-          // Cancel old events
-          if (meeting.calendar_event_ids && meeting.calendar_event_ids.length > 0) {
-            for (const eventId of meeting.calendar_event_ids) {
-              await cancelCalendarEvent(user.id, eventId);
+          const calendarEventIds = meeting.calendar_event_ids as Array<{ userId: string; provider: string; eventId: string; eventLink?: string }> | null;
+          if (calendarEventIds && calendarEventIds.length > 0) {
+            await updateCalendarInvites(user.id, invite, calendarEventIds);
+          } else {
+            // No existing calendar events (e.g. meeting created before calendar was connected) — create new ones
+            const inviteResults = await sendCalendarInvites(user.id, invite);
+            const newCalendarEventIds = inviteResults
+              .filter((r) => r.success && r.eventId)
+              .map((r) => ({
+                userId: r.userId,
+                provider: r.provider,
+                eventId: r.eventId!,
+                eventLink: r.eventLink,
+              }));
+            if (newCalendarEventIds.length > 0) {
+              await supabaseAdmin
+                .from('meetings')
+                .update({ calendar_event_ids: newCalendarEventIds })
+                .eq('id', meetingId);
             }
           }
-          // Create new calendar events with updated details
-          await sendCalendarInvites(user.id, invite);
         } catch (err: unknown) {
           console.error('Background calendar sync failed:', err);
         }
