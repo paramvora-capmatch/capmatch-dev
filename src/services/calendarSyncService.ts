@@ -274,8 +274,12 @@ export async function setupCalendarWatch(
     // Generate a unique channel ID
     const channelId = `capmatch-${connection.id}-${Date.now()}`;
 
-    // Webhook URL - must be HTTPS in production
-    const webhookUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/api/calendar/webhook`;
+    // Webhook URL - must be publicly accessible HTTPS for Google push notifications.
+    // BACKEND_PUBLIC_URL is the public-facing URL (e.g. ngrok), while NEXT_PUBLIC_BACKEND_URL
+    // may be localhost for local API calls.
+    const backendPublicUrl =
+      process.env.BACKEND_PUBLIC_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+    const webhookUrl = `${backendPublicUrl}/api/v1/webhooks/google-calendar`;
 
     // Set up the watch request
     const response = await fetch(

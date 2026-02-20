@@ -310,9 +310,9 @@ async function ensureCalendarWatchIsActive(
 			console.warn(
 				"   To enable real-time response sync locally, use ngrok:"
 			);
-			console.warn("   1. Run: ngrok http 3000");
+			console.warn("   1. Run: ngrok http 8000");
 			console.warn(
-				"   2. Set NEXT_PUBLIC_SITE_URL to the ngrok HTTPS URL"
+				"   2. Set NEXT_PUBLIC_BACKEND_URL to the ngrok HTTPS URL"
 			);
 			console.warn("   3. Restart your dev server");
 			console.warn(

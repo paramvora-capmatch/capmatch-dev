@@ -196,9 +196,13 @@ def setup_calendar_watch(connection: CalendarConnection, supabase: Client) -> No
     # Generate a unique channel ID
     channel_id = f"capmatch-{connection['id']}-{int(datetime.now(timezone.utc).timestamp() * 1000)}"
 
-    # Webhook URL
-    site_url = os.getenv("NEXT_PUBLIC_SITE_URL") or os.getenv("SITE_URL")
-    webhook_url = f"{site_url}/api/calendar/webhook"
+    # Webhook URL (FastAPI backend)
+    backend_url = (
+        os.getenv("BACKEND_PUBLIC_URL")
+        or os.getenv("NEXT_PUBLIC_BACKEND_URL")
+        or "http://localhost:8000"
+    )
+    webhook_url = f"{backend_url.rstrip('/')}/api/v1/webhooks/google-calendar"
 
     logger.info(f"Setting up watch for calendar {calendar_id}...")
 
