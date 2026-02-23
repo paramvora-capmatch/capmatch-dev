@@ -30,7 +30,6 @@
     "scripts/**/*",
     "components/**/*",
     "temp/**/*",
-    "video-conferencing-app/**/*",
-    "gcp-services/**/*"
+    "video-conferencing-app/**/*"
   ]
 }
