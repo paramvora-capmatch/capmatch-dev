@@ -517,6 +517,8 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	projectName: "SoGood Apartments",
 	assetType: "Mixed-Use",
 	dealStatus: "Underwriting",
+	exitStrategy: "Refinance or Sale",
+	ownershipType: "Fee Simple",
 	propertyAddressStreet: "2300 Hickory St",
 	propertyAddressCity: "Dallas",
 	propertyAddressState: "TX",
