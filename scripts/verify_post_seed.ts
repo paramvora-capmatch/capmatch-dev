@@ -105,45 +105,7 @@ async function verify() {
       }
   }
   
-  // 5. Check Templates Root
-  const { data: tRoot } = await supabaseAdmin
-    .from("resources")
-    .select("id")
-    .eq("project_id", project.id)
-    .eq("resource_type", "UNDERWRITING_TEMPLATES_ROOT")
-    .single();
-    
-   if (!tRoot) {
-    console.error("\n❌ UNDERWRITING_TEMPLATES_ROOT not found.");
-  } else {
-    console.log(`\n✅ UNDERWRITING_TEMPLATES_ROOT Found: ${tRoot.id}`);
-    
-     // Check Permission on Root
-    const { data: perm } = await supabaseAdmin
-      .from("permissions")
-      .select("*")
-      .eq("resource_id", tRoot.id)
-      .eq("user_id", advisor.id);
-      
-    if (perm && perm.length > 0) {
-       console.log(`   ✅ Advisor has explicit permission on Root: ${perm[0].permission}`);
-    } else {
-       console.error(`   ❌ Advisor MISSING permission on Root!`);
-    }
-    
-    // Check Template Files
-    const { data: tFiles } = await supabaseAdmin
-        .from("resources")
-        .select("id, name")
-        .eq("parent_id", tRoot.id);
-        
-     console.log(`   📂 Finding templates (${tFiles?.length || 0} found)`);
-     if (tFiles) {
-         for (const t of tFiles) {
-             console.log(`      - ${t.name}`);
-         }
-     }
-  }
+  // 5. [REMOVED] Templates root check — templates are no longer used
 
 }
 

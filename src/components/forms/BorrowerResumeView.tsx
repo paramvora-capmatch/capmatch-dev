@@ -667,21 +667,128 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 																	);
 																})()
 															) : (
-																<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-																	{sub.fields.map((fid: string) => {
-																		const meta = borrowerResumeFieldMetadata[fid];
-																		const val = fieldValuesCache[fid];
-																		if (!hasValue(val)) return null;
-																		const isFull = meta?.dataType === "Textarea" || fid === "bioNarrative";
+																<div className="space-y-4">
+																	<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+																		{sub.fields.map((fid: string) => {
+																			const meta = borrowerResumeFieldMetadata[fid];
+																			const val = fieldValuesCache[fid];
+																			if (!hasValue(val)) return null;
+																			
+																			// Skip tables that are rendered separately
+																			if (["trackRecord", "references", "assets", "liabilities", "sreoProperties"].includes(fid)) {
+																				return null;
+																			}
+																			
+																			const isFull = meta?.dataType === "Textarea" || fid === "bioNarrative";
+																			return (
+																				<KeyValueDisplay
+																					key={fid}
+																					label={getFieldLabel(fid, meta)}
+																					value={formatFieldValue(val, meta?.dataType)}
+																					fullWidth={isFull}
+																				/>
+																			);
+																		})}
+																	</div>
+
+																	{/* Assets Table */}
+																	{(() => {
+																		const assets = getFieldValue(resume, "assets") as any[] | undefined;
+																		if (!Array.isArray(assets) || assets.length === 0) return null;
 																		return (
-																			<KeyValueDisplay
-																				key={fid}
-																				label={getFieldLabel(fid, meta)}
-																				value={formatFieldValue(val, meta?.dataType)}
-																				fullWidth={isFull}
-																			/>
+																			<div className="mt-4">
+																				<h5 className="text-xs font-bold text-gray-500 uppercase mb-2">Assets Detail</h5>
+																				<div className="overflow-x-auto border rounded-md">
+																					<table className="min-w-full divide-y divide-gray-200 text-xs">
+																						<thead className="bg-gray-50">
+																							<tr>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Asset</th>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Value</th>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Notes</th>
+																							</tr>
+																						</thead>
+																						<tbody className="bg-white divide-y divide-gray-100">
+																							{assets.map((item, idx) => (
+																								<tr key={idx}>
+																									<td className="px-3 py-2 font-medium">{item.name || "N/A"}</td>
+																									<td className="px-3 py-2">{formatCurrency(item.value)}</td>
+																									<td className="px-3 py-2 text-gray-500">{item.notes || "-"}</td>
+																								</tr>
+																							))}
+																						</tbody>
+																					</table>
+																				</div>
+																			</div>
 																		);
-																	})}
+																	})()}
+
+																	{/* Liabilities Table */}
+																	{(() => {
+																		const liabilities = getFieldValue(resume, "liabilities") as any[] | undefined;
+																		if (!Array.isArray(liabilities) || liabilities.length === 0) return null;
+																		return (
+																			<div className="mt-4">
+																				<h5 className="text-xs font-bold text-gray-500 uppercase mb-2">Liabilities Detail</h5>
+																				<div className="overflow-x-auto border rounded-md">
+																					<table className="min-w-full divide-y divide-gray-200 text-xs">
+																						<thead className="bg-gray-50">
+																							<tr>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Liability</th>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Balance</th>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Notes</th>
+																							</tr>
+																						</thead>
+																						<tbody className="bg-white divide-y divide-gray-100">
+																							{liabilities.map((item, idx) => (
+																								<tr key={idx}>
+																									<td className="px-3 py-2 font-medium">{item.name || "N/A"}</td>
+																									<td className="px-3 py-2">{formatCurrency(item.value)}</td>
+																									<td className="px-3 py-2 text-gray-500">{item.notes || "-"}</td>
+																								</tr>
+																							))}
+																						</tbody>
+																					</table>
+																				</div>
+																			</div>
+																		);
+																	})()}
+
+																	{/* SREO Table */}
+																	{(() => {
+																		const sreo = getFieldValue(resume, "sreoProperties") as any[] | undefined;
+																		if (!Array.isArray(sreo) || sreo.length === 0) return null;
+																		return (
+																			<div className="mt-4">
+																				<h5 className="text-xs font-bold text-gray-500 uppercase mb-2">Schedule of Real Estate Owned</h5>
+																				<div className="overflow-x-auto border rounded-md">
+																					<table className="min-w-full divide-y divide-gray-200 text-xs">
+																						<thead className="bg-gray-50">
+																							<tr>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Property</th>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Value</th>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Debt</th>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">Equity</th>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">NOI</th>
+																								<th className="px-3 py-2 text-left font-semibold text-gray-500 uppercase">DSCR</th>
+																							</tr>
+																						</thead>
+																						<tbody className="bg-white divide-y divide-gray-100">
+																							{sreo.map((item, idx) => (
+																								<tr key={idx}>
+																									<td className="px-3 py-2 font-medium">{item.propertyName || "N/A"}</td>
+																									<td className="px-3 py-2">{formatCurrency(item.currentValue)}</td>
+																									<td className="px-3 py-2">{formatCurrency(item.debtBalance)}</td>
+																									<td className="px-3 py-2">{formatCurrency(item.equity)}</td>
+																									<td className="px-3 py-2">{formatCurrency(item.noi)}</td>
+																									<td className="px-3 py-2">{item.dscr ? item.dscr.toFixed(2) : "N/A"}</td>
+																								</tr>
+																							))}
+																						</tbody>
+																					</table>
+																				</div>
+																			</div>
+																		);
+																	})()}
 																</div>
 															)}
 														</div>
