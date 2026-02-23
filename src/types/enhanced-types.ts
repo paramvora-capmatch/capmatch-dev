@@ -475,6 +475,23 @@ export interface ProjectProfile {
 	crimeRiskLevel?: string;
 	projectBudget?: number;
 	infraCompletion?: string;
+	sourcesItems?: Array<{
+		name: string | { value: string };
+		amount: number | { value: number };
+		percentage: number | { value: number };
+		sourceType?: string | { value: string };
+		lender?: string | { value: string };
+		interestRate?: number | { value: number };
+		termYears?: number | { value: number };
+		notes?: string | { value: string };
+	}>;
+	usesItems?: Array<{
+		name: string | { value: string };
+		amount: number | { value: number };
+		percentage: number | { value: number };
+		category?: string | { value: string };
+		notes?: string | { value: string };
+	}>;
 	rentComps?: Array<{
 		propertyName: string;
 		address?: string;

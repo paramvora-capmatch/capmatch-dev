@@ -52,14 +52,22 @@ interface ProjectResumeViewProps {
 	canEdit?: boolean; // Whether the user has edit permission
 }
 
-const formatCurrency = (amount: number | null | undefined): string => {
+const formatCurrency = (amount: any): string => {
 	if (amount === null || amount === undefined) return "N/A";
+	let num = amount;
+	if (typeof amount === "string") {
+		const cleanVal = amount.replace(/[^0-9.-]/g, "");
+		num = parseFloat(cleanVal);
+	}
+	if (typeof num !== "number" || isNaN(num)) {
+		return typeof amount === "string" && amount ? amount : "N/A";
+	}
 	return new Intl.NumberFormat("en-US", {
 		style: "currency",
 		currency: "USD",
 		minimumFractionDigits: 0,
 		maximumFractionDigits: 0,
-	}).format(amount);
+	}).format(num);
 };
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -76,19 +84,35 @@ const formatDate = (dateString: string | null | undefined): string => {
 };
 
 const formatPercent = (
-	value: number | null | undefined,
+	value: any,
 	decimals: number = 2
 ): string => {
 	if (value === null || value === undefined) return "N/A";
-	return `${value.toFixed(decimals)}%`;
+	let num = value;
+	if (typeof value === "string") {
+		const cleanVal = value.replace(/[^0-9.-]/g, "");
+		num = parseFloat(cleanVal);
+	}
+	if (typeof num !== "number" || isNaN(num)) {
+		return typeof value === "string" && value ? value : "N/A";
+	}
+	return `${num.toFixed(decimals)}%`;
 };
 
 const formatDecimal = (
-	value: number | null | undefined,
+	value: any,
 	decimals: number = 2
 ): string => {
 	if (value === null || value === undefined) return "N/A";
-	return value.toFixed(decimals);
+	let num = value;
+	if (typeof value === "string") {
+		const cleanVal = value.replace(/[^0-9.-]/g, "");
+		num = parseFloat(cleanVal);
+	}
+	if (typeof num !== "number" || isNaN(num)) {
+		return typeof value === "string" && value ? value : "N/A";
+	}
+	return num.toFixed(decimals);
 };
 
 const formatBoolean = (value: boolean | string | null | undefined): string => {
@@ -1097,6 +1121,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																				field.fieldId ===
 																				"riskLow" ||
 																				field.fieldId ===
+																				"sourcesItems" ||
+																				field.fieldId ===
+																				"usesItems" ||
+																				field.fieldId ===
+																				"capexItems" ||
+																				field.fieldId ===
 																				"t12FinancialData"
 																			) {
 																				return false;
@@ -1241,7 +1271,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																						"quarterlyDeliverySchedule",
 																						"sensitivityAnalysis",
 																						"residentialUnitMix",
-																						"commercialSpaceMix"
+																						"commercialSpaceMix",
+																						"sourcesItems",
+																						"usesItems",
+																						"capexItems"
 																					].includes(
 																						field.fieldId
 																					)
@@ -1713,13 +1746,52 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	? capitalUseTiming
 																	: null;
 
+															// Sources of Funds Table
+															const sourcesItemsRaw = getFieldValue(project, "sourcesItems");
+															let sourcesData = Array.isArray(sourcesItemsRaw) ? sourcesItemsRaw : null;
+															if (typeof sourcesItemsRaw === 'string' && sourcesItemsRaw.startsWith('[')) {
+																try {
+																	const cleaned = sourcesItemsRaw.replace(/'/g, '"');
+																	sourcesData = JSON.parse(cleaned);
+																} catch (e) {
+																	console.error("Failed to parse sourcesData", e);
+																}
+															}
+
+															// Uses of Funds Table
+															const usesItemsRaw = getFieldValue(project, "usesItems");
+															let usesData = Array.isArray(usesItemsRaw) ? usesItemsRaw : null;
+															if (typeof usesItemsRaw === 'string' && usesItemsRaw.startsWith('[')) {
+																try {
+																	const cleaned = usesItemsRaw.replace(/'/g, '"');
+																	usesData = JSON.parse(cleaned);
+																} catch (e) {
+																	console.error("Failed to parse usesData", e);
+																}
+															}
+
+															// CapEx Items Table
+															const capexItemsRaw = getFieldValue(project, "capexItems");
+															let capexData = Array.isArray(capexItemsRaw) ? capexItemsRaw : null;
+															if (typeof capexItemsRaw === 'string' && capexItemsRaw.startsWith('[')) {
+																try {
+																	const cleaned = capexItemsRaw.replace(/'/g, '"');
+																	capexData = JSON.parse(cleaned);
+																} catch (e) {
+																	console.error("Failed to parse capexData", e);
+																}
+															}
+
 															if (
 																!rentRollData &&
 																!cashFlowArray &&
 																!returnsData &&
 																!quarterlyData &&
 																!sensitivityData &&
-																!timingData
+																!timingData &&
+																!sourcesData &&
+																!usesData &&
+																!capexData
 															) {
 																return null;
 															}
@@ -1885,6 +1957,146 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																										);
 																									}
 																								)}
+																							</tbody>
+																						</table>
+																					</div>
+																				</div>
+																			);
+																		})()}
+
+																	{/* Sources of Funds Table */}
+																	{sourcesData &&
+																		sourcesData.length >
+																		0 && (() => {
+																			const getVal = (field: any): any => {
+																				if (field === null || field === undefined) return null;
+																				if (typeof field === 'object' && 'value' in field) return field.value;
+																				return field;
+																			};
+
+																			return (
+																				<div>
+																					<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																						Sources of Funds
+																					</h4>
+																					<div className="overflow-x-auto">
+																						<table className="min-w-full divide-y divide-gray-200 text-sm">
+																							<thead className="bg-gray-50">
+																								<tr>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Source Name </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Amount </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> % </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Type </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Lender </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Rate </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Term </th>
+																								</tr>
+																							</thead>
+																							<tbody className="bg-white divide-y divide-gray-200">
+																								{sourcesData.map((item: any, idx: number) => (
+																									<tr key={idx}>
+																										<td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900"> {getVal(item.name) || "N/A"} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {formatCurrency(getVal(item.amount))} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {formatPercent(getVal(item.percentage), 1)} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {getVal(item.sourceType) || "N/A"} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {getVal(item.lender) || "N/A"} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {formatPercent(getVal(item.interestRate), 2)} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {getVal(item.termYears) ? `${getVal(item.termYears)} yrs` : "N/A"} </td>
+																									</tr>
+																								))}
+																							</tbody>
+																						</table>
+																					</div>
+																				</div>
+																			);
+																		})()}
+
+																	{/* Uses of Funds Table */}
+																	{usesData &&
+																		usesData.length >
+																		0 && (() => {
+																			const getVal = (field: any): any => {
+																				if (field === null || field === undefined) return null;
+																				if (typeof field === 'object' && 'value' in field) return field.value;
+																				return field;
+																			};
+
+																			return (
+																				<div>
+																					<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																						Uses of Funds
+																					</h4>
+																					<div className="overflow-x-auto">
+																						<table className="min-w-full divide-y divide-gray-200 text-sm">
+																							<thead className="bg-gray-50">
+																								<tr>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Use Name </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Amount </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> % </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Category </th>
+																								</tr>
+																							</thead>
+																							<tbody className="bg-white divide-y divide-gray-200">
+																								{usesData.map((item: any, idx: number) => (
+																									<tr key={idx}>
+																										<td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900"> {getVal(item.name) || "N/A"} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {formatCurrency(getVal(item.amount))} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {formatPercent(getVal(item.percentage), 1)} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {getVal(item.category) || "N/A"} </td>
+																									</tr>
+																								))}
+																							</tbody>
+																						</table>
+																					</div>
+																				</div>
+																			);
+																		})()}
+
+																	{/* CapEx Budget Table */}
+																	{capexData &&
+																		capexData.length >
+																		0 && (() => {
+																			const getVal = (field: any): any => {
+																				if (field === null || field === undefined) return null;
+																				if (typeof field === 'object' && 'value' in field) return field.value;
+																				return field;
+																			};
+
+																			return (
+																				<div>
+																					<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																						Capital Expenditure Budget
+																					</h4>
+																					<div className="overflow-x-auto">
+																						<table className="min-w-full divide-y divide-gray-200 text-sm">
+																							<thead className="bg-gray-50">
+																								<tr>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Item </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Category </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Est. Cost </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Act. Cost </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Status </th>
+																									<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase"> Life </th>
+																								</tr>
+																							</thead>
+																							<tbody className="bg-white divide-y divide-gray-200">
+																								{capexData.map((item: any, idx: number) => (
+																									<tr key={idx}>
+																										<td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900"> {getVal(item.item) || "N/A"} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {getVal(item.category) || "N/A"} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {formatCurrency(getVal(item.estimatedCost))} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {formatCurrency(getVal(item.actualCost))} </td>
+																										<td className="px-3 py-2 whitespace-nowrap"> 
+																											<span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+																												String(getVal(item.status)).toLowerCase() === 'completed' ? 'bg-green-100 text-green-800' : 
+																												String(getVal(item.status)).toLowerCase() === 'in progress' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+																											}`}>
+																												{getVal(item.status) || "N/A"}
+																											</span>
+																										</td>
+																										<td className="px-3 py-2 whitespace-nowrap"> {getVal(item.usefulLife) ? `${getVal(item.usefulLife)} yrs` : "N/A"} </td>
+																									</tr>
+																								))}
 																							</tbody>
 																						</table>
 																					</div>
