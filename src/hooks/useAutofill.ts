@@ -306,9 +306,8 @@ export const useAutofill = (
 				return;
 			}
 
-			// 4. Format project address
-			const projectAddress =
-				options?.projectAddress || "2300 Hickory St | Dallas TX, 75215";
+			// 4. Project address: send actual value or empty (empty = docs-only pipeline, no KB/Neo4j)
+			const projectAddress = options?.projectAddress ?? "";
 
 			const requestStartTime = new Date().toISOString();
 			startTimeRef.current = requestStartTime;
