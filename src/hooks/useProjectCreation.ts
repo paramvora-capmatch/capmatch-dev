@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../lib/supabaseClient";
 import { useProjects } from "./useProjects";
 import { useAuth } from "./useAuth";
 import { useOrgStore } from "../stores/useOrgStore";
@@ -31,44 +30,6 @@ export const useProjectCreation = (): UseProjectCreationReturn => {
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const [accessModalError, setAccessModalError] = useState<string | null>(null);
   const [createdProject, setCreatedProject] = useState<ProjectProfile | null>(null);
-
-  const applyMemberPermissions = useCallback(
-    async (projectId: string, selections: Record<string, ProjectGrant>) => {
-      if (!user?.id) {
-        throw new Error("User context missing while granting permissions.");
-      }
-
-      for (const [memberId, grant] of Object.entries(selections)) {
-        // Skip if this is the current user (creator), as backend grants access automatically
-        if (memberId === user.id) continue;
-
-        // Skip if no permissions are set
-        if (!grant.permissions || grant.permissions.length === 0) {
-          continue;
-        }
-
-        // Convert ProjectGrant permissions to the format expected by grant_project_access RPC
-        const permissionPayload = grant.permissions.map((perm) => ({
-          resource_type: perm.resource_type,
-          permission: perm.permission,
-        }));
-
-        const { error: grantError } = await supabase.rpc("grant_project_access", {
-          p_project_id: projectId,
-          p_user_id: memberId,
-          p_granted_by_id: user.id,
-          p_permissions: permissionPayload,
-        });
-
-        if (grantError) {
-          throw new Error(
-            grantError.message || `Failed to grant access to selected member.`
-          );
-        }
-      }
-    },
-    [user?.id]
-  );
 
   const resetModalState = useCallback(() => {
     setIsAccessModalOpen(false);
@@ -118,22 +79,31 @@ export const useProjectCreation = (): UseProjectCreationReturn => {
       try {
         if (!project) {
           // Build project sections with name and address
-          // Address will be parsed/derived on the backend
           const projectSections: Partial<ProjectResumeContent> & {
-            propertyAddress?: string; // Temporary field for backend parsing
+            propertyAddress?: string;
           } = {
             projectName: projectData.projectName,
           };
-          
-          // Pass the full address string - backend will parse it
           if (projectData.propertyAddress) {
             projectSections.propertyAddress = projectData.propertyAddress;
           }
+
+          // Build initial_grants for backend (exclude creator; backend grants creator automatically)
+          const initial_grants = Object.entries(selections)
+            .filter(([memberId, grant]) => memberId !== user?.id && grant.permissions?.length)
+            .map(([memberId, grant]) => ({
+              user_id: memberId,
+              permissions: grant.permissions!.map((p) => ({
+                resource_type: p.resource_type,
+                permission: p.permission,
+              })),
+            }));
 
           project = await createProject({
             projectName: projectData.projectName,
             projectSections,
             dealType: projectData.dealType,
+            initial_grants,
           } as any);
           setCreatedProject(project);
         }
@@ -142,22 +112,8 @@ export const useProjectCreation = (): UseProjectCreationReturn => {
           throw new Error("Project was not created successfully.");
         }
 
-        // At this point, project is guaranteed to be non-null
-        const finalProject = project;
-
-        // Set projectId in each grant before applying permissions
-        const grantsWithProjectId: Record<string, ProjectGrant> = {};
-        Object.entries(selections).forEach(([memberId, grant]) => {
-          grantsWithProjectId[memberId] = {
-            ...grant,
-            projectId: finalProject.id,
-          };
-        });
-
-        await applyMemberPermissions(finalProject.id, grantsWithProjectId);
-
         resetModalState();
-        router.push(`/project/workspace/${finalProject.id}`);
+        router.push(`/project/workspace/${project.id}`);
       } catch (error) {
         console.error("Failed to create new project or grant access:", error);
 
@@ -185,12 +141,12 @@ export const useProjectCreation = (): UseProjectCreationReturn => {
     },
     [
       activeOrg?.id,
-      applyMemberPermissions,
       createProject,
       deleteProject,
       router,
       createdProject,
       resetModalState,
+      user?.id,
     ]
   );
 

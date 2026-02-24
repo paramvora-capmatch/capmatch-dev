@@ -464,6 +464,9 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		const projectSections = projectData.projectSections as any;
 		const address = projectSections?.propertyAddress;
 		const dealType = (projectData as any).dealType || 'ground_up';
+		const initial_grants = (projectData as any).initial_grants as
+			| Array<{ user_id: string; permissions: Array<{ resource_type: string; permission: string }> }>
+			| undefined;
 
 		const { data, error } = await apiClient.createProject({
 			name:
@@ -472,7 +475,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			owner_org_id: activeOrg.id,
 			address: address || undefined,
 			deal_type: dealType,
-			// assigned_advisor_id is optional - FastAPI will auto-assign if not provided
+			initial_grants,
 		});
 
 			if (error) throw error;

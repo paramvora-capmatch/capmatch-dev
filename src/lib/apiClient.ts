@@ -260,6 +260,10 @@ export const apiClient = {
     assigned_advisor_id?: string;
     address?: string;
     deal_type?: 'ground_up' | 'refinance';
+    initial_grants?: Array<{
+      user_id: string;
+      permissions: Array<{ resource_type: string; permission: string }>;
+    }>;
   }) => {
     return apiRequest<{
       project: any;
