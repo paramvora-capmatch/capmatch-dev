@@ -697,9 +697,72 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	capexItems: [
 		{ item: "Roof Replacement", category: "Structure", cost: 150000, priority: "High", condition: "Old", usefulLife: 20, startDate: "2026-01-01", status: "Planned", notes: "Aging TPO roof" }
 	],
-	t12MonthlyData: [
-		{ month: "Jan", year: 2024, totalIncome: 185000, totalExpenses: 45000, netOperatingIncome: 140000 }
-	],
+	t12MonthlyData: (() => {
+		const months = [
+			"January 2024", "February 2024", "March 2024", "April 2024",
+			"May 2024", "June 2024", "July 2024", "August 2024",
+			"September 2024", "October 2024", "November 2024", "December 2024",
+		];
+		// Base monthly values (hypothetical stabilized property)
+		const baseGPR = 185000;
+		const baseOther = 12500;
+		const baseTaxes = 2850;
+		const baseInsurance = 7733;
+		const baseUtilities = 4200;
+		const baseRepairs = 3800;
+		const basePayroll = 6500;
+		const baseMgmtFee = 5550;
+		const baseMarketing = 1200;
+		const baseAdmin = 2100;
+		const baseContract = 1800;
+
+		return months.map((month, i) => {
+			// Add slight monthly variation (+/- 5%)
+			const vary = (base: number) => Math.round(base * (0.95 + Math.random() * 0.1));
+			const gpr = vary(baseGPR);
+			const vacancyLoss = -Math.round(gpr * 0.05);
+			const otherIncome = vary(baseOther);
+			const concessions = i % 3 === 0 ? -Math.round(gpr * 0.01) : 0;
+
+			return {
+				month,
+				categories: [
+					{
+						name: "Income",
+						category_type: "income",
+						items: [
+							{ name: "Gross Potential Rent", amount: gpr },
+							{ name: "Vacancy Loss", amount: vacancyLoss },
+							{ name: "Other Income", amount: otherIncome },
+							...(concessions !== 0 ? [{ name: "Concessions", amount: concessions }] : []),
+						],
+					},
+					{
+						name: "Operating Expenses",
+						category_type: "expense",
+						items: [
+							{ name: "Real Estate Taxes", amount: vary(baseTaxes) },
+							{ name: "Insurance", amount: vary(baseInsurance) },
+							{ name: "Utilities", amount: vary(baseUtilities) },
+							{ name: "Repairs & Maintenance", amount: vary(baseRepairs) },
+							{ name: "Payroll", amount: vary(basePayroll) },
+							{ name: "Management Fee", amount: vary(baseMgmtFee) },
+							{ name: "Marketing", amount: vary(baseMarketing) },
+							{ name: "General & Admin", amount: vary(baseAdmin) },
+							{ name: "Contract Services", amount: vary(baseContract) },
+						],
+					},
+					{
+						name: "Capital Expenditures",
+						category_type: "below_line",
+						items: [
+							{ name: "CapEx Reserves", amount: i === 5 || i === 11 ? 25000 : 5000 },
+						],
+					},
+				],
+			};
+		});
+	})(),
 	fiveYearCashFlow: [
 		{ year: 2026, egi: 0, expenses: 0, noi: 0 },
 		{ year: 2027, egi: 1200000, expenses: 300000, noi: 900000 }
@@ -1217,6 +1280,26 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 		const isUnset = current === undefined || current === null;
 
 		if (isUnset || isEmptyString) {
+			// Skip warnings for flat principal fields (they are inside the 'principals' array)
+			const principalFields = [
+				"principalLegalName",
+				"principalRoleDefault",
+				"principalEmail",
+				"ownershipPercentage",
+				"principalBio",
+				"principalSpecialties",
+				"principalAchievements",
+				"principalEducation",
+				"yearsCREExperienceRange",
+				"netWorthRange",
+				"liquidityRange",
+				"creditScoreRange",
+			];
+			if (principalFields.includes(fieldId)) {
+				result[fieldId] = Array.isArray(current) ? [] : (typeof current === "number" ? 0 : "");
+				continue;
+			}
+
 			console.warn(`[seed] Warning: Borrower field "${fieldId}" is missing from hoqueBorrowerResumeBase`);
 			result[fieldId] = Array.isArray(current) ? [] : (typeof current === "number" ? 0 : "");
 		}
