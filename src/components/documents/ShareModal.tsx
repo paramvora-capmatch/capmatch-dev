@@ -1,9 +1,10 @@
 // src/components/documents/ShareModal.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Modal, ModalHeader, ModalBody, ModalFooter } from "../ui/Modal";
 import { Button } from "../ui/Button";
-import { Loader2, User, Crown } from "lucide-react";
+import { Loader2, User, Crown, Lock } from "lucide-react";
 import { useOrgStore } from "@/stores/useOrgStore";
+import { useProjectEligibleMembers } from "@/hooks/useProjectEligibleMembers";
 import { supabase } from "../../../lib/supabaseClient";
 import { DocumentFile, DocumentFolder } from "@/hooks/useDocumentManagement";
 import { Permission } from "@/types/enhanced-types";
@@ -13,6 +14,8 @@ interface ShareModalProps {
   resource: DocumentFile | DocumentFolder;
   isOpen: boolean;
   onClose: () => void;
+  projectId?: string | null;
+  advisorUserId?: string | null;
 }
 
 interface MemberPermission {
@@ -21,17 +24,39 @@ interface MemberPermission {
   permission: Permission | "none";
   hasExplicitOverride: boolean;
   effectivePermission: Permission | "none" | null;
+  isAdvisor?: boolean;
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({
   resource,
   isOpen,
   onClose,
+  projectId,
+  advisorUserId,
 }) => {
   const { members } = useOrgStore();
+  const { eligibleMembers } = useProjectEligibleMembers({
+    projectId: projectId ?? undefined,
+    members,
+    advisorUserId,
+    enabled: isOpen && !!projectId,
+  });
   const [permissions, setPermissions] = useState<MemberPermission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const displayMembers = useMemo(
+    () =>
+      projectId
+        ? eligibleMembers
+        : members.map((m) => ({
+            user_id: m.user_id,
+            userName: m.userName,
+            userEmail: m.userEmail,
+            role: m.role,
+          })),
+    [projectId, eligibleMembers, members]
+  );
 
   useEffect(() => {
     if (isOpen && resource) {
@@ -51,9 +76,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           const currentPermissions = new Map(
             (data || []).map((p: any) => [p.user_id, p.permission])
           );
-          // Fetch effective/blanket permissions for all org members so we can
-          // show the true current access level even when there is no override.
-          const memberIds = members.map((m) => m.user_id);
+          const memberIds = displayMembers.map((m) => m.user_id);
           const {
             data: effectiveData,
             error: effectiveError,
@@ -78,8 +101,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             ])
           );
 
-          const allMembersWithPerms: MemberPermission[] = members.map(
+          const allMembersWithPerms: MemberPermission[] = displayMembers.map(
             (member) => {
+              const isAdvisor = member.role === "advisor" || member.user_id === advisorUserId;
               const rawPerm = currentPermissions.get(
                 member.user_id
               ) as Permission | "none" | undefined;
@@ -90,11 +114,11 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               return {
                 user_id: member.user_id,
                 full_name:
-                  member.userName || member.userEmail || "Unknown",
-                // Underlying explicit override value (or "none" if no row)
+                  member.userName || member.userEmail || (isAdvisor ? "Advisor" : "Unknown"),
                 permission: rawPerm ?? "none",
                 hasExplicitOverride: rawPerm !== undefined,
-                effectivePermission: effective,
+                effectivePermission: isAdvisor ? "edit" : effective,
+                isAdvisor: !!isAdvisor,
               };
             }
           );
@@ -108,12 +132,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       };
       fetchPermissions();
     }
-  }, [isOpen, resource, members]);
+  }, [isOpen, resource, displayMembers, advisorUserId]);
 
   const handlePermissionChange = async (
     userId: string,
     permission: Permission | "none"
   ) => {
+    if (userId === advisorUserId) return;
     try {
       const { error: rpcError } = await supabase.rpc(
         "set_permission_for_resource",
@@ -133,7 +158,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 ...p,
                 permission,
                 hasExplicitOverride: true,
-                // Once there is an explicit override, it defines the effective permission
                 effectivePermission:
                   permission === "none"
                     ? null
@@ -160,6 +184,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {permissions.map((p) => {
               const isOwner = members.find((m) => m.user_id === p.user_id)?.role === "owner";
+              const isAdvisor = p.isAdvisor ?? p.user_id === advisorUserId;
               return (
                 <div
                   key={p.user_id}
@@ -173,19 +198,26 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                         <User size={16} />
                       )}
                     </div>
-                    <span>{p.full_name}</span>
+                    <span className="flex items-center gap-1.5">
+                      {p.full_name}
+                      {isAdvisor && (
+                        <Lock className="h-3.5 w-3.5 text-gray-500" title="Advisor always has edit access" />
+                      )}
+                    </span>
                   </div>
                   {isOwner ? (
                     <span className="text-sm font-medium text-gray-500">
                       Owner
                     </span>
+                  ) : isAdvisor ? (
+                    <span className="text-sm font-medium text-blue-600 inline-flex items-center gap-1">
+                      <Lock className="h-3.5 w-3.5" />
+                      Edit
+                    </span>
                   ) : (
                     <div className="flex gap-2 flex-shrink-0">
                       {(["none", "view", "edit"] as (Permission | "none")[]).map(
                         (perm) => {
-                          // Baseline selection:
-                          // - If there is an explicit override, use that.
-                          // - Otherwise, use the effective/blanket permission from the hierarchy.
                           const baseline =
                             p.hasExplicitOverride && p.permission
                               ? p.permission

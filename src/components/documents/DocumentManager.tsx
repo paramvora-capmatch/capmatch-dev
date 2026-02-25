@@ -59,6 +59,8 @@ interface DocumentManagerProps {
 	orgId?: string | null;
 	// Explicit context: project vs borrower
 	context?: "project" | "borrower";
+	// Assigned advisor user ID for the project (used by permission modals to scope and lock advisor)
+	advisorUserId?: string | null;
 	// folderPath and bucketId removed as they are managed internally by the hook
 	collapsible?: boolean;
 	defaultOpen?: boolean;
@@ -93,6 +95,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 	highlightedResourceId,
 	orgId,
 	context,
+	advisorUserId,
 	collapsible = false,
 	defaultOpen = true,
 	maxRows = 2,
@@ -350,12 +353,11 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 		selections: Record<string, Record<string, Permission | "none">>,
 		fileKey: string
 	) => {
-		// Iterate member selections for this fileKey and call RPC
 		const entries = Object.entries(selections);
 		for (const [userId, perFiles] of entries) {
+			if (userId === advisorUserId) continue;
 			const perm = perFiles[fileKey];
 			if (!perm) continue;
-			// Owners are excluded from modal; only MEMBERS here
 			try {
 				const { error: rpcError } = await supabase.rpc(
 					"set_permission_for_resource",
@@ -962,6 +964,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 					}}
 					files={selectedFiles}
 					onConfirm={handleConfirmUpload}
+					projectId={projectId}
+					advisorUserId={advisorUserId}
 				/>
 			)}
 			{previewingResourceId && (
@@ -982,6 +986,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 					resource={{ ...sharingFile, id: sharingFile.resource_id }}
 					isOpen={!!sharingFile}
 					onClose={() => setSharingFile(null)}
+					projectId={projectId}
+					advisorUserId={advisorUserId}
 				/>
 			)}
 		</Card>

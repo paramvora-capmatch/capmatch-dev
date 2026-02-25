@@ -4,9 +4,10 @@ import React from "react";
 import { Modal, ModalBody, ModalFooter, ModalHeader } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { useOrgStore } from "@/stores/useOrgStore";
+import { useProjectEligibleMembers } from "@/hooks/useProjectEligibleMembers";
 import { Permission } from "@/types/enhanced-types";
 import { cn } from "@/utils/cn";
-import { FileText } from "lucide-react";
+import { FileText, Lock } from "lucide-react";
 
 type UploadPermissions = Permission | "none";
 
@@ -18,6 +19,8 @@ interface UploadPermissionsModalProps {
     selections: Record<string, Record<string, UploadPermissions>>
     // selections[userId][fileKey] = permission
   ) => Promise<void> | void;
+  projectId?: string | null;
+  advisorUserId?: string | null;
 }
 
 // Create a deterministic key for each File to index selections
@@ -28,13 +31,23 @@ export const UploadPermissionsModal: React.FC<UploadPermissionsModalProps> = ({
   onClose,
   files,
   onConfirm,
+  projectId,
+  advisorUserId,
 }) => {
   const { members } = useOrgStore();
+  const { eligibleMembers } = useProjectEligibleMembers({
+    projectId: projectId ?? undefined,
+    members,
+    advisorUserId,
+    enabled: isOpen && !!projectId,
+  });
 
-  const memberList = React.useMemo(
-    () => members.filter((m) => m.role !== "owner"),
-    [members]
-  );
+  const memberList = React.useMemo(() => {
+    if (projectId) {
+      return eligibleMembers.filter((m) => m.role !== "owner");
+    }
+    return members.filter((m) => m.role !== "owner");
+  }, [projectId, eligibleMembers, members]);
 
   const [selectedFileKey, setSelectedFileKey] = React.useState<string | null>(
     null
@@ -46,14 +59,15 @@ export const UploadPermissionsModal: React.FC<UploadPermissionsModalProps> = ({
     Record<string, Record<string, UploadPermissions>>
   >({});
 
-  // Initialize default to "view" for all members and files
+  // Initialize default to "view" for all members and files; advisor always "edit"
   React.useEffect(() => {
     if (!isOpen) return;
     const next: Record<string, Record<string, UploadPermissions>> = {};
     for (const m of memberList) {
       const perFiles: Record<string, UploadPermissions> = {};
+      const defaultPerm = m.role === "advisor" ? "edit" : "view";
       for (const f of files) {
-        perFiles[fileKey(f)] = "view";
+        perFiles[fileKey(f)] = defaultPerm;
       }
       next[m.user_id] = perFiles;
     }
@@ -67,6 +81,7 @@ export const UploadPermissionsModal: React.FC<UploadPermissionsModalProps> = ({
   }, [isOpen, files, memberList]);
 
   const handleSet = (userId: string, fileKey: string, perm: UploadPermissions) => {
+    if (userId === advisorUserId) return;
     setSelections((prev) => ({
       ...prev,
       [userId]: {
@@ -76,11 +91,12 @@ export const UploadPermissionsModal: React.FC<UploadPermissionsModalProps> = ({
     }));
   };
 
-  // Set permission for all members for a specific file
+  // Set permission for all members for a specific file (advisor always remains edit)
   const handleSetForAll = (fileKey: string, perm: UploadPermissions) => {
     setSelections((prev) => {
       const next = { ...prev };
       for (const m of memberList) {
+        if (m.user_id === advisorUserId) continue;
         if (!next[m.user_id]) {
           next[m.user_id] = {};
         }
@@ -90,16 +106,17 @@ export const UploadPermissionsModal: React.FC<UploadPermissionsModalProps> = ({
     });
   };
 
-  // Get permission for all members for a file (returns the most common one, or "view" if mixed)
+  // Get permission for all members for a file (returns the most common one, or "view" if mixed; excludes advisor from mix)
   const getPermissionForAll = (fileKey: string): UploadPermissions => {
-    const perms = memberList.map(
+    const editableMembers = memberList.filter((m) => m.user_id !== advisorUserId);
+    if (editableMembers.length === 0) return "edit";
+    const perms = editableMembers.map(
       (m) => selections[m.user_id]?.[fileKey] || "view"
     );
     const allSame = perms.every((p) => p === perms[0]);
     if (allSame) {
       return perms[0];
     }
-    // If mixed, return the highest permission level (none < view < edit)
     if (perms.some((p) => p === "edit")) return "edit";
     if (perms.some((p) => p === "view")) return "view";
     return "none";
@@ -226,18 +243,27 @@ export const UploadPermissionsModal: React.FC<UploadPermissionsModalProps> = ({
                 <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
                   {memberList.map((member) => {
                     const fKey = fileKey(selectedFile);
+                    const isAdvisor = member.role === "advisor" || member.user_id === advisorUserId;
                     const current =
-                      selections[member.user_id]?.[fKey] || "view";
+                      selections[member.user_id]?.[fKey] || (isAdvisor ? "edit" : "view");
                     return (
                       <div
                         key={member.user_id}
                         className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-white"
                       >
                         <div className="min-w-0 pr-2">
-                          <div className="text-sm font-medium text-gray-900 truncate">
-                            {member.userName || member.userEmail || "Member"}
+                          <div className="text-sm font-medium text-gray-900 truncate flex items-center gap-1.5">
+                            {member.userName || member.userEmail || (isAdvisor ? "Advisor" : "Member")}
+                            {isAdvisor && (
+                              <Lock className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" title="Advisor always has edit access" />
+                            )}
                           </div>
-                          {member.userEmail && member.userName && (
+                          {member.userEmail && member.userName && !isAdvisor && (
+                            <div className="text-xs text-gray-500 truncate">
+                              {member.userEmail}
+                            </div>
+                          )}
+                          {isAdvisor && member.userEmail && (
                             <div className="text-xs text-gray-500 truncate">
                               {member.userEmail}
                             </div>
@@ -245,31 +271,50 @@ export const UploadPermissionsModal: React.FC<UploadPermissionsModalProps> = ({
                         </div>
                         <div className="flex gap-2 flex-shrink-0">
                           {(["none", "view", "edit"] as UploadPermissions[]).map(
-                            (p) => (
-                              <button
-                                key={p}
-                                onClick={() => handleSet(member.user_id, fKey, p)}
-                                className={cn(
-                                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                                  current === p
-                                    ? p === "edit"
-                                      ? "bg-blue-600 text-white border-blue-600"
+                            (p) => {
+                              if (isAdvisor) {
+                                return (
+                                  <span
+                                    key={p}
+                                    className={cn(
+                                      "px-2.5 py-1 rounded-full text-xs font-medium border inline-flex items-center gap-1",
+                                      p === "edit"
+                                        ? "bg-blue-600 text-white border-blue-600"
+                                        : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    )}
+                                    title="Advisor always has edit access"
+                                  >
+                                    {p === "edit" && <Lock className="h-3 w-3" />}
+                                    {p === "none" ? "None" : p === "view" ? "View" : "Edit"}
+                                  </span>
+                                );
+                              }
+                              return (
+                                <button
+                                  key={p}
+                                  onClick={() => handleSet(member.user_id, fKey, p)}
+                                  className={cn(
+                                    "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                                    current === p
+                                      ? p === "edit"
+                                        ? "bg-blue-600 text-white border-blue-600"
+                                        : p === "view"
+                                        ? "bg-gray-700 text-white border-gray-700"
+                                        : "bg-gray-400 text-white border-gray-400"
+                                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                                  )}
+                                  title={
+                                    p === "none"
+                                      ? "No Access"
                                       : p === "view"
-                                      ? "bg-gray-700 text-white border-gray-700"
-                                      : "bg-gray-400 text-white border-gray-400"
-                                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                                )}
-                                title={
-                                  p === "none"
-                                    ? "No Access"
-                                    : p === "view"
-                                    ? "Can View"
-                                    : "Can Edit"
-                                }
-                              >
-                                {p === "none" ? "None" : p === "view" ? "View" : "Edit"}
-                              </button>
-                            )
+                                      ? "Can View"
+                                      : "Can Edit"
+                                  }
+                                >
+                                  {p === "none" ? "None" : p === "view" ? "View" : "Edit"}
+                                </button>
+                              );
+                            }
                           )}
                         </div>
                       </div>

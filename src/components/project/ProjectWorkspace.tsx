@@ -1114,6 +1114,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				canUpload={true}
 				canDelete={true}
 				context="borrower"
+				advisorUserId={activeProject?.assignedAdvisorUserId ?? null}
 				collapsible={true}
 				defaultOpen={true}
 			/>
@@ -1520,6 +1521,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 														highlightedResourceId
 													}
 													context="project"
+													advisorUserId={activeProject?.assignedAdvisorUserId ?? null}
 													collapsible={true}
 													defaultOpen={true}
 												/>
