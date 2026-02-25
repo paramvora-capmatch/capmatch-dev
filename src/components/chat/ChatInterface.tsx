@@ -29,6 +29,7 @@ import {
   Reply,
   ArrowUp,
   User,
+  Image as ImageIcon,
 } from "lucide-react";
 
 interface ChatInterfaceProps {
@@ -46,7 +47,7 @@ import { ChatThread } from "@/types/enhanced-types";
 import { RichTextInput, RichTextInputRef } from "./RichTextInput";
 import { cn } from "@/utils/cn";
 
-// ProjectMessage type matching what useChatStore provides (includes sender, reply_to, etc.)
+// ProjectMessage type matching what useChatStore provides (includes sender, reply_to, image_urls, etc.)
 interface ProjectMessage {
   id: number | string;
   thread_id: string;
@@ -54,6 +55,7 @@ interface ProjectMessage {
   content?: string;
   created_at: string;
   reply_to?: number | null;
+  image_urls?: string[] | null;
   status?: 'sending' | 'delivered' | 'failed';
   isOptimistic?: boolean;
   isFadingOut?: boolean;
@@ -64,6 +66,10 @@ interface ProjectMessage {
   };
   repliedMessage?: ProjectMessage | null;
 }
+
+const MAX_IMAGES_PER_MESSAGE = 4;
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 
 interface BlockedDocInfo {
@@ -82,6 +88,44 @@ type MentionSuggestion =
   | { type: 'user'; data: { id: string; name: string; email?: string | null } };
 
 const mentionLookupRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
+
+function ChatMessageImage({
+  path,
+  bucketId,
+  className,
+  onClick,
+}: {
+  path: string;
+  bucketId: string;
+  className?: string;
+  onClick?: () => void;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!bucketId) return;
+    let cancelled = false;
+    supabase.storage
+      .from(bucketId)
+      .createSignedUrl(path, 3600)
+      .then(({ data }) => {
+        if (!cancelled && data?.signedUrl) setUrl(data.signedUrl);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [path, bucketId]);
+  if (!url) {
+    return <div className={cn("bg-gray-100 animate-pulse rounded", className)} />;
+  }
+  return (
+    <img
+      src={url}
+      alt=""
+      className={cn("object-cover rounded cursor-pointer", className)}
+      onClick={onClick}
+    />
+  );
+}
 
 function extractMentionNames(content: string): Map<string, string> {
   const map = new Map<string, string>();
@@ -197,8 +241,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [showDocPicker, setShowDocPicker] = useState(false);
   const [blockedState, setBlockedState] = useState<BlockedState | null>(null);
   const [isProcessingBlocked, setIsProcessingBlocked] = useState(false);
+  const [pendingImages, setPendingImages] = useState<{ file: File; preview: string }[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [lightboxImagePath, setLightboxImagePath] = useState<string | null>(null);
+  const [lightboxSignedUrl, setLightboxSignedUrl] = useState<string | null>(null);
   const messageListRef = useRef<HTMLDivElement>(null);
   const richTextInputRef = useRef<RichTextInputRef>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Clear chat state whenever we switch to a different project
   useEffect(() => {
@@ -363,15 +413,37 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     setShowDocPicker(false);
     setBlockedState(null);
-    setReplyingTo(null); // Clear reply when switching threads
+    setReplyingTo(null);
+    setPendingImages([]);
+    setUploadError(null);
   }, [activeThreadId]);
 
 
-  const processSend = async (threadId: string, message: string, replyTo?: number | null) => {
+  const orgBucketId = activeProject?.owner_org_id;
+
+  const uploadChatImages = useCallback(async (threadId: string): Promise<string[]> => {
+    if (!user?.id || !orgBucketId || !projectId || pendingImages.length === 0) return [];
+    const paths: string[] = [];
+    const timestamp = Date.now();
+    for (let i = 0; i < pendingImages.length; i++) {
+      const { file } = pendingImages[i];
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').slice(0, 80);
+      const path = `${projectId}/chat-images/${threadId}/${user.id}/${timestamp}_${i}_${safeName}`;
+      const { error } = await supabase.storage
+        .from(orgBucketId)
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw error;
+      paths.push(path);
+    }
+    return paths;
+  }, [user?.id, orgBucketId, projectId, pendingImages]);
+
+  const processSend = async (threadId: string, message: string, replyTo?: number | null, imageUrls?: string[]) => {
     try {
-      await sendMessage(threadId, message.trim(), replyTo, clientContext);
+      await sendMessage(threadId, message.trim(), replyTo, clientContext, imageUrls);
       setNewMessage("");
       setBlockedState(null);
+      setPendingImages([]);
       return true;
     } catch (err) {
       if (typeof err === "object" && err && (err as any).code === "DOC_ACCESS_DENIED") {
@@ -394,18 +466,81 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const canSendMessage = useMemo(() => {
-    // Check if message has content (either text or document mentions)
-    if (!newMessage) return false;
-    const trimmed = newMessage.trim();
-    return trimmed.length > 0;
-  }, [newMessage]);
+    const hasText = newMessage != null && newMessage.trim().length > 0;
+    const hasImages = pendingImages.length > 0;
+    return (hasText || hasImages) && !!activeThreadId;
+  }, [newMessage, pendingImages.length, activeThreadId]);
 
   const handleSendMessage = async () => {
     if (!canSendMessage || !activeThreadId) return;
+    setUploadError(null);
+    clearError();
     const replyToId = replyingTo ? Number(replyingTo.id) : null;
-    await processSend(activeThreadId, newMessage, replyToId);
-    setReplyingTo(null); // Clear reply after sending
+    setIsUploadingImages(true);
+    try {
+      let imageUrls: string[] | undefined;
+      if (pendingImages.length > 0) {
+        imageUrls = await uploadChatImages(activeThreadId);
+      }
+      const success = await processSend(activeThreadId, newMessage, replyToId, imageUrls);
+      if (success) setReplyingTo(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to send message";
+      setUploadError(message);
+      console.error("Send message error:", err);
+    } finally {
+      setIsUploadingImages(false);
+    }
   };
+
+  const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    const next: { file: File; preview: string }[] = [];
+    for (let i = 0; i < files.length && pendingImages.length + next.length < MAX_IMAGES_PER_MESSAGE; i++) {
+      const file = files[i];
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_SIZE_BYTES) continue;
+      next.push({ file, preview: URL.createObjectURL(file) });
+    }
+    setPendingImages((prev) => [...prev, ...next].slice(0, MAX_IMAGES_PER_MESSAGE));
+    e.target.value = '';
+  }, [pendingImages.length]);
+
+  const removePendingImage = useCallback((index: number) => {
+    setPendingImages((prev) => {
+      const item = prev[index];
+      if (item?.preview) URL.revokeObjectURL(item.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+
+  const handleImagePaste = useCallback((files: File[]) => {
+    const next: { file: File; preview: string }[] = [];
+    for (let i = 0; i < files.length; i++) {
+      if (pendingImages.length + next.length >= MAX_IMAGES_PER_MESSAGE) break;
+      const file = files[i];
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_SIZE_BYTES) continue;
+      next.push({ file, preview: URL.createObjectURL(file) });
+    }
+    setPendingImages((prev) => [...prev, ...next].slice(0, MAX_IMAGES_PER_MESSAGE));
+  }, [pendingImages.length]);
+
+  useEffect(() => {
+    if (!lightboxImagePath || !orgBucketId) {
+      setLightboxSignedUrl(null);
+      return;
+    }
+    let cancelled = false;
+    supabase.storage
+      .from(orgBucketId)
+      .createSignedUrl(lightboxImagePath, 3600)
+      .then(({ data }) => {
+        if (!cancelled && data?.signedUrl) setLightboxSignedUrl(data.signedUrl);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lightboxImagePath, orgBucketId]);
 
   const handleReplyClick = (message: ProjectMessage) => {
     setReplyingTo(message);
@@ -985,6 +1120,30 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           <div className="text-sm prose prose-sm max-w-none">
                             {renderMessageContent(message.content)}
                           </div>
+                          {message.image_urls && message.image_urls.length > 0 && (
+                            <div
+                              className={cn(
+                                "mt-2 grid gap-1 rounded-lg overflow-hidden",
+                                message.image_urls.length === 1
+                                  ? "grid-cols-1 max-w-[300px]"
+                                  : "grid-cols-2 max-w-[300px]"
+                              )}
+                            >
+                              {message.image_urls.map((imgPath, idx) => (
+                                <ChatMessageImage
+                                  key={idx}
+                                  path={imgPath}
+                                  bucketId={orgBucketId || ''}
+                                  className={
+                                    message.image_urls!.length === 1
+                                      ? "w-full max-h-[280px]"
+                                      : "w-full aspect-square max-h-[140px]"
+                                  }
+                                  onClick={() => setLightboxImagePath(imgPath)}
+                                />
+                              ))}
+                            </div>
+                          )}
                           <div className="text-[11px] opacity-75 mt-1 text-right">
                             {formatMessageTime(message.created_at)}
                           </div>
@@ -1096,6 +1255,58 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   </motion.div>
                 )}
               </AnimatePresence>
+              {uploadError && (
+                <div className="mb-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 flex items-center justify-between gap-2">
+                  <span className="text-sm text-red-700">{uploadError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setUploadError(null)}
+                    className="p-1 rounded hover:bg-red-100 text-red-600"
+                    aria-label="Dismiss"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                multiple
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+              <AnimatePresence>
+                {pendingImages.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-2 flex flex-wrap gap-2"
+                  >
+                    {pendingImages.map((item, index) => (
+                      <div
+                        key={index}
+                        className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50 w-16 h-16 flex-shrink-0"
+                      >
+                        <img
+                          src={item.preview}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePendingImage(index)}
+                          className="absolute top-0.5 right-0.5 p-1 rounded-full bg-black/50 text-white hover:bg-black/70"
+                          aria-label="Remove image"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   {showDocPicker && (
@@ -1142,15 +1353,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       type="button"
                       onClick={() => setShowDocPicker((prev) => !prev)}
                       disabled={!activeThreadId}
-                      className="h-11 w-11 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-50 rounded-l-xl flex-shrink-0"
+                      className="h-11 w-11 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-50 rounded-l-xl flex-shrink-0 border-r border-gray-100"
                       title="Attach document"
                     >
                       <Plus className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={!activeThreadId || pendingImages.length >= MAX_IMAGES_PER_MESSAGE}
+                      className="h-11 w-11 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-50 flex-shrink-0 border-r border-gray-100"
+                      title="Attach image"
+                    >
+                      <ImageIcon className="h-4 w-4" />
                     </button>
                     <RichTextInput
                     ref={richTextInputRef}
                     value={newMessage}
                     onChange={handleTextChange}
+                    onImagePaste={handleImagePaste}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
@@ -1166,11 +1387,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 </div>
                 <Button
                   onClick={handleSendMessage}
-                  disabled={!canSendMessage || isLoading}
-                  
+                  disabled={!canSendMessage || isLoading || isUploadingImages}
                   className="h-11 px-4 shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <Send className="h-4 w-4" />
+                  {isUploadingImages ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
@@ -1190,6 +1410,35 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           resourceId={previewingResourceId}
           onClose={() => setPreviewingResourceId(null)}
         />
+      )}
+      {lightboxImagePath && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightboxImagePath(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxImagePath(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20"
+            aria-label="Close"
+          >
+            <X size={24} />
+          </button>
+          {lightboxSignedUrl && (
+            <img
+              src={lightboxSignedUrl}
+              alt=""
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
+          {!lightboxSignedUrl && (
+            <div className="w-32 h-32 bg-gray-800 rounded-lg animate-pulse" />
+          )}
+        </div>
       )}
       <CreateChannelModal
         isOpen={showCreateThreadModal}

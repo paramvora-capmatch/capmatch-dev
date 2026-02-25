@@ -14,6 +14,7 @@ interface RichTextInputProps {
   value: string;
   onChange: (value: string) => void;
   onKeyDown?: (e: React.KeyboardEvent) => void;
+  onImagePaste?: (files: File[]) => void;
   placeholder?: string;
   disabled?: boolean;
   minHeight?: number;
@@ -27,10 +28,13 @@ export interface RichTextInputRef {
   clear: () => void;
 }
 
+const ALLOWED_PASTE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
 export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
   value,
   onChange,
   onKeyDown,
+  onImagePaste,
   placeholder = 'Type a message...',
   disabled = false,
   minHeight = 44,
@@ -458,10 +462,21 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
   }), [htmlToValue, onChange]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const files = e.clipboardData.files;
+    if (files?.length && onImagePaste) {
+      const imageFiles = Array.from(files).filter((file) =>
+        ALLOWED_PASTE_IMAGE_TYPES.includes(file.type)
+      );
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        onImagePaste(imageFiles);
+        return;
+      }
+    }
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
     document.execCommand('insertText', false, text);
-  }, []);
+  }, [onImagePaste]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;

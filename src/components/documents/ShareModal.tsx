@@ -201,7 +201,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     <span className="flex items-center gap-1.5">
                       {p.full_name}
                       {isAdvisor && (
-                        <Lock className="h-3.5 w-3.5 text-gray-500" title="Advisor always has edit access" />
+                        <span title="Advisor always has edit access">
+                          <Lock className="h-3.5 w-3.5 text-gray-500" />
+                        </span>
                       )}
                     </span>
                   </div>

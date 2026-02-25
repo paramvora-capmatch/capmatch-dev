@@ -32,6 +32,7 @@ interface ProjectMessage {
   content?: string;
   created_at: string;
   reply_to?: number | null; // ID of the message this is replying to
+  image_urls?: string[] | null; // Storage paths in org bucket (chat-images folder)
   status?: 'sending' | 'delivered' | 'failed'; // iMessage-style status (no "sent" state)
   isOptimistic?: boolean; // Flag for optimistic messages
   isFadingOut?: boolean; // Flag for smooth fade-out animation
@@ -100,7 +101,7 @@ interface ChatActions {
 
   // Messages
   loadMessages: (threadId: string) => Promise<void>;
-  sendMessage: (threadId: string, content: string, replyTo?: number | null, clientContext?: any) => Promise<void>;
+  sendMessage: (threadId: string, content: string, replyTo?: number | null, clientContext?: any, imageUrls?: string[]) => Promise<void>;
   subscribeToMessages: (threadId: string) => void;
   unsubscribeFromMessages: () => void;
   subscribeToMembershipChanges: (projectId: string) => Promise<void>;
@@ -492,7 +493,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       }
     },
 
-    sendMessage: async (threadId: string, content: string, replyTo?: number | null, clientContext?: any) => {
+    sendMessage: async (threadId: string, content: string, replyTo?: number | null, clientContext?: any, imageUrls?: string[]) => {
       // Get current authenticated user
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
@@ -524,6 +525,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         content: content.trim(),
         created_at: new Date().toISOString(),
         reply_to: replyTo || null,
+        image_urls: imageUrls && imageUrls.length > 0 ? imageUrls : null,
         status: 'sending',
         isOptimistic: true,
         sender: {
@@ -551,7 +553,8 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         const { data: result, error: insertError } = await apiClient.sendMessage({
           thread_id: threadId,
           content: content.trim(),
-          client_context: clientContext
+          client_context: clientContext,
+          image_urls: imageUrls && imageUrls.length > 0 ? imageUrls : undefined
         });
 
         if (insertError) {

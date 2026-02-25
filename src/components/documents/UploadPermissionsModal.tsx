@@ -255,7 +255,9 @@ export const UploadPermissionsModal: React.FC<UploadPermissionsModalProps> = ({
                           <div className="text-sm font-medium text-gray-900 truncate flex items-center gap-1.5">
                             {member.userName || member.userEmail || (isAdvisor ? "Advisor" : "Member")}
                             {isAdvisor && (
-                              <Lock className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" title="Advisor always has edit access" />
+                              <span title="Advisor always has edit access">
+                                <Lock className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                              </span>
                             )}
                           </div>
                           {member.userEmail && member.userName && !isAdvisor && (

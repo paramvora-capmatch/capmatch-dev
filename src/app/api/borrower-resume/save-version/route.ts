@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -22,6 +23,12 @@ interface SnapshotRequestBody {
 }
 
 export async function POST(request: Request) {
+	const supabase = await createServerClient();
+	const { data: { user }, error: authError } = await supabase.auth.getUser();
+	if (authError || !user) {
+		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	}
+
 	console.log("[API] Borrower resume save-version called");
 	const rawBody = await request.text();
 	let payload: SnapshotRequestBody = {};
@@ -128,7 +135,7 @@ export async function POST(request: Request) {
 			project_id: projectId,
 			content: resumeRow.content || {},
 			completeness_percent: completenessPercent ?? 0,
-			created_by: userId ?? null,
+			created_by: user.id,
 		})
 		.select("id, version_number")
 		.single();

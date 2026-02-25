@@ -362,6 +362,7 @@ export const apiClient = {
     thread_id: string;
     content: string;
     client_context?: any;
+    image_urls?: string[];
   }) => {
     return apiRequest<{ message_id: string; response: string }>('/api/v1/chat/messages', {
       method: 'POST',
