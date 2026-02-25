@@ -49,7 +49,7 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
   const router = useRouter();
   const { members, isOwner } = useOrgStore();
   const { activeProject } = useProjects();
-  const { participants, loadParticipants, addParticipant, removeParticipant, isLoading } =
+  const { participants, loadParticipants, addParticipant, removeParticipant, deleteThread, isLoading } =
     useChatStore();
   const [selectedMembersToAdd, setSelectedMembersToAdd] = useState<string[]>([]);
   const [enrichedParticipants, setEnrichedParticipants] = useState<EnrichedParticipant[]>([]);
@@ -57,6 +57,7 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
   const [documents, setDocuments] = useState<AttachableDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const previousParticipantIdsRef = useRef<Set<string>>(new Set());
   const { eligibleMembers } = useProjectEligibleMembers({
     projectId: activeProject?.id,
@@ -292,6 +293,26 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
     }
   };
 
+  const handleDeleteChannel = async () => {
+    if (
+      !window.confirm(
+        "Delete this channel? All messages and participants will be removed. This cannot be undone."
+      )
+    ) {
+      return;
+    }
+    setIsDeleting(true);
+    setError(null);
+    try {
+      await deleteThread(thread.id);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete channel");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Manage Members for #${thread.topic}`} size="4xl">
       <ModalBody>
@@ -518,7 +539,18 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
         </div>
       </ModalBody>
       <ModalFooter>
-        <Button variant="outline" onClick={onClose}>Done</Button>
+        <div className="flex flex-1 items-center justify-between">
+          <Button
+            variant="outline"
+            onClick={handleDeleteChannel}
+            disabled={isDeleting || isLoading}
+            className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+          >
+            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
+            Delete channel
+          </Button>
+          <Button variant="outline" onClick={onClose}>Done</Button>
+        </div>
       </ModalFooter>
     </Modal>
   );

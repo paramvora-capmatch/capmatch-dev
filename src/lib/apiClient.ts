@@ -324,7 +324,7 @@ export const apiClient = {
    * @returns Response with thread data or success message
    */
   manageChatThread: async (params: {
-    action: 'create' | 'add_participant' | 'remove_participant' | 'get_thread' | 'resolve_thread';
+    action: 'create' | 'add_participant' | 'remove_participant' | 'get_thread' | 'resolve_thread' | 'delete_thread';
     thread_id?: string;
     project_id?: string;
     topic?: string;

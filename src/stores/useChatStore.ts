@@ -93,6 +93,7 @@ interface ChatActions {
   createThread: (projectId: string, topic?: string, participantIds?: string[], stage?: string) => Promise<string>;
   setActiveThread: (threadId: string | null) => void;
   resolveThread: (threadId: string) => Promise<void>;
+  deleteThread: (threadId: string) => Promise<void>;
 
   // Participants
   addParticipant: (threadId: string, userIds: string[]) => Promise<void>;
@@ -273,6 +274,37 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         
       } catch (err) {
         set({ error: err instanceof Error ? err.message : 'Failed to resolve thread' });
+        throw err;
+      } finally {
+        set({ isLoading: false });
+      }
+    },
+
+    deleteThread: async (threadId: string) => {
+      const state = get();
+      const thread = state.threads.find(t => t.id === threadId);
+      const projectId = thread?.project_id;
+      set({ isLoading: true, error: null });
+      try {
+        const { error } = await apiClient.manageChatThread({
+          action: 'delete_thread',
+          thread_id: threadId,
+        });
+        if (error) throw error;
+        set(s => ({
+          threads: s.threads.filter(t => t.id !== threadId),
+          activeThreadId: s.activeThreadId === threadId
+            ? (s.threads.filter(t => t.id !== threadId)[0]?.id ?? null)
+            : s.activeThreadId,
+        }));
+        if (projectId) {
+          await get().loadThreadsForProject(projectId);
+        }
+      } catch (err) {
+        set({
+          error: err instanceof Error ? err.message : 'Failed to delete thread',
+          isLoading: false,
+        });
         throw err;
       } finally {
         set({ isLoading: false });
