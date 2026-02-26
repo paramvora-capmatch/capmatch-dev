@@ -6,13 +6,10 @@ import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-l
 
 export async function GET(request: Request) {
     try {
+        // Public endpoint: landing page lender logos are shown to unauthenticated visitors
         const supabase = await createClient();
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        const rlId = getRateLimitId(request, user.id);
+        const { data: { user } } = await supabase.auth.getUser();
+        const rlId = getRateLimitId(request, user?.id ?? null);
         const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, "lenders");
         if (!rl.allowed) return rl.response;
 
