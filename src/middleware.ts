@@ -37,6 +37,9 @@ function isProtectedPath(pathname: string): boolean {
   );
 }
 
+/** Allowed frame ancestors for embedding (e.g. dataroom). */
+const FRAME_ANCESTORS_ALLOWED = ["'self'", "https://dataroom.capmatch.com", "http://dataroom.capmatch.com"];
+
 /** Supabase sets cookies named sb-<project-ref>-auth-token. Derive project ref from URL. */
 function getSupabaseAuthCookieName(): string | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -52,7 +55,8 @@ function getSupabaseAuthCookieName(): string | null {
 
 /** Apply security headers to every response. */
 function withSecurityHeaders(response: NextResponse): NextResponse {
-  response.headers.set('X-Frame-Options', 'DENY');
+  // Allow embedding only from self and dataroom.capmatch.com (no X-Frame-Options so CSP frame-ancestors applies)
+  response.headers.set('Content-Security-Policy', `frame-ancestors ${FRAME_ANCESTORS_ALLOWED.join(' ')}`);
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('X-XSS-Protection', '0');
@@ -71,7 +75,13 @@ function withSecurityHeaders(response: NextResponse): NextResponse {
 /** Max body size for API state-changing requests (10MB). */
 const MAX_API_BODY_BYTES = 10 * 1024 * 1024;
 
-/** CSRF: for state-changing API requests, allow same-origin or Origin matching configured site URL. */
+/** Origins allowed for CSRF (state-changing API requests). Includes dataroom.capmatch.com for embedding. */
+const ALLOWED_ORIGINS = [
+  'https://dataroom.capmatch.com',
+  'http://dataroom.capmatch.com',
+];
+
+/** CSRF: for state-changing API requests, allow same-origin, configured site URL, or dataroom.capmatch.com. */
 function isAllowedOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('Origin');
   if (!origin) return true;
@@ -80,6 +90,8 @@ function isAllowedOrigin(request: NextRequest): boolean {
     // Allow when Origin host matches request host (same-origin, e.g. localhost:3000 in dev)
     const requestHost = request.nextUrl.host;
     if (actual.host === requestHost) return true;
+    // Allow dataroom.capmatch.com (embedded page context)
+    if (ALLOWED_ORIGINS.some((o) => actual.origin === o)) return true;
     // Otherwise require Origin to match configured site URL
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
     if (!siteUrl) return true;
