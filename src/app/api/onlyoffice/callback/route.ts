@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
 
 // Initialize Supabase admin client
 const supabase = createClient(
@@ -11,6 +12,10 @@ const supabase = createClient(
 );
 
 export async function POST(request: NextRequest) {
+  const rlId = getRateLimitId(request);
+  const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, "onlyoffice-callback");
+  if (!rl.allowed) return rl.response;
+
   const jwtSecret = process.env.ONLYOFFICE_JWT_SECRET;
   if (!jwtSecret) {
     console.error("ONLYOFFICE_JWT_SECRET is not set.");
@@ -313,21 +318,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 1,
-        message: error instanceof Error ? error.message : String(error),
+        message: "Callback processing failed",
       },
       { status: 500 }
     );
   }
 }
 
-// Handle OPTIONS for CORS (important for OnlyOffice server to be able to call back)
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    },
-  });
+// Handle OPTIONS for CORS — allow only the OnlyOffice server origin
+export async function OPTIONS(request: NextRequest) {
+  const requestOrigin = request.headers.get("Origin");
+  const onlyOfficeUrl = process.env.NEXT_PUBLIC_ONLYOFFICE_URL;
+  let allowOrigin = "";
+  if (onlyOfficeUrl && requestOrigin) {
+    try {
+      const allowed = new URL(onlyOfficeUrl);
+      const actual = new URL(requestOrigin);
+      if (actual.origin === allowed.origin) allowOrigin = actual.origin;
+    } catch {
+      /* ignore */
+    }
+  }
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+  if (allowOrigin) headers["Access-Control-Allow-Origin"] = allowOrigin;
+  return new NextResponse(null, { status: 204, headers });
 }

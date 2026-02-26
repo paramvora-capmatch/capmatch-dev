@@ -296,6 +296,8 @@ export interface ProjectProfile {
 	// New resource IDs
 	projectDocsResourceId?: string | null;
 	projectResumeResourceId?: string | null;
+	borrowerResumeResourceId?: string | null;
+	borrowerDocsResourceId?: string | null;
 	deal_type?: 'ground_up' | 'refinance'; // Deal type classification
 	// Optional fields
 	assignedAdvisorUserId?: string | null;

@@ -5,7 +5,12 @@ import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
-import { MiniChart } from '@/components/om/widgets/MiniChart';
+import dynamic from "next/dynamic";
+
+const MiniChart = dynamic(
+  () => import("@/components/om/widgets/MiniChart").then((m) => ({ default: m.MiniChart })),
+  { ssr: false }
+);
 import { MapPin, Home, Package, Image as ImageIcon } from 'lucide-react';
 import ZoningMap from '@/components/om/ZoningMap';
 import { ImageSlideshow } from '@/components/om/ImageSlideshow';

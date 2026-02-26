@@ -6,7 +6,12 @@ import { useParams } from 'next/navigation';
 import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
 import { MetricCard } from '@/components/om/widgets/MetricCard';
-import { MiniChart } from '@/components/om/widgets/MiniChart';
+import dynamic from "next/dynamic";
+
+const MiniChart = dynamic(
+  () => import("@/components/om/widgets/MiniChart").then((m) => ({ default: m.MiniChart })),
+  { ssr: false }
+);
 import { useOMDashboard } from '@/contexts/OMDashboardContext';
 import { DollarSign, BarChart3, Users, Activity } from 'lucide-react';
 import ReturnsCharts from '@/components/om/ReturnsCharts';

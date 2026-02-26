@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendCalendarInvites } from '@/services/calendarInviteService';
-import { CreateMeetingRequest, CreateMeetingResponse } from '@/types/meeting-types';
+import { CreateMeetingResponse } from '@/types/meeting-types';
+import { validateBody, createMeetingBodySchema } from '@/lib/api-validation';
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { verifyProjectAccess } from '@/lib/verify-project-access';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Server-side Supabase client with service role
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -36,6 +40,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const rlId = getRateLimitId(request, user.id);
+    const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, 'meetings-create');
+    if (!rl.allowed) return rl.response;
+
     // Check if user has a calendar connection
     const { data: connections } = await supabaseAdmin
       .from('calendar_connections')
@@ -50,34 +58,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse request body
-    const body: CreateMeetingRequest = await request.json();
+    // Parse and validate request body
+    const [validationErr, body] = await validateBody(request, createMeetingBodySchema);
+    if (validationErr) return validationErr;
+    if (!body) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
 
-    // Validate required fields
-    if (!body.title || !body.startTime || !body.endTime || !body.participantIds) {
-      return NextResponse.json(
-        { error: 'Missing required fields: title, startTime, endTime, participantIds' },
-        { status: 400 }
-      );
+    // If linking to a project, verify user has access
+    if (body.projectId) {
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+      const hasAccess = await verifyProjectAccess(userClient, body.projectId);
+      if (!hasAccess) {
+        return NextResponse.json(
+          { error: 'Forbidden - No access to this project' },
+          { status: 403 }
+        );
+      }
     }
 
-    if (body.participantIds.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one participant is required' },
-        { status: 400 }
-      );
-    }
-
-    // Validate dates
     const startTime = new Date(body.startTime);
     const endTime = new Date(body.endTime);
-
-    if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-      return NextResponse.json(
-        { error: 'Invalid date format' },
-        { status: 400 }
-      );
-    }
 
     if (endTime <= startTime) {
       return NextResponse.json(

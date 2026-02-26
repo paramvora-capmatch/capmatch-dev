@@ -1,9 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
-import LenderGraph from "./LenderGraph";
 import { useLenderStore, LenderFilters } from "@/stores/useLenderStore";
+
+const LenderGraph = dynamic(() => import("./LenderGraph").then((m) => m.default), {
+	ssr: false,
+	loading: () => <div className="min-h-[400px] flex items-center justify-center text-gray-500">Loading graph…</div>,
+});
 import { MapPin, Building2, Briefcase } from "lucide-react";
 
 const ASSET_TYPES = [

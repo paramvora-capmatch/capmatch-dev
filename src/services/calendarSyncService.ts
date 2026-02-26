@@ -5,6 +5,7 @@
  * from Google Calendar back to the meeting_participants table.
  */
 
+import "server-only";
 import { SupabaseClient } from '@supabase/supabase-js';
 import { CalendarConnection } from '@/types/calendar-types';
 import { ensureValidToken } from '@/lib/calendarTokenManager';

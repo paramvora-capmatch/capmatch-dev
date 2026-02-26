@@ -1,8 +1,20 @@
-// src/stores/useChatStore.ts
 import { create } from "zustand";
 import { supabase } from "../../lib/supabaseClient";
 import { apiClient } from "@/lib/apiClient";
+import { fetchProfilesMap } from "@/lib/profile-utils";
+import { formatStoreError } from "@/utils/errorUtils";
+import {
+	CHAT_DELIVERED_STATUS_DURATION_MS,
+	CHAT_DELIVERED_STATUS_FADE_LEAD_MS,
+	CHAT_DEDUP_BY_CONTENT_WINDOW_MS,
+	CHAT_OPTIMISTIC_MATCH_WINDOW_MS,
+	CHAT_RECONNECT_BASE_DELAY_MS,
+	CHAT_RECONNECT_MAX_DELAY_MS,
+} from "@/config/constants";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+
+/** Cleared on unsubscribe so reconnection does not run after unmount */
+let messageReconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 interface ChatThread {
   id: string;
@@ -133,7 +145,7 @@ const fadeOutTimeouts = new Map<string | number, NodeJS.Timeout>();
 
 export const useChatStore = create<ChatState & ChatActions>((set, get) => {
   // Helper function to clear "Delivered" status after timeout with smooth fade-out (iMessage-style)
-  const clearDeliveredStatusAfterTimeout = (messageId: string | number, delayMs: number = 5000) => {
+  const clearDeliveredStatusAfterTimeout = (messageId: string | number, delayMs: number = CHAT_DELIVERED_STATUS_DURATION_MS) => {
     // Clear any existing timeouts for this message
     const existingTimeout = statusTimeouts.get(messageId);
     if (existingTimeout) {
@@ -146,7 +158,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       fadeOutTimeouts.delete(messageId);
     }
 
-    // Start fade-out animation 400ms before clearing (smooth transition)
+    // Start fade-out animation before clearing (smooth transition)
     const fadeOutTimeout = setTimeout(() => {
       const currentState = get();
       set({
@@ -157,7 +169,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         ),
       });
       fadeOutTimeouts.delete(messageId);
-    }, delayMs - 400); // Start fade 400ms before clearing
+    }, delayMs - CHAT_DELIVERED_STATUS_FADE_LEAD_MS); // Start fade before clearing
 
     fadeOutTimeouts.set(messageId, fadeOutTimeout);
 
@@ -202,7 +214,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       try {
         const { data, error } = await supabase
           .from('chat_threads')
-          .select('*')
+          .select('id, project_id, topic, status, stage, resource_id, created_at')
           .eq('project_id', projectId)
           .order('created_at', { ascending: false });
 
@@ -413,26 +425,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
         // Fetch user profiles directly from profiles (RLS now allows related profile access)
         const userIds = [...new Set((participants || []).map((p: any) => p.user_id).filter(Boolean))];
-        const profilesMap = new Map<string, { id: string; full_name?: string | null; email?: string | null }>();
-
-        if (userIds.length > 0) {
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .in('id', userIds as string[]);
-
-          if (!profilesError && Array.isArray(profilesData)) {
-            profilesData.forEach((user: any) => {
-              profilesMap.set(user.id, {
-                id: user.id,
-                full_name: user.full_name,
-                email: user.email,
-              });
-            });
-          } else if (profilesError) {
-            console.error('[ChatStore] Error fetching participant profiles:', profilesError);
-          }
-        }
+        const profilesMap = await fetchProfilesMap(supabase, userIds as string[]);
 
         set({
           participants: (participants || []).map((p: any) => ({
@@ -444,7 +437,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         });
       } catch (err) {
         console.error('[ChatStore] Failed to load participants:', err);
-        set({ error: err instanceof Error ? err.message : 'Failed to load participants' });
+        set({ error: formatStoreError(err, 'Failed to load participants') });
       }
     },
 
@@ -453,7 +446,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       try {
         const { data: messages, error } = await supabase
           .from('project_messages')
-          .select('*')
+          .select('id, thread_id, user_id, content, created_at, reply_to, image_urls')
           .eq('thread_id', threadId)
           .order('created_at', { ascending: true });
 
@@ -461,27 +454,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
         // Fetch sender profiles directly from profiles (RLS now allows related profile access)
         const userIds = [...new Set((messages || []).map((msg: any) => msg.user_id).filter(Boolean))];
-
-        const profilesMap = new Map<string, { id: string; full_name?: string | null; email?: string | null }>();
-
-        if (userIds.length > 0) {
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .in('id', userIds as string[]);
-
-          if (!profilesError && Array.isArray(profilesData)) {
-            profilesData.forEach((user: any) => {
-              profilesMap.set(user.id, {
-                id: user.id,
-                full_name: user.full_name,
-                email: user.email,
-              });
-            });
-          } else if (profilesError) {
-            console.error('[ChatStore] Error fetching user profiles:', profilesError);
-          }
-        }
+        const profilesMap = await fetchProfilesMap(supabase, userIds as string[]);
 
         // Create a map of messages by ID for quick lookup of replied messages
         const messagesById = new Map<number, ProjectMessage>();
@@ -519,7 +492,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         set({ messageCache: cache });
       } catch (err) {
         set({
-          error: err instanceof Error ? err.message : 'Failed to load messages',
+          error: formatStoreError(err, 'Failed to load messages'),
           isLoading: false
         });
       }
@@ -664,7 +637,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
         // Clear "Delivered" status after 5 seconds (iMessage-style)
         // Note: we cast messageId to specific type if needed, usually number or string
-        clearDeliveredStatusAfterTimeout(messageId, 5000);
+        clearDeliveredStatusAfterTimeout(messageId, CHAT_DELIVERED_STATUS_DURATION_MS);
 
         // Note: Domain event created. Realtime will still fire, but we handle dedup below.
       } catch (err) {
@@ -691,17 +664,27 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     },
 
     subscribeToMessages: (threadId: string) => {
-      const channel = supabase
-        .channel(`project-messages-${threadId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'project_messages',
-            filter: `thread_id=eq.${threadId}`
-          },
-          async (payload) => {
+      const maxReconnectAttempts = 5;
+      let reconnectAttempts = 0;
+
+      const setupChannel = () => {
+        const prevChannel = get().messageChannel;
+        if (prevChannel) {
+          supabase.removeChannel(prevChannel);
+          set({ messageChannel: null });
+        }
+
+        const channel = supabase
+          .channel(`project-messages-${threadId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'project_messages',
+              filter: `thread_id=eq.${threadId}`
+            },
+            async (payload) => {
             const newMessage = payload.new as ProjectMessage;
             const state = get();
 
@@ -709,6 +692,17 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
             if (state.messages.some((msg) => String(msg.id) === String(newMessage.id))) {
               return;
             }
+
+            // Deduplication: skip if we already have a message with same thread, user, content, and created_at within 2s (avoids duplicate from race)
+            const newTime = new Date(newMessage.created_at).getTime();
+            const isDuplicateByContent = state.messages.some((msg) => {
+              if (msg.isOptimistic) return false;
+              if (msg.user_id !== newMessage.user_id) return false;
+              if (msg.content !== newMessage.content) return false;
+              const t = new Date(msg.created_at).getTime();
+              return Math.abs(newTime - t) < CHAT_DEDUP_BY_CONTENT_WINDOW_MS;
+            });
+            if (isDuplicateByContent) return;
 
             // Deduplication: Check if this is replacing an optimistic message
             // Match by content + user_id + approximate timestamp (within 5 seconds)
@@ -719,29 +713,25 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
               if (msg.content !== newMessage.content) return false;
 
               const optimisticTime = new Date(msg.created_at).getTime();
-              return Math.abs(messageTime - optimisticTime) < 5000; // 5 second window
+              return Math.abs(messageTime - optimisticTime) < CHAT_OPTIMISTIC_MATCH_WINDOW_MS;
             });
 
             // Fetch sender profile directly from profiles (RLS now allows related profile access)
-            const { data: profilesData, error: profilesError } = await supabase
-              .from('profiles')
-              .select('id, full_name, email')
-              .eq('id', newMessage.user_id)
-              .maybeSingle();
+            const profilesMap = await fetchProfilesMap(supabase, [newMessage.user_id]);
+            const senderProfile = profilesMap.get(newMessage.user_id);
 
-            if (profilesError || !profilesData) {
-              console.error("Error fetching profile for new message:", profilesError);
+            if (!senderProfile) {
+              console.error("Error fetching profile for new message");
               // Fallback to refetching all messages if profile fetch fails
               await get().loadMessages(threadId);
               return;
             }
 
-            // Append sender info to the real message
-            const senderProfile = profilesData;
+            // Append sender info to the real message (coerce null to undefined for sender type)
             newMessage.sender = {
               id: senderProfile.id,
-              full_name: senderProfile.full_name,
-              email: senderProfile.email,
+              full_name: senderProfile.full_name ?? undefined,
+              email: senderProfile.email ?? undefined,
             };
 
             // If this message is a reply, find and attach the replied message
@@ -758,7 +748,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
               newMessage.status = 'delivered'; // Real message is delivered
 
               // Clear "Delivered" status after 5 seconds (iMessage-style ephemeral status)
-              clearDeliveredStatusAfterTimeout(newMessage.id, 5000);
+              clearDeliveredStatusAfterTimeout(newMessage.id, CHAT_DELIVERED_STATUS_DURATION_MS);
             }
 
             // Replace optimistic message with real one, or append if no match
@@ -791,12 +781,40 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
             }
           }
         )
-        .subscribe();
+        .subscribe((status, err) => {
+          if (status === 'SUBSCRIBED') {
+            reconnectAttempts = 0;
+            return;
+          }
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            console.warn('[ChatStore] Realtime message channel status:', status, err);
+            if (reconnectAttempts >= maxReconnectAttempts) {
+              console.error('[ChatStore] Max reconnection attempts reached for messages');
+              set({ error: 'Connection lost. Please refresh the page.' });
+              return;
+            }
+            const delay = Math.min(CHAT_RECONNECT_BASE_DELAY_MS * 2 ** reconnectAttempts, CHAT_RECONNECT_MAX_DELAY_MS);
+            reconnectAttempts += 1;
+            messageReconnectTimeoutId = setTimeout(() => {
+              messageReconnectTimeoutId = null;
+              if (get().activeThreadId === threadId) {
+                setupChannel();
+              }
+            }, delay);
+          }
+        });
 
-      set({ messageChannel: channel });
+        set({ messageChannel: channel });
+      };
+
+      setupChannel();
     },
 
     unsubscribeFromMessages: () => {
+      if (messageReconnectTimeoutId) {
+        clearTimeout(messageReconnectTimeoutId);
+        messageReconnectTimeoutId = null;
+      }
       const { messageChannel } = get();
       if (messageChannel) {
         supabase.removeChannel(messageChannel);

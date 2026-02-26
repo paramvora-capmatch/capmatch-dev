@@ -8,6 +8,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { stopCalendarWatch } from '@/services/calendarSyncService';
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -53,6 +54,10 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    const rlId = getRateLimitId(request, user.id);
+    const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, 'calendar-disconnect');
+    if (!rl.allowed) return rl.response;
 
     const userId = user.id;
 

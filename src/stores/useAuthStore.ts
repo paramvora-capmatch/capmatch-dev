@@ -121,7 +121,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             const loginSource = authUser.user_metadata.loginSource || "direct";
             const enhancedUser: EnhancedUser = {
               id: authUser.id,
-              email: authUser.email!,
+              email: authUser.email ?? '',
               role,
               loginSource,
               lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
@@ -201,7 +201,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 const loginSource = authUser.user_metadata.loginSource || "direct";
                 const enhancedUser: EnhancedUser = {
                   id: authUser.id,
-                  email: authUser.email!,
+                  email: authUser.email ?? '',
                   role,
                   loginSource,
                   lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
@@ -404,7 +404,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 const role = profile.app_role as EnhancedUser["role"]; // Removed 'as any'
                 const enhancedUser: EnhancedUser = {
                   id: authUser.id,
-                  email: authUser.email!,
+                  email: authUser.email ?? '',
                   role,
                   loginSource: oauthLoginSource, // Used oauthLoginSource
                   lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
@@ -476,7 +476,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                     const role = profileAfter.app_role as EnhancedUser["role"]; // Removed 'as any'
                     const enhancedUser: EnhancedUser = {
                       id: authUser.id,
-                      email: authUser.email!,
+                      email: authUser.email ?? '',
                       role,
                       loginSource: oauthLoginSource, // Used oauthLoginSource
                       lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
@@ -554,7 +554,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       });
 
       if (error) {
-        const msg = (error as any)?.message || String(error);
+        const msg = error instanceof Error ? error.message : String(error);
 
         // Map common Supabase auth errors to a clean, user-friendly message.
         if (/invalid login credentials/i.test(msg)) {

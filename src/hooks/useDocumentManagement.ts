@@ -100,7 +100,7 @@ export const useDocumentManagement = ({
       // First, get all resources (files and folders)
       const { data: resources, error: resourcesError } = await supabase
         .from("resources")
-        .select("*")
+        .select("id, name, resource_type, parent_id, current_version_id, created_at, updated_at")
         .eq("parent_id", parentId)
         .in("resource_type", ["FOLDER", "FILE"])
         .order("name");
@@ -122,7 +122,7 @@ export const useDocumentManagement = ({
       if (fileResourceIds && fileResourceIds.length > 0) {
         const { data: versions, error: versionsError } = await supabase
           .from("document_versions")
-          .select("*")
+          .select("id, resource_id, version_number, storage_path, created_at, metadata, status")
           .in("resource_id", fileResourceIds)
           .order("version_number", { ascending: false });
 
@@ -210,160 +210,49 @@ export const useDocumentManagement = ({
   const uploadFile = useCallback(
     async (file: File, folderId?: string) => {
       if (!targetOrgId || !user) throw new Error("Missing context");
+      if (!projectId) throw new Error("Project context required for file uploads");
+
       setIsLoading(true);
       setError(null);
-      let resourceId: string | null = null;
-      let finalStoragePath: string | null = null;
 
       try {
-        if (!projectId) {
-          throw new Error("Project context required for file uploads");
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error("Not authenticated");
+
+        const base = typeof window !== "undefined" ? window.location.origin : "";
+        const formData = new FormData();
+        formData.set("projectId", projectId);
+        formData.set("context", context);
+        if (folderId) formData.set("folderId", folderId);
+        formData.set("file", file);
+
+        const res = await fetch(`${base}/api/documents/upload`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error((body.error as string) || res.statusText);
         }
 
-        const rootResourceType =
-          context === "borrower" ? "BORROWER_DOCS_ROOT" : context === "underwriting" ? "UNDERWRITING_DOCS_ROOT" : "PROJECT_DOCS_ROOT";
-
-        const { data: root, error: rootError } = await supabase
-          .from("resources")
-          .select("id")
-          .eq("project_id", projectId)
-          .eq("resource_type", rootResourceType)
-          .maybeSingle();
-
-        if (rootError) throw rootError;
-        if (!root?.id) {
-          throw new Error(`${rootResourceType} not found for project ${projectId}`);
-        }
-
-        const parentId = folderId || root.id;
-
-        const { data: resource, error: resourceError } = await supabase
-          .from("resources")
-          .insert({
-            org_id: targetOrgId,
-            project_id: projectId,
-            parent_id: parentId,
-            resource_type: "FILE",
-            name: file.name,
-          })
-          .select()
-          .single();
-        if (resourceError) {
-          console.error("Error creating resource:", resourceError);
-          throw resourceError;
-        }
-        resourceId = resource.id;
-
-        const { data: version, error: versionError } = await supabase
-          .from("document_versions")
-          .insert({
-            resource_id: resourceId,
-            created_by: user.id,
-            storage_path: "placeholder",
-          })
-          .select()
-          .single();
-        if (versionError) {
-          console.error("Error creating document version:", versionError);
-          throw versionError;
-        }
-
-        // Mark the new version as active (it's the current one)
-        const { error: statusError } = await supabase
-          .from("document_versions")
-          .update({ status: "active" })
-          .eq("id", version.id);
-        if (statusError) {
-          console.error("Error updating version status:", statusError);
-          throw statusError;
-        }
-
-        const fileFolder = `${projectId}/${STORAGE_SUBDIR[context]}/${resourceId}`;
-        finalStoragePath = `${fileFolder}/v${version.version_number}_user${user.id}_${file.name}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from(targetOrgId)
-          .upload(finalStoragePath, file, { upsert: false });
-        if (uploadError) {
-          console.error("Error uploading file to storage:", uploadError);
-          throw uploadError;
-        }
-
-        const { error: updateVersionError } = await supabase
-          .from("document_versions")
-          .update({ storage_path: finalStoragePath })
-          .eq("id", version.id);
-        if (updateVersionError) {
-          console.error("Error updating version storage path:", updateVersionError);
-          throw updateVersionError;
-        }
-
-        const { error: updateResourceError } = await supabase
-          .from("resources")
-          .update({ current_version_id: version.id })
-          .eq("id", resourceId);
-        if (updateResourceError) {
-          console.error("Error updating resource current version:", updateResourceError);
-          throw updateResourceError;
-        }
-
-        const { data: eventId, error: eventError } = await supabase.rpc(
-          "insert_document_uploaded_event",
-          {
-            p_actor_id: user.id,
-            p_project_id: projectId,
-            p_resource_id: resourceId,
-            p_payload: {
-              fileName: file.name,
-              size: file.size,
-              mimeType: file.type,
-            },
-          }
-        );
-
-        if (eventError) {
-          console.error("[useDocumentManagement] Failed to log document_uploaded event:", {
-            error: eventError,
-            projectId,
-            resourceId,
-          });
-        } else {
-          // Note: Domain event created. The GCP notify-fan-out service will automatically
-          // poll and process this event within 0-60 seconds (avg 30s).
-        }
-
+        const data = await res.json();
         await listDocuments();
-        return resource;
+        return data;
       } catch (err) {
         const message = err instanceof Error
           ? err.message
           : (typeof err === 'object' && err !== null && 'message' in err)
             ? (err as any).message
             : JSON.stringify(err);
-
-        console.error("Error uploading file:", {
-          error: err,
-          message,
-          resourceId,
-          finalStoragePath,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          projectId,
-          activeOrgId: activeOrg?.id
-        });
-
         setError(message || "Failed to upload file");
-        if (finalStoragePath && targetOrgId)
-          await supabase.storage.from(targetOrgId).remove([finalStoragePath]);
-        if (resourceId)
-          await supabase.from("resources").delete().eq("id", resourceId);
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    [projectId, targetOrgId, user, listDocuments, activeOrg?.id, context]
+    [projectId, targetOrgId, user, listDocuments, context]
   );
 
   const createFolder = useCallback(
@@ -421,135 +310,23 @@ export const useDocumentManagement = ({
   );
 
   const deleteFile = useCallback(
-    async (fileId: string) => {
+    async (resourceId: string) => {
       if (!targetOrgId) return;
 
-      /**
-       * Recursively lists all files in a storage folder prefix
-       */
-      const listAllFilesRecursively = async (
-        folderPrefix: string,
-        allFiles: string[] = []
-      ): Promise<string[]> => {
-        console.log(`[listAllFilesRecursively] Attempting to list bucket=${targetOrgId}, prefix=${folderPrefix}`);
-        const { data: files, error } = await supabase.storage
-          .from(targetOrgId)
-          .list(folderPrefix, {
-            limit: 1000,
-            sortBy: { column: 'name', order: 'asc' },
-          });
-
-        if (error) {
-          // Folder might not exist, return what we have
-          console.warn(`[listAllFilesRecursively] Error listing folder ${folderPrefix}:`, error);
-          console.warn(`[listAllFilesRecursively] Error details:`, JSON.stringify(error, null, 2));
-          return allFiles;
-        }
-
-        console.log(`[listAllFilesRecursively] Listing ${folderPrefix} returned ${files?.length || 0} items`);
-        if (files && files.length > 0) {
-          console.log(`[listAllFilesRecursively] First few items:`, files.slice(0, 3).map(f => ({ name: f.name, id: f.id })))
-        }
-
-        if (!files || files.length === 0) {
-          return allFiles;
-        }
-
-        // Process files and folders
-        for (const item of files) {
-          const itemPath = folderPrefix ? `${folderPrefix}/${item.name}` : item.name;
-
-          // Debug log to inspect item structure
-          console.log(`[listAllFilesRecursively] Item: ${item.name}, id: ${item.id}, hasMetadata: ${!!item.metadata}`);
-
-          // In Supabase storage, folders have id === null, files have id !== null.
-          // We rely primarily on 'id' being present to identify a file.
-          // If id is present, it's definitely a file.
-          // If id is null, it's likely a folder placeholder.
-          const isFile = !!item.id; 
-          
-          if (!isFile) {
-            // This is a folder, recurse into it
-            console.log(`[listAllFilesRecursively] Recursing into folder: ${itemPath}`);
-            const subFiles = await listAllFilesRecursively(itemPath, []);
-            allFiles.push(...subFiles);
-          } else {
-            // This is a file, add it to the list
-            allFiles.push(itemPath);
-          }
-        }
-
-        return allFiles;
-      };
-
       try {
-        // Get all versions to extract the resource folder path
-        const { data: versions, error: versionsError } = await supabase
-          .from("document_versions")
-          .select("storage_path")
-          .eq("resource_id", fileId);
-        if (versionsError) throw versionsError;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error("Not authenticated");
 
-        // Collect all unique resource folder paths from all versions
-        // This handles cases where different versions might exist in different folders
-        // (e.g., due to migration from project-docs to underwriting-docs)
-        const resourceFolderPaths = new Set<string>();
+        const base = typeof window !== "undefined" ? window.location.origin : "";
+        const res = await fetch(`${base}/api/documents/${resourceId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
 
-        if (versions && versions.length > 0) {
-          versions.forEach((v) => {
-            const path = v.storage_path;
-            if (path && path !== "placeholder") {
-              const pathParts = path.split('/');
-              // Path format: [project_id, folder_type, resource_id, ...]
-              if (pathParts.length >= 3) {
-                resourceFolderPaths.add(pathParts.slice(0, 3).join('/'));
-              }
-            }
-          });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error((body.error as string) || res.statusText);
         }
-
-        // Always add the current expected path for this context as a fallback/safety
-        if (projectId) {
-          resourceFolderPaths.add(`${projectId}/${STORAGE_SUBDIR[context]}/${fileId}`);
-        }
-
-        console.log(`[deleteFile] Found ${resourceFolderPaths.size} folder paths to check for deletion:`, Array.from(resourceFolderPaths));
-
-        // Iterate through all identified folder paths and delete contents
-        for (const folderPath of Array.from(resourceFolderPaths)) {
-          if (!folderPath) continue;
-          
-          console.log(`[deleteFile] Checking/Deleting files in folder: ${folderPath}`);
-
-          // Recursively list all files in the resource folder
-          const allFiles = await listAllFilesRecursively(folderPath);
-
-          console.log(`[deleteFile] Found ${allFiles.length} files to delete in ${folderPath}`);
-
-          // Delete all files found
-          if (allFiles.length > 0) {
-            // Split into batches of 1000 (Supabase storage remove limit)
-            const batchSize = 1000;
-            for (let i = 0; i < allFiles.length; i += batchSize) {
-              const batch = allFiles.slice(i, i + batchSize);
-              const { error: removeError } = await supabase.storage
-                .from(targetOrgId)
-                .remove(batch);
-              if (removeError) {
-                console.error(`[deleteFile] Error removing batch ${i / batchSize + 1} from ${folderPath}:`, removeError);
-                // Continue with other batches/folders even if one fails
-              }
-            }
-            console.log(`[deleteFile] Successfully deleted ${allFiles.length} files from ${folderPath}`);
-          }
-        }
-
-        // Delete the resource from the database (this will cascade delete versions)
-        const { error: deleteError } = await supabase
-          .from("resources")
-          .delete()
-          .eq("id", fileId);
-        if (deleteError) throw deleteError;
 
         await listDocuments();
       } catch (err) {
@@ -558,7 +335,7 @@ export const useDocumentManagement = ({
         throw err;
       }
     },
-    [targetOrgId, listDocuments, projectId, context]
+    [targetOrgId, listDocuments]
   );
 
   const deleteFolder = useCallback(

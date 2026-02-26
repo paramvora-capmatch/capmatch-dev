@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logFieldAccess, FieldAccessLog } from '@/lib/om-field-logger';
+import { validateBody, omLogFieldAccessBodySchema } from '@/lib/api-validation';
+import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 export async function POST(
   request: NextRequest,
@@ -7,25 +10,29 @@ export async function POST(
 ) {
   try {
     const { id: projectId } = await params;
-    
-    // Check for auth header for security
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader) {
+
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    
-    // Validate request body
-    if (!Array.isArray(body.fields)) {
-      return NextResponse.json(
-        { error: 'Invalid request: fields must be an array' },
-        { status: 400 }
-      );
+    const rlId = getRateLimitId(request, user.id);
+    const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, 'om-log-field-access');
+    if (!rl.allowed) return rl.response;
+
+    const [err, body] = await validateBody(request, omLogFieldAccessBodySchema);
+    if (err) return err;
+    if (!body) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
+
+    const { verifyProjectAccess } = await import('@/lib/verify-project-access');
+    const hasAccess = await verifyProjectAccess(supabase, projectId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Add projectId to each log entry
-    const fieldLogs: FieldAccessLog[] = body.fields.map((field: Omit<FieldAccessLog, 'projectId'>) => ({
+    const fieldLogs: FieldAccessLog[] = body.fields.map((field) => ({
       ...field,
       projectId,
     }));

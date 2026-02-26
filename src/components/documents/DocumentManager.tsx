@@ -44,6 +44,13 @@ import Link from "next/link";
 import { supabase } from "../../../lib/supabaseClient";
 import UploadPermissionsModal from "./UploadPermissionsModal";
 import { Permission } from "@/types/enhanced-types";
+import {
+	validateFiles,
+	sanitizeFilename,
+	MAX_DOCUMENT_SIZE_BYTES,
+	ALLOWED_DOCUMENT_MIME_TYPES,
+} from "@/utils/fileUploadValidation";
+import { toast } from "sonner";
 
 interface DocumentManagerProps {
 	projectId: string | null;
@@ -343,8 +350,16 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (e.target.files && e.target.files.length > 0) {
 			const files = Array.from(e.target.files);
-			setSelectedFiles(files);
-			setShowUploadPerms(true);
+			const { valid, errors } = validateFiles(files, {
+				allowedMimeTypes: ALLOWED_DOCUMENT_MIME_TYPES,
+				maxSizeBytes: MAX_DOCUMENT_SIZE_BYTES,
+				requireSanitizedName: true,
+			});
+			errors.forEach((msg) => toast.error(msg));
+			if (valid.length > 0) {
+				setSelectedFiles(valid);
+				setShowUploadPerms(true);
+			}
 		}
 	};
 

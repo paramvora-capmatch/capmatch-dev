@@ -6,7 +6,12 @@ import { useParams } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
 import { useOMDashboard } from "@/contexts/OMDashboardContext";
 import { MetricCard } from "@/components/om/widgets/MetricCard";
-import { MiniChart } from "@/components/om/widgets/MiniChart";
+import dynamic from "next/dynamic";
+
+const MiniChart = dynamic(
+  () => import("@/components/om/widgets/MiniChart").then((m) => ({ default: m.MiniChart })),
+  { ssr: false }
+);
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { DollarSign, TrendingUp, FileText, AlertTriangle } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";

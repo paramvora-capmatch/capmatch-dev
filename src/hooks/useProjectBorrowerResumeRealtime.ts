@@ -4,6 +4,7 @@ import {
 	BorrowerResumeContent,
 	saveProjectBorrowerResume,
 	getProjectBorrowerResume,
+	getProjectBorrowerResumeWithVersion,
 } from "@/lib/project-queries";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,8 +47,10 @@ export const useProjectBorrowerResumeRealtime = (
 
 	const channelRef = useRef<RealtimeChannel | null>(null);
 	const isLocalSaveRef = useRef(false);
+	const lastKnownVersionRef = useRef<number | null>(null);
 	const remoteUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const localSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const isAutofillRunningRef = useRef(false);
 	const lastContentHashRef = useRef<string | null>(null);
 
@@ -66,14 +69,17 @@ export const useProjectBorrowerResumeRealtime = (
 	const load = useCallback(async () => {
 		if (!projectId) {
 			updateContentIfChanged(null);
+			lastKnownVersionRef.current = null;
 			return;
 		}
 
 		setIsLoading(true);
 		setError(null);
 		try {
-			const result = await getProjectBorrowerResumeContent(projectId);
-			updateContentIfChanged(result);
+			const { content, versionNumber } =
+				await getProjectBorrowerResumeWithVersion(projectId);
+			updateContentIfChanged(content);
+			lastKnownVersionRef.current = versionNumber;
 		} catch (err) {
 			setError(
 				err instanceof Error
@@ -129,9 +135,8 @@ export const useProjectBorrowerResumeRealtime = (
 						`[useProjectBorrowerResumeRealtime] 🔄 Reloading borrower resume content (attempt ${attempt}/${maxAttempts})`
 					);
 					try {
-						const result = await getProjectBorrowerResumeContent(
-							projectId
-						);
+						const { content: result, versionNumber } =
+							await getProjectBorrowerResumeWithVersion(projectId);
 						console.log(
 							`[useProjectBorrowerResumeRealtime] 📥 Borrower resume content loaded:`,
 							{
@@ -144,6 +149,7 @@ export const useProjectBorrowerResumeRealtime = (
 						);
 						if (result || attempt >= maxAttempts) {
 							updateContentIfChanged(result);
+							lastKnownVersionRef.current = versionNumber;
 							console.log(
 								`[useProjectBorrowerResumeRealtime] ✅ Content updated (attempt ${attempt})`
 							);
@@ -153,7 +159,8 @@ export const useProjectBorrowerResumeRealtime = (
 								`[useProjectBorrowerResumeRealtime] ⏳ Content is null, retrying in ${1000 * attempt
 								}ms...`
 							);
-							setTimeout(
+							if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+							retryTimeoutRef.current = setTimeout(
 								() => retryLoad(attempt + 1, maxAttempts),
 								1000 * attempt
 							);
@@ -164,7 +171,8 @@ export const useProjectBorrowerResumeRealtime = (
 							err
 						);
 						if (attempt < maxAttempts) {
-							setTimeout(
+							if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+							retryTimeoutRef.current = setTimeout(
 								() => retryLoad(attempt + 1, maxAttempts),
 								1000 * attempt
 							);
@@ -202,6 +210,10 @@ export const useProjectBorrowerResumeRealtime = (
 		window.addEventListener("local-save-started", handleLocalSaveStart);
 
 		return () => {
+			if (retryTimeoutRef.current) {
+				clearTimeout(retryTimeoutRef.current);
+				retryTimeoutRef.current = null;
+			}
 			window.removeEventListener("autofill-started", handleAutofillStart);
 			window.removeEventListener(
 				"autofill-completed",
@@ -242,6 +254,17 @@ export const useProjectBorrowerResumeRealtime = (
 						return;
 					}
 
+					// Version-based conflict resolution: only apply if remote is newer
+					const remoteVersion = (payload.new as { version_number?: number })
+						?.version_number;
+					if (
+						typeof remoteVersion === "number" &&
+						lastKnownVersionRef.current !== null &&
+						remoteVersion <= lastKnownVersionRef.current
+					) {
+						return;
+					}
+
 					// Ignore updates during autofill (triggered by current user)
 					if (isAutofillRunningRef.current) {
 						return;
@@ -256,11 +279,13 @@ export const useProjectBorrowerResumeRealtime = (
 
 					// Fetch the latest content from server
 					try {
-						const latest = await getProjectBorrowerResumeContent(
-							projectId
-						);
+						const { content: latest, versionNumber } =
+							await getProjectBorrowerResumeWithVersion(
+								projectId
+							);
 						if (latest) {
 							updateContentIfChanged(latest);
+							lastKnownVersionRef.current = versionNumber;
 
 							// Reset remote update flag after 3 seconds
 							remoteUpdateTimeoutRef.current = setTimeout(() => {
@@ -298,6 +323,17 @@ export const useProjectBorrowerResumeRealtime = (
 						return;
 					}
 
+					// Version-based conflict resolution: only apply if remote is newer
+					const remoteVersion = (payload.new as { version_number?: number })
+						?.version_number;
+					if (
+						typeof remoteVersion === "number" &&
+						lastKnownVersionRef.current !== null &&
+						remoteVersion <= lastKnownVersionRef.current
+					) {
+						return;
+					}
+
 					// Ignore inserts during autofill (triggered by current user)
 					if (isAutofillRunningRef.current) {
 						return;
@@ -307,11 +343,13 @@ export const useProjectBorrowerResumeRealtime = (
 					// Add a small delay to ensure resource pointer is updated
 					await new Promise((resolve) => setTimeout(resolve, 500));
 					try {
-						const latest = await getProjectBorrowerResumeContent(
-							projectId
-						);
+						const { content: latest, versionNumber } =
+							await getProjectBorrowerResumeWithVersion(
+								projectId
+							);
 						if (latest) {
 							updateContentIfChanged(latest);
+							lastKnownVersionRef.current = versionNumber;
 							if (remoteUpdateTimeoutRef.current)
 								clearTimeout(remoteUpdateTimeoutRef.current);
 							remoteUpdateTimeoutRef.current = setTimeout(() => {
@@ -421,11 +459,11 @@ export const useProjectBorrowerResumeRealtime = (
 
 				// Reload to get the properly formatted content back
 				console.log('[useProjectBorrowerResumeRealtime] Reloading after save...');
-				const reloaded = await getProjectBorrowerResumeContent(
-					projectId
-				);
+				const { content: reloaded, versionNumber } =
+					await getProjectBorrowerResumeWithVersion(projectId);
 				console.log('[useProjectBorrowerResumeRealtime] Reloaded content:', reloaded);
 				updateContentIfChanged(reloaded);
+				lastKnownVersionRef.current = versionNumber;
 			} catch (err) {
 				const message =
 					err instanceof Error

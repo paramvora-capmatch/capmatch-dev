@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { cancelCalendarEvent } from '@/services/calendarInviteService';
 import { CancelMeetingResponse } from '@/types/meeting-types';
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -41,6 +42,10 @@ export async function POST(
         { status: 401 }
       );
     }
+
+    const rlId = getRateLimitId(request, user.id);
+    const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, 'meetings-cancel');
+    if (!rl.allowed) return rl.response;
 
     // Fetch the meeting
     const { data: meeting, error: fetchError } = await supabaseAdmin

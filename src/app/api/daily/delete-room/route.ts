@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { DeleteRoomRequest, DailyApiError } from '@/types/daily-types';
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 // Create Supabase client with service role for server-side operations
 function getSupabaseServiceClient() {
@@ -26,6 +27,10 @@ export async function DELETE(request: Request) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const rlId = getRateLimitId(request, user.id);
+  const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, 'daily-delete-room');
+  if (!rl.allowed) return rl.response;
 
   try {
     const body: DeleteRoomRequest = await request.json();

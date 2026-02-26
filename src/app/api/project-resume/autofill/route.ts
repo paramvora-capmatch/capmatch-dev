@@ -1,12 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getBackendUrl } from "@/lib/apiConfig";
-
-interface AutofillRequest {
-	project_id: string;
-	project_address: string;
-	document_paths: string[];
-	user_id: string;
-}
+import { validateBody, autofillBodySchema } from "@/lib/api-validation";
+import { checkRateLimit, getRateLimitId, AUTOFILL_RATE_LIMIT } from "@/lib/rate-limit";
+import { createClient } from "@/lib/supabase/server";
+import { verifyProjectAccess } from "@/lib/verify-project-access";
 
 interface AnalysisResponse {
 	status: string;
@@ -14,17 +11,28 @@ interface AnalysisResponse {
 	project_id: string;
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
 	try {
-		const body: AutofillRequest = await request.json();
-		const { project_id, project_address, document_paths, user_id } = body;
-
-		if (!project_id) {
-			return NextResponse.json(
-				{ error: "project_id is required" },
-				{ status: 400 }
-			);
+		const supabase = await createClient();
+		const { data: { user }, error: authError } = await supabase.auth.getUser();
+		if (authError || !user) {
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
+
+		const [err, body] = await validateBody(request, autofillBodySchema);
+		if (err) return err;
+		if (!body) return NextResponse.json({ error: "Validation failed" }, { status: 400 });
+
+		const { project_id, project_address, document_paths } = body;
+
+		const hasAccess = await verifyProjectAccess(supabase, project_id);
+		if (!hasAccess) {
+			return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+		}
+
+		const rlId = getRateLimitId(request, user.id);
+		const rl = checkRateLimit(rlId, AUTOFILL_RATE_LIMIT, 'project-resume-autofill');
+		if (!rl.allowed) return rl.response;
 
 		// Always proxy to backend - backend will decide whether to use mock or real extraction
 		console.log("[API] Proxying to backend for project-resume autofill");
@@ -45,7 +53,7 @@ export async function POST(request: Request) {
 					project_id,
 					project_address,
 					document_paths,
-					user_id,
+					user_id: user.id,
 				}),
 			}
 		);
@@ -54,7 +62,7 @@ export async function POST(request: Request) {
 			const errorText = await backendResponse.text();
 			console.error("Backend error:", errorText);
 			return NextResponse.json(
-				{ error: `Backend analysis failed: ${backendResponse.statusText}` },
+				{ error: "Analysis request failed. Please try again." },
 				{ status: backendResponse.status }
 			);
 		}

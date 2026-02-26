@@ -43,13 +43,7 @@ import {
 	Plus,
 	FileText as FileTextIcon,
 } from "lucide-react";
-import {
-	ProjectProfile,
-	ProjectPhase,
-	InterestRateType,
-	RecoursePreference,
-	ExitStrategy,
-} from "@/types/enhanced-types";
+import { ProjectProfile } from "@/types/enhanced-types";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { PROJECT_REQUIRED_FIELDS } from "@/utils/resumeCompletion";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
@@ -59,9 +53,57 @@ import {
 } from "@/lib/project-resume-field-metadata";
 import { saveProjectResume } from "@/lib/project-queries";
 import { isFieldVisibleForDealType, type DealType } from "@/lib/deal-type-field-config";
+import {
+	assetTypeOptions,
+	projectPhaseOptions,
+	capitalTypeOptions,
+	interestRateTypeOptions,
+	recourseOptions,
+	exitStrategyOptions,
+	buildWorkspaceStepId,
+	STATE_MAP,
+	STATE_REVERSE_MAP,
+	stateOptionsFullNames,
+	INCENTIVE_LABELS,
+	dealStatusOptions,
+	expectedZoningChangesOptions,
+	syndicationStatusOptions,
+	sponsorExperienceOptions,
+	loanTypeOptions,
+	constructionTypeOptions,
+	buildingTypeOptions,
+	hvacSystemOptions,
+	leedGreenRatingOptions,
+	crimeRiskLevelOptions,
+	exemptionStructureOptions,
+	relocationPlanOptions,
+	entitlementsOptions,
+	finalPlansOptions,
+	permitsIssuedOptions,
+	currentSiteStatusOptions,
+	topographyOptions,
+	environmentalOptions,
+	utilitiesOptions,
+	seismicRiskOptions,
+	phaseIESAFindingOptions,
+	riskLevelOptions,
+	marketStatusOptions,
+	demandTrendOptions,
+	supplyPressureOptions,
+	luxuryTierOptions,
+	competitivePositionOptions,
+	zoningCompliantOptions,
+	ownershipTypeOptions,
+} from "./enhanced-project-form-constants";
 import { T12FinancialTable } from "@/components/project/T12FinancialTable";
 import { T12FinancialData } from "@/types/t12-financial";
 import { supabase } from "@/lib/supabaseClient";
+import {
+	validateFile,
+	sanitizeFilename,
+	MAX_IMAGE_OR_PDF_SIZE_BYTES,
+	ALLOWED_IMAGE_OR_PDF_TYPES,
+} from "@/utils/fileUploadValidation";
 
 interface EnhancedProjectFormProps {
 	existingProject: ProjectProfile;
@@ -73,191 +115,6 @@ interface EnhancedProjectFormProps {
 	onVersionChange?: () => void;
 	initialStepId?: string | null;
 }
-
-const assetTypeOptions = [
-	"Multifamily",
-	"Office",
-	"Retail",
-	"Industrial",
-	"Hospitality",
-	"Land",
-	"Mixed-Use",
-	"Self-Storage",
-	"Data Center",
-	"Medical Office",
-	"Senior Housing",
-	"Student Housing",
-	"Other",
-];
-
-const projectPhaseOptions: ProjectPhase[] = [
-	"Acquisition",
-	"Refinance",
-	"Construction",
-	"Bridge",
-	"Development",
-	"Value-Add",
-	"Other",
-];
-
-const capitalTypeOptions = [
-	{ label: "Senior Debt", value: "Senior Debt" },
-	{ label: "Mezz", value: "Mezzanine" },
-	{ label: "Preferred Equity", value: "Preferred Equity" },
-	{ label: "Common Equity", value: "Common Equity" },
-	{ label: "JV Equity", value: "JV Equity" },
-	{ label: "Other", value: "Other" },
-];
-
-const interestRateTypeOptions: InterestRateType[] = [
-	"Not Specified",
-	"Fixed",
-	"Floating",
-];
-
-const recourseOptions: RecoursePreference[] = [
-	"Flexible",
-	"Full Recourse",
-	"Partial Recourse",
-	"Non-Recourse",
-];
-
-const exitStrategyOptions: ExitStrategy[] = [
-	"Undecided",
-	"Sale",
-	"Refinance",
-	"Long-Term Hold",
-];
-
-const buildWorkspaceStepId = (stepId: string) => `project:${stepId}`;
-
-// State mapping: abbreviation -> full name
-const STATE_MAP: Record<string, string> = {
-	AL: "Alabama",
-	AK: "Alaska",
-	AZ: "Arizona",
-	AR: "Arkansas",
-	CA: "California",
-	CO: "Colorado",
-	CT: "Connecticut",
-	DE: "Delaware",
-	FL: "Florida",
-	GA: "Georgia",
-	HI: "Hawaii",
-	ID: "Idaho",
-	IL: "Illinois",
-	IN: "Indiana",
-	IA: "Iowa",
-	KS: "Kansas",
-	KY: "Kentucky",
-	LA: "Louisiana",
-	ME: "Maine",
-	MD: "Maryland",
-	MA: "Massachusetts",
-	MI: "Michigan",
-	MN: "Minnesota",
-	MS: "Mississippi",
-	MO: "Missouri",
-	MT: "Montana",
-	NE: "Nebraska",
-	NV: "Nevada",
-	NH: "New Hampshire",
-	NJ: "New Jersey",
-	NM: "New Mexico",
-	NY: "New York",
-	NC: "North Carolina",
-	ND: "North Dakota",
-	OH: "Ohio",
-	OK: "Oklahoma",
-	OR: "Oregon",
-	PA: "Pennsylvania",
-	RI: "Rhode Island",
-	SC: "South Carolina",
-	SD: "South Dakota",
-	TN: "Tennessee",
-	TX: "Texas",
-	UT: "Utah",
-	VT: "Vermont",
-	VA: "Virginia",
-	WA: "Washington",
-	WV: "West Virginia",
-	WI: "Wisconsin",
-	WY: "Wyoming",
-};
-
-// Reverse mapping: full name -> abbreviation
-const STATE_REVERSE_MAP: Record<string, string> = Object.fromEntries(
-	Object.entries(STATE_MAP).map(([abbr, full]) => [full, abbr])
-);
-
-const stateOptionsFullNames = Object.values(STATE_MAP).sort();
-
-const INCENTIVE_LABELS: { key: keyof ProjectProfile; label: string }[] = [
-	{ key: "opportunityZone", label: "Opportunity Zone" },
-	{ key: "taxExemption", label: "Tax Exemption" },
-	{ key: "tifDistrict", label: "TIF District" },
-	{ key: "taxAbatement", label: "Tax Abatement" },
-	{ key: "paceFinancing", label: "PACE Financing" },
-	{ key: "historicTaxCredits", label: "Historic Tax Credits" },
-	{ key: "newMarketsCredits", label: "New Markets Credits" },
-];
-
-// Dropdown field options
-const dealStatusOptions = [
-	"Inquiry",
-	"Underwriting",
-	"Pre-Submission",
-	"Submitted",
-	"Closed",
-];
-const expectedZoningChangesOptions = ["None", "Variance", "PUD", "Re-Zoning"];
-const syndicationStatusOptions = ["Committed", "In Process", "TBD"];
-const sponsorExperienceOptions = [
-	"First-Time",
-	"Emerging (1-3)",
-	"Seasoned (3+)",
-];
-const loanTypeOptions = [
-	"Construction",
-	"Permanent",
-	"Bridge",
-	"Mezzanine",
-	"Preferred Equity",
-	"Other",
-];
-const constructionTypeOptions = ["Ground-Up", "Renovation", "Adaptive Reuse"];
-const buildingTypeOptions = ["High-rise", "Mid-rise", "Garden", "Podium"];
-const hvacSystemOptions = ["Central", "Split System", "PTAC", "VRF"];
-const leedGreenRatingOptions = [
-	"Certified",
-	"Silver",
-	"Gold",
-	"Platinum",
-	"NGBS",
-];
-const crimeRiskLevelOptions = ["Low", "Moderate", "High"];
-const exemptionStructureOptions = ["PFC", "MMD", "PILOT"];
-const relocationPlanOptions = ["Complete", "In Process", "N/A"];
-const entitlementsOptions = ["Approved", "Pending"];
-const finalPlansOptions = ["Approved", "Pending"];
-const permitsIssuedOptions = ["Issued", "Pending"];
-const currentSiteStatusOptions = ["Vacant", "Existing"];
-const topographyOptions = ["Flat", "Sloped"];
-const environmentalOptions = ["Clean", "Remediation"];
-const utilitiesOptions = ["Available", "None"];
-const seismicRiskOptions = ["Low", "Moderate", "High"];
-const phaseIESAFindingOptions = ["Clean", "REC", "HREC"];
-const riskLevelOptions = ["Low", "Medium", "High"];
-const marketStatusOptions = ["Tight", "Balanced", "Soft"];
-const demandTrendOptions = ["↑ Growing", "→ Stable", "↓ Declining"];
-const supplyPressureOptions = ["Low", "Moderate", "High"];
-const luxuryTierOptions = ["Luxury", "Premium", "Value", "Economy"];
-const competitivePositionOptions = ["Top 20%", "Middle 60%", "Bottom 20%"];
-const zoningCompliantOptions = ["Compliant", "Non-Compliant"];
-const ownershipTypeOptions = [
-	"Fee Simple",
-	"Leased Fee Interest (Ground Lease)",
-];
 
 const isProjectValueProvided = (value: unknown): boolean => {
 	if (value === null || value === undefined) return false;
@@ -524,15 +381,18 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		setUploading(true);
 		try {
 			for (const file of Array.from(files)) {
-				if (
-					!file.type.startsWith("image/") &&
-					!file.name.match(/\.pdf$/i)
-				) {
-					alert(`${file.name} is not a valid image or PDF file`);
+				const validation = validateFile(file, {
+					allowedMimeTypePredicates: ALLOWED_IMAGE_OR_PDF_TYPES,
+					maxSizeBytes: MAX_IMAGE_OR_PDF_SIZE_BYTES,
+					requireSanitizedName: false,
+				});
+				if (!validation.valid) {
+					alert(validation.error ?? "Invalid file");
 					continue;
 				}
+				const safeName = sanitizeFilename(file.name);
 
-				const filePath = `${projectId}/${folder}/${file.name}`;
+				const filePath = `${projectId}/${folder}/${safeName}`;
 				const { error } = await supabase.storage
 					.from(orgId)
 					.upload(filePath, file, {
@@ -541,12 +401,12 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 					});
 
 				if (error) {
-					console.error(`Error uploading ${file.name}:`, error);
-					alert(`Failed to upload ${file.name}`);
+					console.error(`Error uploading ${safeName}:`, error);
+					alert(`Failed to upload ${safeName}`);
 				} else {
-					const uploadedPath = `${projectId}/${folder}/${file.name}`;
+					const uploadedPath = `${projectId}/${folder}/${safeName}`;
 					const newImage = {
-						fileName: file.name,
+						fileName: safeName,
 						source: "main_folder" as const,
 						storagePath: uploadedPath,
 					};
@@ -562,7 +422,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 							const existingImages = (prev as any)[fieldId] || [];
 							const imageMetadata = {
 								storagePath: uploadedPath,
-								filename: file.name,
+								filename: safeName,
 								category: isSiteImages
 									? "site_images"
 									: "architectural_diagrams",

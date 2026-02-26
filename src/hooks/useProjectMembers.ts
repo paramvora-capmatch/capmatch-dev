@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { fetchProfilesMap } from '@/lib/profile-utils';
 import { useOrgStore } from '../stores/useOrgStore';
 import { useAuthStore } from '../stores/useAuthStore';
 import { ProjectProfile } from '@/types/enhanced-types';
@@ -122,31 +123,12 @@ export const useProjectMembers = (
                     }
                 });
 
-                interface UserBasicData {
-                    id: string;
-                    email: string | null;
-                    full_name: string | null;
-                }
-
                 // 4. Batch fetch user profiles
                 if (allUserIds.size > 0) {
                     const userIdsArray = Array.from(allUserIds);
+                    const basicById = await fetchProfilesMap(supabase, userIdsArray);
 
-                    // Use direct RLS query instead of edge function
-                    const { data: memberBasicData, error: basicDataError } = await supabase
-                        .from('profiles')
-                        .select('id, email, full_name')
-                        .in('id', userIdsArray);
-
-                    if (basicDataError) {
-                        console.error('[useProjectMembers] Error fetching user data:', basicDataError);
-                    }
-
-                    if (!basicDataError && memberBasicData) {
-                        const basicById = new Map<string, UserBasicData>(
-                            (memberBasicData || []).map((u: any) => [u.id, u])
-                        );
-
+                    if (basicById.size > 0) {
                         // 5. Map back to projects
                         const result: Record<string, ProjectMember[]> = {};
 
@@ -158,7 +140,7 @@ export const useProjectMembers = (
                                     members.push({
                                         userId,
                                         userName: (basic.full_name && basic.full_name.trim()) || basic.email || 'Unknown',
-                                        userEmail: basic.email || '',
+                                        userEmail: basic.email ?? '',
                                     });
                                 }
                             });

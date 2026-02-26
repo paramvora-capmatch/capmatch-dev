@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { verifyProjectAccess } from '@/lib/verify-project-access';
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 export async function POST(
   request: NextRequest,
@@ -12,7 +14,15 @@ export async function POST(
   }
 
   const { id: projectId } = await params;
-  
+  const hasAccess = await verifyProjectAccess(supabase, projectId);
+  if (!hasAccess) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const rlId = getRateLimitId(request, user.id);
+  const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, 'om-generate-insights');
+  if (!rl.allowed) return rl.response;
+
   try {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
     const authHeader = request.headers.get('Authorization');

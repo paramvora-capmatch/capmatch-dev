@@ -7,6 +7,7 @@ import type {
   DailyRoomPresence,
   DailyApiError,
 } from '@/types/daily-types';
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 // Create Supabase client with service role for server-side operations
 function getSupabaseServiceClient() {
@@ -35,6 +36,10 @@ export async function GET(
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const rlId = getRateLimitId(request, user.id);
+  const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, 'daily-room');
+  if (!rl.allowed) return rl.response;
 
   try {
     const { roomName } = params;

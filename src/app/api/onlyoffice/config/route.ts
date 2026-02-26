@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
+import { validateBody, onlyOfficeConfigBodySchema } from "@/lib/api-validation";
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
 
 // Initialize Supabase admin client to create signed URLs
 const supabaseAdmin = createClient(
@@ -58,6 +60,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const rlId = getRateLimitId(request, user.id);
+    const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, "onlyoffice-config");
+    if (!rl.allowed) return rl.response;
+
     // Fetch user's name from their profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -67,15 +73,10 @@ export async function POST(request: NextRequest) {
 
     const userName = (profile && !profileError) ? profile.full_name : (user.email || "Anonymous");
 
-    const body = await request.json();
-    const { bucketId, filePath, mode = 'edit' } = body;
-
-    if (!bucketId || !filePath) {
-      return NextResponse.json(
-        { error: "bucketId and filePath are required" },
-        { status: 400 }
-      );
-    }
+    const [err, body] = await validateBody(request, onlyOfficeConfigBodySchema);
+    if (err) return err;
+    if (!body) return NextResponse.json({ error: "Validation failed" }, { status: 400 });
+    const { bucketId, filePath, mode } = body;
 
     // --- VERSIONING CHANGES START ---
 

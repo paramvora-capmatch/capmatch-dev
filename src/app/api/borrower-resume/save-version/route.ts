@@ -3,6 +3,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { saveVersionBodySchema, validationErrorResponse, safeErrorResponse } from "@/lib/api-validation";
+import { verifyProjectAccess } from "@/lib/verify-project-access";
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,11 +20,6 @@ const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
 	auth: { persistSession: false, autoRefreshToken: false },
 });
 
-interface SnapshotRequestBody {
-	projectId?: string;
-	userId?: string | null;
-}
-
 export async function POST(request: Request) {
 	const supabase = await createServerClient();
 	const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -29,9 +27,13 @@ export async function POST(request: Request) {
 		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 	}
 
+	const rlId = getRateLimitId(request, user.id);
+	const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, "borrower-resume-save-version");
+	if (!rl.allowed) return rl.response;
+
 	console.log("[API] Borrower resume save-version called");
 	const rawBody = await request.text();
-	let payload: SnapshotRequestBody = {};
+	let payload: unknown = {};
 	if (rawBody) {
 		try {
 			payload = JSON.parse(rawBody);
@@ -47,18 +49,24 @@ export async function POST(request: Request) {
 		}
 	}
 
-	const { projectId, userId } = payload;
+	const parsed = saveVersionBodySchema.safeParse(payload);
+	if (!parsed.success) {
+		return validationErrorResponse("Validation failed", parsed.error.issues);
+	}
+	const { projectId, userId } = parsed.data;
+	if (!projectId) {
+		return NextResponse.json({ error: "projectId is required" }, { status: 400 });
+	}
 	console.log(
 		"[API] Saving borrower resume version for project:",
 		projectId,
 		"user:",
 		userId
 	);
-	if (!projectId) {
-		return NextResponse.json(
-			{ error: "projectId is required" },
-			{ status: 400 }
-		);
+
+	const hasAccess = await verifyProjectAccess(supabase, projectId);
+	if (!hasAccess) {
+		return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 	}
 
 	const { data: resource, error: resourceError } = await supabaseAdmin
@@ -69,10 +77,7 @@ export async function POST(request: Request) {
 		.maybeSingle();
 
 	if (resourceError) {
-		return NextResponse.json(
-			{ error: resourceError.message },
-			{ status: 500 }
-		);
+		return safeErrorResponse(resourceError, "Failed to save version", 500);
 	}
 
 	if (!resource?.id) {
@@ -94,10 +99,7 @@ export async function POST(request: Request) {
 			.eq("id", resource.current_version_id)
 			.maybeSingle();
 		if (resumeError) {
-			return NextResponse.json(
-				{ error: resumeError.message },
-				{ status: 500 }
-			);
+			return safeErrorResponse(resumeError, "Failed to load resume", 500);
 		}
 		resumeRow = data;
 		completenessPercent = data?.completeness_percent;
@@ -112,10 +114,7 @@ export async function POST(request: Request) {
 			.limit(1)
 			.maybeSingle();
 		if (latestError) {
-			return NextResponse.json(
-				{ error: latestError.message },
-				{ status: 500 }
-			);
+			return safeErrorResponse(latestError, "Failed to load resume", 500);
 		}
 		resumeRow = data;
 		completenessPercent = data?.completeness_percent;
@@ -141,10 +140,7 @@ export async function POST(request: Request) {
 		.single();
 
 	if (insertError || !inserted) {
-		return NextResponse.json(
-			{ error: insertError?.message || "Failed to snapshot resume" },
-			{ status: 500 }
-		);
+		return safeErrorResponse(insertError, "Failed to snapshot resume", 500);
 	}
 
 	// Update resource pointer to the new version
@@ -154,14 +150,7 @@ export async function POST(request: Request) {
 		.eq("id", resource.id);
 
 	if (updateResourceError) {
-		console.error(
-			"[API] Failed to update resource pointer:",
-			updateResourceError
-		);
-		return NextResponse.json(
-			{ error: updateResourceError.message },
-			{ status: 500 }
-		);
+		return safeErrorResponse(updateResourceError, "Failed to update version", 500);
 	}
 
 	console.log("[API] Successfully saved borrower resume version:", {

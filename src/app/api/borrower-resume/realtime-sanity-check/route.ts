@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
 import { getBackendUrl } from "@/lib/apiConfig";
-
-const backendUrl = getBackendUrl();
+import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
 	try {
+		const supabase = await createClient();
+		const { data: { user }, error: authError } = await supabase.auth.getUser();
+		if (authError || !user) {
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+
+		const rlId = getRateLimitId(request, user.id);
+		const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, "borrower-realtime-sanity");
+		if (!rl.allowed) return rl.response;
+
 		const body = await request.json();
+		const backendUrl = getBackendUrl();
 
 		if (!backendUrl) {
 			return NextResponse.json(
@@ -14,7 +25,6 @@ export async function POST(request: Request) {
 			);
 		}
 
-		// Extract auth token
 		const authHeader = request.headers.get("Authorization");
 
 		const response = await fetch(
@@ -30,9 +40,9 @@ export async function POST(request: Request) {
 		);
 
 		if (!response.ok) {
-			const errorText = await response.text();
+			await response.text(); // consume body
 			return NextResponse.json(
-				{ error: errorText || "Realtime sanity check failed" },
+				{ error: "Realtime check failed" },
 				{ status: response.status }
 			);
 		}

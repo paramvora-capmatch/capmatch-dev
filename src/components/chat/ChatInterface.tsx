@@ -1,5 +1,6 @@
 // src/components/chat/ChatInterface.tsx
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -171,7 +172,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     subscribeToProjectUnreadCounts,
     unsubscribeFromProjectUnreadCounts,
     reset,
-  } = useChatStore();
+  } = useChatStore(
+    useShallow((s) => ({
+      threads: s.threads,
+      activeThreadId: s.activeThreadId,
+      participants: s.participants,
+      messages: s.messages,
+      isLoading: s.isLoading,
+      error: s.error,
+      loadThreadsForProject: s.loadThreadsForProject,
+      createThread: s.createThread,
+      setActiveThread: s.setActiveThread,
+      sendMessage: s.sendMessage,
+      clearError: s.clearError,
+      attachableDocuments: s.attachableDocuments,
+      loadAttachableDocuments: s.loadAttachableDocuments,
+      isLoadingAttachable: s.isLoadingAttachable,
+      subscribeToMembershipChanges: s.subscribeToMembershipChanges,
+      unsubscribeFromMembershipChanges: s.unsubscribeFromMembershipChanges,
+      subscribeToProjectUnreadCounts: s.subscribeToProjectUnreadCounts,
+      unsubscribeFromProjectUnreadCounts: s.unsubscribeFromProjectUnreadCounts,
+      reset: s.reset,
+    }))
+  );
 
   const { user } = useAuthStore();
   const { activeProject } = useProjects();

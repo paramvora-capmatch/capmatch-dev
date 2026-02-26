@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import DOMPurify from 'isomorphic-dompurify';
 import { Button } from '@/components/ui/Button';
 import { MessageSquare, Send, Table2, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -36,7 +37,12 @@ const TableWrapper: React.FC<{
       const clonedTable = tableRef.current.cloneNode(true) as HTMLTableElement;
       clonedTable.classList.remove('hidden');
       clonedTable.className = 'min-w-full border-collapse';
-      onViewTable(clonedTable.outerHTML);
+      const rawHtml = clonedTable.outerHTML;
+      const sanitized = DOMPurify.sanitize(rawHtml, {
+        ALLOWED_TAGS: ['table', 'thead', 'tbody', 'tr', 'th', 'td', 'colgroup', 'col'],
+        ALLOWED_ATTR: ['class', 'style', 'data-table-id'],
+      });
+      onViewTable(sanitized);
     }
   };
 
@@ -177,7 +183,11 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
       <TableWrapper
         props={props}
         onViewTable={(tableHtml) => {
-          setTableContent(tableHtml);
+          const sanitized = DOMPurify.sanitize(tableHtml, {
+            ALLOWED_TAGS: ['table', 'thead', 'tbody', 'tr', 'th', 'td', 'colgroup', 'col'],
+            ALLOWED_ATTR: ['class', 'style', 'data-table-id'],
+          });
+          setTableContent(sanitized);
           setTableModalOpen(true);
         }}
       >

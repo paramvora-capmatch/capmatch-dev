@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 import { supabase } from "../../../lib/supabaseClient";
 import { Button } from "../ui/Button";
@@ -12,7 +13,11 @@ import {
   GitCompare,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { DocumentDiffViewer } from "./DocumentDiffViewer";
+
+const DocumentDiffViewer = dynamic(
+  () => import("./DocumentDiffViewer").then((m) => ({ default: m.DocumentDiffViewer })),
+  { ssr: false, loading: () => <div className="p-4 text-gray-500">Loading diff viewer…</div> }
+);
 
 interface Version {
   id: string;

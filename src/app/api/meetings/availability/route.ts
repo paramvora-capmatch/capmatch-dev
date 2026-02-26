@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerSupabaseClient } from '@/lib/calendarTokenManager';
 import { fetchUserBusyPeriods, findCommonFreeSlots } from '@/services/availabilityService';
 import type { AvailabilityRequest, AvailabilityResponse, UserAvailability } from '@/types/availability';
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,10 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const rlId = getRateLimitId(request, user.id);
+    const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, 'meetings-availability');
+    if (!rl.allowed) return rl.response;
 
     // Create admin client for fetching calendar connections (requires service role)
     const supabaseAdmin = createClient(

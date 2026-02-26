@@ -172,7 +172,12 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 	// Fetch available time slots when participants change
 	useEffect(() => {
 		const fetchAvailability = async () => {
-			// Only fetch if we have at least one participant selected
+			// Require at least one participant and a logged-in user (API needs auth + non-empty userIds)
+			if (!user?.id) {
+				setAvailableSlots([]);
+				setSlotsError(null);
+				return;
+			}
 			if (selectedParticipants.length === 0) {
 				setAvailableSlots([]);
 				setSlotsError(null);
@@ -183,7 +188,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 			setSlotsError(null);
 
 			try {
-				// Calculate date range for next 3 days
+				// Calculate date range: from now through the next 2 weeks (covers next Mon–Fri and beyond)
 				const now = new Date();
 
 				// Round to next 15-minute interval
@@ -193,18 +198,17 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 				startDate.setMinutes(roundedMinutes, 0, 0);
 
 				const endDate = new Date(startDate);
-				endDate.setDate(endDate.getDate() + 3);
+				endDate.setDate(endDate.getDate() + 14);
 
 				// Include organizer's user ID to check their calendar for conflicts
-				const userIdsToCheck = user?.id
-					? [user.id, ...selectedParticipants]
-					: selectedParticipants;
+				const userIdsToCheck = [user.id, ...selectedParticipants];
 
 				const response = await fetch("/api/meetings/availability", {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
 					},
+					credentials: "include",
 					body: JSON.stringify({
 						userIds: userIdsToCheck,
 						startDate: startDate.toISOString(),
@@ -215,11 +219,15 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 					}),
 				});
 
-				if (!response.ok) {
-					throw new Error("Failed to fetch availability");
-				}
+				const data = await response.json().catch(() => ({}));
 
-				const data = await response.json();
+				if (!response.ok) {
+					const message =
+						(response.status === 401 && "Please sign in to check availability.") ||
+						(data?.error && typeof data.error === "string" ? data.error : null) ||
+						"Failed to fetch availability";
+					throw new Error(message);
+				}
 
 				// Filter slots to only show those starting at :00, :15, :30, or :45
 				// and between 9am and 6pm
@@ -241,7 +249,9 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 				setAvailableSlots(filteredSlots);
 			} catch (error) {
 				console.error("Error fetching availability:", error);
-				setSlotsError("Unable to fetch available time slots");
+				setSlotsError(
+					error instanceof Error ? error.message : "Unable to fetch available time slots"
+				);
 				setAvailableSlots([]);
 			} finally {
 				setIsFetchingSlots(false);

@@ -3,6 +3,7 @@
  * Handles sending meeting invites to Google Calendar
  */
 
+import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { CalendarConnection } from "@/types/calendar-types";
 import { ensureValidToken } from "@/lib/calendarTokenManager";

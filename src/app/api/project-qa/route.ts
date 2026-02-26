@@ -2,6 +2,8 @@
 // Proxy route that forwards requests to the backend AI Q&A service
 import { NextRequest, NextResponse } from 'next/server';
 import { getBackendUrl } from '@/lib/apiConfig';
+import { validateBody, projectQaBodySchema } from '@/lib/api-validation';
+import { checkRateLimit, getRateLimitId, AI_RATE_LIMIT } from '@/lib/rate-limit';
 
 // Increase timeout for streaming responses (60 seconds)
 export const maxDuration = 60;
@@ -9,11 +11,9 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-
-    if (!body.fieldContext || !body.projectContext) {
-      return NextResponse.json({ error: 'Missing required context' }, { status: 400 });
-    }
+    const [err, body] = await validateBody(req, projectQaBodySchema);
+    if (err) return err;
+    if (!body) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
 
     // Check if request was already aborted
     if (req.signal?.aborted) {
@@ -21,10 +21,18 @@ export async function POST(req: NextRequest) {
       return new NextResponse(null, { status: 499 });
     }
 
-    // Get authenticated Supabase client and session
+    // Verify user server-side (getUser validates JWT; getSession does not)
     const { createClient } = await import('@/lib/supabase/server');
     const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const { data: { session } } = await supabase.auth.getSession();
+
+    const rlId = getRateLimitId(req, user.id);
+    const rl = checkRateLimit(rlId, AI_RATE_LIMIT, 'project-qa');
+    if (!rl.allowed) return rl.response;
 
     // Proxy to backend
     const backendUrl = getBackendUrl();
@@ -82,28 +90,18 @@ export async function POST(req: NextRequest) {
         'X-Accel-Buffering': 'no',
       },
     });
-  } catch (e: any) {
-    // Handle abort errors gracefully
-    if (e?.name === 'AbortError' || req.signal?.aborted) {
-      console.log('Stream aborted by client');
+  } catch (e: unknown) {
+    if (e && typeof e === 'object' && 'name' in e && (e as Error).name === 'AbortError') {
       return new NextResponse(null, { status: 499 });
     }
-
-    console.error('project-qa proxy error:', {
-      message: e?.message,
-      name: e?.name,
-      stack: process.env.NODE_ENV === 'development' ? e?.stack : undefined,
-    });
-
-    const errorMessage = e?.message || 'Failed to get answer';
-    const statusCode = e?.status || e?.statusCode || 500;
-
+    if (req.signal?.aborted) {
+      return new NextResponse(null, { status: 499 });
+    }
+    console.error('project-qa proxy error:', e);
+    const statusCode = e && typeof e === 'object' && 'status' in e ? Number((e as { status: number }).status) : 500;
     return NextResponse.json(
-      {
-        error: errorMessage,
-        ...(process.env.NODE_ENV === 'development' && { details: e?.stack })
-      },
-      { status: statusCode }
+      { error: 'Failed to get answer' },
+      { status: Number.isFinite(statusCode) ? statusCode : 500 }
     );
   }
 }

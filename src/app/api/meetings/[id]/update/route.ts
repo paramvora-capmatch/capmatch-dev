@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendCalendarInvites, updateCalendarInvites } from '@/services/calendarInviteService';
+import { validateBody, updateMeetingBodySchema } from '@/lib/api-validation';
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -35,6 +37,10 @@ export async function PUT(
       );
     }
 
+    const rlId = getRateLimitId(request, user.id);
+    const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, 'meetings-update');
+    if (!rl.allowed) return rl.response;
+
     // Check if user has a calendar connection
     const { data: connections } = await supabaseAdmin
       .from('calendar_connections')
@@ -49,17 +55,11 @@ export async function PUT(
       );
     }
 
-    // Parse request body
-    const body = await request.json();
+    // Parse and validate request body
+    const [validationErr, body] = await validateBody(request, updateMeetingBodySchema);
+    if (validationErr) return validationErr;
+    if (!body) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
     const { title, startTime, endTime, participantIds, description } = body;
-
-    // Validate required fields
-    if (!title || !startTime || !endTime || !participantIds) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
 
     // 1. Fetch existing meeting to verify ownership and get current details
     const { data: meeting, error: fetchError } = await supabaseAdmin

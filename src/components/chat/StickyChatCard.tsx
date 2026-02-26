@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { MessageSquare, Brain, Users } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { cn } from "@/utils/cn";
 import { toast } from "sonner";
 import { ChatInterface } from "@/components/chat/ChatInterface";
@@ -90,11 +91,24 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
     }
   }, [externalShouldExpand, isChatCollapsed]);
 
-  // Thread and unread counts (WhatsApp-style)
-  const chatStore = useChatStore();
-  const underwritingStore = useUnderwritingStore();
+  // Thread and unread counts (WhatsApp-style) – use selectors to avoid re-renders from unrelated store changes
+  const chatSlice = useChatStore(
+    useShallow((s) => ({
+      threads: s.threads,
+      activeThreadId: s.activeThreadId,
+      resolveThread: s.resolveThread,
+    }))
+  );
+  const underwritingSlice = useUnderwritingStore(
+    useShallow((s) => ({
+      requestedTab: s.requestedTab,
+      setRequestedTab: s.setRequestedTab,
+      threads: s.threads,
+      activeThreadId: s.activeThreadId,
+    }))
+  );
 
-  const { requestedTab, setRequestedTab } = underwritingStore;
+  const { requestedTab, setRequestedTab } = underwritingSlice;
 
   // Sync with UnderwritingStore triggers
   useEffect(() => {
@@ -103,11 +117,11 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
       setIsChatCollapsed(false);
       setRequestedTab(null); // Clear once consumed
     }
-  }, [underwritingStore, requestedTab, setRequestedTab]);
+  }, [requestedTab, setRequestedTab]);
 
   const isUnderwritingMode = mode === "underwriter";
 
-  const currentStore = isUnderwritingMode ? underwritingStore : chatStore;
+  const currentStore = isUnderwritingMode ? underwritingSlice : chatSlice;
   const threads = currentStore.threads;
   const activeThreadId = currentStore.activeThreadId;
 
@@ -126,7 +140,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   const handleResolveThread = async () => {
     if (!activeThreadId) return;
     try {
-      await chatStore.resolveThread(activeThreadId);
+      await chatSlice.resolveThread(activeThreadId);
       toast.success("Resolved. Restarting document generation...");
       // Optionally switch back to vault or close chat?
       // For now, keep it open to see "Regenerating..." or AI response.

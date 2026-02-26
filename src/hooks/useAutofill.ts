@@ -2,6 +2,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useProjects } from "@/hooks/useProjects";
+import {
+	AUTOFILL_POLL_INTERVAL_MS,
+	AUTOFILL_MAX_POLL_TIME_MS,
+} from "@/config/constants";
 
 type AutofillContext = "project" | "borrower";
 
@@ -15,8 +19,6 @@ interface AutofillState {
 const AUTOFILL_STATE_KEY_BASE = "capmatch_autofill_state";
 const getAutofillStateKey = (context: AutofillContext) =>
 	`${AUTOFILL_STATE_KEY_BASE}_${context}`;
-const POLL_INTERVAL = 2000; // Poll every 2 seconds
-const MAX_POLL_TIME = 300000; // Max 5 minutes
 
 interface UseAutofillOptions {
 	projectAddress?: string;
@@ -159,7 +161,7 @@ export const useAutofill = (
 			pollIntervalRef.current = setInterval(async () => {
 				// Check if we've exceeded max poll time
 				const elapsed = Date.now() - pollStartTime;
-				if (elapsed > MAX_POLL_TIME) {
+				if (elapsed > AUTOFILL_MAX_POLL_TIME_MS) {
 					console.warn("Autofill polling timeout");
 					clearAutofillState();
 					alert(
@@ -204,7 +206,7 @@ export const useAutofill = (
 						);
 					}
 				}
-			}, POLL_INTERVAL);
+			}, AUTOFILL_POLL_INTERVAL_MS);
 		},
 		[checkCompletion, clearAutofillState, context, refreshProject]
 	);
@@ -229,7 +231,7 @@ export const useAutofill = (
 					const now = new Date();
 					const elapsed = now.getTime() - startTime.getTime();
 
-					if (elapsed < MAX_POLL_TIME) {
+					if (elapsed < AUTOFILL_MAX_POLL_TIME_MS) {
 						setIsAutofilling(true);
 						setShowSparkles(true);
 						startTimeRef.current = state.startTime;

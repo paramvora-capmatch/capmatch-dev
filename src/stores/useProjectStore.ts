@@ -180,7 +180,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				// RLS will only return projects the user has been granted access to.
 				// First, fetch projects without the resources join to avoid RLS issues
 				const { data: projectsData, error: projectsError } =
-					await supabase.from("projects").select("*");
+					await supabase.from("projects").select("id, name, owner_org_id, assigned_advisor_id, created_at, updated_at");
 
 				if (projectsError) {
 					const errorMessage =
@@ -316,8 +316,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						// since loadUserProjects doesn't fetch borrower resources
 						nextActiveProject = {
 							...updatedActive,
-							borrowerResumeResourceId: (currentActive as any)?.borrowerResumeResourceId ?? updatedActive.borrowerResumeResourceId ?? null,
-							borrowerDocsResourceId: (currentActive as any)?.borrowerDocsResourceId ?? updatedActive.borrowerDocsResourceId ?? null,
+							borrowerResumeResourceId: currentActive?.borrowerResumeResourceId ?? updatedActive.borrowerResumeResourceId ?? null,
+							borrowerDocsResourceId: currentActive?.borrowerDocsResourceId ?? updatedActive.borrowerDocsResourceId ?? null,
 						};
 					}
 				}
@@ -359,8 +359,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				console.log(`[ProjectStore] 📦 Existing project resource IDs:`, {
 					projectDocsResourceId: existingProject?.projectDocsResourceId,
 					projectResumeResourceId: existingProject?.projectResumeResourceId,
-					borrowerResumeResourceId: (existingProject as any)?.borrowerResumeResourceId,
-					borrowerDocsResourceId: (existingProject as any)?.borrowerDocsResourceId,
+					borrowerResumeResourceId: existingProject?.borrowerResumeResourceId,
+					borrowerDocsResourceId: existingProject?.borrowerDocsResourceId,
 					hasExistingProject: !!existingProject,
 					existingProjectId: existingProject?.id,
 					source: currentActive?.id === projectId ? 'activeProject' : 'projectsArray',
@@ -382,8 +382,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					completenessPercent: progressResult.completenessPercent,
 					// Preserve resource IDs from existing project state as they are not returned by getProjectWithResume
 					projectDocsResourceId: existingProject?.projectDocsResourceId ?? null,
-					borrowerResumeResourceId: (existingProject as any)?.borrowerResumeResourceId ?? null,
-					borrowerDocsResourceId: (existingProject as any)?.borrowerDocsResourceId ?? null,
+					borrowerResumeResourceId: existingProject?.borrowerResumeResourceId ?? null,
+					borrowerDocsResourceId: existingProject?.borrowerDocsResourceId ?? null,
 					// projectResumeResourceId IS returned by getProjectWithResume, so prefer new one, fallback to existing
 					projectResumeResourceId: updatedProject.projectResumeResourceId || existingProject?.projectResumeResourceId || null,
 				};
@@ -391,8 +391,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				console.log(`[ProjectStore] ✅ Final project with preserved resource IDs:`, {
 					projectDocsResourceId: finalProject.projectDocsResourceId,
 					projectResumeResourceId: finalProject.projectResumeResourceId,
-					borrowerResumeResourceId: (finalProject as any).borrowerResumeResourceId,
-					borrowerDocsResourceId: (finalProject as any).borrowerDocsResourceId,
+					borrowerResumeResourceId: finalProject.borrowerResumeResourceId,
+					borrowerDocsResourceId: finalProject.borrowerDocsResourceId,
 					completenessPercent: finalProject.completenessPercent,
 					borrowerProgress: finalProject.borrowerProgress,
 				});
@@ -429,8 +429,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				projectId: project?.id,
 				projectDocsResourceId: project?.projectDocsResourceId,
 				projectResumeResourceId: project?.projectResumeResourceId,
-				borrowerResumeResourceId: (project as any)?.borrowerResumeResourceId,
-				borrowerDocsResourceId: (project as any)?.borrowerDocsResourceId,
+				borrowerResumeResourceId: project?.borrowerResumeResourceId,
+				borrowerDocsResourceId: project?.borrowerDocsResourceId,
 				hasProject: !!project,
 			});
 			
@@ -640,290 +640,29 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		},
 
 		deleteProject: async (id) => {
-			// First, get the project to find owner_org_id (bucket ID)
 			const project = get().getProject(id);
 			if (!project) {
 				console.error(`[ProjectStore] Project ${id} not found`);
 				return false;
 			}
 
-			const bucketId = project.owner_org_id || useAuthStore.getState().activeOrg?.id;
-			if (!bucketId) {
-				console.error(
-					`[ProjectStore] Project ${id} has no owner_org_id and no active org`
-				);
+			const { data: { session } } = await supabase.auth.getSession();
+			if (!session?.access_token) {
+				console.error("[ProjectStore] Not authenticated");
 				return false;
 			}
 
-			// Helper function to recursively list all files under a prefix
-			const listAllFilesRecursively = async (
-				bucket: string,
-				prefix: string
-			): Promise<string[]> => {
-				const allFiles: string[] = [];
-				const stack: string[] = [prefix];
+			const base = typeof window !== "undefined" ? window.location.origin : "";
+			const res = await fetch(`${base}/api/projects/${id}`, {
+				method: "DELETE",
+				headers: { Authorization: `Bearer ${session.access_token}` },
+			});
 
-				while (stack.length > 0) {
-					const currentPrefix = stack.pop()!;
-
-					// Handle pagination - list all items in the current prefix
-					let offset = 0;
-					const limit = 1000;
-					let hasMore = true;
-
-					while (hasMore) {
-						const { data, error } = await supabase.storage
-							.from(bucket)
-							.list(currentPrefix, {
-								limit,
-								offset,
-								sortBy: { column: "name", order: "asc" },
-							});
-
-						if (error) {
-							// If error is "not found", the prefix doesn't exist - skip it
-							if (error.message?.includes("not found")) {
-								hasMore = false;
-								continue;
-							}
-							hasMore = false;
-							continue;
-						}
-
-						if (!data || data.length === 0) {
-							hasMore = false;
-							continue;
-						}
-
-						for (const item of data) {
-							const fullPath = currentPrefix
-								? `${currentPrefix}/${item.name}`
-								: item.name;
-
-							// In Supabase storage:
-							// - Files have an `id` property (string)
-							// - Folders/prefixes don't have an `id` (it's null/undefined)
-							// We check for id first as it's the most reliable indicator
-							if (item.id && typeof item.id === "string") {
-								// It's a file, add to list (include all files including .keep placeholders)
-								allFiles.push(fullPath);
-							} else {
-								// It's a folder/prefix, add to stack for recursive listing
-								stack.push(fullPath);
-							}
-						}
-
-						// Check if there are more items to fetch
-						if (data.length < limit) {
-							hasMore = false;
-						} else {
-							offset += limit;
-						}
-					}
-				}
-
-				return allFiles;
-			};
-
-			// Delete all storage files for this project
-			try {
-				const projectPrefix = `${id}/`;
-
-				const filesToDelete = await listAllFilesRecursively(
-					bucketId,
-					projectPrefix
-				);
-
-				if (filesToDelete.length > 0) {
-					// Delete files in chunks of 1000 (Supabase limit)
-					const chunkSize = 1000;
-					let deletedCount = 0;
-
-					for (let i = 0; i < filesToDelete.length; i += chunkSize) {
-						const chunk = filesToDelete.slice(i, i + chunkSize);
-						const chunkNum = Math.floor(i / chunkSize) + 1;
-
-						const { error: storageError } = await supabase.storage
-							.from(bucketId)
-							.remove(chunk);
-
-						if (storageError) {
-							console.error(
-								`[ProjectStore] Error deleting storage files chunk ${chunkNum}:`,
-								storageError
-							);
-							// Continue with next chunk even if one fails
-						} else {
-							deletedCount += chunk.length;
-						}
-					}
-
-					// Verify deletion by listing the folder again
-					const { data: remainingFiles, error: verifyError } =
-						await supabase.storage
-							.from(bucketId)
-							.list(projectPrefix, { limit: 10 });
-
-					if (verifyError) {
-						// Could not list folder (likely deleted)
-					} else if (remainingFiles && remainingFiles.length > 0) {
-						// Some items still remain after deletion
-					}
-				}
-			} catch (storageErr) {
-				console.error(
-					`[ProjectStore] Error during storage cleanup:`,
-					storageErr
-				);
-				// Continue with project deletion even if storage cleanup fails
-			}
-
-			// Delete related data before deleting the project
-			// With the new schema, we need to delete child resources first, then let cascade delete handle root resources
-			try {
-				// 1. Delete chat data
-				const { data: threads } = await supabase
-					.from("chat_threads")
-					.select("id")
-					.eq("project_id", id);
-
-				if (threads && threads.length > 0) {
-					const threadIds = threads.map((t) => t.id);
-					await supabase
-						.from("chat_thread_participants")
-						.delete()
-						.in("thread_id", threadIds);
-					await supabase
-						.from("chat_threads")
-						.delete()
-						.eq("project_id", id);
-				}
-
-				// 2. Delete child resources and permissions
-				// Note: Root resources (PROJECT_RESUME, PROJECT_DOCS_ROOT, BORROWER_RESUME, BORROWER_DOCS_ROOT, OM)
-				// cannot be deleted directly due to database trigger. They will be cascade deleted when the project is deleted.
-				const { data: resources } = await supabase
-					.from("resources")
-					.select("id, resource_type, parent_id")
-					.eq("project_id", id);
-
-				if (resources && resources.length > 0) {
-					// Separate root resources from child resources
-					const rootResourceTypes = [
-						"PROJECT_RESUME",
-						"PROJECT_DOCS_ROOT",
-						"BORROWER_RESUME",
-						"BORROWER_DOCS_ROOT",
-						"OM",
-					];
-
-					// Child resources are those that have a parent_id (nested under root resources)
-					// Root resources (with parent_id = null) will be cascade deleted when project is deleted
-					const childResources = resources.filter(
-						(r) =>
-							r.parent_id !== null &&
-							!rootResourceTypes.includes(r.resource_type)
-					);
-					const rootResources = resources.filter(
-						(r) =>
-							r.parent_id === null ||
-							rootResourceTypes.includes(r.resource_type)
-					);
-
-					const allResourceIds = resources.map((r) => r.id);
-					const childResourceIds = childResources.map((r) => r.id);
-					const rootResourceIds = rootResources.map((r) => r.id);
-
-					console.log(
-						`[ProjectStore] Deleting resources for project ${id}: ${childResourceIds.length} child resources, ${rootResourceIds.length} root resources (will cascade)`
-					);
-
-					// Delete permissions for all resources (including root)
-					// Permissions will be cascade deleted, but we delete them explicitly to be safe
-					if (allResourceIds.length > 0) {
-						await supabase
-							.from("permissions")
-							.delete()
-							.in("resource_id", allResourceIds);
-					}
-
-					// Only delete child resources (non-root resources with parent_id)
-					// Root resources will be cascade deleted when project is deleted
-					// DO NOT attempt to delete root resources - they are protected by database trigger
-					if (childResourceIds.length > 0) {
-						const { error: childDeleteError } = await supabase
-							.from("resources")
-							.delete()
-							.in("id", childResourceIds);
-
-						if (childDeleteError) {
-							console.error(
-								`[ProjectStore] Error deleting child resources:`,
-								childDeleteError
-							);
-							// Continue anyway - try to delete project which will cascade delete everything
-						}
-					}
-
-					// Explicitly skip root resources - they will be cascade deleted
-					if (rootResourceIds.length > 0) {
-						console.log(
-							`[ProjectStore] Skipping ${rootResourceIds.length} root resources - will be cascade deleted with project`
-						);
-					}
-				}
-
-				// 3. Delete resumes (these have ON DELETE CASCADE, but we delete explicitly)
-				await supabase
-					.from("project_resumes")
-					.delete()
-					.eq("project_id", id);
-				await supabase
-					.from("borrower_resumes")
-					.delete()
-					.eq("project_id", id);
-
-				// 4. Delete OM data (if exists, has ON DELETE CASCADE)
-				await supabase.from("om").delete().eq("project_id", id);
-
-				// 5. Delete project access grants (has ON DELETE CASCADE)
-				await supabase
-					.from("project_access_grants")
-					.delete()
-					.eq("project_id", id);
-			} catch (relatedDataError) {
-				console.error(
-					`[ProjectStore] Error deleting related data for project ${id}:`,
-					relatedDataError
-				);
-				// Continue with project deletion attempt even if some related data deletion fails
-			}
-
-			// Now delete the project from the database
-			// This will cascade delete ALL resources (including root resources) via foreign key constraints
-			// The cascade delete trigger should allow root resource deletion when the project is deleted
-			// Note: If this fails with "Cannot delete root resource types", the trigger may need to be updated
-			// to properly detect cascade deletes in the same transaction
-			const { error } = await supabase
-				.from("projects")
-				.delete()
-				.eq("id", id);
-			if (error) {
-				console.error(
-					`[ProjectStore] Failed to delete project ${id}:`,
-					error
-				);
-				// If the error is about root resources, it means the cascade delete trigger
-				// is not properly detecting the cascade. This might require a database fix.
-				if (
-					error.message?.includes("Cannot delete root resource types")
-				) {
-					console.error(
-						`[ProjectStore] Cascade delete trigger issue: Root resources should be automatically deleted when project is deleted. This may require a database migration fix.`
-					);
-				}
+			if (!res.ok) {
+				console.error(`[ProjectStore] Delete project failed: ${res.status}`);
 				return false;
 			}
+
 			set((state) => ({
 				projects: state.projects.filter((p) => p.id !== id),
 				activeProject:

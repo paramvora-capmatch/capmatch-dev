@@ -1,12 +1,24 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
 
 const LOGOS_DIR = "Landing-Page/SecuritySectionLogos";
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".svg", ".webp"];
 
-export async function GET() {
+export async function GET(request: Request) {
 	try {
+		const supabase = await createClient();
+		const { data: { user }, error: authError } = await supabase.auth.getUser();
+		if (authError || !user) {
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+
+		const rlId = getRateLimitId(request, user.id);
+		const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, "security-logos");
+		if (!rl.allowed) return rl.response;
+
 		const dir = path.join(process.cwd(), "public", LOGOS_DIR);
 
 		if (!fs.existsSync(dir)) {

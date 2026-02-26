@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { CalendarProvider } from '@/types/calendar-types';
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 
 /**
  * OAuth callback handler for calendar integrations
@@ -36,9 +37,9 @@ export async function GET(request: NextRequest) {
     ? decodedState.split('|', 2).map(part => decodeURIComponent(part))
     : [decodedState, null];
   
-  // Default return URL to dashboard if not provided or invalid
-  const finalReturnUrl = returnUrl && returnUrl.startsWith('/') 
-    ? returnUrl 
+  // Default return URL to dashboard if not provided or invalid (reject protocol-relative URLs like //evil.com)
+  const finalReturnUrl = returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//')
+    ? returnUrl
     : '/dashboard';
 
   try {
@@ -76,6 +77,10 @@ export async function GET(request: NextRequest) {
       console.error('[Calendar OAuth] Auth error:', authError);
       throw new Error('User not authenticated');
     }
+
+    const rlId = getRateLimitId(request, user.id);
+    const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, 'calendar-callback');
+    if (!rl.allowed) return rl.response;
 
     // Exchange authorization code for access token
     console.log(`[Calendar OAuth] Exchanging ${provider} code...`);
@@ -141,10 +146,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(returnUrlWithParams);
   } catch (err) {
     console.error('[Calendar OAuth] Connection failed:', err);
-    const errorMessage = err instanceof Error ? err.message : 'connection_failed';
-    // On error, redirect back to original page or dashboard
     const errorUrl = new URL(finalReturnUrl, request.url);
-    errorUrl.searchParams.set('calendar_error', errorMessage);
+    errorUrl.searchParams.set('calendar_error', 'connection_failed');
     return NextResponse.redirect(errorUrl);
   }
 }

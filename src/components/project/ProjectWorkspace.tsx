@@ -28,10 +28,12 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { AskAIProvider } from "../ui/AskAIProvider";
 import { StickyChatCard } from "@/components/chat/StickyChatCard";
 import { DocumentManager } from "../documents/DocumentManager";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { BorrowerResumeForm } from "../forms/BorrowerResumeForm";
 import { BorrowerResumeView } from "../forms/BorrowerResumeView";
 import { useAskAI } from "@/hooks/useAskAI";
 import { useProjectBorrowerResume } from "@/hooks/useProjectBorrowerResume";
+import { PROJECT_ACTIVITY_TRACKING_INTERVAL_MS } from "@/config/constants";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { Modal } from "../ui/Modal";
 import { Select } from "../ui/Select";
@@ -44,6 +46,7 @@ import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 import { useAutofill } from "@/hooks/useAutofill";
+import { useShallow } from "zustand/react/shallow";
 import { useChatStore } from "@/stores/useChatStore";
 import { usePermissionStore } from "@/stores/usePermissionStore";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -121,7 +124,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	const { loadOrg, isOwner } = useOrgStore();
 	const user = useAuthStore((state) => state.user);
 	const authLoading = useAuthStore((state) => state.isLoading);
-	const { setActiveThread, loadThreadsForProject } = useChatStore();
+	const { setActiveThread, loadThreadsForProject } = useChatStore(
+		useShallow((s) => ({
+			setActiveThread: s.setActiveThread,
+			loadThreadsForProject: s.loadThreadsForProject,
+		}))
+	);
 	const loadPermissionsForProject = usePermissionStore(
 		(state) => state.loadPermissionsForProject
 	);
@@ -194,7 +202,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	const [isProjectResumeRemoteUpdate, setIsProjectResumeRemoteUpdate] =
 		useState(false);
 	const projectResumeChannelRef = useRef<RealtimeChannel | null>(null);
+	const projectResumeDeferTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const projectResumeResetNotificationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const queryParamTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+	const mentionHighlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const isLocalProjectSaveRef = useRef(false);
+
+	// Clear mention highlight timeout on unmount to avoid state update after unmount
+	useEffect(() => () => {
+		if (mentionHighlightTimeoutRef.current) {
+			clearTimeout(mentionHighlightTimeoutRef.current);
+			mentionHighlightTimeoutRef.current = null;
+		}
+	}, []);
 
 	// Right column chat is handled by StickyChatCard
 	// Centralize AskAI logic here; StickyChatCard is presentation-only
@@ -372,8 +392,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		// Initial touch
 		touch(null);
 
-		// Heartbeat every 60s while mounted/active
-		intervalId = window.setInterval(() => touch(null), 60_000);
+		// Heartbeat every N ms while mounted/active
+		intervalId = window.setInterval(() => touch(null), PROJECT_ACTIVITY_TRACKING_INTERVAL_MS);
 
 		// Best-effort flush on tab hide
 		const onVisibility = () => {
@@ -401,12 +421,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		// Only process if we have an active project loaded
 		if (!activeProject || activeProject.id !== projectId) return;
 
+		const timeouts: ReturnType<typeof setTimeout>[] = [];
+
 		if (tab === "chat") {
 			// Switch to team chat tab and expand chat
 			setChatTab("team");
 			setShouldExpandChat(true);
 			// Reset expand flag after a short delay
-			setTimeout(() => setShouldExpandChat(false), 100);
+			timeouts.push(setTimeout(() => setShouldExpandChat(false), 100));
 		}
 
 		if (threadId) {
@@ -421,18 +443,22 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 			setPreviewingResourceId(resourceId);
 			setHighlightedResourceId(resourceId);
 			// Scroll to documents section if it exists
-			setTimeout(() => {
-				const documentsSection = document.getElementById(
-					"project-documents-section"
-				);
-				if (documentsSection) {
-					documentsSection.scrollIntoView({
-						behavior: "smooth",
-						block: "start",
-					});
-				}
-			}, 100);
+			timeouts.push(
+				setTimeout(() => {
+					const documentsSection = document.getElementById(
+						"project-documents-section"
+					);
+					if (documentsSection) {
+						documentsSection.scrollIntoView({
+							behavior: "smooth",
+							block: "start",
+						});
+					}
+				}, 100)
+			);
 		}
+
+		queryParamTimeoutsRef.current = timeouts;
 
 		// Clean up query params after handling them
 		const params = new URLSearchParams(searchParams.toString());
@@ -441,6 +467,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		params.delete("resourceId");
 		const nextPath = params.toString() ? `${pathname}?${params}` : pathname;
 		router.replace(nextPath);
+
+		return () => {
+			queryParamTimeoutsRef.current.forEach((id) => clearTimeout(id));
+			queryParamTimeoutsRef.current = [];
+		};
 	}, [
 		searchParams,
 		pathname,
@@ -752,7 +783,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 					setIsProjectResumeRemoteUpdate(true);
 
 					// Defer state update to avoid updating during render
-					setTimeout(async () => {
+					if (projectResumeDeferTimeoutRef.current) clearTimeout(projectResumeDeferTimeoutRef.current);
+					projectResumeDeferTimeoutRef.current = setTimeout(async () => {
 						console.log(
 							`[ProjectWorkspace] 🔄 Realtime UPDATE received for project_resumes, projectId: ${projectId}`
 						);
@@ -763,9 +795,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 									activeProject?.projectDocsResourceId,
 								projectResumeResourceId:
 									activeProject?.projectResumeResourceId,
-								borrowerResumeResourceId: (activeProject as any)
+								borrowerResumeResourceId: activeProject
 									?.borrowerResumeResourceId,
-								borrowerDocsResourceId: (activeProject as any)
+								borrowerDocsResourceId: activeProject
 									?.borrowerDocsResourceId,
 							}
 						);
@@ -843,7 +875,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 						}
 
 						// Reset notification after 3 seconds
-						setTimeout(() => {
+						if (projectResumeResetNotificationTimeoutRef.current) clearTimeout(projectResumeResetNotificationTimeoutRef.current);
+						projectResumeResetNotificationTimeoutRef.current = setTimeout(() => {
 							setIsProjectResumeRemoteUpdate(false);
 						}, 3000);
 					}, 0);
@@ -854,6 +887,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		projectResumeChannelRef.current = channel;
 
 		return () => {
+			if (projectResumeDeferTimeoutRef.current) {
+				clearTimeout(projectResumeDeferTimeoutRef.current);
+				projectResumeDeferTimeoutRef.current = null;
+			}
+			if (projectResumeResetNotificationTimeoutRef.current) {
+				clearTimeout(projectResumeResetNotificationTimeoutRef.current);
+				projectResumeResetNotificationTimeoutRef.current = null;
+			}
 			projectResumeChannelRef.current?.unsubscribe();
 			projectResumeChannelRef.current = null;
 		};
@@ -1042,11 +1083,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 	const handleMentionClick = (resourceId: string) => {
 		setPreviewingResourceId(resourceId); // Open the preview modal
-		setPreviewingResourceId(resourceId);
 		setHighlightedResourceId(resourceId);
-		// Clear the highlight after a short delay
-		setTimeout(() => {
+		if (mentionHighlightTimeoutRef.current) clearTimeout(mentionHighlightTimeoutRef.current);
+		mentionHighlightTimeoutRef.current = setTimeout(() => {
 			setHighlightedResourceId(null);
+			mentionHighlightTimeoutRef.current = null;
 		}, 3000);
 	};
 
@@ -1105,19 +1146,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 	const renderBorrowerDocumentsSection = () => (
 		<div className="overflow-visible">
-			<DocumentManager
-				key={`borrower-docs-${borrowerDocsRefreshKey}`}
-				projectId={projectId}
-				resourceId="BORROWER_ROOT"
-				title="Borrower Documents"
-				orgId={activeProject?.owner_org_id ?? null}
-				canUpload={true}
-				canDelete={true}
-				context="borrower"
-				advisorUserId={activeProject?.assignedAdvisorUserId ?? null}
-				collapsible={true}
-				defaultOpen={true}
-			/>
+			<ErrorBoundary sectionName="Borrower documents">
+				<DocumentManager
+					key={`borrower-docs-${borrowerDocsRefreshKey}`}
+					projectId={projectId}
+					resourceId="BORROWER_ROOT"
+					title="Borrower Documents"
+					orgId={activeProject?.owner_org_id ?? null}
+					canUpload={true}
+					canDelete={true}
+					context="borrower"
+					advisorUserId={activeProject?.assignedAdvisorUserId ?? null}
+					collapsible={true}
+					defaultOpen={true}
+				/>
+			</ErrorBoundary>
 		</div>
 	);
 
@@ -1507,24 +1550,26 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 												id="project-documents-section"
 												className="overflow-visible"
 											>
-												<DocumentManager
-													projectId={projectId}
-													resourceId="PROJECT_ROOT"
-													title="Project Documents"
-													orgId={
-														activeProject?.owner_org_id ??
-														null
-													}
-													canUpload={true}
-													canDelete={true}
-													highlightedResourceId={
-														highlightedResourceId
-													}
-													context="project"
-													advisorUserId={activeProject?.assignedAdvisorUserId ?? null}
-													collapsible={true}
-													defaultOpen={true}
-												/>
+												<ErrorBoundary sectionName="Project documents">
+													<DocumentManager
+														projectId={projectId}
+														resourceId="PROJECT_ROOT"
+														title="Project Documents"
+														orgId={
+															activeProject?.owner_org_id ??
+															null
+														}
+														canUpload={true}
+														canDelete={true}
+														highlightedResourceId={
+															highlightedResourceId
+														}
+														context="project"
+														advisorUserId={activeProject?.assignedAdvisorUserId ?? null}
+														collapsible={true}
+														defaultOpen={true}
+													/>
+												</ErrorBoundary>
 											</motion.div>
 										) : null}
 
@@ -1591,6 +1636,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 															delay: 0.5,
 														}}
 													>
+														<ErrorBoundary sectionName="Project form">
 														<EnhancedProjectForm
 															key={`enhanced-form-${resumeRefreshKey}`}
 															existingProject={
@@ -1632,6 +1678,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 																handleResumeVersionChange
 															}
 														/>
+													</ErrorBoundary>
 													</motion.div>
 												) : (
 													<>
@@ -1706,7 +1753,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				</div>
 
 				{/* Right Column: Sticky collapsible chat card */}
-				<StickyChatCard
+				<ErrorBoundary sectionName="Chat">
+					<StickyChatCard
 					projectId={projectId}
 					onMentionClick={handleMentionClick}
 					topOffsetClassName="top-4 sm:top-6"
@@ -1735,6 +1783,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 					mode={viewMode === "underwriting" ? "underwriter" : "ask-ai"}
 					defaultTopic="AI Underwriter"
 				/>
+				</ErrorBoundary>
 			</AskAIProvider>
 			{previewingResourceId && (
 				<DocumentPreviewModal

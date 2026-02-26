@@ -12,6 +12,7 @@ import {
 	computeBorrowerCompletion,
 } from "@/utils/resumeCompletion";
 import { getAllFieldIds } from "./schema-utils";
+import { toSourceObject } from "./source-utils";
 import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
 
 // =============================================================================
@@ -639,7 +640,7 @@ export const getProjectWithResume = async (
 	// Fetch core project
 	const { data: project, error: projectError } = await supabase
 		.from("projects")
-		.select("*")
+		.select("id, name, owner_org_id, assigned_advisor_id, created_at, updated_at, deal_type")
 		.eq("id", projectId)
 		.single();
 
@@ -678,7 +679,7 @@ export const getProjectsWithResumes = async (
 	// Fetch core projects
 	const { data: projects, error: projectsError } = await supabase
 		.from("projects")
-		.select("*")
+		.select("id, name, owner_org_id, assigned_advisor_id, created_at, updated_at, deal_type")
 		.in("id", projectIds);
 	if (projectsError)
 		throw new Error(`Failed to fetch projects: ${projectsError.message}`);
@@ -977,49 +978,6 @@ export const saveProjectResume = async (
 		"projectSections",
 		"borrowerSections",
 	]);
-
-	// Helper to normalize various legacy source shapes into a single SourceMetadata-like object
-	const toSourceObject = (input: any): any => {
-		if (!input) return { type: "user_input" };
-
-		// Already a SourceMetadata-like object
-		if (typeof input === "object" && input !== null && "type" in input) {
-			return input;
-		}
-
-		// Legacy array form – take first entry
-		if (Array.isArray(input) && input.length > 0) {
-			const first = input[0];
-			if (
-				typeof first === "object" &&
-				first !== null &&
-				"type" in first
-			) {
-				return first;
-			}
-			if (typeof first === "string") {
-				const normalized = first.toLowerCase().trim();
-				if (
-					normalized === "user_input" ||
-					normalized === "user input"
-				) {
-					return { type: "user_input" };
-				}
-				return { type: "document", name: first };
-			}
-		}
-
-		// Legacy string source
-		if (typeof input === "string") {
-			const normalized = input.toLowerCase().trim();
-			if (normalized === "user_input" || normalized === "user input") {
-				return { type: "user_input" };
-			}
-			return { type: "document", name: input };
-		}
-
-		return { type: "user_input" };
-	};
 
 	for (const key in content) {
 		// Skip excluded fields (project-level metadata)
@@ -1474,7 +1432,39 @@ export const getProjectBorrowerResume = async (
 };
 
 /**
- * Saves borrower resume content to the JSONB column.
+ * Returns borrower resume content plus version_number for conflict resolution.
+ * Use when you need to track version (e.g. realtime) to avoid applying stale updates.
+ */
+export const getProjectBorrowerResumeWithVersion = async (
+	projectId: string
+): Promise<{ content: BorrowerResumeContent | null; versionNumber: number | null }> => {
+	const content = await getProjectBorrowerResume(projectId);
+	if (!content) return { content: null, versionNumber: null };
+	const { data: resource } = await supabase
+		.from("resources")
+		.select("current_version_id")
+		.eq("project_id", projectId)
+		.eq("resource_type", "BORROWER_RESUME")
+		.maybeSingle();
+	if (resource?.current_version_id) {
+		const { data: row } = await supabase
+			.from("borrower_resumes")
+			.select("version_number")
+			.eq("id", resource.current_version_id)
+			.maybeSingle();
+		return { content, versionNumber: (row?.version_number as number) ?? null };
+	}
+	const { data: row } = await supabase
+		.from("borrower_resumes")
+		.select("version_number")
+		.eq("project_id", projectId)
+		.order("created_at", { ascending: false })
+		.limit(1)
+		.maybeSingle();
+	return { content, versionNumber: (row?.version_number as number) ?? null };
+};
+
+/**
  * Supports Rich Data, Locking, Metadata, and Section grouping.
  */
 export const saveProjectBorrowerResume = async (
@@ -1574,55 +1564,6 @@ export const saveProjectBorrowerResume = async (
 		// In some edge cases (e.g. bugs in callers), a field's value might be
 		// passed in as `true`/`false` instead of its actual string/array value.
 		// Helper to normalize various legacy source shapes into a single SourceMetadata-like object
-		const toSourceObject = (input: any): any => {
-			if (!input) return { type: "user_input" };
-
-			// Already a SourceMetadata-like object
-			if (
-				typeof input === "object" &&
-				input !== null &&
-				"type" in input
-			) {
-				return input;
-			}
-
-			// Legacy array form – take first entry
-			if (Array.isArray(input) && input.length > 0) {
-				const first = input[0];
-				if (
-					typeof first === "object" &&
-					first !== null &&
-					"type" in first
-				) {
-					return first;
-				}
-				if (typeof first === "string") {
-					const normalized = first.toLowerCase().trim();
-					if (
-						normalized === "user_input" ||
-						normalized === "user input"
-					) {
-						return { type: "user_input" };
-					}
-					return { type: "document", name: first };
-				}
-			}
-
-			// Legacy string source
-			if (typeof input === "string") {
-				const normalized = input.toLowerCase().trim();
-				if (
-					normalized === "user_input" ||
-					normalized === "user input"
-				) {
-					return { type: "user_input" };
-				}
-				return { type: "document", name: input };
-			}
-
-			return { type: "user_input" };
-		};
-
 		// The only borrower fields that are legitimately boolean are the
 		// credit-history flags below. For all other fields, if we see a bare
 		// boolean here, we should *not* overwrite the existing rich/value data

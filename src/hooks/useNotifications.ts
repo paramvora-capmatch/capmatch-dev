@@ -53,6 +53,9 @@ export function useNotifications({
 	const [lastViewedAt, setLastViewedAt] = useState<string | null>(null);
 	const channelRef = useRef<RealtimeChannel | null>(null);
 	const isInitialLoadRef = useRef<boolean>(true);
+	const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const reconnectAttemptsRef = useRef(0);
+	const maxReconnectAttempts = 5;
 
 	const resetState = useCallback(() => {
 		setNotifications([]);
@@ -204,87 +207,111 @@ export function useNotifications({
 
 		fetchNotifications();
 
-		const channel = supabase
-			.channel(`notifications-${user.id}`)
-			.on(
-				"postgres_changes",
-				{
-					event: "INSERT",
-					schema: "public",
-					table: "notifications",
-					filter: `user_id=eq.${user.id}`,
-				},
-				(payload) => {
-					console.log("[useNotifications] New notification received:", payload);
-					const incoming = payload.new as NotificationRecord;
+		const setupChannel = () => {
+			if (channelRef.current) {
+				supabase.removeChannel(channelRef.current);
+				channelRef.current = null;
+			}
 
-					// Only show toast for truly new notifications (not on initial load)
-					if (!isInitialLoadRef.current) {
-						showToast({
-							id: String(incoming.id),
-							user_id: incoming.user_id,
-							event_id: incoming.event_id,
-							title: incoming.title,
-							body: incoming.body,
-							link_url: incoming.link_url,
-							read_at: incoming.read_at,
-							payload: incoming.payload,
-							created_at: incoming.created_at,
+			const channel = supabase
+				.channel(`notifications-${user.id}`)
+				.on(
+					"postgres_changes",
+					{
+						event: "INSERT",
+						schema: "public",
+						table: "notifications",
+						filter: `user_id=eq.${user.id}`,
+					},
+					(payload) => {
+						console.log("[useNotifications] New notification received:", payload);
+						const incoming = payload.new as NotificationRecord;
+
+						// Only show toast for truly new notifications (not on initial load)
+						if (!isInitialLoadRef.current) {
+							showToast({
+								id: String(incoming.id),
+								user_id: incoming.user_id,
+								event_id: incoming.event_id,
+								title: incoming.title,
+								body: incoming.body,
+								link_url: incoming.link_url,
+								read_at: incoming.read_at,
+								payload: incoming.payload,
+								created_at: incoming.created_at,
+							});
+						}
+
+						setNotifications((prev) => {
+							const alreadyExists = prev.some(
+								(n) => n.id === incoming.id
+							);
+							if (alreadyExists) {
+								return prev;
+							}
+							const next = [incoming, ...prev];
+							return next.slice(0, limit);
 						});
 					}
-
-					setNotifications((prev) => {
-						const alreadyExists = prev.some(
-							(n) => n.id === incoming.id
+				)
+				.on(
+					"postgres_changes",
+					{
+						event: "UPDATE",
+						schema: "public",
+						table: "notifications",
+						filter: `user_id=eq.${user.id}`,
+					},
+					(payload) => {
+						console.log("[useNotifications] Notification updated:", payload);
+						const updated = payload.new as NotificationRecord;
+						setNotifications((prev) =>
+							prev.map((n) =>
+								n.id === updated.id ? updated : n
+							)
 						);
-						if (alreadyExists) {
-							return prev;
-						}
-						const next = [incoming, ...prev];
-						return next.slice(0, limit);
-					});
-				}
-			)
-			.on(
-				"postgres_changes",
-				{
-					event: "UPDATE",
-					schema: "public",
-					table: "notifications",
-					filter: `user_id=eq.${user.id}`,
-				},
-				(payload) => {
-					console.log("[useNotifications] Notification updated:", payload);
-					const updated = payload.new as NotificationRecord;
-					setNotifications((prev) =>
-						prev.map((n) =>
-							n.id === updated.id ? updated : n
-						)
-					);
-				}
-			);
+					}
+				);
 
-		channel.subscribe((status) => {
-			if (status === "SUBSCRIBED") {
-				console.log("[useNotifications] Realtime channel subscribed");
-				// Mark that initial load is complete after subscription
-				setTimeout(() => {
-					isInitialLoadRef.current = false;
-				}, 1000);
-			} else if (status === "CHANNEL_ERROR") {
-				console.error("[useNotifications] Realtime channel error");
-			} else if (status === "TIMED_OUT") {
-				console.error("[useNotifications] Realtime subscription timed out");
-			} else {
-				console.log("[useNotifications] Realtime channel status:", status);
-			}
-		});
+			channel.subscribe((status) => {
+				if (status === "SUBSCRIBED") {
+					reconnectAttemptsRef.current = 0;
+					console.log("[useNotifications] Realtime channel subscribed");
+					setTimeout(() => {
+						isInitialLoadRef.current = false;
+					}, 1000);
+				} else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+					console.warn("[useNotifications] Realtime channel status:", status);
+					if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+						console.error("[useNotifications] Max reconnection attempts reached");
+						return;
+					}
+					const delay = Math.min(2000 * 2 ** reconnectAttemptsRef.current, 30000);
+					reconnectAttemptsRef.current += 1;
+					if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+					reconnectTimeoutRef.current = setTimeout(() => {
+						reconnectTimeoutRef.current = null;
+						setupChannel();
+					}, delay);
+				} else {
+					console.log("[useNotifications] Realtime channel status:", status);
+				}
+			});
 
-		channelRef.current = channel;
+			channelRef.current = channel;
+		};
+
+		setupChannel();
 
 		return () => {
-			supabase.removeChannel(channel);
-			channelRef.current = null;
+			if (reconnectTimeoutRef.current) {
+				clearTimeout(reconnectTimeoutRef.current);
+				reconnectTimeoutRef.current = null;
+			}
+			if (channelRef.current) {
+				supabase.removeChannel(channelRef.current);
+				channelRef.current = null;
+			}
 		};
 	}, [fetchNotifications, isAuthenticated, limit, resetState, showToast, user?.id]);
 

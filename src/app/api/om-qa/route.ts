@@ -2,6 +2,8 @@
 // Proxy route that forwards requests to the backend AI Q&A service
 import { NextRequest, NextResponse } from 'next/server';
 import { getBackendUrl } from '@/lib/apiConfig';
+import { validateBody, omQaBodySchema } from '@/lib/api-validation';
+import { checkRateLimit, getRateLimitId, AI_RATE_LIMIT } from '@/lib/rate-limit';
 import {
   scenarioData,
   marketComps,
@@ -39,10 +41,10 @@ function prepareOMData() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { question } = await req.json();
-    if (!question || typeof question !== 'string') {
-      return NextResponse.json({ error: 'Missing question' }, { status: 400 });
-    }
+    const [err, parsed] = await validateBody(req, omQaBodySchema);
+    if (err) return err;
+    const question = parsed?.question;
+    if (!question) return NextResponse.json({ error: 'Missing question' }, { status: 400 });
 
     // Check if request was already aborted
     if (req.signal?.aborted) {
@@ -53,10 +55,18 @@ export async function POST(req: NextRequest) {
     // Prepare OM data to send to backend
     const omData = prepareOMData();
 
-    // Get authenticated Supabase client and session
+    // Verify user server-side (getUser validates JWT; getSession does not)
     const { createClient } = await import('@/lib/supabase/server');
     const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const { data: { session } } = await supabase.auth.getSession();
+
+    const rlId = getRateLimitId(req, user.id);
+    const rl = checkRateLimit(rlId, AI_RATE_LIMIT, 'om-qa');
+    if (!rl.allowed) return rl.response;
 
     // Proxy to backend
     const backendUrl = getBackendUrl();

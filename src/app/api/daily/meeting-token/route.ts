@@ -1,8 +1,9 @@
 // src/app/api/daily/meeting-token/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { validateBody, dailyMeetingTokenBodySchema } from '@/lib/api-validation';
+import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import type {
-  MeetingTokenRequest,
   MeetingTokenResponse,
   DailyMeetingTokenApiRequest,
   DailyMeetingTokenApiResponse,
@@ -21,7 +22,7 @@ function getSupabaseServiceClient() {
   return createClient(supabaseUrl, supabaseServiceKey);
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const supabase = getSupabaseServiceClient();
 
   // Get auth token from Authorization header
@@ -49,20 +50,20 @@ export async function POST(request: Request) {
     );
   }
 
+  const rlId = getRateLimitId(request, user.id);
+  const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, 'daily-meeting-token');
+  if (!rl.allowed) return rl.response;
+
   try {
-    const body: MeetingTokenRequest = await request.json();
+    const [err, body] = await validateBody(request, dailyMeetingTokenBodySchema);
+    if (err) return err;
+    if (!body) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
+
     const { roomName: roomNameParam, meetingId } = body;
     let roomName = roomNameParam;
 
-    if (!roomName && !meetingId) {
-      return NextResponse.json(
-        { error: 'Either roomName or meetingId is required' },
-        { status: 400 }
-      );
-    }
-
     let isOwner = false;
-    let meeting: any = null;
+    let meeting: { meeting_link?: string; organizer_id?: string; meeting_participants?: { user_id: string }[] } | null = null;
 
     // If meetingId provided, fetch meeting and verify access
     if (meetingId) {
