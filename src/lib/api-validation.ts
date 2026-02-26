@@ -78,18 +78,21 @@ export function validateSearchParams<T>(
 
 const nonEmptyString = z.string().min(1, 'Required');
 
-/** project-qa: fieldContext and projectContext are opaque objects from frontend */
+/** project-qa: fieldContext, projectContext, and question from frontend */
 const contextObject = z.record(z.string(), z.unknown()).refine((o) => o != null && typeof o === 'object', 'Context object is required');
 
 export const projectQaBodySchema = z.object({
   fieldContext: contextObject,
   projectContext: contextObject,
+  question: z.string().min(1, 'question is required'),
 }).strict();
 
 /** borrower-qa */
 export const borrowerQaBodySchema = z.object({
   fieldContext: contextObject,
   borrowerContext: contextObject,
+  question: z.string().min(1, 'question is required'),
+  fullFormData: z.record(z.string(), z.unknown()).optional(),
 }).strict();
 
 /** om-qa */
