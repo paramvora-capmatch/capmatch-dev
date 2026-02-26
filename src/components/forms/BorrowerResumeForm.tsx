@@ -18,6 +18,7 @@ import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
 import { FieldWarningsTooltip } from "../ui/FieldWarningsTooltip";
 import { HelpCircle } from "lucide-react";
 import { useAutofill } from "@/hooks/useAutofill";
+import { AlertModal } from "@/components/ui/AlertModal";
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -458,6 +459,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		isAutofilling,
 		showSparkles,
 		handleAutofill: startAutofill,
+		errorModal,
+		clearErrorModal,
 	} = useAutofill(projectId, { context: "borrower" });
 
 	// Ref to store the last borrowerResume content hash to prevent unnecessary updates
@@ -3399,6 +3402,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	}
 
 	return (
+		<>
 		<div
 			className={cn(
 				"h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden",
@@ -3510,5 +3514,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				/>
 			</div>
 		</div>
+		<AlertModal
+			isOpen={errorModal.isOpen}
+			onClose={clearErrorModal}
+			title={errorModal.title}
+			message={errorModal.message}
+			variant="error"
+		/>
+		</>
 	);
 };

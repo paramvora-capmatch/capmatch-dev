@@ -24,6 +24,7 @@ import borrowerFormSchema from "@/lib/borrower-resume-form.schema.json";
 import { Button } from "../ui/Button";
 import { Principal } from "@/types/enhanced-types";
 import { useAutofill } from "@/hooks/useAutofill";
+import { AlertModal } from "@/components/ui/AlertModal";
 import { BorrowerResumeVersionHistory } from "./BorrowerResumeVersionHistory";
 
 interface BorrowerResumeViewProps {
@@ -347,7 +348,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 
 	// Autofill hook - memoize to prevent re-creation
 	const autofillHook = useAutofill(projectId, { context: "borrower" });
-	const { isAutofilling, showSparkles, handleAutofill } = autofillHook;
+	const { isAutofilling, showSparkles, handleAutofill, errorModal, clearErrorModal } = autofillHook;
 
 	// Memoized callbacks
 	const handleToggleCollapsed = useCallback((e: React.MouseEvent) => {
@@ -408,6 +409,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 	}, [resume]);
 
 	return (
+		<>
 		<div
 			className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30"
 			aria-expanded={!collapsed}
@@ -820,6 +822,14 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 				)}
 			</AnimatePresence>
 		</div>
+		<AlertModal
+			isOpen={errorModal.isOpen}
+			onClose={clearErrorModal}
+			title={errorModal.title}
+			message={errorModal.message}
+			variant="error"
+		/>
+		</>
 	);
 });
 

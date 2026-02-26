@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { ChevronDown, ChevronRight, CheckCircle, Circle, ExternalLink, Download, Play, Loader2, Lock, Unlock, FileText } from "lucide-react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { cn } from "@/utils/cn";
 import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
 import { apiClient } from "@/lib/apiClient";
@@ -560,36 +560,37 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         setShowResumeModal(true);
     };
 
-    // Reliable polling function
-    const waitForGeneration = async (docName: string, maxAttempts = 60, intervalMs = 3000): Promise<boolean> => {
-        let attempts = 0;
-        const initialFile = files?.find(f => f.name === docName || f.name.replace(/\.[^/.]+$/, "") === docName);
-        const initialVersion = initialFile?.version_number;
-
+    // Subscribe to job status via Supabase Realtime; resolves when completed, failed, or timeout.
+    const subscribeToJobUntilDone = (jobId: string, timeoutMs = 180000): Promise<{ status: "completed" | "failed" | "timeout"; error_message?: string | null }> => {
         return new Promise((resolve) => {
-            const poll = setInterval(async () => {
-                attempts++;
-                const result = await refresh(); // Force fetch
-                const currentFiles = result?.files || [];
+            let resolved = false;
+            const finish = (result: { status: "completed" | "failed" | "timeout"; error_message?: string | null }) => {
+                if (resolved) return;
+                resolved = true;
+                if (timeoutId) clearTimeout(timeoutId);
+                if (channel) supabase.removeChannel(channel);
+                resolve(result);
+            };
 
-                const currentFile = currentFiles?.find(f => f.name === docName || f.name.replace(/\.[^/.]+$/, "") === docName);
+            const channel = supabase
+                .channel(`underwriting-job-${jobId}`)
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "UPDATE",
+                        schema: "public",
+                        table: "jobs",
+                        filter: `id=eq.${jobId}`,
+                    },
+                    (payload: { new: { status: string; error_message?: string | null } }) => {
+                        const row = payload.new;
+                        if (row.status === "completed") finish({ status: "completed" });
+                        else if (row.status === "failed") finish({ status: "failed", error_message: row.error_message ?? null });
+                    }
+                )
+                .subscribe();
 
-                // Success conditions:
-                // 1. File didn't exist before, now it does.
-                // 2. File existed before, now version number is higher.
-                // 3. File existed before, now updated_at is more recent (if version logic fails).
-
-                const isNew = !initialFile && currentFile;
-                const isUpdated = initialFile && currentFile && (currentFile.version_number > (initialVersion || 0));
-
-                if (isNew || isUpdated) {
-                    clearInterval(poll);
-                    resolve(true);
-                } else if (attempts >= maxAttempts) {
-                    clearInterval(poll);
-                    resolve(false);
-                }
-            }, intervalMs);
+            const timeoutId = setTimeout(() => finish({ status: "timeout" }), timeoutMs);
         });
     };
 
@@ -610,24 +611,47 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         const toastId = !options?.isBatch ? toast.loading(`Generating ${docName}...`) : undefined;
 
         try {
-            // Updated endpoint to generate specific document
-            await apiClient.post(`/api/v1/underwriting/generate-single`, {
+            const res = await apiClient.post(`/api/v1/underwriting/generate-single`, {
                 project_id: projectId,
                 document_name: docName
             });
 
-            // Poll for completion - wait up to 3 minutes (60 * 3s)
-            const success = await waitForGeneration(docName);
-
-            if (!options?.isBatch) {
-                if (success) {
-                    toast.success(`${docName} generated successfully!`, { id: toastId });
-                } else {
-                    toast.warning(`${docName} generation is taking longer than expected. It will appear here soon.`, { id: toastId, duration: 5000 });
-                }
+            if (res.error) {
+                throw res.error;
             }
 
-            return success;
+            const jobId = res.data?.job_id as string | undefined;
+
+            if (jobId) {
+                const result = await subscribeToJobUntilDone(jobId);
+
+                if (result.status === "completed") {
+                    await refresh();
+                    if (!options?.isBatch) {
+                        toast.success(`${docName} generated successfully!`, { id: toastId });
+                    }
+                    return true;
+                }
+                if (result.status === "failed") {
+                    if (!options?.isBatch) {
+                        const msg = result.error_message || `Failed to generate ${docName}`;
+                        toast.error(msg, { id: toastId });
+                    }
+                    return false;
+                }
+                // timeout
+                if (!options?.isBatch) {
+                    toast.warning(`${docName} generation is taking longer than expected. It will appear here soon.`, { id: toastId, duration: 5000 });
+                }
+                return false;
+            }
+
+            // No job_id (legacy): refresh once and assume success
+            await refresh();
+            if (!options?.isBatch) {
+                toast.success(`${docName} generation started.`, { id: toastId });
+            }
+            return true;
 
         } catch (error) {
             console.error("Generate failed:", error);
@@ -811,7 +835,6 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 docName={validationModal.docName}
                 onFixInChat={handleFixInChat}
             />
-            <Toaster position="bottom-right" richColors />
         </div>
     );
 };

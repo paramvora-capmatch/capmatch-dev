@@ -44,6 +44,7 @@ import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 import { useAutofill } from "@/hooks/useAutofill";
+import { AlertModal } from "@/components/ui/AlertModal";
 import { useChatStore } from "@/stores/useChatStore";
 import { usePermissionStore } from "@/stores/usePermissionStore";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -232,7 +233,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				} ${activeProject.propertyAddressState}, ${activeProject.propertyAddressZip || ""
 				}`.trim()
 			: undefined;
-	const { isAutofilling, handleAutofill } = useAutofill(projectId, {
+	const { isAutofilling, handleAutofill, errorModal, clearErrorModal } = useAutofill(projectId, {
 		projectAddress,
 	});
 	const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
@@ -1158,6 +1159,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	return (
+		<>
 		<div
 			className="relative w-full flex flex-row animate-fadeIn bg-gray-200"
 			style={{ minHeight: "100vh", height: "auto" }}
@@ -1800,5 +1802,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				</div>
 			</Modal>
 		</div>
+		<AlertModal
+			isOpen={errorModal.isOpen}
+			onClose={clearErrorModal}
+			title={errorModal.title}
+			message={errorModal.message}
+			variant="error"
+		/>
+		</>
 	);
 };

@@ -19,6 +19,7 @@ import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
 import { FieldWarningsTooltip } from "../ui/FieldWarningsTooltip";
 import { HelpCircle } from "lucide-react";
 import { useAutofill } from "@/hooks/useAutofill";
+import { AlertModal } from "@/components/ui/AlertModal";
 import { cn } from "@/utils/cn";
 import {
 	FileText,
@@ -790,6 +791,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 	}
 
 	return (
+		<>
 		<div className="space-y-8">
 			<FormGroup>
 				<div className="flex items-center justify-between mb-2">
@@ -1238,6 +1240,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 				)}
 			</FormGroup>
 		</div>
+		</>
 	);
 };
 
@@ -1346,6 +1349,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		isAutofilling,
 		showSparkles,
 		handleAutofill: startAutofill,
+		errorModal,
+		clearErrorModal,
 	} = useAutofill(existingProject.id, { context: "project" });
 
 	// Effect to handle updates from parent (e.g. after Autofill)
@@ -9362,6 +9367,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	}, [startAutofill, formData, fieldMetadata, lockedFields]);
 
 	return (
+		<>
 		<div
 			className={cn(
 				"h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden",
@@ -9454,6 +9460,14 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				/>
 			</div>
 		</div>
+		<AlertModal
+			isOpen={errorModal.isOpen}
+			onClose={clearErrorModal}
+			title={errorModal.title}
+			message={errorModal.message}
+			variant="error"
+		/>
+		</>
 	);
 };
 
