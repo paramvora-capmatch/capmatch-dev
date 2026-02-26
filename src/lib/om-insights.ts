@@ -1,13 +1,66 @@
 import { supabase } from '@/lib/supabaseClient';
 
+export type OMInsightsJobResult =
+  | { status: 'completed' }
+  | { status: 'failed'; error_message?: string | null }
+  | { status: 'timeout' };
+
+/**
+ * Subscribe to an OM insights job via Supabase Realtime.
+ * Resolves when the job is completed, failed, or timeout (default 5 min).
+ */
+export function subscribeToOMInsightsJob(
+  jobId: string,
+  timeoutMs = 300000
+): Promise<OMInsightsJobResult> {
+  return new Promise((resolve) => {
+    let resolved = false;
+    const finish = (result: OMInsightsJobResult) => {
+      if (resolved) return;
+      resolved = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (channel) supabase.removeChannel(channel);
+      resolve(result);
+    };
+
+    const channel = supabase
+      .channel(`om-insights-job-${jobId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'jobs',
+          filter: `id=eq.${jobId}`,
+        },
+        (payload: { new: { status: string; error_message?: string | null } }) => {
+          const row = payload.new;
+          if (row.status === 'completed') finish({ status: 'completed' });
+          else if (row.status === 'failed')
+            finish({ status: 'failed', error_message: row.error_message ?? null });
+        }
+      )
+      .subscribe();
+
+    const timeoutId = setTimeout(() => finish({ status: 'timeout' }), timeoutMs);
+  });
+}
+
+export interface GenerateOMInsightsResponse {
+  status?: string;
+  message?: string;
+  job_id?: string;
+}
+
 /**
  * Generate OM insights for a project and store them in the database.
- * This function calls the backend API to generate insights using Gemini.
- * 
+ * Returns 202 with job_id; frontend can subscribe to job realtime and redirect when completed.
+ *
  * @param projectId - The project ID to generate insights for
- * @throws Error if insight generation fails
+ * @returns Response with job_id for status tracking
+ * @throws Error if request fails (non-2xx)
  */
-export async function generateOMInsights(projectId: string): Promise<void> {
+export async function generateOMInsights(projectId: string): Promise<GenerateOMInsightsResponse> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
@@ -18,28 +71,27 @@ export async function generateOMInsights(projectId: string): Promise<void> {
       ...(token && { 'Authorization': `Bearer ${token}` }),
     },
   });
-  
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to generate insights' }));
     throw new Error(error.error || error.detail || 'Failed to generate insights');
   }
 
-  // Also trigger underwriting document generation (fire and forget / non-blocking)
-  // We don't await this to avoid delaying the UI response, or we await it but don't block on error.
-  // User requested "generation ... to also happen".
+  const data = (await response.json()) as GenerateOMInsightsResponse;
+
+  // Fire-and-forget: trigger underwriting document generation
   try {
-      fetch(`/api/v1/underwriting/generate?project_id=${projectId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` }),
-          },
-      }).catch(err => console.error("Failed to trigger underwriting docs:", err));
+    fetch(`/api/v1/underwriting/generate?project_id=${projectId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+    }).catch((err) => console.error('Failed to trigger underwriting docs:', err));
   } catch (e) {
-      console.error("Failed to initiate underwriting docs generation:", e);
+    console.error('Failed to initiate underwriting docs generation:', e);
   }
-  
-  // Backend handles storing insights in DB via sync_to_om()
-  return;
+
+  return data;
 }
 
