@@ -44,10 +44,12 @@ import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 import { useAutofill } from "@/hooks/useAutofill";
+import { AlertModal } from "@/components/ui/AlertModal";
 import { useChatStore } from "@/stores/useChatStore";
 import { usePermissionStore } from "@/stores/usePermissionStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { generateOMInsights } from "@/lib/om-insights";
+import { generateOMInsights, subscribeToOMInsightsJob } from "@/lib/om-insights";
+import { toast } from "sonner";
 import { apiClient } from "@/lib/apiClient";
 import { UnderwritingVault } from "../lender/UnderwritingVault";
 import { FileText, ShieldCheck } from "lucide-react";
@@ -232,7 +234,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				} ${activeProject.propertyAddressState}, ${activeProject.propertyAddressZip || ""
 				}`.trim()
 			: undefined;
-	const { isAutofilling, handleAutofill } = useAutofill(projectId, {
+	const { isAutofilling, handleAutofill, errorModal, clearErrorModal } = useAutofill(projectId, {
 		projectAddress,
 	});
 	const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
@@ -1158,6 +1160,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	return (
+		<>
 		<div
 			className="relative w-full flex flex-row animate-fadeIn bg-gray-200"
 			style={{ minHeight: "100vh", height: "auto" }}
@@ -1431,34 +1434,34 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 												<Button
 													variant="outline"
 													onClick={async () => {
+														setIsGeneratingInsights(true);
 														try {
-															// Generate insights first before navigating
-															setIsGeneratingInsights(
-																true
-															);
-															await generateOMInsights(
-																projectId
-															);
-															// Navigate to OM dashboard after insights are generated and stored
-															router.push(
-																`/project/om/${projectId}/dashboard`
-															);
+															const result = await generateOMInsights(projectId);
+															if (result.job_id) {
+																// Track job via realtime; redirect when completed
+																const jobResult = await subscribeToOMInsightsJob(result.job_id);
+																if (jobResult.status === "completed") {
+																	toast.success("OM insights ready");
+																	router.push(`/project/om/${projectId}/dashboard`);
+																} else if (jobResult.status === "failed") {
+																	toast.error(jobResult.error_message || "Failed to generate insights. You can still view the OM.");
+																	router.push(`/project/om/${projectId}/dashboard`);
+																} else {
+																	toast.warning("Insights are taking longer than expected. Opening OM—they may appear shortly.");
+																	router.push(`/project/om/${projectId}/dashboard`);
+																}
+															} else if (result.already_has_insights) {
+																toast.success("Opening OM");
+																router.push(`/project/om/${projectId}/dashboard`);
+															} else {
+																router.push(`/project/om/${projectId}/dashboard`);
+															}
 														} catch (error) {
-															console.error(
-																"Failed to generate insights:",
-																error
-															);
-															// Show error but still allow navigation
-															alert(
-																"Failed to generate insights. You can still view the OM."
-															);
-															router.push(
-																`/project/om/${projectId}/dashboard`
-															);
+															console.error("Failed to generate insights:", error);
+															toast.error("Failed to generate insights. You can still view the OM.");
+															router.push(`/project/om/${projectId}/dashboard`);
 														} finally {
-															setIsGeneratingInsights(
-																false
-															);
+															setIsGeneratingInsights(false);
 														}
 													}}
 													disabled={isGeneratingInsights}
@@ -1800,5 +1803,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				</div>
 			</Modal>
 		</div>
+		<AlertModal
+			isOpen={errorModal.isOpen}
+			onClose={clearErrorModal}
+			title={errorModal.title}
+			message={errorModal.message}
+			variant="error"
+		/>
+		</>
 	);
 };

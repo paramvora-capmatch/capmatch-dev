@@ -19,7 +19,8 @@ import { ProjectProfile } from "@/types/enhanced-types";
 import { useProjectStore as useProjects } from "@/stores/useProjectStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { formatDateShort } from "@/utils/dateUtils";
-import { generateOMInsights } from "@/lib/om-insights";
+import { generateOMInsights, subscribeToOMInsightsJob } from "@/lib/om-insights";
+import { toast } from "sonner";
 
 interface ProjectMember {
 	userId: string;
@@ -419,23 +420,26 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 								disabled={isGeneratingInsights}
 								onClick={async (e) => {
 									e.stopPropagation();
+									setIsGeneratingInsights(true);
 									try {
-										setIsGeneratingInsights(true);
-										await generateOMInsights(project.id);
-										router.push(
-											`/project/om/${project.id}/dashboard`
-										);
+										const result = await generateOMInsights(project.id);
+										if (result.job_id) {
+											const jobResult = await subscribeToOMInsightsJob(result.job_id);
+											if (jobResult.status === "completed") {
+												toast.success("OM insights ready");
+											} else if (jobResult.status === "failed") {
+												toast.error(jobResult.error_message || "Failed to generate insights. You can still view the OM.");
+											} else {
+												toast.warning("Insights are taking longer than expected. Opening OM—they may appear shortly.");
+											}
+										} else if (result.already_has_insights) {
+											toast.success("Opening OM");
+										}
+										router.push(`/project/om/${project.id}/dashboard`);
 									} catch (error) {
-										console.error(
-											"Failed to generate insights:",
-											error
-										);
-										alert(
-											"Failed to generate insights. You can still view the OM."
-										);
-										router.push(
-											`/project/om/${project.id}/dashboard`
-										);
+										console.error("Failed to generate insights:", error);
+										toast.error("Failed to generate insights. You can still view the OM.");
+										router.push(`/project/om/${project.id}/dashboard`);
 									} finally {
 										setIsGeneratingInsights(false);
 									}
