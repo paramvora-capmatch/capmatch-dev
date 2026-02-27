@@ -363,8 +363,10 @@ export const apiClient = {
     content: string;
     client_context?: any;
     image_urls?: string[];
+    client_request_id?: string;
+    reply_to?: number | null;
   }) => {
-    return apiRequest<{ message_id: string; response: string }>('/api/v1/chat/messages', {
+    return apiRequest<{ message_id: number; response: string }>('/api/v1/chat/messages', {
       method: 'POST',
       body: JSON.stringify(data),
     });

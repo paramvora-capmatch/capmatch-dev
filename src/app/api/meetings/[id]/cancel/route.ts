@@ -3,17 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 import { cancelCalendarEvent } from '@/services/calendarInviteService';
 import { CancelMeetingResponse } from '@/types/meeting-types';
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-// Server-side Supabase client with service role
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+import { safeErrorResponse } from '@/lib/api-validation';
+import { unauthorized, forbidden, notFound } from '@/lib/api-errors';
+import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const supabaseAdmin = getSupabaseAdmin();
   try {
     const params = await context.params;
     const meetingId = params.id;
@@ -21,10 +20,7 @@ export async function POST(
     // Get authenticated user
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Unauthorized - No auth header' },
-        { status: 401 }
-      );
+      return unauthorized('Unauthorized - No auth header');
     }
 
     // Extract token from Bearer header
@@ -37,10 +33,7 @@ export async function POST(
     } = await supabaseAdmin.auth.getUser(token);
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      );
+      return unauthorized('Unauthorized - Invalid token');
     }
 
     const rlId = getRateLimitId(request, user.id);
@@ -50,20 +43,17 @@ export async function POST(
     // Fetch the meeting
     const { data: meeting, error: fetchError } = await supabaseAdmin
       .from('meetings')
-      .select('*')
+      .select('id, organizer_id')
       .eq('id', meetingId)
       .single();
 
     if (fetchError || !meeting) {
-      return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
+      return notFound('Meeting not found');
     }
 
     // Verify user is the organizer
     if (meeting.organizer_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Only the organizer can cancel the meeting' },
-        { status: 403 }
-      );
+      return forbidden('Only the organizer can cancel the meeting');
     }
 
     // Update meeting status to cancelled
@@ -76,7 +66,7 @@ export async function POST(
       .eq('id', meetingId);
 
     if (updateError) {
-      console.error('Error cancelling meeting:', updateError);
+      logger.error({ err: updateError }, 'Error cancelling meeting');
       return NextResponse.json(
         { error: 'Failed to cancel meeting' },
         { status: 500 }
@@ -90,7 +80,7 @@ export async function POST(
       .eq('meeting_id', meetingId);
 
     if (participantsError) {
-      console.error('Error fetching participants:', participantsError);
+      logger.error({ err: participantsError }, 'Error fetching participants');
     }
 
     // Cancel calendar events for all participants
@@ -109,9 +99,9 @@ export async function POST(
               cancelledEvents++;
             }
           } catch (error) {
-            console.error(
-              `Error cancelling calendar event for user ${participant.user_id}:`,
-              error
+            logger.error(
+              { userId: participant.user_id, err: error },
+              'Error cancelling calendar event for user'
             );
             errors.push(
               `Failed to cancel calendar event for user ${participant.user_id}`
@@ -129,10 +119,6 @@ export async function POST(
 
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    console.error('Error in cancel meeting endpoint:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, 'Internal server error');
   }
 }

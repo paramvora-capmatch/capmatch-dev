@@ -1,5 +1,6 @@
 // src/components/chat/RichTextInput.tsx
 import React, { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
+import DOMPurify from 'isomorphic-dompurify';
 import { FileText, X } from 'lucide-react';
 
 interface Mention {
@@ -192,7 +193,11 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
     // Set flag to prevent handleInput from firing during DOM update
     isUpdatingDOMRef.current = true;
 
-    // Value changed externally (or forced), update the DOM
+    // Value changed externally (or forced), update the DOM — sanitize to prevent XSS
+    const safeHtml = DOMPurify.sanitize(valueToHTML(value), {
+      ALLOWED_TAGS: ['span', 'br', 'button'],
+      ALLOWED_ATTR: ['class', 'contenteditable', 'data-type', 'data-id', 'data-name', 'style', 'type', 'aria-label'],
+    });
     {
       // Save cursor position
       const selection = window.getSelection();
@@ -261,7 +266,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
         }
       }
 
-      editorRef.current.innerHTML = valueToHTML(value);
+      editorRef.current.innerHTML = safeHtml;
 
       // Restore cursor position
       if (selection && cursorPos >= 0) {
@@ -453,7 +458,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
     },
     clear: () => {
       if (editorRef.current) {
-        editorRef.current.innerHTML = '';
+        editorRef.current.innerHTML = DOMPurify.sanitize('');
         previousValueRef.current = '';
         isInternalUpdateRef.current = false;
         onChange('');

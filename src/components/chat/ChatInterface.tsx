@@ -1,5 +1,6 @@
 // src/components/chat/ChatInterface.tsx
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import Image from "next/image";
 import { useShallow } from "zustand/react/shallow";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
@@ -119,12 +120,16 @@ function ChatMessageImage({
     return <div className={cn("bg-gray-100 animate-pulse rounded", className)} />;
   }
   return (
-    <img
-      src={url}
-      alt=""
-      className={cn("object-cover rounded cursor-pointer", className)}
-      onClick={onClick}
-    />
+    <span className={cn("relative block", className)}>
+      <Image
+        src={url}
+        alt="Attached image"
+        fill
+        className={cn("object-cover rounded cursor-pointer", className)}
+        onClick={onClick}
+        sizes="(max-width: 192px) 192px, 256px"
+      />
+    </span>
   );
 }
 
@@ -1312,9 +1317,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         key={index}
                         className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50 w-16 h-16 flex-shrink-0"
                       >
-                        <img
+                        <Image
                           src={item.preview}
-                          alt=""
+                          alt="Attachment preview"
+                          width={64}
+                          height={64}
                           className="w-full h-full object-cover"
                         />
                         <button
@@ -1451,12 +1458,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <X size={24} />
           </button>
           {lightboxSignedUrl && (
-            <img
-              src={lightboxSignedUrl}
-              alt=""
-              className="max-w-full max-h-[90vh] object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
+            <span className="relative block max-w-full max-h-[90vh] w-full h-[90vh]">
+              <Image
+                src={lightboxSignedUrl}
+                alt="Enlarged attachment"
+                fill
+                className="object-contain rounded-lg"
+                onClick={(e) => e.stopPropagation()}
+                sizes="100vw"
+              />
+            </span>
           )}
           {!lightboxSignedUrl && (
             <div className="w-32 h-32 bg-gray-800 rounded-lg animate-pulse" />

@@ -3,32 +3,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBackendUrl } from '@/lib/apiConfig';
 import { validateBody, projectQaBodySchema } from '@/lib/api-validation';
+import { unauthorized, validationError } from '@/lib/api-errors';
 import { checkRateLimit, getRateLimitId, AI_RATE_LIMIT } from '@/lib/rate-limit';
+import { getSupabaseAccessTokenFromRequest } from '@/lib/supabase/auth-token';
+import { createRequestLogger } from '@/lib/logger';
 
 // Increase timeout for streaming responses (60 seconds)
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const log = createRequestLogger(req);
   try {
     const [err, body] = await validateBody(req, projectQaBodySchema);
     if (err) return err;
-    if (!body) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
+    if (!body) return validationError('Validation failed');
 
     // Check if request was already aborted
     if (req.signal?.aborted) {
-      console.log('Request aborted before streaming');
+      log.info('Request aborted before streaming');
       return new NextResponse(null, { status: 499 });
     }
 
-    // Verify user server-side (getUser validates JWT; getSession does not)
+    // Verify user server-side (getUser validates JWT)
     const { createClient } = await import('@/lib/supabase/server');
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return unauthorized();
     }
-    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = getSupabaseAccessTokenFromRequest(req);
 
     const rlId = getRateLimitId(req, user.id);
     const rl = checkRateLimit(rlId, AI_RATE_LIMIT, 'project-qa');
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
       body: JSON.stringify(body),
       signal: req.signal,
@@ -48,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     if (!backendResponse.ok) {
       const errorText = await backendResponse.text();
-      console.error('Backend project-qa error:', errorText);
+      log.error({ errorText, status: backendResponse.status }, 'Backend project-qa error');
       return NextResponse.json(
         { error: `Backend AI service failed: ${backendResponse.statusText}` },
         { status: backendResponse.status }
@@ -75,7 +79,7 @@ export async function POST(req: NextRequest) {
           await writer.write(value);
         }
       } catch (e) {
-        console.error('Stream pipe error:', e);
+        log.error({ err: e }, 'Stream pipe error');
       } finally {
         await writer.close();
       }
@@ -97,7 +101,7 @@ export async function POST(req: NextRequest) {
     if (req.signal?.aborted) {
       return new NextResponse(null, { status: 499 });
     }
-    console.error('project-qa proxy error:', e);
+    log.error({ err: e }, 'project-qa proxy error');
     const statusCode = e && typeof e === 'object' && 'status' in e ? Number((e as { status: number }).status) : 500;
     return NextResponse.json(
       { error: 'Failed to get answer' },

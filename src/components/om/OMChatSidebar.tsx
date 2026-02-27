@@ -98,7 +98,11 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
     try {
       const storedMessages = sessionStorage.getItem(CHAT_STORAGE_KEY);
       if (storedMessages) {
-        setMessages(JSON.parse(storedMessages));
+        try {
+          setMessages(JSON.parse(storedMessages));
+        } catch {
+          setMessages([]);
+        }
       }
     } catch (err) {
       console.warn('Failed to load chat messages from session storage:', err);
@@ -396,7 +400,10 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
         <div className="overflow-x-auto -mx-6 px-6">
           <div 
             className="prose prose-sm max-w-none [&_table]:min-w-full [&_table]:border-collapse [&_th]:border [&_th]:border-gray-300 [&_th]:bg-gray-50 [&_th]:px-4 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold [&_th]:text-gray-900 [&_td]:border [&_td]:border-gray-300 [&_td]:px-4 [&_td]:py-2 [&_td]:text-gray-700"
-            dangerouslySetInnerHTML={{ __html: tableContent }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(tableContent, {
+              ALLOWED_TAGS: ['table', 'thead', 'tbody', 'tr', 'th', 'td', 'colgroup', 'col'],
+              ALLOWED_ATTR: ['class', 'style', 'data-table-id'],
+            }) }}
           />
         </div>
       </Modal>

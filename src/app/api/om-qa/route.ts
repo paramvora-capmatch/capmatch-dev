@@ -3,7 +3,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBackendUrl } from '@/lib/apiConfig';
 import { validateBody, omQaBodySchema } from '@/lib/api-validation';
+import { unauthorized, validationError } from '@/lib/api-errors';
+import { createRequestLogger } from '@/lib/logger';
 import { checkRateLimit, getRateLimitId, AI_RATE_LIMIT } from '@/lib/rate-limit';
+import { getSupabaseAccessTokenFromRequest } from '@/lib/supabase/auth-token';
 import {
   scenarioData,
   marketComps,
@@ -40,29 +43,30 @@ function prepareOMData() {
 }
 
 export async function POST(req: NextRequest) {
+  const log = createRequestLogger(req);
   try {
     const [err, parsed] = await validateBody(req, omQaBodySchema);
     if (err) return err;
     const question = parsed?.question;
-    if (!question) return NextResponse.json({ error: 'Missing question' }, { status: 400 });
+    if (!question) return validationError('Missing question');
 
     // Check if request was already aborted
     if (req.signal?.aborted) {
-      console.log('Request aborted before streaming');
+      log.info('Request aborted before streaming');
       return new NextResponse(null, { status: 499 });
     }
 
     // Prepare OM data to send to backend
     const omData = prepareOMData();
 
-    // Verify user server-side (getUser validates JWT; getSession does not)
+    // Verify user server-side (getUser validates JWT)
     const { createClient } = await import('@/lib/supabase/server');
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return unauthorized();
     }
-    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = getSupabaseAccessTokenFromRequest(req);
 
     const rlId = getRateLimitId(req, user.id);
     const rl = checkRateLimit(rlId, AI_RATE_LIMIT, 'om-qa');
@@ -74,7 +78,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
       body: JSON.stringify({
         question,
@@ -85,7 +89,7 @@ export async function POST(req: NextRequest) {
 
     if (!backendResponse.ok) {
       const errorText = await backendResponse.text();
-      console.error('Backend om-qa error:', errorText);
+      log.error({ errorText, status: backendResponse.status }, 'Backend om-qa error');
       return NextResponse.json(
         { error: `Backend AI service failed: ${backendResponse.statusText}` },
         { status: backendResponse.status }
@@ -112,7 +116,7 @@ export async function POST(req: NextRequest) {
           await writer.write(value);
         }
       } catch (e) {
-        console.error('Stream pipe error:', e);
+        log.error({ err: e }, 'Stream pipe error');
       } finally {
         await writer.close();
       }
@@ -130,11 +134,11 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     // Handle abort errors gracefully
     if (e?.name === 'AbortError' || req.signal?.aborted) {
-      console.log('Stream aborted by client');
+      log.info('Stream aborted by client');
       return new NextResponse(null, { status: 499 });
     }
 
-    console.error('om-qa proxy error:', e);
+    log.error({ err: e }, 'om-qa proxy error');
     return NextResponse.json(
       { error: 'Failed to get answer' },
       { status: 500 }

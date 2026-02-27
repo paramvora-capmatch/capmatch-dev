@@ -4,32 +4,45 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z, ZodSchema } from 'zod';
+import {
+  errorResponse,
+  validationError as apiValidationError,
+  unauthorized as apiUnauthorized,
+  forbidden as apiForbidden,
+  ERROR_CODES,
+} from '@/lib/api-errors';
+import { logger } from '@/lib/logger';
 
-/** Return 400 with validation error details */
+/** Return 400 with validation error details (standard shape) */
 export function validationErrorResponse(
   message: string,
   issues?: z.ZodIssue[]
 ): NextResponse {
-  return NextResponse.json(
-    {
-      error: message,
-      ...(issues?.length ? { details: issues.map((i) => ({ path: i.path, message: i.message })) } : {}),
-    },
-    { status: 400 }
-  );
+  const details = issues?.length
+    ? issues.map((i) => ({ path: i.path, message: i.message }))
+    : undefined;
+  return apiValidationError(message, details);
 }
 
 /**
  * Return a JSON error response without leaking internal details.
- * Logs the full error server-side; returns only userMessage to the client.
+ * Logs the full error server-side; returns only userMessage to the client (standard shape).
  */
 export function safeErrorResponse(
   error: unknown,
   userMessage: string,
   status: number = 500
 ): NextResponse {
-  console.error('[API]', userMessage, error);
-  return NextResponse.json({ error: userMessage }, { status });
+  logger.error({ err: error, msg: userMessage }, '[API] %s', userMessage);
+  return errorResponse(status, ERROR_CODES.INTERNAL_ERROR, userMessage);
+}
+
+export function unauthorizedResponse(detail = 'Unauthorized'): NextResponse {
+  return apiUnauthorized(detail);
+}
+
+export function forbiddenResponse(detail = 'Forbidden'): NextResponse {
+  return apiForbidden(detail);
 }
 
 /**

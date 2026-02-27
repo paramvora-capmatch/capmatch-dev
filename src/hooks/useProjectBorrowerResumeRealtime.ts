@@ -46,10 +46,8 @@ export const useProjectBorrowerResumeRealtime = (
 	const [isRemoteUpdate, setIsRemoteUpdate] = useState(false);
 
 	const channelRef = useRef<RealtimeChannel | null>(null);
-	const isLocalSaveRef = useRef(false);
 	const lastKnownVersionRef = useRef<number | null>(null);
 	const remoteUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	const localSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const isAutofillRunningRef = useRef(false);
 	const lastContentHashRef = useRef<string | null>(null);
@@ -187,27 +185,8 @@ export const useProjectBorrowerResumeRealtime = (
 			}
 		};
 
-		const handleLocalSaveStart = (e: any) => {
-			// Only track local saves for this project
-			if (
-				e.detail?.projectId === projectId &&
-				e.detail?.context === "borrower"
-			) {
-				isLocalSaveRef.current = true;
-				// Clear any pending timeout
-				if (localSaveTimeoutRef.current) {
-					clearTimeout(localSaveTimeoutRef.current);
-				}
-				// Reset flag after a delay to catch any delayed events
-				localSaveTimeoutRef.current = setTimeout(() => {
-					isLocalSaveRef.current = false;
-				}, 3000);
-			}
-		};
-
 		window.addEventListener("autofill-started", handleAutofillStart);
 		window.addEventListener("autofill-completed", handleAutofillComplete);
-		window.addEventListener("local-save-started", handleLocalSaveStart);
 
 		return () => {
 			if (retryTimeoutRef.current) {
@@ -218,10 +197,6 @@ export const useProjectBorrowerResumeRealtime = (
 			window.removeEventListener(
 				"autofill-completed",
 				handleAutofillComplete
-			);
-			window.removeEventListener(
-				"local-save-started",
-				handleLocalSaveStart
 			);
 		};
 	}, [projectId, load, updateContentIfChanged]);
@@ -241,19 +216,6 @@ export const useProjectBorrowerResumeRealtime = (
 					filter: `project_id=eq.${projectId}`,
 				},
 				async (payload) => {
-					// Ignore our own updates
-					if (isLocalSaveRef.current) {
-						// Clear any pending timeout
-						if (localSaveTimeoutRef.current) {
-							clearTimeout(localSaveTimeoutRef.current);
-						}
-						// Reset flag after a delay to catch any delayed events
-						localSaveTimeoutRef.current = setTimeout(() => {
-							isLocalSaveRef.current = false;
-						}, 3000);
-						return;
-					}
-
 					// Version-based conflict resolution: only apply if remote is newer
 					const remoteVersion = (payload.new as { version_number?: number })
 						?.version_number;
@@ -311,18 +273,6 @@ export const useProjectBorrowerResumeRealtime = (
 					filter: `project_id=eq.${projectId}`,
 				},
 				async (payload) => {
-					if (isLocalSaveRef.current) {
-						// Clear any pending timeout
-						if (localSaveTimeoutRef.current) {
-							clearTimeout(localSaveTimeoutRef.current);
-						}
-						// Reset flag after a delay to catch any delayed events
-						localSaveTimeoutRef.current = setTimeout(() => {
-							isLocalSaveRef.current = false;
-						}, 3000);
-						return;
-					}
-
 					// Version-based conflict resolution: only apply if remote is newer
 					const remoteVersion = (payload.new as { version_number?: number })
 						?.version_number;
@@ -372,11 +322,8 @@ export const useProjectBorrowerResumeRealtime = (
 					filter: `project_id=eq.${projectId},resource_type=eq.BORROWER_RESUME`,
 				},
 				async (payload) => {
-					// Ignore resource updates during autofill or local saves
-					if (
-						isLocalSaveRef.current ||
-						isAutofillRunningRef.current
-					) {
+					// Ignore resource updates during autofill
+					if (isAutofillRunningRef.current) {
 						return;
 					}
 
@@ -404,9 +351,6 @@ export const useProjectBorrowerResumeRealtime = (
 			if (remoteUpdateTimeoutRef.current) {
 				clearTimeout(remoteUpdateTimeoutRef.current);
 			}
-			if (localSaveTimeoutRef.current) {
-				clearTimeout(localSaveTimeoutRef.current);
-			}
 			channelRef.current?.unsubscribe();
 			channelRef.current = null;
 		};
@@ -432,7 +376,6 @@ export const useProjectBorrowerResumeRealtime = (
 
 			setIsSaving(true);
 			setError(null);
-			isLocalSaveRef.current = true;
 
 			try {
 				console.log('[useProjectBorrowerResumeRealtime] Updates to save:', updates);
@@ -470,17 +413,17 @@ export const useProjectBorrowerResumeRealtime = (
 						? err.message
 						: "Failed to save borrower resume";
 				setError(message);
+				// On version conflict, reload so user sees latest
+				if (typeof message === "string" && message.includes("VERSION_CONFLICT")) {
+					const { content: latest, versionNumber } = await getProjectBorrowerResumeWithVersion(projectId);
+					if (latest) {
+						updateContentIfChanged(latest);
+						lastKnownVersionRef.current = versionNumber;
+					}
+				}
 				throw err;
 			} finally {
 				setIsSaving(false);
-				// Reset flag after a delay to allow realtime event to process
-				// Clear any pending timeout first
-				if (localSaveTimeoutRef.current) {
-					clearTimeout(localSaveTimeoutRef.current);
-				}
-				localSaveTimeoutRef.current = setTimeout(() => {
-					isLocalSaveRef.current = false;
-				}, 3000);
 			}
 		},
 		[projectId, updateContentIfChanged]

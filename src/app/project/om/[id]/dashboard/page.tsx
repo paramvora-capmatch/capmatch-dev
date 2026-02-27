@@ -30,7 +30,12 @@ import {
 	TrendingDown,
 	Minus,
 } from "lucide-react";
-import PopulationHeatmap from "@/components/om/PopulationHeatmap";
+import dynamic from "next/dynamic";
+
+const PopulationHeatmap = dynamic(() => import("@/components/om/PopulationHeatmap"), {
+  ssr: false,
+  loading: () => <div className="min-h-[300px] animate-pulse rounded-lg bg-muted/50" />,
+});
 
 export default function OMDashboardPage() {
 	const params = useParams();

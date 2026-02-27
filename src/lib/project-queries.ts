@@ -265,8 +265,8 @@ export interface ProjectResumeContent {
 	completenessPercent?: number;
 	internalAdvisorNotes?: string;
 
-	projectSections?: any;
-	borrowerSections?: any;
+	projectSections?: Record<string, Record<string, unknown>>;
+	borrowerSections?: Record<string, Record<string, unknown>>;
 }
 
 /**
@@ -320,7 +320,7 @@ export interface BorrowerResumeContent {
 	// Enhanced Metadata Containers (New)
 	_metadata?: Record<string, import("@/types/enhanced-types").FieldMetadata>;
 	_lockedFields?: Record<string, boolean>;
-	_fieldStates?: Record<string, any>;
+	_fieldStates?: Record<string, unknown>;
 }
 
 /**
@@ -373,7 +373,7 @@ export interface AdvisorResumeContent {
 // =============================================================================
 
 // Helper to normalize legacy sources
-const toSourcesArray = (input: any): any[] => {
+const toSourcesArray = (input: unknown): unknown[] => {
 	if (!input) return [];
 	if (Array.isArray(input)) return input;
 	if (typeof input === "string") {
@@ -396,7 +396,7 @@ const toSourcesArray = (input: any): any[] => {
 /**
  * Helper: Process raw resume content to extract flat content and metadata
  */
-function processResumeContent(rawContent: any): {
+function processResumeContent(rawContent: Record<string, unknown>): {
 	flatContent: Partial<ProjectResumeContent>;
 	metadata: Record<string, import("@/types/enhanced-types").FieldMetadata>;
 } {
@@ -449,7 +449,7 @@ async function fetchProjectResumeData(projectId: string): Promise<{
 	resume: { content: ProjectResumeContent } | null;
 	completenessPercent: number | undefined;
 	lockedFields: Record<string, boolean>;
-	fieldStates: any;
+	fieldStates: Record<string, unknown>;
 	resourceId: string | null;
 }> {
 	const { data: resource } = await supabase
@@ -546,7 +546,7 @@ async function fetchBorrowerResumeData(projectId: string): Promise<{
  * Helper: Build a ProjectProfile from project and resume data
  */
 function buildProjectProfile(
-	project: any,
+	project: Record<string, unknown>,
 	resumeData: {
 		flatContent: Partial<ProjectResumeContent>;
 		metadata: Record<
@@ -555,7 +555,7 @@ function buildProjectProfile(
 		>;
 		completenessPercent: number | undefined;
 		lockedFields: Record<string, boolean>;
-		fieldStates: any;
+		fieldStates: Record<string, unknown>;
 		resourceId: string | null;
 	},
 	borrowerData: {
@@ -601,12 +601,12 @@ function buildProjectProfile(
 		...flatContent,
 		projectName: flatContent.projectName || project.name,
 		assetType: flatContent.assetType || "",
-		projectStatus: (flatContent.dealStatus as any) || "",
+		projectStatus: flatContent.dealStatus || "",
 		dealStatus: flatContent.dealStatus || "",
 		deal_type: project.deal_type,
-		interestRateType: (flatContent.interestRateType as any) || "",
-		recoursePreference: (flatContent.recoursePreference as any) || "",
-		exitStrategy: flatContent.exitStrategy as any,
+		interestRateType: flatContent.interestRateType || "",
+		recoursePreference: flatContent.recoursePreference || "",
+		exitStrategy: flatContent.exitStrategy,
 		completenessPercent: completenessPercent ?? 0,
 		internalAdvisorNotes: flatContent.internalAdvisorNotes || "",
 		borrowerProgress,
@@ -704,7 +704,7 @@ export const getProjectsWithResumes = async (
 		{ current_version_id: string | null }
 	>();
 
-	projectResources?.forEach((resource: any) => {
+	projectResources?.forEach((resource: Record<string, unknown>) => {
 		if (resource.resource_type === "PROJECT_RESUME") {
 			projectResumeResources.set(resource.project_id, {
 				id: resource.id,
@@ -728,7 +728,9 @@ export const getProjectsWithResumes = async (
 		.filter((id): id is string => id !== null);
 
 	// Fetch project resumes by version ID (current versions)
-	const projectResumeQueries: Array<Promise<{ data: any; error: any }>> = [];
+	const projectResumeQueries: Array<
+		Promise<{ data: Record<string, unknown>[] | null; error: unknown }>
+	> = [];
 	if (projectResumeVersionIds.length > 0) {
 		projectResumeQueries.push(
 			Promise.resolve(
@@ -754,12 +756,12 @@ export const getProjectsWithResumes = async (
 	);
 
 	const projectResumeResults = await Promise.all(projectResumeQueries);
-	const projectResumesByVersionId = new Map<string, any>();
-	const projectResumesByProjectId = new Map<string, any[]>();
+	const projectResumesByVersionId = new Map<string, Record<string, unknown>>();
+	const projectResumesByProjectId = new Map<string, Record<string, unknown>[]>();
 
 	projectResumeResults.forEach((result) => {
 		if (result.error) return;
-		result.data?.forEach((resume: any) => {
+		result.data?.forEach((resume: Record<string, unknown>) => {
 			if (resume.id && !resume.project_id) {
 				// This is from the version ID query
 				projectResumesByVersionId.set(resume.id, resume);
@@ -774,7 +776,9 @@ export const getProjectsWithResumes = async (
 	});
 
 	// Fetch borrower resumes by version ID (current versions)
-	const borrowerResumeQueries: Array<Promise<{ data: any; error: any }>> = [];
+	const borrowerResumeQueries: Array<
+		Promise<{ data: Record<string, unknown>[] | null; error: unknown }>
+	> = [];
 	if (borrowerResumeVersionIds.length > 0) {
 		borrowerResumeQueries.push(
 			Promise.resolve(
@@ -800,12 +804,12 @@ export const getProjectsWithResumes = async (
 	);
 
 	const borrowerResumeResults = await Promise.all(borrowerResumeQueries);
-	const borrowerResumesByVersionId = new Map<string, any>();
-	const borrowerResumesByProjectId = new Map<string, any[]>();
+	const borrowerResumesByVersionId = new Map<string, Record<string, unknown>>();
+	const borrowerResumesByProjectId = new Map<string, Record<string, unknown>[]>();
 
 	borrowerResumeResults.forEach((result) => {
 		if (result.error) return;
-		result.data?.forEach((resume: any) => {
+		result.data?.forEach((resume: Record<string, unknown>) => {
 			if (resume.id && !resume.project_id) {
 				// This is from the version ID query
 				borrowerResumesByVersionId.set(resume.id, resume);
@@ -821,10 +825,10 @@ export const getProjectsWithResumes = async (
 
 	// Process each project
 	return (
-		projects?.map((project: any) => {
+		projects?.map((project: Record<string, unknown>) => {
 			// Get project resume
-			const projectResource = projectResumeResources.get(project.id);
-			let projectResume: any = null;
+			const projectResource = projectResumeResources.get(project.id as string);
+			let projectResume: Record<string, unknown> | null = null;
 			let projectResumeResourceId: string | null = null;
 
 			if (projectResource?.current_version_id) {
@@ -941,7 +945,7 @@ export const saveProjectResume = async (
 
 	const { data: existing } = await supabase
 		.from("project_resumes")
-		.select("id, content")
+		.select("id, content, version_number")
 		.eq("project_id", projectId)
 		.order("created_at", { ascending: false })
 		.limit(1)
@@ -1070,7 +1074,8 @@ export const saveProjectResume = async (
 			lockedFields
 		);
 
-		const { error } = await supabase
+		const existingVersion = (existing as { version_number?: number })?.version_number;
+		let updateQuery = supabase
 			.from("project_resumes")
 			.update({
 				content: contentToSave,
@@ -1078,10 +1083,17 @@ export const saveProjectResume = async (
 				completeness_percent: completionPercent,
 			})
 			.eq("id", existing.id);
+		if (existingVersion != null) {
+			updateQuery = updateQuery.eq("version_number", existingVersion);
+		}
+		const { data: updated, error } = await updateQuery.select("id").maybeSingle();
 		if (error)
 			throw new Error(
 				`Failed to update project resume: ${error.message}`
 			);
+		if (existingVersion != null && !updated) {
+			throw new Error("PROJECT_RESUME_VERSION_CONFLICT: The resume was updated by someone else. Please refresh and try again.");
+		}
 
 		// Track activity (non-blocking)
 		const now = new Date().toISOString();
@@ -1140,11 +1152,27 @@ export const saveProjectResume = async (
 				`Failed to create project resume: ${error.message}`
 			);
 
-		await supabase
+		// Optimistic locking: only update resource pointer if it still points to the version we read
+		const { data: projectResource } = await supabase
 			.from("resources")
-			.update({ current_version_id: newResume.id })
+			.select("id, current_version_id")
 			.eq("project_id", projectId)
-			.eq("resource_type", "PROJECT_RESUME");
+			.eq("resource_type", "PROJECT_RESUME")
+			.maybeSingle();
+		if (projectResource) {
+			const updateQuery = supabase
+				.from("resources")
+				.update({ current_version_id: newResume.id })
+				.eq("id", projectResource.id);
+			const updateWithLock = existing?.id && projectResource.current_version_id
+				? updateQuery.eq("current_version_id", existing.id)
+				: updateQuery;
+			const { data: updatedResource, error: updateErr } = await updateWithLock.select("id").maybeSingle();
+			if (updateErr) throw new Error(`Failed to update resource pointer: ${updateErr.message}`);
+			if (existing?.id && projectResource.current_version_id && !updatedResource) {
+				throw new Error("PROJECT_RESUME_VERSION_CONFLICT: The resume was updated by someone else. Please refresh and try again.");
+			}
+		}
 
 		// Track activity (non-blocking)
 		const now = new Date().toISOString();
@@ -1204,7 +1232,7 @@ try {
  * borrower fields have been replaced by bare booleans (e.g. mirrors of
  * _lockedFields), which should not be treated as the active resume.
  */
-function isCorruptedBooleanSnapshot(content: any): boolean {
+function isCorruptedBooleanSnapshot(content: unknown): boolean {
 	if (!content || typeof content !== "object") return false;
 
 	// Strip metadata/root keys - content is always flat now
@@ -1736,31 +1764,56 @@ export const saveProjectBorrowerResume = async (
 			}
 		}
 
-		// Update resource pointer
-		// Update resource pointer
-		// Check if resource exists to avoid ON CONFLICT 400 error
+		// Update resource pointer (optimistic locking: only if current_version_id still points to the version we read)
 		const { data: existingResource } = await supabase
 			.from("resources")
-			.select("id")
+			.select("id, current_version_id")
 			.eq("project_id", projectId)
 			.eq("resource_type", "BORROWER_RESUME")
 			.maybeSingle();
 
 		if (existingResource) {
-			await supabase
+			const updateQuery = supabase
 				.from("resources")
 				.update({ current_version_id: newResume.id })
 				.eq("id", existingResource.id);
+			// Optimistic lock: only update if pointer still points to the version we had when we started
+			if (existingResume?.id && existingResource.current_version_id) {
+				const { data: updated, error: updateErr } = await updateQuery
+					.eq("current_version_id", existingResume.id)
+					.select("id")
+					.maybeSingle();
+				if (updateErr) throw new Error(`Failed to update resource pointer: ${updateErr.message}`);
+				if (!updated) {
+					throw new Error("BORROWER_RESUME_VERSION_CONFLICT: The resume was updated by someone else. Please refresh and try again.");
+				}
+			} else {
+				const { error: updateErr } = await updateQuery;
+				if (updateErr) throw new Error(`Failed to update resource pointer: ${updateErr.message}`);
+			}
 		} else {
-			// Need to fetch org_id for insert
-			const ownerOrgId = (await getProjectWithResume(projectId)).owner_org_id;
-
-			await supabase.from("resources").insert({
-				project_id: projectId,
-				resource_type: "BORROWER_RESUME",
-				current_version_id: newResume.id,
-				org_id: ownerOrgId,
+			// Create resource row via API (server-side mutation; no direct Supabase insert from browser)
+			const { data: { session } } = await supabase.auth.getSession();
+			if (!session?.access_token) {
+				throw new Error("Unauthorized: cannot ensure borrower-resume resource");
+			}
+			const base =
+				typeof window !== "undefined"
+					? window.location.origin
+					: process.env.NEXT_PUBLIC_SITE_URL ?? "";
+			const res = await fetch(`${base}/api/borrower-resume/ensure-resource`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${session.access_token}`,
+				},
+				body: JSON.stringify({ projectId, resumeId: newResume.id }),
 			});
+			if (!res.ok) {
+				const errBody = await res.json().catch(() => ({}));
+				const msg = (errBody as { error?: string })?.error ?? "Failed to ensure borrower-resume resource";
+				throw new Error(msg);
+			}
 		}
 
 

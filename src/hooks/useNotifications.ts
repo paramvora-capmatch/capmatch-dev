@@ -5,6 +5,7 @@ import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "./useAuth";
 import { useToast } from "@/contexts/ToastContext";
+import { isValidUuid } from "@/lib/isUuid";
 
 export interface NotificationRecord {
 	id: number;
@@ -65,6 +66,10 @@ export function useNotifications({
 
 	const fetchNotifications = useCallback(async () => {
 		if (!user?.id || !isAuthenticated) {
+			resetState();
+			return;
+		}
+		if (!isValidUuid(user.id)) {
 			resetState();
 			return;
 		}

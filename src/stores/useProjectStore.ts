@@ -9,74 +9,10 @@ import {
 import { supabase } from "../../lib/supabaseClient";
 import { apiClient } from "@/lib/apiClient";
 import { useAuthStore } from "./useAuthStore";
-import { usePermissionStore } from "./usePermissionStore"; // Import the new store
+import { usePermissionStore } from "./usePermissionStore";
+import { useProjectProgressStore } from "./useProjectProgressStore";
+import { useProjectResumeStore } from "./useProjectResumeStore";
 import { ProjectProfile } from "@/types/enhanced-types";
-import {
-	computeBorrowerCompletion,
-	computeProjectCompletion,
-} from "@/utils/resumeCompletion";
-
-// Maps ProjectProfile fields to core projects table columns
-const projectProfileToDbProject = (
-	profileData: Partial<ProjectProfile>
-): Record<string, unknown> => {
-	const dbData: Record<string, unknown> = {};
-	const keyMap: { [key in keyof ProjectProfile]?: string } = {
-		projectName: "name", // Map to name in new schema
-		assignedAdvisorUserId: "assigned_advisor_id", // Map to assigned_advisor_id in new schema
-	};
-	for (const key in profileData) {
-		const mappedKey = keyMap[key as keyof ProjectProfile];
-		if (mappedKey) {
-			dbData[mappedKey] = profileData[key as keyof ProjectProfile];
-		}
-	}
-	return dbData;
-};
-
-// Maps ProjectProfile fields to project_resumes.content JSONB column
-const projectProfileToResumeContent = (
-	profileData: Partial<ProjectProfile>
-): Partial<ProjectResumeContent> => {
-	const resumeContent: Partial<ProjectResumeContent> = {};
-
-	// Skip these internal/metadata fields that shouldn't be saved to resume content
-	const skipFields = new Set([
-		"id",
-		"owner_org_id",
-		"assignedAdvisorUserId",
-		"createdAt",
-		"updatedAt",
-		"_metadata",
-		"_lockedFields",
-		"_fieldStates",
-		"_lockedSections",
-		"projectSections",
-		"borrowerSections",
-		"borrowerProgress",
-		"completenessPercent", // Stored in separate column, not in content
-	]);
-
-	// Preserve ALL fields from profileData that are valid ProjectResumeContent fields
-	// This ensures autofilled fields are not lost during auto-save
-	for (const key in profileData) {
-		// Skip internal/metadata fields
-		if (skipFields.has(key)) continue;
-
-		// Skip functions and undefined values
-		const value = (profileData as any)[key];
-		if (typeof value === "function" || value === undefined) continue;
-
-		// Special handling for date field to convert empty string to null
-		if (key === "targetCloseDate" && value === "") {
-			(resumeContent as any)[key] = null;
-		} else {
-			// Preserve all fields - this ensures autofilled fields aren't lost
-			(resumeContent as any)[key] = value;
-		}
-	}
-	return resumeContent;
-};
 
 const parsePercentage = (value: unknown): number => {
 	if (typeof value === "number" && Number.isFinite(value)) {
@@ -126,46 +62,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			set({ projects: [], activeProject: null, isLoading: false });
 		},
 
-		calculateProgress: (project) => {
-			const projectResumeContent =
-				(project.projectSections as ProjectResumeContent | undefined) ||
-				null;
-			const borrowerContent =
-				(project.borrowerSections as
-					| BorrowerResumeContent
-					| undefined) || null;
-
-			// Prefer stored values from project profile (fetched from DB columns)
-			// Only calculate if stored values are missing/invalid
-			const storedCompletenessPercent = project.completenessPercent;
-			const storedBorrowerProgress = project.borrowerProgress;
-
-			const completenessPercent =
-				storedCompletenessPercent !== undefined &&
-				storedCompletenessPercent !== null &&
-				typeof storedCompletenessPercent === "number" &&
-				storedCompletenessPercent >= 0
-					? storedCompletenessPercent
-					: computeProjectCompletion(project);
-
-			const borrowerProgress =
-				storedBorrowerProgress !== undefined &&
-				storedBorrowerProgress !== null &&
-				typeof storedBorrowerProgress === "number" &&
-				storedBorrowerProgress >= 0
-					? storedBorrowerProgress
-					: computeBorrowerCompletion(borrowerContent);
-
-			const totalProgress = Math.round(
-				(completenessPercent + borrowerProgress) / 2
-			);
-
-			return {
-				borrowerProgress,
-				completenessPercent,
-				totalProgress,
-			};
-		},
+		calculateProgress: (project) =>
+			useProjectProgressStore.getState().calculateProgress(project),
 
 		loadUserProjects: async () => {
 			const { user } = useAuthStore.getState();
@@ -585,12 +483,12 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			}));
 
 			try {
+				const resumeStore = useProjectResumeStore.getState();
 				// Delegate update to FastAPI so RLS and permissions are enforced server-side
-				const coreUpdates = projectProfileToDbProject(updates);
+				const coreUpdates = resumeStore.projectProfileToDbProject(updates);
 				// Note: completenessPercent is now stored in a separate column, not in content
-				// saveProjectResume will calculate and save it automatically
 				const resumeContent = {
-					...projectProfileToResumeContent(updates),
+					...resumeStore.projectProfileToResumeContent(updates),
 				};
 
 				// Include metadata if present in updates

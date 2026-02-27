@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/api-validation";
 
 export async function GET(request: Request) {
     try {
@@ -32,7 +33,6 @@ export async function GET(request: Request) {
 
         return NextResponse.json({ files: imagePaths });
     } catch (error) {
-        console.error("Error reading lenders directory:", error);
-        return NextResponse.json({ error: "Failed to load lenders" }, { status: 500 });
+        return safeErrorResponse(error, "Failed to load lenders");
     }
 }

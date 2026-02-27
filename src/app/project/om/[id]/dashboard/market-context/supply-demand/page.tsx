@@ -3,7 +3,12 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, BarChart3, Clock } from "lucide-react";
-import SupplyDemandMap from "@/components/om/SupplyDemandMap";
+import dynamic from "next/dynamic";
+
+const SupplyDemandMap = dynamic(() => import("@/components/om/SupplyDemandMap"), {
+  ssr: false,
+  loading: () => <div className="min-h-[300px] animate-pulse rounded-lg bg-muted/50" />,
+});
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";

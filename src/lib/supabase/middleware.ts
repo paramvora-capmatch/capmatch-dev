@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { getSecureCookieOptions } from '@/lib/cookie-options';
 
 /**
  * Creates a Supabase client for use in Next.js middleware.
@@ -22,7 +23,7 @@ export function createMiddlewareClient(request: NextRequest) {
           );
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, getSecureCookieOptions(options as Record<string, unknown>))
           );
         },
       },

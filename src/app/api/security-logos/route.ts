@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/api-validation";
 
 const LOGOS_DIR = "Landing-Page/SecuritySectionLogos";
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".svg", ".webp"];
@@ -40,10 +41,6 @@ export async function GET(request: Request) {
 
 		return NextResponse.json({ logos });
 	} catch (error) {
-		console.error("Error reading security logos directory:", error);
-		return NextResponse.json(
-			{ error: "Failed to load security logos" },
-			{ status: 500 }
-		);
+		return safeErrorResponse(error, "Failed to load security logos");
 	}
 }

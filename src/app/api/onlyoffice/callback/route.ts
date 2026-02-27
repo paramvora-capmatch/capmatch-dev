@@ -1,24 +1,20 @@
 // src/app/api/onlyoffice/callback/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
-
-// Initialize Supabase admin client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { logger } from "@/lib/logger";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
+  const supabase = getSupabaseAdmin();
   const rlId = getRateLimitId(request);
   const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, "onlyoffice-callback");
   if (!rl.allowed) return rl.response;
 
   const jwtSecret = process.env.ONLYOFFICE_JWT_SECRET;
   if (!jwtSecret) {
-    console.error("ONLYOFFICE_JWT_SECRET is not set.");
+    logger.error("ONLYOFFICE_JWT_SECRET is not set.");
     return NextResponse.json(
       { error: 1, message: "Server configuration error" },
       { status: 500 }
@@ -43,10 +39,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch (jsonError) {
-    console.error(
-      "[OnlyOffice Callback] Failed to parse request body as JSON:",
-      jsonError
-    );
+    logger.error({ err: jsonError }, "[OnlyOffice Callback] Failed to parse request body as JSON");
     return NextResponse.json(
       { error: 1, message: "Invalid request body" },
       { status: 400 }
@@ -63,19 +56,17 @@ export async function POST(request: NextRequest) {
           | { actions?: Array<{ userid?: string }> }
           | undefined;
       } catch (err) {
-        console.error("[OnlyOffice Callback] JWT verification failed:", {
-          error: err instanceof Error ? err.message : String(err),
-          tokenSecret: jwtSecret ? "set" : "NOT SET",
-        });
+        logger.error(
+          { error: err instanceof Error ? err.message : String(err), tokenSecret: jwtSecret ? "set" : "NOT SET" },
+          "[OnlyOffice Callback] JWT verification failed"
+        );
         return NextResponse.json(
           { error: 1, message: "Invalid token" },
           { status: 403 }
         );
       }
     } else {
-      console.error(
-        "[OnlyOffice Callback] JWT token is missing from callback."
-      );
+      logger.error("[OnlyOffice Callback] JWT token is missing from callback.");
       return NextResponse.json(
         { error: 1, message: "Missing token" },
         { status: 403 }
@@ -94,9 +85,9 @@ export async function POST(request: NextRequest) {
       const userId = decoded?.actions?.[0]?.userid;
 
       if (!userId) {
-        console.error(
-          "[OnlyOffice Callback] No userId found in token for a save operation (status 2 or 6). Decoded payload:",
-          decoded
+        logger.error(
+          { decoded },
+          "[OnlyOffice Callback] No userId found in token for save operation (status 2 or 6)"
         );
         return NextResponse.json(
           {
@@ -110,7 +101,7 @@ export async function POST(request: NextRequest) {
 
       // Document is ready for saving
       if (!url) {
-        console.error("No URL provided in callback for saving.");
+        logger.error("No URL provided in callback for saving.");
         return NextResponse.json(
           { error: 1, message: "No URL provided for saving" },
           { status: 400 }
@@ -196,7 +187,7 @@ export async function POST(request: NextRequest) {
           changes_url: changesurl, // Store the changes URL
           storage_path: "placeholder",
         })
-        .select()
+        .select("id, version_number")
         .single();
       if (versionError)
         throw new Error(
@@ -248,7 +239,7 @@ export async function POST(request: NextRequest) {
       if (previousVersion && (previousVersion as any).metadata) {
           const prevMeta = (previousVersion as any).metadata;
           if (prevMeta.hash && prevMeta.hash === fileHash) {
-              console.log("[OnlyOffice Callback] Content identical to previous version, skipping save.");
+              logger.info("[OnlyOffice Callback] Content identical to previous version, skipping save.");
               return NextResponse.json({ error: 0 });
           }
       }
@@ -314,7 +305,7 @@ export async function POST(request: NextRequest) {
     // Just acknowledge the callback with success.
     return NextResponse.json({ error: 0 });
   } catch (error) {
-    console.error("Error processing OnlyOffice callback:", error);
+    logger.error({ err: error }, "Error processing OnlyOffice callback");
     return NextResponse.json(
       {
         error: 1,
@@ -343,6 +334,12 @@ export async function OPTIONS(request: NextRequest) {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
-  if (allowOrigin) headers["Access-Control-Allow-Origin"] = allowOrigin;
+  if (allowOrigin) {
+    headers["Access-Control-Allow-Origin"] = allowOrigin;
+  } else {
+    // When OnlyOffice origin is not configured or does not match, set a safe default
+    // so the header is always present (avoids CORS gaps from omitted header).
+    headers["Access-Control-Allow-Origin"] = requestOrigin ?? request.nextUrl.origin;
+  }
   return new NextResponse(null, { status: 204, headers });
 }
