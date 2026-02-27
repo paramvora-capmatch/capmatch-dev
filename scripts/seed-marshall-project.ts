@@ -354,14 +354,25 @@ async function onboardUserDirectly(
 			user_metadata: { full_name: fullName },
 		});
 
+		let userId = "";
+
 		if (authError) {
 			if (authError.message.includes("already registered") || authError.message.includes("unique")) {
 				const { data: existing } = await supabaseAdmin.from("profiles").select("id").eq("email", email).maybeSingle();
 				if (existing) return { user: { id: existing.id, email } };
+
+				// If in auth but not profile, we need to find the auth ID
+				const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+				if (listError) return { error: listError.message };
+				const authUser = users.users.find(u => u.email === email);
+				if (!authUser) return { error: "User exists in auth but could not be found by email" };
+				userId = authUser.id;
+			} else {
+				return { error: authError.message };
 			}
-			return { error: authError.message };
+		} else {
+			userId = authData!.user.id;
 		}
-		const userId = authData!.user.id;
 
 		await supabaseAdmin.from("profiles").upsert({
 			id: userId,
@@ -485,11 +496,26 @@ async function createMemberUser(
 			email_confirm: true,
 			user_metadata: { full_name: fullName },
 		});
-		if (authError || !authUser?.user) {
-			console.error("[seed] Failed to create member:", email, authError);
-			return null;
+		if (authError) {
+			if (authError.message.includes("already registered") || authError.message.includes("unique")) {
+				const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+				if (listError) {
+					console.error("[seed] Failed to list users to find existing member:", email, listError);
+					return null;
+				}
+				const authUser = users.users.find(u => u.email === email);
+				if (!authUser) {
+					console.error("[seed] Member exists in auth but could not be found by email:", email);
+					return null;
+				}
+				userId = authUser.id;
+			} else {
+				console.error("[seed] Failed to create member:", email, authError);
+				return null;
+			}
+		} else {
+			userId = authUser!.user.id;
 		}
-		userId = authUser.user.id;
 		const { error: profileError } = await supabaseAdmin.from("profiles").insert({
 			id: userId,
 			email,
