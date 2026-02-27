@@ -89,9 +89,9 @@ const LENDER_NAME = "Capital Lending Group";
 
 const POSSIBLE_DOC_PATHS = [
 	...(process.env.MARSHALL_DOCS_PATH ? [process.env.MARSHALL_DOCS_PATH] : []),
-	resolve(process.cwd(), "Deals", "Marshall", "final-set"),
-	resolve(process.cwd(), "..", "Deals", "Marshall", "final-set"),
-	"D:\\Career\\Technology\\Job\\CapMatch\\Deals\\Marshall\\final-set",
+	resolve(process.cwd(), "Deals", "Marshall", "Docs", "final-set"),
+	resolve(process.cwd(), "..", "Deals", "Marshall", "Docs", "final-set"),
+	"D:\\Career\\Technology\\Job\\CapMatch\\Deals\\Marshall\\Docs\\final-set",
 ];
 
 // ============================================================================
