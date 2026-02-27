@@ -50,6 +50,8 @@ export interface GenerateOMInsightsResponse {
   status?: string;
   message?: string;
   job_id?: string;
+  /** True when backend used cached insights (no job enqueued). */
+  already_has_insights?: boolean;
 }
 
 /**
