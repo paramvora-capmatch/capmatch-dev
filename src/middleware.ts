@@ -42,6 +42,22 @@ function isProtectedPath(pathname: string): boolean {
 /** Allowed frame ancestors for embedding (e.g. dataroom). */
 const FRAME_ANCESTORS_ALLOWED = ["'self'", "https://dataroom.capmatch.com", "http://dataroom.capmatch.com"];
 
+/** Build connect-src for CSP: allow Supabase and backend API URLs (e.g. local dev http origins). */
+function getConnectSrc(): string {
+  const parts = ["'self'", 'https:', 'wss:', 'ws:'];
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (supabaseUrl) {
+    const u = supabaseUrl.replace(/\/$/, '');
+    if (u && !parts.includes(u)) parts.push(u);
+  }
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  if (backendUrl) {
+    const u = backendUrl.replace(/\/+$/, '');
+    if (u && !parts.includes(u)) parts.push(u);
+  }
+  return parts.join(' ');
+}
+
 /** Apply security headers to every response. */
 function withSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -50,9 +66,10 @@ function withSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   // CSP enforcing (script-src includes unsafe-inline/unsafe-eval for compatibility; tighten with nonces when possible)
+  // connect-src includes NEXT_PUBLIC_SUPABASE_URL so auth token refresh to local Supabase (http://127.0.0.1:54321) works in dev
   response.headers.set(
     'Content-Security-Policy',
-    `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: wss: ws:; frame-ancestors ${FRAME_ANCESTORS_ALLOWED.join(' ')}; base-uri 'self'; form-action 'self'`
+    `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src ${getConnectSrc()}; frame-ancestors ${FRAME_ANCESTORS_ALLOWED.join(' ')}; base-uri 'self'; form-action 'self'`
   );
   return response;
 }

@@ -669,6 +669,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       const setupChannel = () => {
         const prevChannel = useChatRealtimeStore.getState().messageChannel;
         if (prevChannel) {
+          useChatRealtimeStore.getState().setMessageChannelClosingIntentionally(true);
           supabase.removeChannel(prevChannel);
           useChatRealtimeStore.getState().setMessageChannel(null);
         }
@@ -755,6 +756,12 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
             }
 
             // Replace optimistic message with real one, or append if no match
+            // Preserve image_urls from optimistic message if realtime payload omitted them (e.g. publication filter)
+            const mergedMessage = { ...newMessage } as ProjectMessage;
+            if (optimisticMatch?.image_urls?.length && (!mergedMessage.image_urls || mergedMessage.image_urls.length === 0)) {
+              mergedMessage.image_urls = optimisticMatch.image_urls;
+            }
+
             set((state) => {
               let updatedMessages: ProjectMessage[];
 
@@ -762,10 +769,10 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
                 // Replace optimistic message with real one
                 const optimisticIndex = state.messages.findIndex((msg) => msg.id === optimisticMatch.id);
                 updatedMessages = [...state.messages];
-                updatedMessages[optimisticIndex] = newMessage;
+                updatedMessages[optimisticIndex] = mergedMessage;
               } else {
                 // Append new message (from another user or no optimistic match)
-                updatedMessages = [...state.messages, newMessage];
+                updatedMessages = [...state.messages, mergedMessage];
               }
 
               // Update cache with new messages
@@ -790,6 +797,10 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
             return;
           }
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            if (useChatRealtimeStore.getState().messageChannelClosingIntentionally) {
+              useChatRealtimeStore.getState().setMessageChannelClosingIntentionally(false);
+              return;
+            }
             console.warn('[ChatStore] Realtime message channel status:', status, err);
             if (reconnectAttempts >= maxReconnectAttempts) {
               console.error('[ChatStore] Max reconnection attempts reached for messages');
@@ -820,8 +831,10 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       }
       const messageChannel = useChatRealtimeStore.getState().messageChannel;
       if (messageChannel) {
+        useChatRealtimeStore.getState().setMessageChannelClosingIntentionally(true);
         supabase.removeChannel(messageChannel);
         useChatRealtimeStore.getState().setMessageChannel(null);
+        useChatRealtimeStore.getState().setMessageChannelClosingIntentionally(false);
       }
 
       // Clear all status timeouts when unsubscribing (cleanup)

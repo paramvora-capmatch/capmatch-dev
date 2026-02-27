@@ -56,6 +56,7 @@ export function useNotifications({
 	const isInitialLoadRef = useRef<boolean>(true);
 	const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const reconnectAttemptsRef = useRef(0);
+	const intentionalTeardownRef = useRef(false);
 	const maxReconnectAttempts = 5;
 
 	const resetState = useCallback(() => {
@@ -195,6 +196,7 @@ export function useNotifications({
 	useEffect(() => {
 		if (!user?.id || !isAuthenticated) {
 			if (channelRef.current) {
+				intentionalTeardownRef.current = true;
 				supabase.removeChannel(channelRef.current);
 				channelRef.current = null;
 			}
@@ -214,6 +216,7 @@ export function useNotifications({
 
 		const setupChannel = () => {
 			if (channelRef.current) {
+				intentionalTeardownRef.current = true;
 				supabase.removeChannel(channelRef.current);
 				channelRef.current = null;
 			}
@@ -286,6 +289,10 @@ export function useNotifications({
 						isInitialLoadRef.current = false;
 					}, 1000);
 				} else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+					if (intentionalTeardownRef.current) {
+						intentionalTeardownRef.current = false;
+						return;
+					}
 					console.warn("[useNotifications] Realtime channel status:", status);
 					if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
 						console.error("[useNotifications] Max reconnection attempts reached");
@@ -314,6 +321,7 @@ export function useNotifications({
 				reconnectTimeoutRef.current = null;
 			}
 			if (channelRef.current) {
+				intentionalTeardownRef.current = true;
 				supabase.removeChannel(channelRef.current);
 				channelRef.current = null;
 			}

@@ -127,7 +127,7 @@ export const Modal: React.FC<ModalProps> = ({
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             className={cn(
-              'bg-white rounded-lg shadow-xl flex flex-col',
+              'bg-white rounded-lg shadow-xl flex flex-col relative',
               isFullSize
                 ? 'w-[98vw] h-[98vh] m-auto'
                 : `w-full ${sizeClasses[size]}`
@@ -135,22 +135,32 @@ export const Modal: React.FC<ModalProps> = ({
             role="dialog"
             aria-modal="true"
           >
-        {title && (
-          <div className="px-6 py-4 border-b border-blue-200 flex items-center gap-3 flex-shrink-0">
-            <h3 className="text-lg font-semibold text-gray-900 mr-auto truncate">{title}</h3>
-            {headerRight && (
-              <div className="flex items-center gap-2">{headerRight}</div>
+        {/* Header: always show close button; show title/headerRight when provided */}
+        <div className={cn(
+          "flex items-center gap-3 flex-shrink-0",
+          title ? "px-6 py-4 border-b border-blue-200" : "absolute top-0 right-0 z-50 p-2"
+        )}>
+          {title ? (
+            <>
+              <h3 className="text-lg font-semibold text-gray-900 mr-auto truncate">{title}</h3>
+              {headerRight && (
+                <div className="flex items-center gap-2">{headerRight}</div>
+              )}
+            </>
+          ) : null}
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(
+              "shrink-0 text-gray-600 hover:text-gray-900 focus:outline-none rounded-md transition-colors",
+              title ? "ml-2 p-1 hover:bg-gray-100" : "p-2 bg-white/90 hover:bg-white shadow-md border border-gray-200 rounded-lg"
             )}
-            <button
-              onClick={onClose}
-              className="ml-2 text-gray-600 hover:text-gray-900 focus:outline-none p-1 rounded-md hover:bg-gray-100 transition-colors"
-              aria-label="Close"
-            >
-              <X size={24} />
-            </button>
-          </div>
-        )}
-        <div className={cn("flex-1 overflow-hidden flex flex-col", !title && "pt-10", title ? "p-6" : "p-6")}>
+            aria-label="Close"
+          >
+            <X size={24} />
+          </button>
+        </div>
+        <div className={cn("flex-1 overflow-hidden flex flex-col", !title && "pt-12", title ? "p-6" : "p-6")}>
           {children}
         </div>
           </motion.div>

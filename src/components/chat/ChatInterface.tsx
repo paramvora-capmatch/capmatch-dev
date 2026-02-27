@@ -117,15 +117,15 @@ function ChatMessageImage({
     };
   }, [path, bucketId]);
   if (!url) {
-    return <div className={cn("bg-gray-100 animate-pulse rounded", className)} />;
+    return <div className={cn("bg-gray-100 animate-pulse rounded min-h-[120px]", className)} />;
   }
   return (
-    <span className={cn("relative block", className)}>
+    <span className={cn("relative block min-h-[120px]", className)}>
       <Image
         src={url}
         alt="Attached image"
         fill
-        className={cn("object-cover rounded cursor-pointer", className)}
+        className="object-cover rounded cursor-pointer"
         onClick={onClick}
         sizes="(max-width: 192px) 192px, 256px"
       />
@@ -1164,8 +1164,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   bucketId={orgBucketId || ''}
                                   className={
                                     message.image_urls!.length === 1
-                                      ? "w-full max-h-[280px]"
-                                      : "w-full aspect-square max-h-[140px]"
+                                      ? "w-full aspect-video max-h-[280px] min-h-[160px]"
+                                      : "w-full aspect-square max-h-[140px] min-h-[100px]"
                                   }
                                   onClick={() => setLightboxImagePath(imgPath)}
                                 />
@@ -1451,9 +1451,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         >
           <button
             type="button"
-            onClick={() => setLightboxImagePath(null)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20"
-            aria-label="Close"
+            onClick={(e) => { e.stopPropagation(); setLightboxImagePath(null); }}
+            className="absolute top-4 right-4 z-10 p-2.5 rounded-lg bg-white text-gray-800 shadow-lg hover:bg-gray-100 border border-gray-200"
+            aria-label="Close preview"
           >
             <X size={24} />
           </button>
