@@ -5,12 +5,14 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
-import { resolve } from "path";
-import { readFileSync, existsSync, readdirSync, statSync } from "fs";
-import { join } from "path";
-import { ProjectResumeContent } from "../src/lib/project-queries";
+import path, { resolve, join } from "path";
+import fs, { readFileSync, existsSync, readdirSync, statSync } from "fs";
+import { fileURLToPath } from "url";
 import projectFormSchema from "../src/lib/enhanced-project-form.schema.json";
 import borrowerFormSchema from "../src/lib/borrower-resume-form.schema.json";
+
+// Helper to determine app role
+type AppRole = "advisor" | "borrower" | "lender";
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -73,30 +75,6 @@ if (!serviceRoleKey) {
 	process.exit(1);
 }
 
-// Additional validation for production
-if (isProduction) {
-	// Validate that we're not accidentally using localhost in production
-	if (
-		supabaseUrl.includes("localhost") ||
-		supabaseUrl.includes("127.0.0.1")
-	) {
-		console.error(
-			"\n❌ ERROR: Production mode detected but Supabase URL is localhost!"
-		);
-		console.error(`   Current URL: ${supabaseUrl}`);
-		console.error("   Production URLs should start with https://");
-		process.exit(1);
-	}
-
-	if (!supabaseUrl.startsWith("https://")) {
-		console.error(
-			"\n❌ ERROR: Production Supabase URL must start with https://"
-		);
-		console.error(`   Current URL: ${supabaseUrl}`);
-		process.exit(1);
-	}
-}
-
 // Initialize Supabase client
 const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
 	auth: {
@@ -145,350 +123,6 @@ function getSchemaFieldIds(schema: any): string[] {
 }
 
 /**
- * Default value helper for project fields
- */
-function getDefaultValueForProjectField(fieldId: string): any {
-	// Check if it's a known array/table field
-	const arrayFields = [
-		"residentialUnitMix",
-		"commercialSpaceMix",
-		"rentComps",
-		"drawSchedule",
-		"amenityList",
-		"incentiveStacking",
-		"noiseFactors",
-		"riskHigh",
-		"riskMedium",
-		"riskLow",
-		"majorEmployers",
-		"siteImages",
-		"architecturalDiagrams",
-	];
-	if (arrayFields.includes(fieldId)) {
-		return [];
-	}
-
-	// Check if it's a known object field
-	const objectFields = [
-		"fiveYearCashFlow",
-		"returnsBreakdown",
-		"quarterlyDeliverySchedule",
-		"sensitivityAnalysis",
-		"deliveryByQuarter",
-		"capitalUseTiming",
-	];
-	if (objectFields.includes(fieldId)) {
-		return {};
-	}
-
-	// Check if it's a known boolean field
-	const booleanFields = [
-		"furnishedUnits",
-		"affordableHousing",
-		"opportunityZone",
-		"taxExemption",
-		"tifDistrict",
-		"taxAbatement",
-		"paceFinancing",
-		"historicTaxCredits",
-		"newMarketsCredits",
-		"wetlandsPresent",
-		"densityBonus",
-		"permTakeoutPlanned",
-		"zoningCompliant",
-	];
-	if (booleanFields.includes(fieldId)) {
-		return false;
-	}
-
-	// Check if it's a known numeric field
-	const numericFields = [
-		"totalResidentialUnits",
-		"totalResidentialNRSF",
-		"averageUnitSize",
-		"totalCommercialGRSF",
-		"grossBuildingArea",
-		"numberOfStories",
-		"parkingSpaces",
-		"parkingRatio",
-		"buildingEfficiency",
-		"studioCount",
-		"oneBedCount",
-		"twoBedCount",
-		"threeBedCount",
-		"lossToLease",
-		"adaCompliantPercent",
-		"solarCapacity",
-		"evChargingStations",
-		"totalDevelopmentCost",
-		"totalProjectCost",
-		"capexBudget",
-		"purchasePrice",
-		"landAcquisition",
-		"baseConstruction",
-		"contingency",
-		"constructionFees",
-		"aeFees",
-		"thirdPartyReports",
-		"legalAndOrg",
-		"titleAndRecording",
-		"taxesDuringConstruction",
-		"developerFee",
-		"loanFees",
-		"interestReserve",
-		"ffe",
-		"workingCapital",
-		"opDeficitEscrow",
-		"leaseUpEscrow",
-		"relocationCosts",
-		"syndicationCosts",
-		"enviroRemediation",
-		"pfcStructuringFee",
-		"sponsorEquity",
-		"taxCreditEquity",
-		"gapFinancing",
-		"equityCommittedPercent",
-		"loanAmountRequested",
-		"amortizationYears",
-		"interestRate",
-		"underwritingRate",
-		"interestOnlyPeriodMonths",
-		"targetLtvPercent",
-		"targetLtcPercent",
-		"allInRate",
-		"realEstateTaxes",
-		"insurance",
-		"utilitiesCosts",
-		"repairsAndMaintenance",
-		"managementFee",
-		"generalAndAdmin",
-		"payroll",
-		"reserves",
-		"marketingLeasing",
-		"serviceCoordination",
-		"noiYear1",
-		"propertyNoiT12",
-		"stabilizedNoiProjected",
-		"yieldOnCost",
-		"capRate",
-		"stabilizedValue",
-		"ltv",
-		"debtYield",
-		"dscr",
-		"trendedNOIYear1",
-		"untrendedNOIYear1",
-		"trendedYield",
-		"untrendedYield",
-		"inflationAssumption",
-		"dscrStressTest",
-		"ltvStressMax",
-		"dscrStressMin",
-		"portfolioLTV",
-		"portfolioDSCR",
-		"expectedHoldPeriod",
-		"population3Mi",
-		"projGrowth202429",
-		"popGrowth201020",
-		"medianHHIncome",
-		"renterOccupiedPercent",
-		"unemploymentRate",
-		"employerConcentration",
-		"walkabilityScore",
-		"submarketAbsorption",
-		"supplyPipeline",
-		"monthsOfSupply",
-		"captureRate",
-		"affordableUnitsNumber",
-		"amiTargetPercent",
-		"exemptionTerm",
-		"preLeasedSF",
-		"absorptionProjection",
-		"totalSiteAcreage",
-		"buildableAcreage",
-		"allowableFAR",
-		"farUtilizedPercent",
-		"sponsorExpScore",
-		"priorDevelopments",
-		"netWorth",
-		"guarantorLiquidity",
-		"amenitySF",
-		"totalAmenities",
-		"amenityAvgSize",
-		"totalCapitalization",
-		"equityContribution",
-		"floorRate",
-		"ltc",
-		"exitCapRate",
-		"debtService",
-		"taxInsuranceReserve",
-		"capExReserve",
-		"totalOperatingExpenses",
-		"distanceToCBD",
-		"distanceToEmployment",
-		"distanceToTransit",
-		"jobGrowth",
-		"rentGrowthAssumption",
-		"population1Mi",
-		"population5Mi",
-		"medianIncome1Mi",
-		"medianIncome5Mi",
-		"medianAge1Mi",
-		"medianAge3Mi",
-		"medianAge5Mi",
-		"incomeGrowth5yr",
-		"jobGrowth5yr",
-		"currentInventory",
-		"underConstruction",
-		"planned24Months",
-		"averageOccupancy",
-		"avgCapRate",
-		"rentPremium",
-		"rentGrowth",
-		"totalIncentiveValue",
-		"impactFees",
-		"landAcqToGroundbreakingDays",
-		"groundbreakingToVerticalStartDays",
-		"verticalStartToFirstOccupancyDays",
-		"firstOccupancyToCompletionDays",
-		"completionToStabilizationDays",
-		"totalProjectDurationDays",
-		"greenSpace",
-		"setbackFront",
-		"setbackSide",
-		"setbackRear",
-		"greenSpaceRatio",
-		"storyHeight",
-		"heightLimit",
-		"actualHeight",
-	];
-	if (numericFields.includes(fieldId)) {
-		return 0;
-	}
-
-	// Default to empty string for text fields
-	return "";
-}
-
-/**
- * Get realistic value for a project field based on Hoque/SoGood project details
- * This provides believable values for fields that aren't in the base resume
- * Falls back to defaults if no realistic value is available
- */
-function getRealisticValueForProjectField(fieldId: string): any {
-	// Realistic values based on Hoque/SoGood Apartments project
-	const realisticValues: Record<string, any> = {
-		// Financial metrics
-		amenitySF: 35264, // Total amenity space
-		irr: 18.5, // Internal Rate of Return (based on 7.6% yield, 7-year hold, PFC benefits)
-		equityMultiple: 2.1, // Equity multiple (based on $11.8M equity and projected returns)
-		ltc: 60.4, // Loan-to-Cost: $18M / $29.8M
-		exitCapRate: 5.5, // Exit cap rate (conservative, same as going-in)
-		rentGrowthAssumption: 3.0, // Annual rent growth assumption
-
-		// Location/distance metrics (Downtown Dallas location)
-		distanceToCBD: 0.8, // Miles to Downtown Dallas CBD
-		distanceToEmployment: 0.6, // Miles to major employment centers
-		distanceToTransit: 0.3, // Miles to DART rail station
-
-		// Market metrics
-		jobGrowth: 2.5, // Annual job growth percentage for Dallas market
-
-		// Loan terms details
-		loanIndex: "SOFR", // Floating rate index
-		loanSpread: 2.75, // Spread over index (8.0% - 5.25% SOFR ≈ 2.75%)
-		rateFloor: 4.5, // Minimum interest rate floor
-		extensionTerms: "Two 6-month extensions available", // Extension options
-
-		// Lender requirements
-		minDSCR: 1.25, // Minimum debt service coverage ratio
-		maxLTV: 50.0, // Maximum loan-to-value ratio
-		minLiquidity: 2000000, // Minimum liquidity requirement ($2M)
-
-		// Deal timeline
-		loiDate: "2024-11-15", // Letter of Intent date
-		ddExpirationDate: "2025-05-15", // Due diligence expiration
-		closingDate: "2025-08-15", // Target closing date
-
-		// Site details
-		siteAcreage: 2.5, // Total site acreage
-		farAllowed: 3.5, // Floor Area Ratio allowed
-		farUsed: 2.98, // FAR utilized (127,406 SF / 2.3 acres / 43,560 SF per acre)
-		frontSetback: 25, // Front setback in feet
-		sideSetback: 15, // Side setback in feet
-		rearSetback: 20, // Rear setback in feet
-
-		// Amenity breakdown (total 35,264 SF)
-		poolSF: 3200, // Swimming pool area
-		gymSF: 2500, // Fitness center area
-		coworkingSF: 5000, // Shared working space
-		loungeSF: 1800, // Lounge area
-		terraceSF: 2200, // Outdoor terrace
-		otherAmenitySF: 20564, // Other amenity spaces
-
-		// Unit mix details
-		minRent: 1550, // Minimum monthly rent (studio S1)
-		maxRent: 2800, // Maximum monthly rent (2BR B1)
-		avgRent: 1850, // Average monthly rent
-		securityDeposit: 500, // Typical security deposit amount
-
-		// Sponsor details
-		principalEducation: "MBA, University of Texas at Dallas", // Mike Hoque education
-		pastDealIRR: 22.5, // Average IRR on past developments
-		lenderReferenceYears: 8, // Years of relationship with key lenders
-	};
-
-	// Return realistic value if available
-	if (realisticValues.hasOwnProperty(fieldId)) {
-		return realisticValues[fieldId];
-	}
-
-	// Fallback to defaults for fields not in realistic values
-	return getDefaultValueForProjectField(fieldId);
-}
-
-/**
- * Default value helper for borrower fields
- */
-function getDefaultValueForBorrowerField(fieldId: string): any {
-	// Check if it's a known boolean field
-	const booleanFields = [
-		"bankruptcyHistory",
-		"foreclosureHistory",
-		"litigationHistory",
-	];
-	if (booleanFields.includes(fieldId)) {
-		return false;
-	}
-
-	// Check if it's a known numeric field
-	const numericFields = [
-		"ownershipPercentage",
-		"yearFounded",
-		"activeProjects",
-	];
-	if (numericFields.includes(fieldId)) {
-		return 0;
-	}
-
-	// Check if it's a known array field
-	const arrayFields = [
-		"assetClassesExperience",
-		"geographicMarketsExperience",
-		"principalSpecialties",
-		"principalAchievements",
-		"references",
-		"principals", // Array of principal objects
-		"trackRecord", // Array of track record items
-	];
-	if (arrayFields.includes(fieldId)) {
-		return [];
-	}
-
-	// Default to empty string for text fields
-	return "";
-}
-
-/**
  * Convert flat resume content to rich format
  * Rich format: { value, source, warnings, other_values }
  * This matches the format used by the application when saving resume data
@@ -531,11 +165,14 @@ function convertToRichFormat(
 	return richFormat;
 }
 
+
 // Base Hoque project resume – only fields from the schema
 const hoqueProjectResumeBase: Record<string, any> = {
 	projectName: "SoGood Apartments",
 	assetType: "Mixed-Use",
 	dealStatus: "Underwriting",
+	exitStrategy: "Refinance or Sale",
+	ownershipType: "Fee Simple",
 	propertyAddressStreet: "2300 Hickory St",
 	propertyAddressCity: "Dallas",
 	propertyAddressState: "TX",
@@ -543,6 +180,10 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	propertyAddressZip: "75215",
 	parcelNumber: "000472000A01B0100",
 	zoningDesignation: "PD317",
+	zoningOverlayDistrict: "None",
+	zoningMaxHeight: 75,
+	zoningMinLotWidth: 0,
+	zoningSetbacks: "25ft front, 15ft side, 20ft rear",
 	constructionType: "Ground-Up",
 	groundbreakingDate: "2025-08-01",
 	completionDate: "2027-09-30",
@@ -552,20 +193,71 @@ const hoqueProjectResumeBase: Record<string, any> = {
 		"Ground-up development of Building B within the SoGood master plan, delivering 116 units over activated ground-floor innovation space between the Dallas Farmers Market and Deep Ellum.",
 	projectPhase: "Construction",
 	expectedZoningChanges: "None",
-	masterPlanName: "SoGood Master Plan", // Building B within the SoGood master plan
+	masterPlanName: "SoGood Master Plan",
+	arbitratorQualification: "MAI Appraiser with 10+ years DFW experience",
+	estoppelTurnaroundTime: 10,
+	condemnationAwardPriority: "Lender first, then Borrower",
+	assignmentConsentReq: "Lender consent required for assignments over 25%",
+	developmentRightsTransferability: "Prohibited without Lender approval",
+	publicAccessEasement: "Public access easement for pedestrian walkway along Hickory St",
+	publicSpaceMaintenanceReq: "Borrower responsible for landscaping and lighting of public walkway",
+	parkingRequirementStatus: "Compliant - PD317 requirements met",
+	relatedPartyRentStatus: "None - all leases are arms-length",
+	relatedPartyTenantStatus: "None - all tenants are unrelated parties",
+	restorationFundThreshold: 500000,
+	casualtyTerminationRight: "Tenant right if not restored within 180 days",
+	substantialDestructionThreshold_Area: 50,
+	substantialDestructionThreshold_Parking: 50,
+	landValueDefinition_Legal: "Fee simple interest in site excluding improvements",
+	groundLeaseTerm: 0,
+	groundLeaseRent: 0,
+	groundLessor: "N/A",
+	groundLeaseExpiration: "N/A",
+	groundLeaseNewLeaseOption: false,
+	groundLeaseCurePeriod_Monetary: 10,
+	groundLeaseCurePeriod_NonMonetary: 30,
+	groundLeaseDefaultInterest: 12.0,
+	feeMortgageSubordination: "N/A",
+
+	// Classification
+	constructionClass: "Class A",
+	remainingEconomicLife: 40,
+	lastRenovationDate: "N/A",
 
 	// Property Specifications
 	totalResidentialUnits: 116,
 	totalResidentialNRSF: 59520,
 	averageUnitSize: 513,
 	totalCommercialGRSF: 49569,
+	commercialNRSF: 42794,
 	grossBuildingArea: 127406,
 	buildingEfficiency: 82.0,
 	numberOfStories: 6,
 	buildingType: "Mid-rise",
+	unitBalconyCount: 116,
+	unitWasherDryer: true,
+	unitKitchenIsland: true,
+	unitHardwoodFloors: true,
+	unitEntryType: "Interior Corridor",
+	commonAreaFurnishings: "High-end contemporary lounge and coworking furniture",
+	meteringStructure: "Individual tenant meters for electric and water",
+	shortTermRentalCount: 0,
+	modelUnitCount: 2,
+	commercialParkingObligation: 105,
+	residentialParkingNetCount: 75,
+	minimumOperatingAreaReq: 80,
+	alterationConsentThreshold: 25000,
+	adminReviewFee: 500,
+	prohibitedCommercialUses: "Adult entertainment, pawn shops, industrial",
+	commercialVendingBan: true,
 	parkingSpaces: 180,
 	parkingRatio: 1.55,
 	parkingType: "Structured parking garage with surface spaces",
+	amenitySF: 35264,
+	totalAmenities: 5,
+	amenityAvgSize: 7053,
+	amenitySpaceType: "Indoor and outdoor mixed-use spaces",
+	amenityAccess: "Resident-only access with key fob system",
 	amenityList: [
 		"Fitness center",
 		"Shared working space",
@@ -573,113 +265,101 @@ const hoqueProjectResumeBase: Record<string, any> = {
 		"Outdoor terrace",
 		"Swimming pool",
 	],
-	amenitySF: 35264, // Total amenity space
-	totalAmenities: 5, // Number of distinct amenity spaces
-	amenityAvgSize: 7053, // Average amenity size (35,264 SF / 5 amenities)
-	amenitySpaceType: "Indoor and outdoor mixed-use spaces",
-	amenityAccess: "Resident-only access with key fob system",
-	// Explicit unit counts by type (in addition to detailed mix)
 	studioCount: 84,
 	oneBedCount: 24,
 	twoBedCount: 8,
-	threeBedCount: 0, // No 3-bedroom units in this development
+	threeBedCount: 0,
 	furnishedUnits: false,
 	lossToLease: 5.0,
 	adaCompliantPercent: 5.0,
 	luxuryTier: "Class A",
-	targetMarket:
-		"Young professionals, creative class, and workforce housing residents (50% at ≤80% AMI)",
-	competitivePosition:
-		"Premium workforce housing with strong amenity package and prime location between Farmers Market and Deep Ellum",
-	unitPlanDescription:
-		"Modern studio, one-bedroom, and two-bedroom units with high-end finishes, in-unit washers/dryers, and energy-efficient appliances. Units feature open floor plans, large windows, and private balconies where applicable.",
+	targetMarket: "Young professionals and workforce residents",
+	competitivePosition: "Premium workforce housing",
+	unitPlanDescription: "Modern units with high-end finishes",
 	hvacSystem: "Central",
-	roofTypeAge: "TPO, new construction",
+	roofTypeAge: "TPO, new",
 	solarCapacity: 100,
 	evChargingStations: 8,
 	leedGreenRating: "Certified",
 	residentialUnitMix: [
-		{
-			unitType: "S1",
-			unitCount: 48,
-			avgSF: 374,
-			monthlyRent: 1550,
-			totalSF: 48 * 374,
-		},
-		{
-			unitType: "S2",
-			unitCount: 28,
-			avgSF: 380,
-			monthlyRent: 1600,
-			totalSF: 28 * 380,
-		},
-		{
-			unitType: "S3",
-			unitCount: 8,
-			avgSF: 470,
-			monthlyRent: 1750,
-			totalSF: 8 * 470,
-		},
-		{
-			unitType: "A1",
-			unitCount: 8,
-			avgSF: 720,
-			monthlyRent: 2100,
-			totalSF: 8 * 720,
-		},
-		{
-			unitType: "A2",
-			unitCount: 8,
-			avgSF: 736,
-			monthlyRent: 2150,
-			totalSF: 8 * 736,
-		},
-		{
-			unitType: "A3",
-			unitCount: 8,
-			avgSF: 820,
-			monthlyRent: 2300,
-			totalSF: 8 * 820,
-		},
-		{
-			unitType: "B1",
-			unitCount: 8,
-			avgSF: 1120,
-			monthlyRent: 2800,
-			totalSF: 8 * 1120,
-		},
+		{ unitType: "S1", unitCount: 48, avgSqFt: 374, totalMonthlyRent: 1550, avgRentPerSqFt: 4.14 },
+		{ unitType: "S2", unitCount: 28, avgSqFt: 380, totalMonthlyRent: 1600, avgRentPerSqFt: 4.21 },
+		{ unitType: "S3", unitCount: 8, avgSqFt: 470, totalMonthlyRent: 1750, avgRentPerSqFt: 3.72 },
+		{ unitType: "A1", unitCount: 8, avgSqFt: 720, totalMonthlyRent: 2100, avgRentPerSqFt: 2.92 },
+		{ unitType: "A2", unitCount: 8, avgSqFt: 736, totalMonthlyRent: 2150, avgRentPerSqFt: 2.92 },
+		{ unitType: "A3", unitCount: 8, avgSqFt: 820, totalMonthlyRent: 2300, avgRentPerSqFt: 2.80 },
+		{ unitType: "B1", unitCount: 8, avgSqFt: 1120, totalMonthlyRent: 2800, avgRentPerSqFt: 2.50 }
 	],
 	commercialSpaceMix: [
-		{
-			spaceType: "Innovation Center",
-			squareFootage: 30000,
-			tenant: "GSV Holdings LLC",
-			leaseTerm: "15-year lease, pre-leased",
-			annualRent: 900000,
-		},
-		{
-			spaceType: "Office 1",
-			squareFootage: 6785,
-			tenant: "TBD – Creative Office",
-			leaseTerm: "To be leased",
-			annualRent: 0,
-		},
-		{
-			spaceType: "Office 2",
-			squareFootage: 5264,
-			tenant: "TBD – Professional Services",
-			leaseTerm: "To be leased",
-			annualRent: 0,
-		},
-		{
-			spaceType: "Retail",
-			squareFootage: 745,
-			tenant: "Future F&B Operator",
-			leaseTerm: "To be leased",
-			annualRent: 0,
-		},
+		{ spaceType: "Innovation Center", squareFootage: 30000, tenant: "GSV Holdings LLC", leaseTerm: "15-year", annualRent: 900000 },
+		{ spaceType: "Office 1", squareFootage: 6785, tenant: "TBD", leaseTerm: "TBD", annualRent: 0 },
+		{ spaceType: "Office 2", squareFootage: 5264, tenant: "TBD", leaseTerm: "TBD", annualRent: 0 },
+		{ spaceType: "Retail", squareFootage: 745, tenant: "TBD", leaseTerm: "TBD", annualRent: 0 }
 	],
 
+
+	rentRollUnits: [
+		{
+			unitNumber: "101",
+			unitType: "1B/1B",
+			beds: 1,
+			baths: 1,
+			sf: 750,
+			status: "Occupied",
+			tenantName: "John Smith",
+			leaseStart: "2024-01-15",
+			leaseEnd: "2025-01-14",
+			monthlyRent: 2100,
+		},
+		{
+			unitNumber: "102",
+			unitType: "2B/2B",
+			beds: 2,
+			baths: 2,
+			sf: 1100,
+			status: "Occupied",
+			tenantName: "Jane Doe",
+			leaseStart: "2024-03-01",
+			leaseEnd: "2025-02-28",
+			monthlyRent: 3400,
+		},
+		{
+			unitNumber: "103",
+			unitType: "1B/1B",
+			beds: 1,
+			baths: 1,
+			sf: 750,
+			status: "Occupied",
+			tenantName: "Bob Johnson",
+			leaseStart: "2024-06-01",
+			leaseEnd: "2025-05-31",
+			monthlyRent: 2150,
+		},
+		{
+			unitNumber: "104",
+			unitType: "2B/1B",
+			beds: 2,
+			baths: 1,
+			sf: 950,
+			status: "Vacant",
+			tenantName: "",
+			leaseStart: "",
+			leaseEnd: "",
+			monthlyRent: 0,
+		},
+		{
+			unitNumber: "105",
+			unitType: "Studio",
+			beds: 0,
+			baths: 1,
+			sf: 500,
+			status: "Occupied",
+			tenantName: "Alice Brown",
+			leaseStart: "2024-02-01",
+			leaseEnd: "2025-01-31",
+			monthlyRent: 1650,
+		},
+	],
 	// Financial Details - Development Budget
 	landAcquisition: 6000000,
 	baseConstruction: 16950000,
@@ -698,16 +378,461 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	interestReserve: 1147500,
 	opDeficitEscrow: 650000,
 	leaseUpEscrow: 1300000,
-	relocationCosts: 0, // No relocation required - vacant site
+	relocationCosts: 0,
 	syndicationCosts: 150000,
-	enviroRemediation: 0, // Phase 1 ESA clean - no remediation needed
-	totalProjectCost: 29807800,
+	enviroRemediation: 0,
 	capexBudget: 16950000,
 	purchasePrice: 6000000,
-	// Label fields for budget items
+	totalProjectCost: 29807800,
+	totalCapitalization: 29800000,
+	equityCommittedPercent: 39.6,
+	equityContribution: 39.6,
+	grantFundingAmount: 0,
+	grantFundingSource: "N/A",
+	privateInvestmentCommitment: 0,
+	mezzanineDebtAmount: 0,
+	preferredEquityAmount: 0,
+	partnerEquityBreakdown: "Hoque Global 60%, ACARA 40%",
+	designBuilderFee: 850000,
+	designBuilderContingency: 425000,
+	guaranteedMaximumPrice: 16950000,
+	constructionRetainage: 10.0,
+	contractorWarrantyPeriod: 12,
+	netChangeOrderTotal: 0,
+	allowance_SiteRestoration: 50000,
+	allowance_MaterialTesting: 25000,
+	personnelRate_ProjectExec: 250,
+	personnelRate_Superintendent: 175,
+	selfPerformMarkupPercent: 0,
+	sharedSavingsSplit: 50,
+	sharedSavingsCap_Builder: 100000,
+	retainagePayableLiability: 0,
+	accountsPayableTrade: 0,
+	totalSecurityDepositLiability: 0,
+	prepaidRentLiability: 0,
+	affiliatedLoanReceivable: 0,
+
+	// Debt & Financing
+	loanAmountRequested: 18000000,
+	existingLender: "N/A",
+	existingLoanDefeasanceFee: 0,
+	existingSupplementalPrepay: 0,
+	interestRate: 8.0,
+	underwritingRate: 8.0,
+	floorRate: 4.5,
+	amortizationYears: 30,
+	interestOnlyPeriodMonths: 24,
+	ltc: 60.4,
+	debtYield: 12.6,
+	dscr: 1.55,
+	noiYear1: 2268000,
+	stabilizedNoiProjected: 2450000,
+	propertyNoiT12: 0,
+	yieldOnCost: 7.6,
+	capRate: 5.5,
+	stabilizedValue: 44500000,
+	ltv: 40.4,
+	trendedNOIYear1: 2336040,
+	untrendedNOIYear1: 2268000,
+	trendedYield: 7.8,
+	untrendedYield: 7.6,
+	inflationAssumption: 2.5,
+	dscrStressTest: 1.25,
+	ltvStressMax: 65,
+	dscrStressMin: 1.20,
+	portfolioLTV: 45,
+	portfolioDSCR: 1.45,
+	expectedHoldPeriod: 7,
+	debtService: 1464000,
+
+	// Operating Expenses
+	realEstateTaxes: 34200,
+	insurance: 92800,
+	taxInsuranceReserve: 127000,
+	utilitiesCosts: 23200,
+	repairsAndMaintenance: 46400,
+	managementFee: 85000,
+	generalAndAdmin: 40600,
+	payroll: 174000,
+	reserves: 23200,
+	capExReserve: 116000,
+	marketingLeasing: 68040,
+	serviceCoordination: 10000,
+	totalOperatingExpenses: 625040,
+	managementFeePercent: 3.5,
+	commercialCAMReimbursement: 125000,
+	commercialLeaseType: "NNN",
+	commRenewalEscalationMethod: "CPI capped at 3%",
+	commExpenseStopBaseYear: 2025,
+	commSalesReportingReq: "Quarterly sales reports required",
+	commAuditRights: "Landlord has annual audit rights",
+	taxReplacementCreditRate: 0,
+	localIncomeTaxRate: 0,
+	taxingDistrictID: "District 12",
+	propertyTaxHardCapAmount: 0,
+	referendumRateAdjustment: 0,
+	avgTurnoverCostPerUnit: 750,
+	utilityBillBackMethod: "RUBS",
+	trashRemovalMethod: "Valet Trash",
+	commercialHoldoverPenalty: 150,
+	leaseAuditFrequency: "Annual",
+	lateFeeCalculation: "5% after 5 days",
+	providerElectric: "TXU Energy",
+	providerGas: "Atmos Energy",
+	providerWaterSewer: "City of Dallas",
+	suspenseAccountBalance: 0,
+	intercompanyInterestIncome: 0,
+	totalDelinquencyAmount: 0,
+	percentageRentThreshold: 0,
+	tenantImprovementAmortization: "Straight-line",
+	shortTermRentalIncome: 0,
+	nonRevenueUnitCount: 0,
+	financialReportingBasis: "Accrual",
+	expenseGrowthRateAssumption: 3.0,
+
+	// Market Context
+	submarketName: "Downtown Dallas",
+	msaName: "Dallas-Fort Worth-Arlington, TX",
+	population1Mi: 45230,
+	population3Mi: 174270,
+	population5Mi: 385420,
+	popGrowth201020: 23.3,
+	projGrowth202429: 6.9,
+	medianIncome1Mi: 92000,
+	medianHHIncome: 85906,
+	medianIncome5Mi: 81500,
+	medianAge1Mi: 34,
+	medianAge3Mi: 35,
+	medianAge5Mi: 36,
+	incomeGrowth5yr: 3.2,
+	jobGrowth5yr: 2.5,
+	renterOccupiedPercent: 76.7,
+	renterShare: 76.7,
+	unemploymentRate: 3.5,
+	largestEmployer: "Downtown Dallas CBD",
+	employerConcentration: 15.0,
+	crimeRiskLevel: "Moderate",
+	walkabilityScore: 92,
+	infrastructureCatalyst: "DART expansion and highway improvements",
+	broadbandSpeed: "Fiber 1 Gbps",
+	submarketAbsorption: 500,
+	supplyPipeline: 4000,
+	currentInventory: 8500,
+	underConstruction: 2500,
+	planned24Months: 4000,
+	averageOccupancy: 94.5,
+	monthsOfSupply: 7.5,
+	captureRate: 2.1,
+	avgCapRate: 5.5,
+	rentPremium: 5.0,
+	qualityTier: "Class A",
+	competitionLevel: "Moderate",
+	demandTrend: "Strong",
+	marketStatus: "Healthy",
+	supplyPressure: "Moderate",
+	rentGrowthRate: 3.0,
+	marketConcessions: "None",
+	northStarComp: "SoGood Phase A",
+	substantialComp: "Farmers Market Lofts",
+	employmentSector_Education: 12.5,
+	employmentSector_HealthCare: 18.2,
+	employmentSector_Manufacturing: 8.4,
+	distanceToCBD: 0.8,
+	distanceToEmployment: 0.6,
+	distanceToTransit: 0.3,
+	jobGrowth: 2.5,
+	rentGrowthAssumption: 3.0,
+
+	// Special Considerations
+	opportunityZone: true,
+	affordableHousing: true,
+	affordableUnitsNumber: 58,
+	amiTargetPercent: 80,
+	taxExemption: true,
+	exemptionStructure: "PFC",
+	sponsoringEntity: "Dallas Housing Finance Corporation",
+	exemptionTerm: 99,
+	incentiveStacking: ["PFC", "OZ"],
+	tifDistrict: false,
+	taxAbatement: true,
+	paceFinancing: false,
+	historicTaxCredits: false,
+	newMarketsCredits: false,
+	relocationPlan: "N/A",
+	seismicPMLRisk: "2.5% PML",
+	totalIncentiveValue: 8500000,
+	impactFees: 0,
+	abatementClawbackProvision: "Standard repayment if AMI units fall below 50%",
+	abatementDiscountRate: 5.0,
+	abatementSchedule: "100% for 99 years",
+	abatementTriggerEvent: "Construction start",
+	effectiveAbatementRate: 100,
+	jobCreationReportingReq: "Annual",
+	localLaborUtilizationReq: "25% target",
+	paymentInLieuOfTaxes: 0,
+	reportingDuration: 99,
+	taxCircuitBreakerCap: 0,
+
+	// Timeline & Milestones
+	landAcqClose: "2024-07-12",
+	firstOccupancy: "2027-10-15",
+	stabilization: "2028-03-31",
+	preLeasedSF: 30000,
+	entitlements: "Approved",
+	entitlementsDate: "2024-05-15",
+	finalPlans: "Pending",
+	permitsIssued: "Issued",
+	verticalStart: "2025-08-01",
+	absorptionProjection: 12,
+	landAcqToGroundbreakingDays: 385,
+	groundbreakingToVerticalStartDays: 0,
+	verticalStartToFirstOccupancyDays: 806,
+	firstOccupancyToCompletionDays: 46,
+	completionToStabilizationDays: 153,
+	totalProjectDurationDays: 1390,
+	landAcqStatus: "completed",
+	entitlementsStatus: "completed",
+	groundbreakingStatus: "upcoming",
+	verticalStartStatus: "upcoming",
+	firstOccupancyStatus: "upcoming",
+	completionStatus: "upcoming",
+	stabilizationStatus: "upcoming",
+
+	// Site & Context
+	totalSiteAcreage: 2.5,
+	buildableAcreage: 2.3,
+	allowableFAR: 3.5,
+	farUtilizedPercent: 85.0,
+	densityBonus: true,
+	greenSpace: 25000,
+	setbackFront: 25,
+	setbackSide: 15,
+	setbackRear: 20,
+	greenSpaceRatio: 25.0,
+	storyHeight: 12,
+	heightLimit: 75,
+	actualHeight: 72,
+	zoningCompliant: true,
+	currentSiteStatus: "Vacant",
+	siteAccess: "Hickory St",
+	proximityShopping: "Nearby",
+	topography: "Flat",
+	soilConditions: "Urban fill",
+	accessPoints: "Curb cuts on Hickory",
+	adjacentLandUse: "Mixed-use",
+	viewCorridors: "Skyline",
+	floodZone: "Zone X",
+	wetlandsPresent: false,
+	seismicRisk: "Low",
+	phaseIESAFinding: "Clean",
+	noiseFactors: ["Highway"],
+	utilityAvailability: "Available",
+	easements: "Utility",
+	foundationSystemType: "Drilled Piers",
+	roofWarrantyExpiration: "2047-09-30",
+	constructionFenceReq: true,
+
+	// Sponsor Info (Project Specific)
+	sponsorEntityName: "Hoque Global",
+	sponsorStructure: "General Partner",
+	equityPartner: "ACARA",
+	syndicationStatus: "In Process",
+	contactInfo: "Cody Field",
+	sponsorExperience: "Seasoned",
+	sponsorExpScore: 8,
+	priorDevelopments: 1000,
+	netWorth: 50000000,
+	guarantorLiquidity: 7500000,
+
+	// Insurance
+	businessIncomeCoverage: 2400000,
+	businessIncomeCoverage_Period: 12,
+	cyberLiabilityCoverage: 1000000,
+	earthquakeDeductible: 5.0,
+	equipmentBreakdownCoverage: 5000000,
+	federalTerrorismShare: 80,
+	femaMapDate: "2023-08-23",
+	femaMapPanelID: "48113C0345K",
+	generalLiabilityAggregate: 2000000,
+	insuranceCoinsuranceReq: 100,
+	insuranceExclusion_Asbestos: true,
+	insuranceExclusion_CommunicableDisease: true,
+	insuranceExclusion_FungiBacteria: true,
+	insuranceInflationGuard: true,
+	insuranceStockValuationMethod: "Replacement Cost",
+	liabilityPerOccurrence: 1000000,
+	mineSubsidenceCoverage: 0,
+	ordOrLawCoverageB_Demolition: 1000000,
+	ordOrLawCoverageC_IncCost: 1000000,
+	protectiveSafeguardCode: "P-1",
+	sewerDrainBackupLimit: 50000,
+	subLimit_AccountsReceivable: 100000,
+	subLimit_ComputerFraud: 50000,
+	subLimit_CyberExtortion: 25000,
+	subLimit_FineArts: 50000,
+	subLimit_MisdirectedPayment: 25000,
+	subLimit_PollutantCleanup: 10000,
+	terrorismPremium: 1500,
+	umbrellaLiabilityLimit: 10000000,
+	waitingPeriod_BusinessIncome: 0,
+
+	// Analytical Data
+	irr: 18.5,
+	equityMultiple: 2.1,
+	exitCapRate: 5.5,
+	appraisalMarketingTime: 6,
+	finalStabilizedValue: 45000000,
+	finalCapRate: 5.25,
+	highestBestUseAsVacant: "Multifamily",
+	ffeContributoryValue: 250000,
+	ffeEconomicLife: 7,
+	ffeReplacementCostNew: 500000,
+	appraisedLandValue: 6000000,
+	appraisedExpenseRatio: 25.5,
+	appraisedInsurableValue: 25000000,
+	leaseRolloverSchedule: "Laddered",
+	tenantCredits_Prepayments: 0,
+
+	// Complex Structures
+	capexItems: [
+		{ item: "Roof Replacement", category: "Structure", cost: 150000, priority: "High", condition: "Old", usefulLife: 20, startDate: "2026-01-01", status: "Planned", notes: "Aging TPO roof" }
+	],
+	t12MonthlyData: (() => {
+		const months = [
+			"January 2024", "February 2024", "March 2024", "April 2024",
+			"May 2024", "June 2024", "July 2024", "August 2024",
+			"September 2024", "October 2024", "November 2024", "December 2024",
+		];
+		// Base monthly values (hypothetical stabilized property)
+		const baseGPR = 185000;
+		const baseOther = 12500;
+		const baseTaxes = 2850;
+		const baseInsurance = 7733;
+		const baseUtilities = 4200;
+		const baseRepairs = 3800;
+		const basePayroll = 6500;
+		const baseMgmtFee = 5550;
+		const baseMarketing = 1200;
+		const baseAdmin = 2100;
+		const baseContract = 1800;
+
+		return months.map((month, i) => {
+			// Add slight monthly variation (+/- 5%)
+			const vary = (base: number) => Math.round(base * (0.95 + Math.random() * 0.1));
+			const gpr = vary(baseGPR);
+			const vacancyLoss = -Math.round(gpr * 0.05);
+			const otherIncome = vary(baseOther);
+			const concessions = i % 3 === 0 ? -Math.round(gpr * 0.01) : 0;
+
+			return {
+				month,
+				categories: [
+					{
+						name: "Income",
+						category_type: "income",
+						items: [
+							{ name: "Gross Potential Rent", amount: gpr },
+							{ name: "Vacancy Loss", amount: vacancyLoss },
+							{ name: "Other Income", amount: otherIncome },
+							...(concessions !== 0 ? [{ name: "Concessions", amount: concessions }] : []),
+						],
+					},
+					{
+						name: "Operating Expenses",
+						category_type: "expense",
+						items: [
+							{ name: "Real Estate Taxes", amount: vary(baseTaxes) },
+							{ name: "Insurance", amount: vary(baseInsurance) },
+							{ name: "Utilities", amount: vary(baseUtilities) },
+							{ name: "Repairs & Maintenance", amount: vary(baseRepairs) },
+							{ name: "Payroll", amount: vary(basePayroll) },
+							{ name: "Management Fee", amount: vary(baseMgmtFee) },
+							{ name: "Marketing", amount: vary(baseMarketing) },
+							{ name: "General & Admin", amount: vary(baseAdmin) },
+							{ name: "Contract Services", amount: vary(baseContract) },
+						],
+					},
+					{
+						name: "Capital Expenditures",
+						category_type: "below_line",
+						items: [
+							{ name: "CapEx Reserves", amount: i === 5 || i === 11 ? 25000 : 5000 },
+						],
+					},
+				],
+			};
+		});
+	})(),
+	fiveYearCashFlow: [
+		{ year: 2026, egi: 0, expenses: 0, noi: 0 },
+		{ year: 2027, egi: 1200000, expenses: 300000, noi: 900000 }
+	],
+	returnsBreakdown: {
+		exitProceeds: 44500000,
+		totalDebtPayoff: 18000000,
+		netEquityProceeds: 26500000,
+		totalProfit: 14700000
+	},
+	quarterlyDeliverySchedule: [
+		{ quarter: "Q1 2027", units: 30 }
+	],
+	sensitivityAnalysis: {
+		rentGrowthImpact: [{ growth: "0%", irr: 18.5 }],
+		constructionCostImpact: [{ cost: "Base", irr: 18.5 }]
+	},
+	drawSchedule: [
+		{ drawNumber: 1, percentComplete: 10, amount: 2500000 }
+	],
+	majorEmployers: [
+		{ name: "Downtown Dallas CBD", employees: 5000, growth: "+2.5%", distance: "0.8 mi" }
+	],
+	rentComps: [
+		{ propertyName: "Farmers Market Lofts", address: "1010 S Pearl Expy", distance: 0.4, yearBuilt: 2018, totalUnits: 220, occupancyPercent: 95, avgRentMonth: 1900, rentPSF: 2.75 }
+	],
+	riskHigh: [{ risk: "Construction costs", mitigation: "Fixed-price contract", probability: "30%" }],
+	riskMedium: [{ risk: "Interest rates", mitigation: "Rate cap", probability: "40%" }],
+	riskLow: [{ risk: "Tenant stability", mitigation: "Pre-leasing", probability: "10%" }],
+	capitalUseTiming: { month1_3: 0.15, month4_6: 0.25, month7_12: 0.35, month13_18: 0.2, month19_24: 0.05 },
+
+	// Analytical scenario fields (not in schema but needed by OM)
+	upsideIRR: 21.8,
+	downsideIRR: 15.2,
+	upsideEquityMultiple: 2.4,
+	downsideEquityMultiple: 1.8,
+	upsideProfitMargin: 38.3,
+	downsideProfitMargin: 27.5,
+	riskLevelUpside: "Low",
+	riskLevelBase: "Moderate",
+	riskLevelDownside: "Moderate",
+
+	// Final Explicit Project Fields for 100% Coverage
+	loanType: "Construction Loan",
+	targetLtvPercent: 40.4,
+	targetLtcPercent: 60.4,
+	interestRateType: "Floating",
+	targetCloseDate: "2025-08-15",
+	recoursePreference: "Non-Recourse",
+	useOfProceeds: "Ground-up development of workforce multifamily housing",
+	prepaymentPremium: "None",
+	businessPlanSummary: "Complete construction of Building B and stabilize at 95% occupancy",
+	marketOverviewSummary: "Strong demand for workforce housing in Downtown Dallas with 94%+ submarket occupancy",
+	sponsorEquity: 11800000,
+	taxCreditEquity: 0,
+	gapFinancing: 0,
+	prepaymentTerms: "Yield maintenance for first 12 months, then open with 1% exit fee",
+	permTakeoutPlanned: true,
+	allInRate: 8.0,
+	lender: "TBD",
+	extensions: "Two 6-month extension options",
+	originationFee: 1.0,
+	exitFee: 1.0,
+	completionGuaranty: "Full completion guaranty from Hoque Global",
+	rentGrowth: 3.0,
+	bachelorsShare: 0,
+	deliveryByQuarter: [],
 	landAcquisitionLabel: "Land Acquisition",
 	baseConstructionLabel: "Base Construction",
-	contingencyLabel: "Contingency (5%)",
+	contingencyLabel: "Contingency",
 	constructionFeesLabel: "Construction Fees",
 	aeFeesLabel: "A&E Fees",
 	developerFeeLabel: "Developer Fee",
@@ -725,414 +850,25 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	syndicationCostsLabel: "Syndication Costs",
 	enviroRemediationLabel: "Environmental Remediation",
 	pfcStructuringFeeLabel: "PFC Structuring Fee",
-
-	// Sources of Funds & Loan Terms
-	totalCapitalization: 29800000, // Total project capitalization
-	sponsorEquity: 11800000,
-	taxCreditEquity: 0, // Not utilizing tax credits for this project
-	gapFinancing: 0, // No gap financing required - fully capitalized
-	equityCommittedPercent: 39.6,
-	equityContribution: 39.6, // Same as equityCommittedPercent
-	equityContributionDescription:
-		"$11.8M sponsor equity contribution representing 39.6% of total project cost. Equity fully committed and available at closing.",
-	loanTypeLabel: "Senior Construction Loan",
+	equityContributionDescription: "Equity provided by Hoque Global (60%) and ACARA (40%)",
+	loanTypeLabel: "Loan Type",
 	sponsorEquityLabel: "Sponsor Equity",
 	taxCreditEquityLabel: "Tax Credit Equity",
 	gapFinancingLabel: "Gap Financing",
-	loanAmountRequested: 18000000,
-	loanType: "Senior Construction Loan",
-	lender: "TBD - Lender selection in progress",
-	interestRate: 8.0,
-	underwritingRate: 8.0,
-	floorRate: 4.5, // Minimum interest rate floor
-	interestRateType: "Floating",
-	amortizationYears: 30,
-	interestOnlyPeriodMonths: 24,
-	extensions: "Two 6-month extensions available with lender approval",
-	targetLtvPercent: 44,
-	targetLtcPercent: 60,
-	ltc: 60.4, // Loan-to-Cost: $18M / $29.8M = 60.4%
-	prepaymentTerms: "Minimum interest",
-	prepaymentPremium: "None - prepayment allowed after interest-only period",
-	originationFee: "1.5% of loan amount",
-	exitFee: "None",
-	recoursePreference: "Partial Recourse",
-	completionGuaranty: "Yes - completion guaranty required",
-	permTakeoutPlanned: true,
-	allInRate: 8.25,
-	targetCloseDate: "2025-08-15",
-	useOfProceeds:
-		"Land acquisition, vertical construction, soft costs, and financing reserves for Building B within the SoGood master plan.",
-
-	// Operating Expenses & Investment Metrics
-	realEstateTaxes: 34200,
-	insurance: 92800,
-	taxInsuranceReserve: 127000, // Tax and insurance reserve
-	utilitiesCosts: 23200,
-	repairsAndMaintenance: 46400,
-	managementFee: 85000,
-	generalAndAdmin: 40600,
-	payroll: 174000,
-	reserves: 23200,
-	capExReserve: 116000, // CapEx reserve for future capital improvements
-	marketingLeasing: 68040,
-	serviceCoordination: 10000,
-	totalOperatingExpenses: 625040, // Sum of all operating expenses
-	noiYear1: 2268000,
-	propertyNoiT12: 0, // Ground-up development - no existing NOI
-	stabilizedNoiProjected: 2268000,
-	yieldOnCost: 7.6,
-	capRate: 5.5,
-	stabilizedValue: 41200000,
-	ltv: 44,
-	debtYield: 12.6,
-	dscr: 1.25,
-	expectedHoldPeriod: 7,
-	untrendedNOIYear1: 2222640,
-	trendedNOIYear1: 2313360,
-	untrendedYield: 7.45,
-	trendedYield: 7.76,
-	inflationAssumption: 2.0,
-	dscrStressTest: 1.1,
-	ltvStressMax: 50.0,
-	dscrStressMin: 1.1,
-	portfolioLTV: 60.0,
-	portfolioDSCR: 1.3,
-	debtService: 1814400, // Annual debt service on $18M loan at 8.0% interest
-	exitStrategy: "Refinance",
-	// fiveYearCashFlow: Array of annual cash flow values (used by ReturnsCharts component)
-	fiveYearCashFlow: [
-		453600, // Year 1 cash flow (NOI - Debt Service)
-		521640, // Year 2 cash flow
-		591721, // Year 3 cash flow
-		663905, // Year 4 cash flow
-		738254, // Year 5 cash flow
-	],
-	// returnsBreakdown: Percentage breakdown of return sources (used by ReturnsCharts component)
-	returnsBreakdown: {
-		cashFlow: 40.0, // Percentage contribution from cash flow
-		assetAppreciation: 35.0, // Percentage contribution from appreciation
-		taxBenefits: 15.0, // Percentage contribution from tax benefits (PFC structure)
-		leverage: 10.0, // Percentage contribution from leverage
-	},
-	// quarterlyDeliverySchedule: Array of quarterly delivery data (used by ReturnsCharts component)
-	quarterlyDeliverySchedule: [
-		{ quarter: "Q1 2027", units: 0 },
-		{ quarter: "Q2 2027", units: 0 },
-		{ quarter: "Q3 2027", units: 29 },
-		{ quarter: "Q4 2027", units: 58 },
-		{ quarter: "Q1 2028", units: 29 },
-	],
-	// sensitivityAnalysis: Sensitivity analysis data (used by ReturnsCharts component)
-	sensitivityAnalysis: {
-		// Rent growth impact on IRR
-		rentGrowthImpact: [
-			{ growth: "-2%", irr: 16.2 },
-			{ growth: "-1%", irr: 17.3 },
-			{ growth: "0%", irr: 18.5 },
-			{ growth: "+1%", irr: 19.7 },
-			{ growth: "+2%", irr: 21.0 },
-		],
-		// Construction cost impact on IRR
-		constructionCostImpact: [
-			{ cost: "+10%", irr: 15.8 },
-			{ cost: "+5%", irr: 17.1 },
-			{ cost: "Base", irr: 18.5 },
-			{ cost: "-5%", irr: 19.9 },
-			{ cost: "-10%", irr: 21.3 },
-		],
-	},
-	// Flat fields for returns page
-	upsideIRR: 21.8,
-	downsideIRR: 15.2,
-	upsideEquityMultiple: 2.4,
-	downsideEquityMultiple: 1.8,
-	upsideProfitMargin: 38.3, // Calculated: ($41.2M exit - $29.8M cost) / $29.8M = 38.3%
-	downsideProfitMargin: 27.5, // Calculated: ($38.0M exit - $29.8M cost) / $29.8M = 27.5%
-	// Risk levels for returns page
-	riskLevelUpside: "Low",
-	riskLevelBase: "Moderate",
-	riskLevelDownside: "Moderate",
-	riskHigh: [
-		{
-			risk: "Construction cost overruns in current inflationary environment",
-			mitigation:
-				"Fixed-price construction contract with established GC, 5% contingency reserve, and regular cost monitoring",
-			probability: "30%",
-		},
-		{
-			risk: "Lease-up timeline delays affecting stabilization",
-			mitigation:
-				"Pre-leased 30,000 SF Innovation Center, strong market fundamentals with 94.5% occupancy, experienced leasing team",
-			probability: "25%",
-		},
-	],
-	riskMedium: [
-		{
-			risk: "Interest rate volatility on floating rate construction loan",
-			mitigation:
-				"Interest reserve funded for 24-month construction period, rate floor at 4.5%, relationship with lender for potential rate cap",
-			probability: "40%",
-		},
-		{
-			risk: "Market rent growth assumptions may not materialize",
-			mitigation:
-				"Conservative 3.0% rent growth assumption, strong market fundamentals with 6.9% population growth, diversified unit mix",
-			probability: "20%",
-		},
-	],
-	riskLow: [
-		{
-			risk: "Pre-leased Innovation Center provides stable commercial income",
-			mitigation:
-				"15-year lease with GSV Holdings executed, credit-worthy tenant, reduces lease-up risk",
-			probability: "10%",
-		},
-		{
-			risk: "Strong sponsor track record and lender relationships",
-			mitigation:
-				"Proven track record with SoGood Phase A, established relationships with Frost Bank and Citi Community Capital",
-			probability: "5%",
-		},
-	],
-	capitalUseTiming: {
-		month1_3: 0.15, // 15% in first 3 months
-		month4_6: 0.25, // 25% in months 4-6
-		month7_12: 0.35, // 35% in months 7-12
-		month13_18: 0.2, // 20% in months 13-18
-		month19_24: 0.05, // 5% in months 19-24
-	},
-	businessPlanSummary:
-		"Execute a Dallas PFC-backed workforce housing program (50% of units ≤80% AMI) inside a 6-story mixed-use podium with 30,000 SF of pre-leased Innovation Center space. The plan funds land acquisition, hard/soft costs, and reserves for a 24-month build schedule plus two 6-month extensions, targeting a refinancing or sale upon stabilization in 2027.",
-	marketOverviewSummary:
-		"Site sits between the Dallas Farmers Market, Deep Ellum, and the CBD—walking distance to 5,000+ jobs, DART rail, and the I-30/I-45 interchange. Three-mile demographics show $85K+ median income, 6.9% population growth, and 76% renter share. The submarket has <6,000 units delivering over the next 24 months, keeping occupancy above 94%.",
-
-	// Market Context
-	submarketName: "Downtown Dallas",
-	msaName: "Dallas-Fort Worth-Arlington, TX",
-	population1Mi: 45230, // Population within 1 mile
-	population3Mi: 174270,
-	population5Mi: 385420, // Population within 5 miles
-	popGrowth201020: 23.3,
-	projGrowth202429: 6.9,
-	medianIncome1Mi: 92000, // Median income within 1 mile
-	medianHHIncome: 85906,
-	medianIncome5Mi: 81500, // Median income within 5 miles
-	medianAge1Mi: 34, // Median age within 1 mile
-	medianAge3Mi: 35, // Median age within 3 miles
-	medianAge5Mi: 36, // Median age within 5 miles
-	incomeGrowth5yr: 3.2, // 5-year income growth projection
-	jobGrowth5yr: 2.5, // 5-year job growth projection
-	renterShare: 76.7, // Same as renterOccupiedPercent
-	bachelorsShare: 42.5, // Percentage with bachelor's degree or higher
-	renterOccupiedPercent: 76.7,
-	unemploymentRate: 3.5,
-	largestEmployer: "Downtown Dallas CBD employers",
-	majorEmployers: [
-		{
-			name: "Downtown Dallas CBD",
-			employees: 5000,
-			growth: "+2.5%",
-			distance: "0.8 mi",
-		},
-		{
-			name: "Dallas Farmers Market",
-			employees: 500,
-			growth: "+3.0%",
-			distance: "0.4 mi",
-		},
-		{
-			name: "Deep Ellum Entertainment District",
-			employees: 1000,
-			growth: "+4.0%",
-			distance: "0.6 mi",
-		},
-		{
-			name: "Baylor University Medical Center",
-			employees: 3000,
-			growth: "+1.5%",
-			distance: "1.2 mi",
-		},
-	],
-	employerConcentration: 15.0,
-	crimeRiskLevel: "Moderate",
-	walkabilityScore: 92,
-	infrastructureCatalyst:
-		"DART expansion and I-30/I-45 interchange improvements",
-	broadbandSpeed: "Fiber 1 Gbps available",
-	submarketAbsorption: 500,
-	supplyPipeline: 4000,
-	currentInventory: 8500, // Current inventory in submarket (units)
-	underConstruction: 2500, // Units currently under construction
-	planned24Months: 4000, // Units planned for delivery in next 24 months
-	averageOccupancy: 94.5, // Average occupancy rate in submarket
-	deliveryByQuarter: [
-		{ quarter: "Q3 2025", units: 0 },
-		{ quarter: "Q4 2025", units: 0 },
-		{ quarter: "Q1 2026", units: 500 },
-		{ quarter: "Q2 2026", units: 750 },
-		{ quarter: "Q3 2026", units: 1000 },
-		{ quarter: "Q4 2026", units: 1250 },
-	],
-	monthsOfSupply: 7.5,
-	captureRate: 2.1,
-	avgCapRate: 5.5, // Average cap rate for comparable properties
-	rentPremium: 5.0, // Rent premium vs. market average (%)
-	qualityTier: "Class A",
-	competitionLevel: "Moderate",
-	demandTrend: "Strong",
-	marketStatus: "Healthy",
-	supplyPressure: "Moderate - pipeline manageable",
-	rentGrowth: 3.0, // Annual rent growth projection
-	marketConcessions: "1 month free on select units",
-	northStarComp: "SoGood Phase A and nearby Class A multifamily",
-	substantialComp:
-		"Farmers Market Lofts (220 units, 2018, 95% occupancy) - similar location and unit mix",
-	// Seed basic rent comps so the Market Context table is populated
-	rentComps: [
-		{
-			propertyName: "Farmers Market Lofts",
-			address: "1010 S Pearl Expy, Dallas, TX",
-			distance: 0.4,
-			yearBuilt: 2018,
-			totalUnits: 220,
-			occupancyPercent: 95,
-			avgRentMonth: 1900,
-			rentPSF: 2.75,
-		},
-		{
-			propertyName: "Deep Ellum Flats",
-			address: "2400 Commerce St, Dallas, TX",
-			distance: 0.7,
-			yearBuilt: 2020,
-			totalUnits: 180,
-			occupancyPercent: 94,
-			avgRentMonth: 1850,
-			rentPSF: 2.65,
-		},
-		{
-			propertyName: "Downtown Exchange",
-			address: "1400 Main St, Dallas, TX",
-			distance: 0.9,
-			yearBuilt: 2017,
-			totalUnits: 250,
-			occupancyPercent: 93,
-			avgRentMonth: 2000,
-			rentPSF: 2.85,
-		},
-	],
-
-	// Special Considerations
-	opportunityZone: true,
-	affordableHousing: true,
-	affordableUnitsNumber: 58,
-	amiTargetPercent: 80,
-	taxExemption: true,
-	exemptionStructure: "PFC",
-	sponsoringEntity: "Dallas Housing Finance Corporation PFC",
-	exemptionTerm: 99,
-	incentiveStacking: ["PFC Tax Exemption", "Opportunity Zone"],
-	tifDistrict: false,
-	taxAbatement: true,
-	paceFinancing: false,
-	historicTaxCredits: false,
-	newMarketsCredits: false,
-	relocationPlan: "N/A",
-	seismicPMLRisk: "2.5% PML",
-	totalIncentiveValue: 8500000, // Estimated total value of tax exemption over 99-year term
-	specialProgramsDescription:
-		"PFC-backed workforce housing program with 50% of units at ≤80% AMI. Opportunity Zone designation provides tax benefits for equity investors. Property tax exemption through PFC structure significantly improves NOI and project economics.",
-	impactFees: 0, // No impact fees - PFC structure exempts from certain fees
-
-	// Timeline & Milestones
-	landAcqClose: "2024-07-12",
-	firstOccupancy: "2027-10-15",
-	stabilization: "2028-03-31",
-	preLeasedSF: 30000,
-	entitlements: "Approved",
-	entitlementsDate: "2024-05-15", // Date entitlements were approved
-	finalPlans: "Pending",
-	permitsIssued: "Issued",
-	verticalStart: "2025-08-01",
-	absorptionProjection: 12, // Months to full stabilization
-	landAcqToGroundbreakingDays: 385, // Days from land acquisition to groundbreaking
-	groundbreakingToVerticalStartDays: 0, // Same date
-	verticalStartToFirstOccupancyDays: 806, // Days from vertical start to first occupancy
-	firstOccupancyToCompletionDays: 46, // Days from first occupancy to completion
-	completionToStabilizationDays: 153, // Days from completion to stabilization
-	totalProjectDurationDays: 1390, // Total project duration in days
-	landAcqStatus: "completed",
-	entitlementsStatus: "completed",
-	groundbreakingStatus: "upcoming",
-	verticalStartStatus: "upcoming",
-	firstOccupancyStatus: "upcoming",
-	completionStatus: "upcoming",
-	stabilizationStatus: "upcoming",
-
-	// Site & Context
-	totalSiteAcreage: 2.5,
-	buildableAcreage: 2.3,
-	allowableFAR: 3.5,
-	farUtilizedPercent: 85.0,
-	densityBonus: true,
-	greenSpace: 25000, // Green space in square feet
-	setbackFront: 25, // Front setback in feet
-	setbackSide: 15, // Side setback in feet
-	setbackRear: 20, // Rear setback in feet
-	greenSpaceRatio: 25.0, // Green space as percentage of site
-	storyHeight: 12, // Average story height in feet
-	heightLimit: 75, // Maximum height limit in feet
-	actualHeight: 72, // Actual building height in feet (6 stories × 12 ft)
-	zoningCompliant: true, // Project is compliant with zoning requirements
-	currentSiteStatus: "Vacant",
-	siteAccess: "Hickory St, Ferris St",
-	proximityShopping: "Farmers Market, Deep Ellum nearby",
-	topography: "Flat",
-	soilConditions: "Urban fill over clay; deep foundations recommended",
-	accessPoints: "Curb cuts on Hickory St and Ferris St",
-	adjacentLandUse: "Mixed-use, residential, and light industrial",
-	viewCorridors: "Downtown Dallas skyline and Farmers Market",
-	floodZone: "Zone X",
-	wetlandsPresent: false,
-	seismicRisk: "Low",
-	phaseIESAFinding: "Clean",
-	noiseFactors: ["Highway", "Rail"],
-	utilityAvailability: "Available",
-	easements: "Utility easement along northern property line",
-	siteImages: [], // Will be populated from uploaded images
-	architecturalDiagrams: [], // Will be populated from uploaded diagrams
-	// Seeded draw schedule so the Timeline table renders with rows
-	drawSchedule: [
-		{ drawNumber: 1, percentComplete: 10, amount: 2500000 },
-		{ drawNumber: 2, percentComplete: 30, amount: 5000000 },
-		{ drawNumber: 3, percentComplete: 60, amount: 6500000 },
-		{ drawNumber: 4, percentComplete: 90, amount: 5500000 },
-	],
-
-	// Sponsor Information
-	sponsorEntityName: "Hoque Global",
-	sponsorStructure: "General Partner",
-	equityPartner: "ACARA",
-	syndicationStatus: "In Process",
-	contactInfo: "Cody Field (415.202.3258), Joel Heikenfeld (972.455.1943)",
-	sponsorExperience: "Seasoned (3+)",
-	sponsorExpScore: 8,
-	priorDevelopments: 1000,
-	netWorth: 50000000,
-	guarantorLiquidity: 7500000,
-
-	// Additional fields that may be in schema but not in base resume
-	// These are realistic values based on the Hoque/SoGood project
-	// Note: amenitySF is already defined above, so not duplicated here
-	irr: 18.5, // Internal Rate of Return - calculated based on 7.6% yield, 7-year hold, PFC benefits
-	equityMultiple: 2.1, // Equity multiple based on $11.8M equity and projected returns
-	ltc: 60.4, // Loan-to-Cost: $18M / $29.8M = 60.4%
-	exitCapRate: 5.5, // Exit cap rate (same as going-in cap rate for conservative projection)
-	distanceToCBD: 0.8, // Miles to Downtown Dallas CBD (site is between Farmers Market and Deep Ellum)
-	distanceToEmployment: 0.6, // Miles to major employment centers
-	distanceToTransit: 0.3, // Miles to DART rail station
-	jobGrowth: 2.5, // Annual job growth percentage for Dallas market
-	rentGrowthAssumption: 3.0, // Annual rent growth assumption (used in trended NOI calculations)
+	specialProgramsDescription: "Utilizing PFC tax exemption and Opportunity Zone structure",
+	liens: "None",
+	officeTIReimbursementCap: 0,
+	usesDirect: [],
+	rates: [],
+	sourcesDirect: [],
+	proFormaStartYear: 2026,
+	proFormaRentGrowth: 3.0,
+	proFormaExpenseInflation: 3.0,
+	proFormaVacancyRate: 5.0,
+	proFormaExitCapRate: 5.5,
+	proFormaCapExPerUnit: 200,
+	siteImages: [],
+	architecturalDiagrams: [],
 };
 
 /**
@@ -1154,7 +890,9 @@ const hoqueProjectResume: Record<string, any> = (() => {
 		const isUnset = current === undefined || current === null;
 
 		if (isUnset || isEmptyString) {
-			result[fieldId] = getDefaultValueForProjectField(fieldId);
+			console.warn(`[seed] Warning: Project field "${fieldId}" is missing from hoqueProjectResumeBase`);
+			// Use a generic default since explicit ones are gone
+			result[fieldId] = Array.isArray(current) ? [] : (typeof current === "number" ? 0 : "");
 		}
 	}
 
@@ -1301,6 +1039,14 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 	bankruptcyHistory: false,
 	foreclosureHistory: false,
 	litigationHistory: false,
+	// New fields for Sponsor Resume & PFS
+	totalAUM: "$150,000,000",
+	totalSqFtManaged: "350,000",
+	totalAssets: 9000000,
+	totalLiabilities: 2000000,
+	netWorth: 7000000,
+	totalLiquidAssets: 5000000,
+	contingentLiabilities: 500000,
 	linkedinUrl: "https://www.linkedin.com/company/hoque-global",
 	websiteUrl: "https://www.hoqueglobal.com",
 	// Principals array - this is the primary data structure for multiple principals
@@ -1454,6 +1200,67 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 			contact: "PFC Program Director (pfc@dhfc.org)",
 		},
 	],
+	scheduleOfRealEstateOwned: [
+		{
+			propertyAddress: "123 Main St, Springfield, IL",
+			propertyType: "Multifamily",
+			ownershipPercentage: 100,
+			dateAcquired: "2020-01-15",
+			originalCost: 5000000,
+			currentMarketValue: 6500000,
+			lenderName: "First Bank",
+			currentLoanBalance: 4000000,
+			interestRate: 5.0,
+			maturityDate: "2030-01-15",
+			monthlyPayment: 21000,
+			recourse: "Yes",
+			grossRentalIncome: 600000,
+			operatingExpenses: 200000
+		},
+		{
+			propertyAddress: "456 Oak Ave, Metropolis, NY",
+			propertyType: "Retail",
+			ownershipPercentage: 50,
+			dateAcquired: "2018-06-01",
+			originalCost: 10000000,
+			currentMarketValue: 12000000,
+			lenderName: "City Finance",
+			currentLoanBalance: 7000000,
+			interestRate: 6.0,
+			maturityDate: "2028-06-01",
+			monthlyPayment: 42000,
+			recourse: "No",
+			grossRentalIncome: 1100000,
+			operatingExpenses: 400000
+		},
+		{
+			propertyAddress: "789 Pine Ln, Gotham, NJ",
+			propertyType: "Office",
+			ownershipPercentage: 100,
+			dateAcquired: "2022-03-10",
+			originalCost: 8000000,
+			currentMarketValue: 7500000,
+			lenderName: "Gotham Credit",
+			currentLoanBalance: 5000000,
+			interestRate: 7.0,
+			maturityDate: "2027-03-10",
+			monthlyPayment: 33000,
+			recourse: "Yes",
+			grossRentalIncome: 700000,
+			operatingExpenses: 300000
+		}
+	],
+	historicalCostBasis: 85000000,
+	historicalExitValues: 120000000,
+	equitypartnersList: "ACARA, Dallas Housing Finance Corp",
+	historicalEquityDistributions: 15000000,
+	assets: [],
+	liabilities: [],
+	developmentGuarantees: "Standard completion guarantees provided by principals",
+	retainedEarningsCalculated: 2500000,
+	priorYearsRetainedEarnings: 2000000,
+	sreoProperties: [],
+	constructionWorkInProgress: 0,
 };
 
 /**
@@ -1473,14 +1280,40 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 		const isUnset = current === undefined || current === null;
 
 		if (isUnset || isEmptyString) {
-			result[fieldId] = getDefaultValueForBorrowerField(fieldId);
+			// Skip warnings for flat principal fields (they are inside the 'principals' array)
+			const principalFields = [
+				"principalLegalName",
+				"principalRoleDefault",
+				"principalEmail",
+				"ownershipPercentage",
+				"principalBio",
+				"principalSpecialties",
+				"principalAchievements",
+				"principalEducation",
+				"yearsCREExperienceRange",
+				"netWorthRange",
+				"liquidityRange",
+				"creditScoreRange",
+			];
+			if (principalFields.includes(fieldId)) {
+				result[fieldId] = Array.isArray(current) ? [] : (typeof current === "number" ? 0 : "");
+				continue;
+			}
+
+			console.warn(`[seed] Warning: Borrower field "${fieldId}" is missing from hoqueBorrowerResumeBase`);
+			result[fieldId] = Array.isArray(current) ? [] : (typeof current === "number" ? 0 : "");
 		}
 	}
 
 	// Remove any fields not in the schema
 	// But preserve special array fields that the frontend expects (principals, trackRecord)
 	const schemaFieldSet = new Set(BORROWER_SCHEMA_FIELD_IDS);
-	const preserveFields = new Set(["principals", "trackRecord", "references"]);
+	const preserveFields = new Set([
+		"principals",
+		"trackRecord",
+		"references",
+		"scheduleOfRealEstateOwned",
+	]);
 	for (const key of Object.keys(result)) {
 		if (
 			key !== "_lockedFields" &&
@@ -1495,13 +1328,14 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 
 	// Lock all fields that have values (matching project resume logic)
 	// Lock fields that have non-empty values (including 0 for numeric fields, false for booleans, empty arrays)
-	// Also lock special array fields (principals, trackRecord, references) that the frontend expects
+	// Also lock special array fields (principals, trackRecord, references, scheduleOfRealEstateOwned) that the frontend expects
 	const lockedFields: Record<string, boolean> = {};
 	const fieldsToCheck = [
 		...BORROWER_SCHEMA_FIELD_IDS,
 		"principals",
 		"trackRecord",
 		"references",
+		"scheduleOfRealEstateOwned",
 	];
 	for (const fieldId of fieldsToCheck) {
 		const value = result[fieldId];
@@ -1524,7 +1358,8 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 				if (
 					fieldId === "principals" ||
 					fieldId === "trackRecord" ||
-					fieldId === "references"
+					fieldId === "references" ||
+					fieldId === "scheduleOfRealEstateOwned"
 				) {
 					if (value.length > 0) {
 						lockedFields[fieldId] = true;
@@ -1559,6 +1394,11 @@ interface OnboardResponse {
 		id: string;
 		email: string;
 	};
+	error?: string;
+}
+
+interface OnboardResponse {
+	user?: { id: string; email: string };
 	error?: string;
 }
 
@@ -1678,6 +1518,25 @@ async function callOnboardBorrower(
 	}
 
 	return { error: `Failed after ${retries} attempts` };
+}
+
+async function ensureStorageBucket(orgId: string) {
+	try {
+		const { error: bucketError } = await supabaseAdmin.storage.createBucket(orgId, {
+			public: false,
+			fileSizeLimit: 50 * 1024 * 1024, // 50MB
+		});
+
+		if (bucketError && !bucketError.message.includes("already exists")) {
+			console.error(`[seed] Failed to ensure storage bucket: ${bucketError.message}`);
+		} else if (!bucketError) {
+			console.log(`[seed] Created storage bucket for org: ${orgId}`);
+		} else {
+			// Bucket already exists, which is fine
+		}
+	} catch (e) {
+		console.error(`[seed] Exception ensuring storage bucket:`, e);
+	}
 }
 
 async function createAdvisorAccount(): Promise<{
@@ -1875,7 +1734,114 @@ async function getOrCreateDemoBorrowerAccount(): Promise<{
 		return null;
 	}
 
+	// Ensure bucket exists
+	await ensureStorageBucket(borrowerOrgId);
+
 	return { userId: borrowerUserId, orgId: borrowerOrgId };
+}
+
+/**
+ * Create lender account (lender@capmatch.com)
+ */
+async function createLenderAccount(): Promise<{
+	userId: string;
+	orgId: string;
+} | null> {
+	console.log("[seed] Setting up lender account (Capital Lending Group)...");
+
+	const lenderEmail = "lender@capmatch.com";
+	const lenderPassword = "password";
+	const lenderName = "Capital Lending Group";
+
+	// Check if lender already exists
+	const { data: existingProfile } = await supabaseAdmin
+		.from("profiles")
+		.select("id, active_org_id")
+		.eq("email", lenderEmail)
+		.maybeSingle();
+
+	let lenderUserId: string;
+	let lenderOrgId: string | null = null;
+
+	if (existingProfile) {
+		console.log(
+			`[seed] Lender already exists: ${lenderEmail} (${existingProfile.id})`
+		);
+		lenderUserId = existingProfile.id;
+		lenderOrgId = existingProfile.active_org_id;
+	} else {
+		// Create lender user via callOnboardBorrower and manually fix app_role
+		const lenderResult = await callOnboardBorrower(
+			lenderEmail,
+			lenderPassword,
+			lenderName
+		);
+		if (lenderResult.error || !lenderResult.user) {
+			console.error(
+				`[seed] ❌ Failed to create lender: ${lenderResult.error}`
+			);
+			return null;
+		}
+		lenderUserId = lenderResult.user.id;
+
+		// Update profile to lender role
+		await supabaseAdmin
+			.from("profiles")
+			.update({ app_role: "lender" })
+			.eq("id", lenderUserId);
+
+		console.log(
+			`[seed] ✅ Created lender: ${lenderEmail} (${lenderUserId})`
+		);
+	}
+
+	// For the lender org, check if an org exists for this lender
+	// Lenders get their own org, similar to borrowers, but we will make an explicit one
+	// Or we reuse the one created by OnboardBorrower but rename its entity_type to lender
+	const { data: lenderProfile } = await supabaseAdmin
+		.from("profiles")
+		.select("active_org_id")
+		.eq("id", lenderUserId)
+		.single();
+
+	if (lenderProfile?.active_org_id) {
+		lenderOrgId = lenderProfile.active_org_id;
+		// Update org entity_type to 'lender'
+		await supabaseAdmin
+			.from("orgs")
+			.update({ entity_type: "lender" })
+			.eq("id", lenderOrgId);
+	} else {
+		// Create a new one just in case
+		const { data: orgData, error: orgError } = await supabaseAdmin.from("orgs").insert({
+			name: `${lenderName}'s Organization`,
+			entity_type: "lender",
+		}).select().single();
+
+		if (orgError) {
+			console.error("[seed] Failed to create lender org:", orgError);
+			return null;
+		}
+		lenderOrgId = orgData.id;
+
+		// Add owner
+		await supabaseAdmin.from("org_members").insert({
+			org_id: lenderOrgId,
+			user_id: lenderUserId,
+			role: "owner",
+		});
+		
+		await supabaseAdmin.from("profiles").update({ active_org_id: lenderOrgId }).eq("id", lenderUserId);
+	}
+
+	console.log(`[seed] ✅ Lender org: ${lenderOrgId}`);
+
+	if (!lenderOrgId) {
+		console.error("[seed] ❌ Lender org ID is null");
+		return null;
+	}
+
+	return { userId: lenderUserId, orgId: lenderOrgId };
 }
 
 // Helper to safely get service role key
@@ -2303,6 +2269,208 @@ async function grantMemberProjectAccess(
 	} catch (err) {
 		console.error(`[seed] Exception granting project access:`, err);
 		return false;
+	}
+}
+
+
+// ============================================================================
+// UNDERWRITING DOCS SEEDING
+// ============================================================================
+
+async function seedUnderwritingDocs(
+	projectId: string,
+	orgId: string,
+	creatorId: string // Using advisor ID as creator for underwriting docs
+): Promise<void> {
+	console.log(`[seed] Seeding underwriting documents...`);
+
+	// 1. Get Underwriting Root
+	const { data: uRoot, error: rootError } = await supabaseAdmin
+		.from("resources")
+		.select("id")
+		.eq("project_id", projectId)
+		.eq("resource_type", "UNDERWRITING_DOCS_ROOT")
+		.single();
+
+	if (rootError || !uRoot) {
+		console.error(`[seed] ❌ Failed to find UNDERWRITING_DOCS_ROOT`, rootError);
+		return;
+	}
+
+	const docsToSeed = [
+		{
+			filename: "t12_filled.xlsx",
+			displayName: "T12 Financial Statement",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		},
+		{
+			filename: "sources_uses_filled.xlsx",
+			displayName: "Sources & Uses Model",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		},
+		{
+			filename: "pfs_filled.xlsx",
+			displayName: "Personal Financial Statement (PFS)",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		},
+		{
+			filename: "sponsor_resume_filled.docx",
+			displayName: "Sponsor Bio",
+			mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		},
+		{
+			filename: "rent_roll_filled.xlsx",
+			displayName: "Current Rent Roll",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		},
+		{
+			filename: "sreo_filled.xlsx",
+			displayName: "Schedule of Real Estate Owned (SREO)",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		},
+		{
+			filename: "capex_report_filled.xlsx",
+			displayName: "CapEx Report",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		},
+		{
+			filename: "pro_forma_filled.xlsx",
+			displayName: "ProForma Cash flow",
+			mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		}
+	];
+
+	// Point to the parent "docs/so-good-apartments/underwriting-docs" directory
+	const basePath = path.join(
+		process.cwd(),
+		"docs/so-good-apartments/underwriting-docs"
+	);
+
+	for (const doc of docsToSeed) {
+		try {
+			const filePath = path.join(basePath, doc.filename);
+			if (!fs.existsSync(filePath)) {
+				console.warn(`[seed] ⚠️ File not found: ${filePath}`);
+				continue;
+			}
+
+			// Check if resource already exists to avoid duplicates
+			const { data: existing } = await supabaseAdmin
+				.from("resources")
+				.select("id")
+				.eq("parent_id", uRoot.id)
+				.eq("name", doc.displayName)
+				.maybeSingle();
+
+			if (existing) {
+				console.log(`[seed] ℹ️  Underwriting doc already exists: ${doc.displayName}`);
+				continue;
+			}
+
+			// 1. Create Resource First (to get ID for path)
+			const { data: resource, error: resourceError } = await supabaseAdmin
+				.from("resources")
+				.insert({
+					org_id: orgId,
+					project_id: projectId,
+					parent_id: uRoot.id,
+					resource_type: "FILE",
+					name: doc.displayName,
+				})
+				.select("id")
+				.single();
+
+			if (resourceError) {
+				console.error(
+					`[seed] ❌ Failed to create resource record for ${doc.displayName}:`,
+					resourceError.message
+				);
+				continue;
+			}
+
+			const fileBuffer = fs.readFileSync(filePath);
+			const fileSize = fs.statSync(filePath).size;
+			const fileNameOnly = path.basename(doc.filename);
+
+			// Construct Deep Path
+			// {ProjectId}/underwriting-docs/{ResourceId}/v1_user{CreatorId}_{Filename}
+			const storagePath = `${projectId}/underwriting-docs/${resource.id}/v1_user${creatorId}_${fileNameOnly}`;
+
+			// 2. Upload to Storage
+			const { error: uploadError } = await supabaseAdmin.storage
+				.from(orgId)
+				.upload(storagePath, fileBuffer, {
+					contentType: doc.mimeType,
+					upsert: true,
+				});
+
+			if (uploadError) {
+				console.error(
+					`[seed] ❌ Failed to upload ${doc.filename}:`,
+					uploadError.message
+				);
+				// Cleanup resource if upload failed
+				await supabaseAdmin.from("resources").delete().eq("id", resource.id);
+				continue;
+			}
+
+			// 3. Create Document Version
+			const { data: version, error: versionError } = await supabaseAdmin
+				.from("document_versions")
+				.insert({
+					resource_id: resource.id,
+					version_number: 1,
+					storage_path: storagePath,
+					created_by: creatorId,
+					status: "active",
+					metadata: {
+						size: fileSize,
+						mimeType: doc.mimeType,
+						source: "generated", // Marked as generated per requirements
+						isGenerated: true,   // Explicit flag
+					},
+				})
+				.select("id")
+				.single();
+
+			if (versionError) {
+				console.error(
+					`[seed] ❌ Failed to create version for ${doc.displayName}:`,
+					versionError.message
+				);
+				continue;
+			}
+
+			// 4. Update Resource with current_version_id
+			// 4. Update Resource with current_version_id
+			await supabaseAdmin
+				.from("resources")
+				.update({ current_version_id: version.id })
+				.eq("id", resource.id);
+
+			// 5. Create Underwriting Document record
+			const { error: uwError } = await supabaseAdmin
+				.from("underwriting_documents")
+				.insert({
+					resource_id: resource.id,
+					validation_status: "valid", // Pre-filled/seeded docs are valid
+					validation_errors: {},
+				});
+
+			if (uwError) {
+				console.error(
+					`[seed] ❌ Failed to create underwriting document record for ${doc.displayName}:`,
+					uwError.message
+				);
+			} else {
+				console.log(
+					`[seed] ✅ Seeded underwriting doc: ${doc.displayName}`
+				);
+			}
+
+		} catch (err) {
+			console.error(`[seed] ❌ Error seeding ${doc.displayName}:`, err);
+		}
 	}
 }
 
@@ -2837,11 +3005,9 @@ async function seedChatMessages(
 		// Initial project kickoff
 		{
 			userId: borrowerId,
-			content: `Hi @[Cody Field](user:${advisorId})! Excited to work with you on SoGood Apartments Building B. I've uploaded the key documents including the @[Term Sheet](doc:${
-				termSheetId || ""
-			}) and @[Sources & Uses](doc:${
-				sourcesUsesId || ""
-			}) which have all the key details for our 116-unit mixed-use development. This is Building B in the SoGood master plan, located between the Dallas Farmers Market and Deep Ellum.`,
+			content: `Hi @[Cody Field](user:${advisorId})! Excited to work with you on SoGood Apartments Building B. I've uploaded the key documents including the @[Term Sheet](doc:${termSheetId || ""
+				}) and @[Sources & Uses](doc:${sourcesUsesId || ""
+				}) which have all the key details for our 116-unit mixed-use development. This is Building B in the SoGood master plan, located between the Dallas Farmers Market and Deep Ellum.`,
 			resourceIds: [termSheetId, sourcesUsesId].filter(Boolean),
 		},
 		{
@@ -2851,9 +3017,8 @@ async function seedChatMessages(
 		},
 		{
 			userId: borrowerId,
-			content: `We're targeting Q1 2025 for debt marketing kickoff. Site control and PFC approval are complete as of July 2024. I've also uploaded the @[Market Study](doc:${
-				marketStudyId || ""
-			}) so you can see the market context. Groundbreaking is scheduled for August 2025.`,
+			content: `We're targeting Q1 2025 for debt marketing kickoff. Site control and PFC approval are complete as of July 2024. I've also uploaded the @[Market Study](doc:${marketStudyId || ""
+				}) so you can see the market context. Groundbreaking is scheduled for August 2025.`,
 			resourceIds: marketStudyId ? [marketStudyId] : [],
 		},
 
@@ -2872,9 +3037,8 @@ async function seedChatMessages(
 		// Financial discussion
 		{
 			userId: advisorId,
-			content: `I've been reviewing the @[Operating Pro Forma](doc:${
-				proFormaId || ""
-			}) - $18M loan request against $29.8M TDC is 60% LTC, which is reasonable for construction. Your base case shows 7.6% yield on cost with 44% LTV at stabilization. The partial recourse structure should help with pricing.`,
+			content: `I've been reviewing the @[Operating Pro Forma](doc:${proFormaId || ""
+				}) - $18M loan request against $29.8M TDC is 60% LTC, which is reasonable for construction. Your base case shows 7.6% yield on cost with 44% LTV at stabilization. The partial recourse structure should help with pricing.`,
 			resourceIds: proFormaId ? [proFormaId] : [],
 		},
 		{
@@ -2886,11 +3050,9 @@ async function seedChatMessages(
 		// Design and site discussion
 		{
 			userId: advisorId,
-			content: `The location between Farmers Market and Deep Ellum is excellent. I've looked at the @[Site Plan Abstract](doc:${
-				sitePlanId || ""
-			}) - the site access from Hickory St and Ferris St works well. The @[Architectural Plan Abstract](doc:${
-				architecturalPlanId || ""
-			}) shows a solid 6-story podium design with good amenity spaces.`,
+			content: `The location between Farmers Market and Deep Ellum is excellent. I've looked at the @[Site Plan Abstract](doc:${sitePlanId || ""
+				}) - the site access from Hickory St and Ferris St works well. The @[Architectural Plan Abstract](doc:${architecturalPlanId || ""
+				}) shows a solid 6-story podium design with good amenity spaces.`,
 			resourceIds: [sitePlanId, architecturalPlanId].filter(Boolean),
 		},
 		{
@@ -2953,18 +3115,16 @@ async function seedChatMessages(
 			const constructionMessages = [
 				{
 					userId: borrowerId,
-					content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Architectural Plan Abstract](doc:${
-						architecturalPlanId || ""
-					}) shows the full scope - 6-story podium with structured parking.`,
+					content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Architectural Plan Abstract](doc:${architecturalPlanId || ""
+						}) shows the full scope - 6-story podium with structured parking.`,
 					resourceIds: architecturalPlanId
 						? [architecturalPlanId]
 						: [],
 				},
 				{
 					userId: advisorId,
-					content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan Abstract](doc:${
-						sitePlanId || ""
-					}) shows good site access - that should help with construction logistics.`,
+					content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan Abstract](doc:${sitePlanId || ""
+						}) shows good site access - that should help with construction logistics.`,
 					resourceIds: sitePlanId ? [sitePlanId] : [],
 				},
 				{
@@ -2995,11 +3155,9 @@ async function seedChatMessages(
 			const financingMessages = [
 				{
 					userId: advisorId,
-					content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Term Sheet](doc:${
-						termSheetId || ""
-					}) and @[Sources & Uses](doc:${
-						sourcesUsesId || ""
-					}) are comprehensive - I'll use these for initial outreach. Target list coming next week.`,
+					content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Term Sheet](doc:${termSheetId || ""
+						}) and @[Sources & Uses](doc:${sourcesUsesId || ""
+						}) are comprehensive - I'll use these for initial outreach. Target list coming next week.`,
 					resourceIds: [termSheetId, sourcesUsesId].filter(Boolean),
 				},
 				{
@@ -3014,9 +3172,8 @@ async function seedChatMessages(
 				},
 				{
 					userId: borrowerId,
-					content: `Sounds good. The @[Operating Pro Forma](doc:${
-						proFormaId || ""
-					}) shows strong returns - 7.6% yield on cost with multiple exit scenarios. That should help with lender underwriting.`,
+					content: `Sounds good. The @[Operating Pro Forma](doc:${proFormaId || ""
+						}) shows strong returns - 7.6% yield on cost with multiple exit scenarios. That should help with lender underwriting.`,
 					resourceIds: proFormaId ? [proFormaId] : [],
 				},
 			];
@@ -3067,21 +3224,7 @@ async function createProject(
 		const projectId = project.id;
 		console.log(`[seed] ✅ Created project record: ${projectId}`);
 
-		// 2. Create empty project resume (will be updated later)
-		const { error: resumeError } = await supabaseAdmin
-			.from("project_resumes")
-			.insert({ project_id: projectId, content: {} });
-
-		if (resumeError) {
-			console.error(
-				`[seed] Failed to create project resume:`,
-				resumeError
-			);
-			await supabaseAdmin.from("projects").delete().eq("id", projectId);
-			return null;
-		}
-
-		// 3. Create storage folders (project root, architectural-diagrams, site-images)
+		// 2. Create storage folders (project root, architectural-diagrams, site-images)
 		const { error: storageError } = await supabaseAdmin.storage
 			.from(ownerOrgId)
 			.upload(
@@ -3144,7 +3287,7 @@ async function createProject(
 			);
 		}
 
-		// 4. Create PROJECT_RESUME resource
+		// 3. Create PROJECT_RESUME resource
 		const { data: projectResumeResource, error: resumeResourceError } =
 			await supabaseAdmin
 				.from("resources")
@@ -3164,7 +3307,7 @@ async function createProject(
 			);
 		}
 
-		// 5. Create PROJECT_DOCS_ROOT resource
+		// 4. Create PROJECT_DOCS_ROOT resource
 		const { data: projectDocsRootResource, error: docsRootError } =
 			await supabaseAdmin
 				.from("resources")
@@ -3184,7 +3327,7 @@ async function createProject(
 			);
 		}
 
-		// 6. Ensure borrower root resources
+		// 5. Ensure borrower root resources
 		const { error: borrowerRootError } = await supabaseAdmin.rpc(
 			"ensure_project_borrower_roots",
 			{
@@ -3199,7 +3342,7 @@ async function createProject(
 			);
 		}
 
-		// 7. Grant creator access
+		// 6. Grant creator access
 		const { error: grantError } = await supabaseAdmin
 			.from("project_access_grants")
 			.insert({
@@ -3233,6 +3376,37 @@ async function createProject(
 				permission: "edit",
 				granted_by: creatorId,
 			});
+		}
+
+		// 10. Create UNDERWRITING_DOCS_ROOT resource and grant access
+		const { data: underwritingDocsRoot, error: underwritingError } =
+			await supabaseAdmin
+				.from("resources")
+				.insert({
+					org_id: ownerOrgId,
+					project_id: projectId,
+					resource_type: "UNDERWRITING_DOCS_ROOT",
+					name: "Underwriting Documents",
+				})
+				.select()
+				.single();
+
+		if (underwritingError) {
+			console.error(
+				`[seed] Failed to create UNDERWRITING_DOCS_ROOT resource:`,
+				underwritingError
+			);
+		} else if (underwritingDocsRoot?.id) {
+			// Grant ADVISOR edit permission
+			// Borrowers (creator) explicitly get NO access to underwriting docs
+			if (assignedAdvisorId) {
+				await supabaseAdmin.from("permissions").upsert({
+					resource_id: underwritingDocsRoot.id,
+					user_id: assignedAdvisorId,
+					permission: "edit",
+					granted_by: creatorId,
+				});
+			}
 		}
 
 		// 9. Create default chat thread
@@ -3523,6 +3697,12 @@ async function seedHoqueProject(): Promise<void> {
 		console.log("\n📋 Step 5.5: Seeding images...");
 		await seedImages(projectId, borrowerOrgId);
 
+		// Step 5.6: Seed underwriting documents
+		console.log("\n📋 Step 5.6: Seeding underwriting documents...");
+		await seedUnderwritingDocs(projectId, borrowerOrgId, advisorId);
+
+		// Step 5.7: [REMOVED] Underwriting templates no longer used — documents are generated programmatically
+
 		// Step 6: Seed team members
 		console.log("\n📋 Step 6: Seeding team members...");
 		const memberIds = await seedTeamMembers(
@@ -3541,6 +3721,67 @@ async function seedHoqueProject(): Promise<void> {
 			documents
 		);
 
+		// Step 8: Create lender account and grant access
+		console.log("\n📋 Step 8: Creating lender account and granting project access...");
+		const lenderInfo = await createLenderAccount();
+		if (lenderInfo) {
+			const { userId: lenderUserId, orgId: lenderOrgId } = lenderInfo;
+
+			// Grant lender access to this project
+			try {
+				const { data: accessId, error: grantError } = await supabaseAdmin.rpc(
+					"grant_lender_project_access",
+					{
+						p_lender_org_id: lenderOrgId,
+						p_project_id: projectId,
+						p_granted_by: advisorId, // Advisor grants the access
+					}
+				);
+
+				if (grantError) {
+					console.error(
+						`[seed] ⚠️  Failed to grant lender access:`,
+						grantError.message
+					);
+				} else {
+					console.log(
+						`[seed] ✅ Granted lender access to project (access_id: ${accessId})`
+					);
+
+					// Also explicit grant VIEW permission on UNDERWRITING_DOCS_ROOT
+					const { data: uRoot } = await supabaseAdmin
+						.from("resources")
+						.select("id")
+						.eq("project_id", projectId)
+						.eq("resource_type", "UNDERWRITING_DOCS_ROOT")
+						.single();
+
+					if (uRoot) {
+						const { error: permError } = await supabaseAdmin.from("permissions").upsert({
+							resource_id: uRoot.id,
+							user_id: lenderUserId,
+							permission: "view",
+							granted_by: advisorId,
+						});
+
+						if (permError) {
+							console.error(`[seed] ❌ Failed to grant permission on UNDERWRITING_DOCS_ROOT:`, permError);
+						} else {
+							console.log(
+								`[seed] ✅ Granted lender VIEW access to UNDERWRITING_DOCS_ROOT`
+							);
+						}
+
+
+					}
+				}
+			} catch (err) {
+				console.error(`[seed] ⚠️  Exception granting lender access:`, err);
+			}
+		} else {
+			console.warn("[seed] ⚠️  Lender account creation failed, skipping lender access grant");
+		}
+
 		// Summary
 		console.log(
 			"\n✅ Hoque (SoGood Apartments) complete account seed completed successfully!"
@@ -3550,6 +3791,7 @@ async function seedHoqueProject(): Promise<void> {
 		console.log(
 			`   Project Owner: param.vora@capmatch.com (password: password)`
 		);
+		console.log(`   Lender: lender@capmatch.com (password: password)`);
 		console.log(`   Project: ${HOQUE_PROJECT_NAME} (${projectId})`);
 		console.log(`   Project Resume: ✅ Seeded (100% complete)`);
 		console.log(`   Borrower Resume: ✅ Seeded (100% complete)`);
@@ -3559,6 +3801,7 @@ async function seedHoqueProject(): Promise<void> {
 		);
 		console.log(`   Team Members: ✅ ${memberIds.length} members`);
 		console.log(`   Chat Messages: ✅ Seeded in General and topic threads`);
+		console.log(`   Lender Access: ✅ Capital Lending Group has view access`);
 		console.log(
 			"\n🎉 The Hoque project is now fully seeded in the borrower account!"
 		);
@@ -3582,6 +3825,7 @@ async function cleanupHoqueAccounts(): Promise<void> {
 	try {
 		const borrowerEmail = "param.vora@capmatch.com";
 		const advisorEmail = "cody.field@capmatch.com";
+		const lenderEmail = "lender@capmatch.com";
 		const teamMemberEmails = [
 			"aryan.jain@capmatch.com",
 			"sarthak.karandikar@capmatch.com",
@@ -3603,6 +3847,12 @@ async function cleanupHoqueAccounts(): Promise<void> {
 
 			for (const project of projects) {
 				borrowerOrgId = project.owner_org_id;
+
+				// Delete lender project access grants first
+				await supabaseAdmin
+					.from("lender_project_access")
+					.delete()
+					.eq("project_id", project.id);
 
 				// Delete chat data
 				const { data: threads } = await supabaseAdmin
@@ -3689,9 +3939,18 @@ async function cleanupHoqueAccounts(): Promise<void> {
 		// Step 4: Skip advisor cleanup (advisor is shared with demo script)
 		// Note: We do NOT delete the advisor account (cody.field@capmatch.com) or its org
 		// as it's shared with the demo script and may be used by other projects
-		console.log("\n📋 Step 5: Skipping advisor cleanup...");
+		console.log("\n📋 Step 4: Skipping advisor cleanup...");
 		console.log(
 			`[cleanup] ⚠️  Preserving advisor account (${advisorEmail}) - shared with demo script`
+		);
+
+		// Step 5: Skip lender cleanup (lender might be used by other projects)
+		console.log("\n📋 Step 5: Skipping lender cleanup...");
+		console.log(
+			`[cleanup] ⚠️  Preserving lender account (${lenderEmail}) - may be used by other projects`
+		);
+		console.log(
+			`[cleanup] Note: Lender project access was removed with project deletion`
 		);
 
 		console.log("\n✅ Hoque project cleanup completed!");
@@ -3700,6 +3959,9 @@ async function cleanupHoqueAccounts(): Promise<void> {
 		);
 		console.log(
 			"🌱 Note: This account is shared with the demo script, so it is preserved."
+		);
+		console.log(
+			"🌱 Note: Lender account (lender@capmatch.com) was preserved."
 		);
 		console.log(
 			"🌱 You can now run the seed script again for a fresh start."
