@@ -158,9 +158,21 @@ async function unauthenticatedApiRequest<T>(
 }
 
 /**
+ * Fetch job status by id (for polling autofill, underwriting, etc.)
+ */
+export async function fetchJob(jobId: string): Promise<{ data: import('@/types/jobs').JobResponse | null; error: Error | null }> {
+  return apiRequest<import('@/types/jobs').JobResponse>(`/api/v1/jobs/${jobId}`, { method: 'GET' });
+}
+
+/**
  * API Client Methods
  */
 export const apiClient = {
+  /**
+   * Get job status by id (for polling background tasks).
+   */
+  getJob: async (jobId: string) => fetchJob(jobId),
+
   /**
    * Validate an invite token
    *

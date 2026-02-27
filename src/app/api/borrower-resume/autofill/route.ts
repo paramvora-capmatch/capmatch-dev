@@ -9,6 +9,7 @@ interface AnalysisResponse {
 	status: string;
 	message: string;
 	project_id: string;
+	job_id?: string;
 }
 
 export async function POST(request: NextRequest) {

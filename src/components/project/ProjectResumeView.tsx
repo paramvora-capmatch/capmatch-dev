@@ -41,6 +41,7 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { useCallback } from "react";
 import { useAutofill } from "@/hooks/useAutofill";
+import { AlertModal } from "@/components/ui/AlertModal";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
 import { T12FinancialTable } from "@/components/project/T12FinancialTable";
 import { T12FinancialData, T12Category } from "@/types/t12-financial";
@@ -635,7 +636,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 				} ${project.propertyAddressState}, ${project.propertyAddressZip || ""
 				}`.trim()
 			: undefined;
-	const { isAutofilling, showSparkles, handleAutofill } = useAutofill(
+	const { isAutofilling, showSparkles, handleAutofill, errorModal, clearErrorModal } = useAutofill(
 		project.id,
 		{ projectAddress }
 	);
@@ -694,6 +695,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 
 
 	return (
+		<>
 		<div
 			className="h-full flex flex-col bg-white rounded-2xl shadow-xl border-2 border-gray-300 relative overflow-hidden group transition-all duration-300 hover:shadow-2xl hover:shadow-blue-100/50"
 			aria-expanded={!collapsed}
@@ -3285,5 +3287,13 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 				)}
 			</AnimatePresence>
 		</div>
+		<AlertModal
+			isOpen={errorModal.isOpen}
+			onClose={clearErrorModal}
+			title={errorModal.title}
+			message={errorModal.message}
+			variant="error"
+		/>
+		</>
 	);
 };
