@@ -432,6 +432,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 											} else {
 												toast.warning("Insights are taking longer than expected. Opening OM—they may appear shortly.");
 											}
+										} else if (result.already_has_insights) {
+											toast.success("Opening OM");
 										}
 										router.push(`/project/om/${project.id}/dashboard`);
 									} catch (error) {
