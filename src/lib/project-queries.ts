@@ -650,7 +650,7 @@ export const getProjectWithResume = async (
 	// Fetch resume data using helper
 	const resumeData = await fetchProjectResumeData(projectId);
 	const { flatContent, metadata } = processResumeContent(
-		resumeData.resume?.content || {}
+		(resumeData.resume?.content || {}) as any
 	);
 
 	// Fetch borrower resume data using helper
@@ -704,7 +704,7 @@ export const getProjectsWithResumes = async (
 		{ current_version_id: string | null }
 	>();
 
-	projectResources?.forEach((resource: Record<string, unknown>) => {
+	projectResources?.forEach((resource: any) => {
 		if (resource.resource_type === "PROJECT_RESUME") {
 			projectResumeResources.set(resource.project_id, {
 				id: resource.id,
@@ -761,7 +761,7 @@ export const getProjectsWithResumes = async (
 
 	projectResumeResults.forEach((result) => {
 		if (result.error) return;
-		result.data?.forEach((resume: Record<string, unknown>) => {
+		result.data?.forEach((resume: any) => {
 			if (resume.id && !resume.project_id) {
 				// This is from the version ID query
 				projectResumesByVersionId.set(resume.id, resume);
@@ -809,7 +809,7 @@ export const getProjectsWithResumes = async (
 
 	borrowerResumeResults.forEach((result) => {
 		if (result.error) return;
-		result.data?.forEach((resume: Record<string, unknown>) => {
+		result.data?.forEach((resume: any) => {
 			if (resume.id && !resume.project_id) {
 				// This is from the version ID query
 				borrowerResumesByVersionId.set(resume.id, resume);
@@ -825,10 +825,10 @@ export const getProjectsWithResumes = async (
 
 	// Process each project
 	return (
-		projects?.map((project: Record<string, unknown>) => {
+		projects?.map((project: any) => {
 			// Get project resume
 			const projectResource = projectResumeResources.get(project.id as string);
-			let projectResume: Record<string, unknown> | null = null;
+			let projectResume: any = null;
 			let projectResumeResourceId: string | null = null;
 
 			if (projectResource?.current_version_id) {
@@ -1236,7 +1236,7 @@ function isCorruptedBooleanSnapshot(content: unknown): boolean {
 	if (!content || typeof content !== "object") return false;
 
 	// Strip metadata/root keys - content is always flat now
-	const raw = { ...content };
+	const raw = { ...content } as any;
 	delete raw._lockedFields;
 	delete raw._fieldStates;
 	delete raw._metadata;

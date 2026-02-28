@@ -30,14 +30,14 @@ export async function POST(request: NextRequest) {
           get: (name: string) => {
             return cookieStore.get(name)?.value;
           },
-          set: (name: string, value: string, options: CookieOptions) => {
+          set: (name: string, value: string, options: any) => {
             try {
               cookieStore.set({ name, value, ...getSecureCookieOptions(options) });
             } catch {
               // The `set` method was called from a Server Component.
             }
           },
-          remove: (name: string, options: CookieOptions) => {
+          remove: (name: string, options: any) => {
             try {
               cookieStore.set({ name, value: '', ...getSecureCookieOptions(options) });
             } catch {

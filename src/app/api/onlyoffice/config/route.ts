@@ -32,14 +32,14 @@ export async function POST(request: NextRequest) {
           get: (name: string) => {
             return cookieStore.get(name)?.value;
           },
-          set: (name: string, value: string, options: CookieOptions) => {
+          set: (name: string, value: string, options: any) => {
             try {
               cookieStore.set({ name, value, ...getSecureCookieOptions(options) });
             } catch {
               // The `set` method was called from a Server Component.
             }
           },
-          remove: (name: string, options: CookieOptions) => {
+          remove: (name: string, options: any) => {
             try {
               cookieStore.set({ name, value: "", ...getSecureCookieOptions(options) });
             } catch {
@@ -92,8 +92,7 @@ export async function POST(request: NextRequest) {
 
     if (versionError || !versionData || !versionData.resources) {
       throw new Error(
-        `Document version not found for path: ${filePath}. ${
-          versionError?.message || ""
+        `Document version not found for path: ${filePath}. ${versionError?.message || ""
         }`
       );
     }
@@ -138,18 +137,18 @@ export async function POST(request: NextRequest) {
       if (oldFormatMatch) return oldFormatMatch[1];
       return filename;
     };
-    
+
     const fileName = extractOriginalFilename(filePath);
-    
+
     // Extract file type - try multiple sources
     let fileType = "";
-    
+
     // First, try to get extension from extracted filename
     const nameParts = fileName.split(".");
     if (nameParts.length > 1 && nameParts[nameParts.length - 1].length <= 5) {
       fileType = nameParts[nameParts.length - 1].toLowerCase();
     }
-    
+
     // If not found, extract from storage path (format: v{number}_user{userId}_{filename} or v{number}_{filename})
     if (!fileType) {
       const storagePathParts = filePath.split("/");
@@ -172,7 +171,7 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    
+
     // Final fallback: extract from storage path directly
     if (!fileType) {
       const pathParts = filePath.split(".");
@@ -183,21 +182,21 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    
+
     // OnlyOffice supported file types
     const supportedFileTypes = ['docx', 'xlsx', 'pptx', 'pdf', 'doc', 'xls', 'ppt', 'odt', 'ods', 'odp'];
-    
+
     // Validate file type
     if (!fileType || fileType.length === 0) {
       throw new Error(`Could not determine file type for document: ${fileName}. Storage path: ${filePath}`);
     }
-    
+
     if (!supportedFileTypes.includes(fileType)) {
       throw new Error(
         `Unsupported file type for OnlyOffice: ${fileType}. Supported types: ${supportedFileTypes.join(', ')}`
       );
     }
-    
+
     const normalizedFileType = fileType;
 
     const documentTypeMap: { [key: string]: string } = {
@@ -225,9 +224,8 @@ export async function POST(request: NextRequest) {
     // Format: {resourceId}_{versionNumber}_{timestamp}
     // The timestamp ensures that even if versions get the same name,
     // opening the same version twice gets a fresh load.
-    const documentKey = `${resource.id}_v${
-      documentVersion.version_number
-    }_${Date.now()}`;
+    const documentKey = `${resource.id}_v${documentVersion.version_number
+      }_${Date.now()}`;
 
     const config = {
       document: {

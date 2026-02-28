@@ -35,10 +35,10 @@ export async function GET(request: NextRequest) {
 
   // Parse state parameter (format: provider|returnUrl)
   const decodedState = decodeURIComponent(state);
-  const [provider, returnUrl] = decodedState.includes('|') 
+  const [provider, returnUrl] = decodedState.includes('|')
     ? decodedState.split('|', 2).map(part => decodeURIComponent(part))
     : [decodedState, null];
-  
+
   // Default return URL to dashboard if not provided or invalid (reject protocol-relative URLs like //evil.com)
   const finalReturnUrl = returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//')
     ? returnUrl
@@ -55,14 +55,14 @@ export async function GET(request: NextRequest) {
           get: (name: string) => {
             return cookieStore.get(name)?.value;
           },
-          set: (name: string, value: string, options: CookieOptions) => {
+          set: (name: string, value: string, options: any) => {
             try {
               cookieStore.set({ name, value, ...getSecureCookieOptions(options) });
             } catch {
               // The `set` method was called from a Server Component.
             }
           },
-          remove: (name: string, options: CookieOptions) => {
+          remove: (name: string, options: any) => {
             try {
               cookieStore.set({ name, value: '', ...getSecureCookieOptions(options) });
             } catch {
