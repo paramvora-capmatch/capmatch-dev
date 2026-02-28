@@ -5,6 +5,7 @@ import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "./useAuth";
 import { useToast } from "@/contexts/ToastContext";
+import { isValidUuid } from "@/lib/isUuid";
 
 export interface NotificationRecord {
 	id: number;
@@ -55,6 +56,7 @@ export function useNotifications({
 	const isInitialLoadRef = useRef<boolean>(true);
 	const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const reconnectAttemptsRef = useRef(0);
+	const intentionalTeardownRef = useRef(false);
 	const maxReconnectAttempts = 5;
 
 	const resetState = useCallback(() => {
@@ -65,6 +67,10 @@ export function useNotifications({
 
 	const fetchNotifications = useCallback(async () => {
 		if (!user?.id || !isAuthenticated) {
+			resetState();
+			return;
+		}
+		if (!isValidUuid(user.id)) {
 			resetState();
 			return;
 		}
@@ -190,6 +196,7 @@ export function useNotifications({
 	useEffect(() => {
 		if (!user?.id || !isAuthenticated) {
 			if (channelRef.current) {
+				intentionalTeardownRef.current = true;
 				supabase.removeChannel(channelRef.current);
 				channelRef.current = null;
 			}
@@ -209,6 +216,7 @@ export function useNotifications({
 
 		const setupChannel = () => {
 			if (channelRef.current) {
+				intentionalTeardownRef.current = true;
 				supabase.removeChannel(channelRef.current);
 				channelRef.current = null;
 			}
@@ -281,6 +289,10 @@ export function useNotifications({
 						isInitialLoadRef.current = false;
 					}, 1000);
 				} else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+					if (intentionalTeardownRef.current) {
+						intentionalTeardownRef.current = false;
+						return;
+					}
 					console.warn("[useNotifications] Realtime channel status:", status);
 					if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
 						console.error("[useNotifications] Max reconnection attempts reached");
@@ -309,6 +321,7 @@ export function useNotifications({
 				reconnectTimeoutRef.current = null;
 			}
 			if (channelRef.current) {
+				intentionalTeardownRef.current = true;
 				supabase.removeChannel(channelRef.current);
 				channelRef.current = null;
 			}

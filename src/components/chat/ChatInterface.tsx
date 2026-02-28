@@ -1,5 +1,6 @@
 // src/components/chat/ChatInterface.tsx
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import Image from "next/image";
 import { useShallow } from "zustand/react/shallow";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
@@ -116,15 +117,19 @@ function ChatMessageImage({
     };
   }, [path, bucketId]);
   if (!url) {
-    return <div className={cn("bg-gray-100 animate-pulse rounded", className)} />;
+    return <div className={cn("bg-gray-100 animate-pulse rounded min-h-[120px]", className)} />;
   }
   return (
-    <img
-      src={url}
-      alt=""
-      className={cn("object-cover rounded cursor-pointer", className)}
-      onClick={onClick}
-    />
+    <span className={cn("relative block min-h-[120px]", className)}>
+      <Image
+        src={url}
+        alt="Attached image"
+        fill
+        className="object-cover rounded cursor-pointer"
+        onClick={onClick}
+        sizes="(max-width: 192px) 192px, 256px"
+      />
+    </span>
   );
 }
 
@@ -1159,8 +1164,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   bucketId={orgBucketId || ''}
                                   className={
                                     message.image_urls!.length === 1
-                                      ? "w-full max-h-[280px]"
-                                      : "w-full aspect-square max-h-[140px]"
+                                      ? "w-full aspect-video max-h-[280px] min-h-[160px]"
+                                      : "w-full aspect-square max-h-[140px] min-h-[100px]"
                                   }
                                   onClick={() => setLightboxImagePath(imgPath)}
                                 />
@@ -1312,9 +1317,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         key={index}
                         className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50 w-16 h-16 flex-shrink-0"
                       >
-                        <img
+                        <Image
                           src={item.preview}
-                          alt=""
+                          alt="Attachment preview"
+                          width={64}
+                          height={64}
                           className="w-full h-full object-cover"
                         />
                         <button
@@ -1444,19 +1451,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         >
           <button
             type="button"
-            onClick={() => setLightboxImagePath(null)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20"
-            aria-label="Close"
+            onClick={(e) => { e.stopPropagation(); setLightboxImagePath(null); }}
+            className="absolute top-4 right-4 z-10 p-2.5 rounded-lg bg-white text-gray-800 shadow-lg hover:bg-gray-100 border border-gray-200"
+            aria-label="Close preview"
           >
             <X size={24} />
           </button>
           {lightboxSignedUrl && (
-            <img
-              src={lightboxSignedUrl}
-              alt=""
-              className="max-w-full max-h-[90vh] object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
+            <span className="relative block max-w-full max-h-[90vh] w-full h-[90vh]">
+              <Image
+                src={lightboxSignedUrl}
+                alt="Enlarged attachment"
+                fill
+                className="object-contain rounded-lg"
+                onClick={(e) => e.stopPropagation()}
+                sizes="100vw"
+              />
+            </span>
           )}
           {!lightboxSignedUrl && (
             <div className="w-32 h-32 bg-gray-800 rounded-lg animate-pulse" />

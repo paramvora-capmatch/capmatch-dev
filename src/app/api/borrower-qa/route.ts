@@ -3,32 +3,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBackendUrl } from '@/lib/apiConfig';
 import { validateBody, borrowerQaBodySchema } from '@/lib/api-validation';
+import { unauthorized, validationError } from '@/lib/api-errors';
 import { checkRateLimit, getRateLimitId, AI_RATE_LIMIT } from '@/lib/rate-limit';
+import { getSupabaseAccessTokenFromRequest } from '@/lib/supabase/auth-token';
+import { createRequestLogger } from '@/lib/logger';
 
 // Increase timeout for streaming responses (60 seconds)
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const log = createRequestLogger(req);
   try {
     const [err, body] = await validateBody(req, borrowerQaBodySchema);
     if (err) return err;
-    if (!body) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
+    if (!body) return validationError('Validation failed');
 
     // Check if request was already aborted
     if (req.signal?.aborted) {
-      console.log('Request aborted before streaming');
+      log.info('Request aborted before streaming');
       return new NextResponse(null, { status: 499 });
     }
 
-    // Verify user server-side (getUser validates JWT; getSession does not)
+    // Verify user server-side (getUser validates JWT)
     const { createClient } = await import('@/lib/supabase/server');
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return unauthorized();
     }
-    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = getSupabaseAccessTokenFromRequest(req);
 
     const rlId = getRateLimitId(req, user.id);
     const rl = checkRateLimit(rlId, AI_RATE_LIMIT, 'borrower-qa');
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }),
+        ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       },
       body: JSON.stringify(body),
       signal: req.signal,
@@ -48,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     if (!backendResponse.ok) {
       const errorText = await backendResponse.text();
-      console.error('Backend borrower-qa error:', errorText);
+      log.error({ errorText, status: backendResponse.status }, 'Backend borrower-qa error');
       return NextResponse.json(
         { error: `Backend AI service failed: ${backendResponse.statusText}` },
         { status: backendResponse.status }
@@ -59,10 +63,7 @@ export async function POST(req: NextRequest) {
     const { readable, writable } = new TransformStream();
     const requestStartTime = Date.now();
     let chunkCount = 0;
-    let firstChunkTime: number | null = null;
     let totalBytes = 0;
-
-    console.log('[PROXY] Starting to pipe backend response to frontend');
 
     // Pipe the backend response through, chunk by chunk
     (async () => {
@@ -70,49 +71,29 @@ export async function POST(req: NextRequest) {
       const writer = writable.getWriter();
 
       if (!reader) {
-        console.warn('[PROXY] No response body reader available');
+        log.warn('No response body reader available');
         await writer.close();
         return;
       }
 
       try {
         while (true) {
-          const readStart = Date.now();
           const { done, value } = await reader.read();
-          const readTime = Date.now() - readStart;
 
           if (done) {
             const elapsed = Date.now() - requestStartTime;
-            console.log(`[PROXY] Stream complete: ${chunkCount} chunks, ${totalBytes} bytes, ${elapsed}ms elapsed`);
+            log.info({ chunkCount, totalBytes, elapsed }, 'Stream complete');
             break;
           }
 
           chunkCount++;
           totalBytes += value.length;
-          const currentTime = Date.now();
-
-          if (firstChunkTime === null) {
-            firstChunkTime = currentTime;
-            const timeToFirstChunk = currentTime - requestStartTime;
-            console.log(`[PROXY] First chunk received from backend (took ${timeToFirstChunk}ms, size=${value.length} bytes)`);
-          } else {
-            const timeSinceFirst = currentTime - firstChunkTime;
-            const preview = new TextDecoder().decode(value.slice(0, Math.min(50, value.length)));
-            console.log(`[PROXY] Chunk #${chunkCount} from backend (time=${timeSinceFirst}ms, size=${value.length} bytes, read_time=${readTime}ms, preview=${JSON.stringify(preview)})`);
-          }
-
-          const writeStart = Date.now();
           await writer.write(value);
-          const writeTime = Date.now() - writeStart;
-          if (writeTime > 10) {
-            console.log(`[PROXY] Chunk #${chunkCount} write took ${writeTime}ms`);
-          }
         }
       } catch (e) {
-        console.error('[PROXY] Stream pipe error:', e);
+        log.error({ err: e }, 'Stream pipe error');
       } finally {
         await writer.close();
-        console.log('[PROXY] Writer closed');
       }
     })();
 
@@ -132,7 +113,7 @@ export async function POST(req: NextRequest) {
     if (req.signal?.aborted) {
       return new NextResponse(null, { status: 499 });
     }
-    console.error('borrower-qa proxy error:', e);
+    log.error({ err: e }, 'borrower-qa proxy error');
     const statusCode = e && typeof e === 'object' && 'status' in e ? Number((e as { status: number }).status) : 500;
     return NextResponse.json(
       { error: 'Failed to get answer' },

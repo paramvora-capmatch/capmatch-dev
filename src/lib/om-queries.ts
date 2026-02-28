@@ -127,7 +127,7 @@ export async function getLatestOM(projectId: string) {
 		// Fetch the single OM row for this project, including insights column
 		const { data, error } = await supabase
 			.from("om")
-			.select("*, insights")
+			.select("id, project_id, content, insights, created_at, updated_at")
 			.eq("project_id", projectId)
 			.maybeSingle();
 

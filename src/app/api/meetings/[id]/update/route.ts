@@ -1,40 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { sendCalendarInvites, updateCalendarInvites } from '@/services/calendarInviteService';
 import { validateBody, updateMeetingBodySchema } from '@/lib/api-validation';
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-// Server-side Supabase client with service role
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+import { unauthorized, forbidden, validationError, notFound, internalError } from '@/lib/api-errors';
+import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 export async function PUT(
   request: NextRequest,
   props: { params: Promise<{ id: string }> }
 ) {
   const params = await props.params;
+  const supabaseAdmin = getSupabaseAdmin();
   try {
     const meetingId = params.id;
 
     // Get authenticated user
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Unauthorized - No auth header' },
-        { status: 401 }
-      );
+      return unauthorized('Unauthorized - No auth header');
     }
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      );
+      return unauthorized('Unauthorized - Invalid token');
     }
 
     const rlId = getRateLimitId(request, user.id);
@@ -49,37 +40,28 @@ export async function PUT(
       .limit(1);
 
     if (!connections || connections.length === 0) {
-      return NextResponse.json(
-        { error: 'Calendar connection required. Please connect your calendar in settings.' },
-        { status: 403 }
-      );
+      return forbidden('Calendar connection required. Please connect your calendar in settings.');
     }
 
     // Parse and validate request body
     const [validationErr, body] = await validateBody(request, updateMeetingBodySchema);
     if (validationErr) return validationErr;
-    if (!body) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
+    if (!body) return validationError('Validation failed');
     const { title, startTime, endTime, participantIds, description } = body;
 
     // 1. Fetch existing meeting to verify ownership and get current details
     const { data: meeting, error: fetchError } = await supabaseAdmin
       .from('meetings')
-      .select('*')
+      .select('id, organizer_id, start_time, end_time, project_id, meeting_link, location, calendar_event_ids')
       .eq('id', meetingId)
       .single();
 
     if (fetchError || !meeting) {
-      return NextResponse.json(
-        { error: 'Meeting not found' },
-        { status: 404 }
-      );
+      return notFound('Meeting not found');
     }
 
     if (meeting.organizer_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden - Only organizer can update meeting' },
-        { status: 403 }
-      );
+      return forbidden('Only organizer can update meeting');
     }
 
     // 2. Update meeting details
@@ -172,7 +154,7 @@ export async function PUT(
           });
 
         if (eventError) {
-          console.error('Error creating meeting update event:', eventError);
+          logger.error({ err: eventError }, 'Error creating meeting update event');
         } else {
           // Note: Domain event created. The GCP notify-fan-out service will automatically
           // poll and process this event within 0-60 seconds (avg 30s).
@@ -192,11 +174,11 @@ export async function PUT(
           if (!inviteEventsError && newInviteEvents && newInviteEvents.length > 0) {
             // Note: Domain events created. The GCP notify-fan-out service will automatically
             // poll and process these events within 0-60 seconds (avg 30s).
-            console.log(`Created ${newInviteEvents.length} new invitation domain events`);
+            logger.info({ count: newInviteEvents.length }, 'Created new invitation domain events');
           }
         }
       } catch (notificationError) {
-        console.error('Error triggering meeting update notifications:', notificationError);
+        logger.error({ err: notificationError }, 'Error triggering meeting update notifications');
         // Don't fail the whole operation
       }
     }
@@ -210,7 +192,7 @@ export async function PUT(
       .in('id', participantIds);
 
     if (allPartError) {
-      console.error('Error fetching participant details for calendar sync:', allPartError);
+      logger.error({ err: allPartError }, 'Error fetching participant details for calendar sync');
     } else {
       const attendees = allParticipants.map((p: any) => ({
         email: p.email,
@@ -253,7 +235,7 @@ export async function PUT(
             }
           }
         } catch (err: unknown) {
-          console.error('Background calendar sync failed:', err);
+          logger.error({ err }, 'Background calendar sync failed');
         }
       })();
     }
@@ -261,10 +243,7 @@ export async function PUT(
     return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error('Error updating meeting:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    logger.error({ err: error }, 'Error updating meeting');
+    return internalError();
   }
 }

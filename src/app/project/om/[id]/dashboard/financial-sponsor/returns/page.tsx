@@ -3,7 +3,12 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import ReturnsCharts from "@/components/om/ReturnsCharts";
+import dynamic from "next/dynamic";
+
+const ReturnsCharts = dynamic(() => import("@/components/om/ReturnsCharts"), {
+  ssr: false,
+  loading: () => <div className="min-h-[200px] animate-pulse rounded-lg bg-muted/50" />,
+});
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";

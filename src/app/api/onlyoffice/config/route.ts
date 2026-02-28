@@ -3,15 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { createClient } from "@supabase/supabase-js";
-import { validateBody, onlyOfficeConfigBodySchema } from "@/lib/api-validation";
+import { validateBody, onlyOfficeConfigBodySchema, safeErrorResponse } from "@/lib/api-validation";
+import { unauthorized, validationError, internalError } from "@/lib/api-errors";
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
-
-// Initialize Supabase admin client to create signed URLs
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSecureCookieOptions } from "@/lib/cookie-options";
+import { logger } from "@/lib/logger";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
   const jwtSecret = process.env.ONLYOFFICE_JWT_SECRET;
@@ -19,14 +16,12 @@ export async function POST(request: NextRequest) {
   const internalServerUrl = process.env.ONLYOFFICE_CALLBACK_URL || siteUrl;
 
   if (!jwtSecret || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("Missing required server environment variables.");
-    return NextResponse.json(
-      { error: "Server configuration error." },
-      { status: 500 }
-    );
+    logger.error("Missing required server environment variables.");
+    return internalError("Server configuration error.");
   }
 
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     // Get current user session securely
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -39,14 +34,14 @@ export async function POST(request: NextRequest) {
           },
           set: (name: string, value: string, options: CookieOptions) => {
             try {
-              cookieStore.set({ name, value, ...options });
+              cookieStore.set({ name, value, ...getSecureCookieOptions(options) });
             } catch {
               // The `set` method was called from a Server Component.
             }
           },
           remove: (name: string, options: CookieOptions) => {
             try {
-              cookieStore.set({ name, value: "", ...options });
+              cookieStore.set({ name, value: "", ...getSecureCookieOptions(options) });
             } catch {
               // The `delete` method was called from a Server Component.
             }
@@ -57,7 +52,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return unauthorized();
     }
 
     const rlId = getRateLimitId(request, user.id);
@@ -75,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     const [err, body] = await validateBody(request, onlyOfficeConfigBodySchema);
     if (err) return err;
-    if (!body) return NextResponse.json({ error: "Validation failed" }, { status: 400 });
+    if (!body) return validationError("Validation failed");
     const { bucketId, filePath, mode } = body;
 
     // --- VERSIONING CHANGES START ---
@@ -264,11 +259,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(finalConfig);
   } catch (error: unknown) {
-    console.error("Error generating OnlyOffice config:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      { error: "Internal Server Error", message },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, "Internal Server Error");
   }
 }

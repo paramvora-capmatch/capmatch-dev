@@ -1,8 +1,11 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.css";
+import { validateEnv } from "@/lib/validateEnv";
 import { ClientAppProviders } from "../components/providers/ClientAppProviders";
 import { ConsoleSilencer } from "../components/utils/ConsoleSilencer";
+
+validateEnv();
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
 const ogImageUrl = siteUrl ? `${siteUrl.replace(/\/$/, "")}/small_logo.jpg` : "/small_logo.jpg";

@@ -3,7 +3,12 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Building2, TreePine, Car } from "lucide-react";
-import InteractiveSiteMap from "@/components/om/InteractiveSiteMap";
+import dynamic from "next/dynamic";
+
+const InteractiveSiteMap = dynamic(() => import("@/components/om/InteractiveSiteMap"), {
+  ssr: false,
+  loading: () => <div className="min-h-[300px] animate-pulse rounded-lg bg-muted/50" />,
+});
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { formatFixed, formatLocale, parseNumeric } from "@/lib/om-utils";

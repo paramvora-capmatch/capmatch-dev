@@ -2,14 +2,17 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
 import { QuadrantGrid } from "@/components/om/QuadrantGrid";
 import { Users, Briefcase, Building2, Zap } from "lucide-react";
-import PopulationHeatmap from "@/components/om/PopulationHeatmap";
-import EmploymentMap from "@/components/om/EmploymentMap";
-import SupplyDemandMap from "@/components/om/SupplyDemandMap";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
+
+const MapSkeleton = () => <div className="min-h-[300px] animate-pulse rounded-lg bg-muted/50" />;
+const PopulationHeatmap = dynamic(() => import("@/components/om/PopulationHeatmap"), { ssr: false, loading: MapSkeleton });
+const EmploymentMap = dynamic(() => import("@/components/om/EmploymentMap"), { ssr: false, loading: MapSkeleton });
+const SupplyDemandMap = dynamic(() => import("@/components/om/SupplyDemandMap"), { ssr: false, loading: MapSkeleton });
 import { useOmContent } from "@/hooks/useOmContent";
 import { parseNumeric, formatLocale } from "@/lib/om-utils";
 import { OMEmptyState } from "@/components/om/OMEmptyState";

@@ -1,8 +1,10 @@
 // src/app/api/daily/meeting-token/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { validateBody, dailyMeetingTokenBodySchema } from '@/lib/api-validation';
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { unauthorized, validationError } from '@/lib/api-errors';
+import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import type {
   MeetingTokenResponse,
   DailyMeetingTokenApiRequest,
@@ -10,28 +12,13 @@ import type {
   DailyApiError,
 } from '@/types/daily-types';
 
-// Create Supabase client with service role for server-side operations
-function getSupabaseServiceClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Supabase credentials not configured');
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
-
 export async function POST(request: NextRequest) {
-  const supabase = getSupabaseServiceClient();
+  const supabase = getSupabaseAdmin();
 
   // Get auth token from Authorization header
   const authHeader = request.headers.get('authorization');
   if (!authHeader) {
-    return NextResponse.json(
-      { error: 'Unauthorized - No auth header' },
-      { status: 401 }
-    );
+    return unauthorized('Unauthorized - No auth header');
   }
 
   // Extract token from Bearer header
@@ -44,10 +31,7 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser(token);
 
   if (authError || !user) {
-    return NextResponse.json(
-      { error: 'Unauthorized - Invalid token' },
-      { status: 401 }
-    );
+    return unauthorized('Unauthorized - Invalid token');
   }
 
   const rlId = getRateLimitId(request, user.id);
@@ -57,7 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const [err, body] = await validateBody(request, dailyMeetingTokenBodySchema);
     if (err) return err;
-    if (!body) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
+    if (!body) return validationError('Validation failed');
 
     const { roomName: roomNameParam, meetingId } = body;
     let roomName = roomNameParam;
@@ -193,7 +177,7 @@ export async function POST(request: NextRequest) {
 
     if (!dailyResponse.ok) {
       const errorData: DailyApiError = await dailyResponse.json();
-      console.error('Daily.co API error:', errorData);
+      logger.error({ errorData }, 'Daily.co API error');
       return NextResponse.json(
         { error: errorData.error || 'Failed to create meeting token' },
         { status: dailyResponse.status }
@@ -212,7 +196,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    console.error('Error creating meeting token:', error);
+    logger.error({ err: error }, 'Error creating meeting token');
     return NextResponse.json(
       { error: 'Failed to create meeting token' },
       { status: 500 }

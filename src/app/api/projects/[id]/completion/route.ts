@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { verifyProjectAccess } from "@/lib/verify-project-access";
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/api-validation";
+import { unauthorized, forbidden } from "@/lib/api-errors";
 
 export async function GET(
   _request: NextRequest,
@@ -17,7 +19,7 @@ export async function GET(
     const supabase = await createServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return unauthorized();
     }
 
     const rlId = getRateLimitId(_request, user.id);
@@ -26,7 +28,7 @@ export async function GET(
 
     const hasAccess = await verifyProjectAccess(supabase, projectId);
     if (!hasAccess) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return forbidden();
     }
 
     const { data: projectResume } = await supabase
@@ -45,12 +47,18 @@ export async function GET(
       .limit(1)
       .maybeSingle();
 
-    return NextResponse.json({
-      project: projectResume?.completeness_percent ?? 0,
-      borrower: borrowerResume?.completeness_percent ?? 0,
-    });
+    return NextResponse.json(
+      {
+        project: projectResume?.completeness_percent ?? 0,
+        borrower: borrowerResume?.completeness_percent ?? 0,
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
+        },
+      }
+    );
   } catch (err) {
-    console.error("[API] Completion error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return safeErrorResponse(err, "Internal server error");
   }
 }

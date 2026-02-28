@@ -11,8 +11,11 @@ const MiniChart = dynamic(
   () => import("@/components/om/widgets/MiniChart").then((m) => ({ default: m.MiniChart })),
   { ssr: false }
 );
+const ZoningMap = dynamic(() => import('@/components/om/ZoningMap'), {
+  ssr: false,
+  loading: () => <div className="min-h-[300px] animate-pulse rounded-lg bg-muted/50" />,
+});
 import { MapPin, Home, Package, Image as ImageIcon } from 'lucide-react';
-import ZoningMap from '@/components/om/ZoningMap';
 import { ImageSlideshow } from '@/components/om/ImageSlideshow';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';

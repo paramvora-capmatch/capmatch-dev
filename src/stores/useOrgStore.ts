@@ -97,7 +97,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       // Load org details
       const { data: org, error: orgError } = await supabase
         .from("orgs")
-        .select("*")
+        .select("id, created_at, updated_at, name, entity_type")
         .eq("id", orgId)
         .single();
 
@@ -106,7 +106,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       // Load members
       const { data: members, error: membersError } = await supabase
         .from("org_members")
-        .select("*")
+        .select("org_id, user_id, role, created_at")
         .eq("org_id", orgId);
 
       if (membersError) throw membersError;
@@ -114,7 +114,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       // Load pending invites
       const { data: invites, error: invitesError } = await supabase
         .from("invites")
-        .select("*")
+        .select("id, org_id, invited_by, invited_email, role, token, status, expires_at, accepted_at, created_at")
         .eq("org_id", orgId)
         .eq("status", "pending");
 
