@@ -1934,208 +1934,85 @@ function getServiceRoleKey(): string {
 // HELPER FUNCTIONS (reused from seed-demo-data.ts)
 // ============================================================================
 
+/**
+ * Upload a document via POST /api/v1/documents/upload (multipart/form-data).
+ * authHeaders must be for a user with upload permission (owner or advisor).
+ */
 async function uploadDocumentToProject(
 	projectId: string,
-	orgId: string,
+	_orgId: string,
 	filePath: string,
 	fileName: string,
 	rootResourceType: "PROJECT_DOCS_ROOT" | "BORROWER_DOCS_ROOT",
-	uploadedById: string,
-	originalFileName?: string
+	_uploadedById: string,
+	_originalFileName?: string,
+	authHeaders?: Record<string, string>
 ): Promise<string | null> {
 	console.log(
 		`[seed] Uploading document: ${fileName} to ${rootResourceType}...`
 	);
 
+	if (!authHeaders?.Authorization) {
+		console.error("[seed] uploadDocumentToProject requires auth headers");
+		return null;
+	}
+
+	if (!existsSync(filePath)) {
+		console.error(`[seed] File not found: ${filePath}`);
+		return null;
+	}
+
+	const fileBuffer = readFileSync(filePath);
+	const fileExtension = filePath.split(".").pop()?.toLowerCase();
+	let contentType = "application/pdf";
+	if (fileExtension === "xlsx" || fileExtension === "xls") {
+		contentType =
+			"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+	} else if (fileExtension === "docx" || fileExtension === "doc") {
+		contentType =
+			"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+	}
+
+	const context =
+		rootResourceType === "BORROWER_DOCS_ROOT" ? "borrower" : "project";
+	const backendUrl = getBackendUrl();
+	const endpoint = `${backendUrl}/api/v1/documents/upload`;
+
+	const form = new FormData();
+	form.append("projectId", projectId);
+	form.append("context", context);
+	form.append(
+		"file",
+		new Blob([fileBuffer], { type: contentType }),
+		fileName
+	);
+
 	try {
-		// Get the root resource
-		const { data: rootResource, error: rootError } = await supabaseAdmin
-			.from("resources")
-			.select("id")
-			.eq("project_id", projectId)
-			.eq("resource_type", rootResourceType)
-			.maybeSingle();
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: {
+				Authorization: authHeaders.Authorization,
+			},
+			body: form,
+		});
 
-		if (rootError || !rootResource) {
-			console.error(
-				`[seed] Failed to find ${rootResourceType} resource:`,
-				rootError
-			);
-			return null;
-		}
-
-		// Create FILE resource entry
-		const { data: fileResource, error: resourceError } = await supabaseAdmin
-			.from("resources")
-			.insert({
-				org_id: orgId,
-				project_id: projectId,
-				parent_id: rootResource.id,
-				resource_type: "FILE",
-				name: fileName,
-			})
-			.select()
-			.single();
-
-		if (resourceError) {
-			console.error(
-				`[seed] Failed to create file resource:`,
-				resourceError
-			);
-			return null;
-		}
-
-		const resourceId = fileResource.id;
-
-		// Create document version
-		const { data: version, error: versionError } = await supabaseAdmin
-			.from("document_versions")
-			.insert({
-				resource_id: resourceId,
-				created_by: uploadedById,
-				storage_path: "placeholder",
-			})
-			.select()
-			.single();
-
-		if (versionError) {
-			console.error(
-				`[seed] Failed to create document version:`,
-				versionError
-			);
-			await supabaseAdmin.from("resources").delete().eq("id", resourceId);
-			return null;
-		}
-
-		// Mark version as active
-		await supabaseAdmin
-			.from("document_versions")
-			.update({ status: "active" })
-			.eq("id", version.id);
-
-		// Build storage path - use original file name for storage, display name for resource
-		const storageSubdir =
-			rootResourceType === "BORROWER_DOCS_ROOT"
-				? "borrower-docs"
-				: "project-docs";
-		const originalFileName = filePath.split("/").pop() || fileName;
-		const storageFileName = originalFileName.replace(
-			/[^a-zA-Z0-9._-]/g,
-			"_"
-		); // Sanitize for storage
-		const finalStoragePath = `${projectId}/${storageSubdir}/${resourceId}/v${version.version_number}_${storageFileName}`;
-
-		// Read file from filesystem
-		if (!existsSync(filePath)) {
-			console.error(`[seed] File not found: ${filePath}`);
-			await supabaseAdmin.from("resources").delete().eq("id", resourceId);
-			return null;
-		}
-
-		const fileBuffer = readFileSync(filePath);
-
-		// Detect content type based on actual file path extension
-		const fileExtension = filePath.split(".").pop()?.toLowerCase();
-		let contentType = "application/pdf"; // default
-		if (fileExtension === "xlsx" || fileExtension === "xls") {
-			contentType =
-				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-		} else if (fileExtension === "pdf") {
-			contentType = "application/pdf";
-		}
-
-		// Upload to storage
-		const { error: uploadError } = await supabaseAdmin.storage
-			.from(orgId)
-			.upload(finalStoragePath, fileBuffer, {
-				contentType,
-				upsert: false,
-			});
-
-		if (uploadError) {
-			console.error(
-				`[seed] Failed to upload file to storage:`,
-				uploadError
-			);
-			await supabaseAdmin.from("resources").delete().eq("id", resourceId);
-			return null;
-		}
-
-		// Store metadata for the document version
-		const metadata = {
-			size: fileBuffer.length,
-			mimeType: contentType,
-			uploadedAt: new Date().toISOString(),
-			source: "seed-hoque-project",
-		};
-
-		// Update version with storage path and metadata
-		const { error: updateVersionError } = await supabaseAdmin
-			.from("document_versions")
-			.update({
-				storage_path: finalStoragePath,
-				metadata: metadata,
-			})
-			.eq("id", version.id);
-
-		if (updateVersionError) {
-			console.error(
-				`[seed] Failed to update version storage path and metadata:`,
-				updateVersionError
-			);
-			await supabaseAdmin.storage.from(orgId).remove([finalStoragePath]);
-			await supabaseAdmin.from("resources").delete().eq("id", resourceId);
-			return null;
-		}
-
-		// Update resource with current version
-		const { error: updateResourceError } = await supabaseAdmin
-			.from("resources")
-			.update({ current_version_id: version.id })
-			.eq("id", resourceId);
-
-		if (updateResourceError) {
-			console.error(
-				`[seed] Failed to update resource current version:`,
-				updateResourceError
-			);
-		}
-
-		// Log a domain event so downstream notification plumbing sees seeded docs
-		const { data: eventId, error: eventError } = await supabaseAdmin.rpc(
-			"insert_document_uploaded_event",
-			{
-				p_actor_id: uploadedById,
-				p_project_id: projectId,
-				p_resource_id: resourceId,
-				p_payload: {
-					fileName,
-					size: fileBuffer.length,
-					mimeType: contentType,
-					rootResourceType,
-					source: "seed-hoque-project",
-				},
+		if (!response.ok) {
+			let msg: string;
+			try {
+				const d = await response.json();
+				msg = d.detail ?? d.error ?? response.statusText;
+			} catch {
+				msg = response.statusText;
 			}
-		);
-
-		if (eventError) {
-			console.warn(
-				"[seed] Failed to log document_uploaded event during seeding",
-				{
-					projectId,
-					resourceId,
-					error: eventError.message,
-				}
-			);
-		} else if (eventId) {
-			// Note: Notifications are handled by the notification system separately.
-			// The domain event has been logged, which will trigger notifications
-			// through the regular notification processing pipeline.
-			// We no longer call the notify-fan-out edge function as it's not critical
-			// for seed script execution.
+			console.error(`[seed] Upload failed for ${fileName}:`, msg);
+			return null;
 		}
 
-		console.log(`[seed] ✅ Uploaded document: ${fileName}`);
+		const data = (await response.json()) as { resourceId?: string };
+		const resourceId = data?.resourceId ?? null;
+		if (resourceId) {
+			console.log(`[seed] ✅ Uploaded document: ${fileName}`);
+		}
 		return resourceId;
 	} catch (err) {
 		console.error(`[seed] Exception uploading document ${fileName}:`, err);
@@ -2360,14 +2237,19 @@ async function grantMemberProjectAccess(
 // UNDERWRITING DOCS SEEDING
 // ============================================================================
 
+/**
+ * Seed underwriting docs via POST /api/v1/documents/upload (context "underwriting"),
+ * then insert underwriting_documents record (no backend endpoint for that).
+ */
 async function seedUnderwritingDocs(
 	projectId: string,
 	orgId: string,
-	creatorId: string // Using advisor ID as creator for underwriting docs
+	_creatorId: string,
+	authHeaders: Record<string, string>
 ): Promise<void> {
 	console.log(`[seed] Seeding underwriting documents...`);
 
-	// 1. Get Underwriting Root
+	// Get Underwriting Root for duplicate check (by name under this root)
 	const { data: uRoot, error: rootError } = await supabaseAdmin
 		.from("resources")
 		.select("id")
@@ -2437,7 +2319,7 @@ async function seedUnderwritingDocs(
 				continue;
 			}
 
-			// Check if resource already exists to avoid duplicates
+			// Skip if already seeded (by name under underwriting root)
 			const { data: existing } = await supabaseAdmin
 				.from("resources")
 				.select("id")
@@ -2450,107 +2332,61 @@ async function seedUnderwritingDocs(
 				continue;
 			}
 
-			// 1. Create Resource First (to get ID for path)
-			const { data: resource, error: resourceError } = await supabaseAdmin
-				.from("resources")
-				.insert({
-					org_id: orgId,
-					project_id: projectId,
-					parent_id: uRoot.id,
-					resource_type: "FILE",
-					name: doc.displayName,
-				})
-				.select("id")
-				.single();
-
-			if (resourceError) {
-				console.error(
-					`[seed] ❌ Failed to create resource record for ${doc.displayName}:`,
-					resourceError.message
-				);
-				continue;
-			}
-
+			// Upload via backend API (context "underwriting")
+			const backendUrl = getBackendUrl();
+			const endpoint = `${backendUrl}/api/v1/documents/upload`;
 			const fileBuffer = fs.readFileSync(filePath);
-			const fileSize = fs.statSync(filePath).size;
-			const fileNameOnly = path.basename(doc.filename);
+			const form = new FormData();
+			form.append("projectId", projectId);
+			form.append("context", "underwriting");
+			form.append(
+				"file",
+				new Blob([fileBuffer], { type: doc.mimeType }),
+				doc.displayName
+			);
 
-			// Construct Deep Path
-			// {ProjectId}/underwriting-docs/{ResourceId}/v1_user{CreatorId}_{Filename}
-			const storagePath = `${projectId}/underwriting-docs/${resource.id}/v1_user${creatorId}_${fileNameOnly}`;
+			const response = await fetch(endpoint, {
+				method: "POST",
+				headers: { Authorization: authHeaders.Authorization },
+				body: form,
+			});
 
-			// 2. Upload to Storage
-			const { error: uploadError } = await supabaseAdmin.storage
-				.from(orgId)
-				.upload(storagePath, fileBuffer, {
-					contentType: doc.mimeType,
-					upsert: true,
-				});
-
-			if (uploadError) {
-				console.error(
-					`[seed] ❌ Failed to upload ${doc.filename}:`,
-					uploadError.message
-				);
-				// Cleanup resource if upload failed
-				await supabaseAdmin.from("resources").delete().eq("id", resource.id);
+			if (!response.ok) {
+				let msg: string;
+				try {
+					const d = await response.json();
+					msg = d.detail ?? d.error ?? response.statusText;
+				} catch {
+					msg = response.statusText;
+				}
+				console.error(`[seed] ❌ Upload failed for ${doc.displayName}:`, msg);
 				continue;
 			}
 
-			// 3. Create Document Version
-			const { data: version, error: versionError } = await supabaseAdmin
-				.from("document_versions")
-				.insert({
-					resource_id: resource.id,
-					version_number: 1,
-					storage_path: storagePath,
-					created_by: creatorId,
-					status: "active",
-					metadata: {
-						size: fileSize,
-						mimeType: doc.mimeType,
-						source: "generated", // Marked as generated per requirements
-						isGenerated: true,   // Explicit flag
-					},
-				})
-				.select("id")
-				.single();
-
-			if (versionError) {
-				console.error(
-					`[seed] ❌ Failed to create version for ${doc.displayName}:`,
-					versionError.message
-				);
+			const data = (await response.json()) as { resourceId?: string };
+			const resourceId = data?.resourceId;
+			if (!resourceId) {
+				console.error(`[seed] ❌ No resourceId in upload response for ${doc.displayName}`);
 				continue;
 			}
 
-			// 4. Update Resource with current_version_id
-			// 4. Update Resource with current_version_id
-			await supabaseAdmin
-				.from("resources")
-				.update({ current_version_id: version.id })
-				.eq("id", resource.id);
-
-			// 5. Create Underwriting Document record
+			// Backend has no endpoint for underwriting_documents; one insert per doc
 			const { error: uwError } = await supabaseAdmin
 				.from("underwriting_documents")
 				.insert({
-					resource_id: resource.id,
-					validation_status: "valid", // Pre-filled/seeded docs are valid
+					resource_id: resourceId,
+					validation_status: "valid",
 					validation_errors: {},
 				});
 
 			if (uwError) {
 				console.error(
-					`[seed] ❌ Failed to create underwriting document record for ${doc.displayName}:`,
+					`[seed] ❌ Failed to create underwriting_documents record for ${doc.displayName}:`,
 					uwError.message
 				);
 			} else {
-				console.log(
-					`[seed] ✅ Seeded underwriting doc: ${doc.displayName}`
-				);
+				console.log(`[seed] ✅ Seeded underwriting doc: ${doc.displayName}`);
 			}
-
 		} catch (err) {
 			console.error(`[seed] ❌ Error seeding ${doc.displayName}:`, err);
 		}
@@ -2705,7 +2541,8 @@ async function seedBorrowerResume(
 async function seedDocuments(
 	projectId: string,
 	orgId: string,
-	uploadedById: string
+	uploadedById: string,
+	authHeaders: Record<string, string>
 ): Promise<Record<string, string>> {
 	console.log(`[seed] Seeding documents for SoGood Apartments...`);
 
@@ -2809,7 +2646,9 @@ async function seedDocuments(
 					filePath,
 					fileNameWithExtension,
 					"PROJECT_DOCS_ROOT",
-					uploadedById
+					uploadedById,
+					undefined,
+					authHeaders
 				);
 				if (resourceId) {
 					documents[doc.name] = resourceId;
@@ -2843,7 +2682,9 @@ async function seedDocuments(
 					filePath,
 					fileNameWithExtension,
 					"BORROWER_DOCS_ROOT",
-					uploadedById
+					uploadedById,
+					undefined,
+					authHeaders
 				);
 				if (resourceId) {
 					documents[doc.name] = resourceId;
@@ -3594,21 +3435,40 @@ async function seedHoqueProject(): Promise<void> {
 		// Note: OM data is NOT seeded here - it will be synced automatically when user clicks "View OM"
 		// The backend sync will read from project_resumes and borrower_resumes tables and populate OM correctly
 
-		// Step 5: Seed documents
+		// Step 5: Seed documents (via backend upload API; needs borrower auth)
 		console.log("\n📋 Step 5: Seeding documents...");
 		const documents = await seedDocuments(
 			projectId,
 			borrowerOrgId,
-			borrowerId
+			borrowerId,
+			borrowerAuthHeaders
 		);
 
 		// Step 5.5: Seed images
 		console.log("\n📋 Step 5.5: Seeding images...");
 		await seedImages(projectId, borrowerOrgId);
 
-		// Step 5.6: Seed underwriting documents
+		// Step 5.6: Seed underwriting documents (via backend upload API; needs advisor auth)
 		console.log("\n📋 Step 5.6: Seeding underwriting documents...");
-		await seedUnderwritingDocs(projectId, borrowerOrgId, advisorId);
+		let advisorAuthHeaders: Record<string, string>;
+		try {
+			advisorAuthHeaders = await getAuthHeadersForUser(
+				"cody.field@capmatch.com",
+				"password"
+			);
+		} catch (e) {
+			console.error(
+				"[seed] Failed to get auth headers for advisor (required for underwriting docs and chat):",
+				e
+			);
+			return;
+		}
+		await seedUnderwritingDocs(
+			projectId,
+			borrowerOrgId,
+			advisorId,
+			advisorAuthHeaders
+		);
 
 		// Step 5.7: [REMOVED] Underwriting templates no longer used — documents are generated programmatically
 
@@ -3622,19 +3482,6 @@ async function seedHoqueProject(): Promise<void> {
 
 		// Step 7: Seed chat messages (need borrower + advisor auth for sending as each user)
 		console.log("\n📋 Step 7: Seeding chat messages...");
-		let advisorAuthHeaders: Record<string, string>;
-		try {
-			advisorAuthHeaders = await getAuthHeadersForUser(
-				"cody.field@capmatch.com",
-				"password"
-			);
-		} catch (e) {
-			console.error(
-				"[seed] Failed to get auth headers for advisor (required for chat messages):",
-				e
-			);
-			return;
-		}
 		await seedChatMessages(
 			projectId,
 			advisorId,
