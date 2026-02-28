@@ -189,7 +189,10 @@ export function useProjectPermissionEditor(
     (projectId: string): PermissionLevel => {
       const grant = projectGrants.find((g) => g.projectId === projectId);
       if (!grant) return "none";
-      return computeProjectLevel(grant.permissions, RESOURCE_TYPES);
+      const hasOverrides =
+        (grant.fileOverrides && grant.fileOverrides.length > 0) ||
+        (grant.exclusions && grant.exclusions.length > 0);
+      return computeProjectLevel(grant.permissions, RESOURCE_TYPES, hasOverrides);
     },
     [projectGrants]
   );
@@ -276,14 +279,14 @@ export function useProjectPermissionEditor(
         const newOverrides =
           !skipCascade && isDocsRoot && projectDocsMap[projectId]
             ? (existing.fileOverrides ?? []).filter((override) => {
-                const doc = projectDocsMap[projectId]?.find(
-                  (d) => d.id === override.resource_id
-                );
-                const docRootType = doc
-                  ? getDocumentRootType(projectId, doc.parent_id)
-                  : null;
-                return docRootType !== resourceType;
-              })
+              const doc = projectDocsMap[projectId]?.find(
+                (d) => d.id === override.resource_id
+              );
+              const docRootType = doc
+                ? getDocumentRootType(projectId, doc.parent_id)
+                : null;
+              return docRootType !== resourceType;
+            })
             : existing.fileOverrides ?? [];
         return prev.map((g) =>
           g.projectId === projectId
@@ -321,10 +324,10 @@ export function useProjectPermissionEditor(
           const rootPerm = rootType
             ? g.permissions.find((p) => p.resource_type === rootType)?.permission
             : g.permissions.find(
-                (p) =>
-                  p.resource_type === "PROJECT_DOCS_ROOT" ||
-                  p.resource_type === "BORROWER_DOCS_ROOT"
-              )?.permission;
+              (p) =>
+                p.resource_type === "PROJECT_DOCS_ROOT" ||
+                p.resource_type === "BORROWER_DOCS_ROOT"
+            )?.permission;
 
           if (permission === (rootPerm ?? "view")) {
             if (idx >= 0) overrides.splice(idx, 1);

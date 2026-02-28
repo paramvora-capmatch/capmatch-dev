@@ -91,12 +91,15 @@ export const PillToggle: React.FC<PillToggleProps> = ({
 
 /**
  * Compute the project-level permission display from per-resource permissions.
- * Returns "custom" when permissions are mixed across resource types.
+ * Returns "custom" when permissions are mixed across resource types or if
+ * explicit file-level overrides/exclusions exist.
  */
 export function computeProjectLevel(
   permissions: Array<{ resource_type: string; permission: "view" | "edit" } | undefined>,
-  resourceTypes: readonly string[]
+  resourceTypes: readonly string[],
+  hasOverrides?: boolean
 ): PermissionLevel {
+  if (hasOverrides) return "custom";
   const perms = resourceTypes.map(
     (rt) => permissions.find((p) => p?.resource_type === rt)?.permission ?? null
   );

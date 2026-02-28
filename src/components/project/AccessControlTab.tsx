@@ -412,9 +412,9 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
             permission === "none"
               ? []
               : RESOURCE_TYPES.map((rt) => ({
-                  resource_type: rt,
-                  permission: permission as Permission,
-                }));
+                resource_type: rt,
+                permission: permission as Permission,
+              }));
           return {
             ...p,
             grant: {
@@ -495,9 +495,9 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
       const docsUnderRoot =
         isDocsRoot
           ? docs.filter(
-              (doc) =>
-                getDocumentRootType(projectId, doc.parent_id) === resourceType
-            )
+            (doc) =>
+              getDocumentRootType(projectId, doc.parent_id) === resourceType
+          )
           : [];
       const permValue = permission ?? "none";
       for (const doc of docsUnderRoot) {
@@ -653,7 +653,12 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-600">Access:</span>
                 <PillToggle
-                  value={computeProjectLevel(p.grant.permissions, RESOURCE_TYPES)}
+                  value={computeProjectLevel(
+                    p.grant.permissions,
+                    RESOURCE_TYPES,
+                    (p.grant.fileOverrides && p.grant.fileOverrides.length > 0) ||
+                    (p.grant.exclusions && p.grant.exclusions.length > 0)
+                  )}
                   onChange={(val) => handleLevelChange(p.userId, val)}
                   size="xs"
                   showCustom={true}
