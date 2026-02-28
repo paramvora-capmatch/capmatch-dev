@@ -1,6 +1,9 @@
 /**
  * Structured logging for API routes. Uses pino for JSON output.
  * Use createRequestLogger(request) to get a logger with request ID for correlation.
+ *
+ * In dev we avoid pino's worker transport (pino/file) so Turbopack/Next don't fail
+ * resolving thread-stream/lib/worker.js. We log synchronously to stdout (destination: 1) instead.
  */
 import pino from "pino";
 
@@ -11,14 +14,7 @@ export const logger = pino({
   formatters: {
     level: (label) => ({ level: label }),
   },
-  ...(isProd
-    ? {}
-    : {
-        transport: {
-          target: "pino/file",
-          options: { destination: 1 },
-        },
-      }),
+  ...(isProd ? {} : { destination: 1 }),
 });
 
 export type RequestLogger = ReturnType<typeof logger.child>;

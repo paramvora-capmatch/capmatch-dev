@@ -18,7 +18,7 @@ const RESOURCE_TYPES = [
   "BORROWER_DOCS_ROOT",
 ] as const;
 
-type ResourceType = typeof RESOURCE_TYPES[number];
+type ResourceType = (typeof RESOURCE_TYPES)[number];
 
 const resourceLabels: Record<ResourceType, string> = {
   PROJECT_RESUME: "Project Resume",

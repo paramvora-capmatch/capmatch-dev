@@ -77,8 +77,8 @@ function withSecurityHeaders(response: NextResponse): NextResponse {
 /** Max body size for API state-changing requests (10MB). */
 const MAX_API_BODY_BYTES = 10 * 1024 * 1024;
 
-/** Document upload routes allow 50MB to align with fileUploadValidation.ts MAX_DOCUMENT_SIZE_BYTES. */
-const MAX_DOCUMENT_UPLOAD_BYTES = 50 * 1024 * 1024;
+/** Document upload routes allow 100MB to align with fileUploadValidation.ts MAX_DOCUMENT_SIZE_BYTES. */
+const MAX_DOCUMENT_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 /** Origins allowed for CSRF (state-changing API requests). Includes dataroom.capmatch.com for embedding. */
 const ALLOWED_ORIGINS = [

@@ -113,18 +113,17 @@ export const omQaBodySchema = z.object({
   question: z.string().min(1, 'question is required'),
 }).strict();
 
-/** project-resume/autofill & borrower-resume/autofill (user_id comes from session, not body) */
+/** project-resume/autofill & borrower-resume/autofill (frontend calls FastAPI directly; body has no user_id) */
 export const autofillBodySchema = z.object({
   project_id: nonEmptyString,
   project_address: z.string().optional(),
   document_paths: z.array(z.string()).default([]),
 }).strict();
 
-/** save-version (project and borrower resume); body may be empty, projectId required when present */
+/** save-version (project and borrower resume); body may be empty, projectId required when present (user from session) */
 export const saveVersionBodySchema = z
   .object({
     projectId: z.string().optional(),
-    userId: z.string().nullable().optional(),
   })
   .strict()
   .refine((d) => d.projectId && d.projectId.length > 0, { message: 'projectId is required', path: ['projectId'] });

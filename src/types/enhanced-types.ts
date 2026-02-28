@@ -734,10 +734,16 @@ export interface EnhancedUser {
 
 export type PermissionType = "file" | "folder";
 
+/**
+ * Database-level permission: values stored in the `permissions` table.
+ * Use for API payloads and persistence. For UI display levels (including
+ * absence "none" and mixed "custom"), use PermissionLevel from PillToggle.
+ */
 export type Permission = "view" | "edit";
 
 export type FilePermissionOverride = {
 	resource_id: string;
+	/** "none" = explicit deny (overrides inherited access). */
 	permission: Permission | "none";
 };
 

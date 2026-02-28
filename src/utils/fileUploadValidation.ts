@@ -3,8 +3,8 @@
  * to prevent path traversal and malicious filenames.
  */
 
-/** Max size for general document uploads (e.g. PDF, DOCX). 50MB */
-export const MAX_DOCUMENT_SIZE_BYTES = 50 * 1024 * 1024;
+/** Max size for general document uploads (e.g. PDF, DOCX). 100MB */
+export const MAX_DOCUMENT_SIZE_BYTES = 100 * 1024 * 1024;
 
 /** Max size for image/PDF uploads in project form (site images, diagrams). 10MB */
 export const MAX_IMAGE_OR_PDF_SIZE_BYTES = 10 * 1024 * 1024;
