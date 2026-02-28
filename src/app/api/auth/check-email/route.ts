@@ -37,6 +37,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ exists: !!data });
   } catch (err) {
-    return safeErrorResponse(err);
+    return safeErrorResponse(err, "Failed to check email");
   }
 }
