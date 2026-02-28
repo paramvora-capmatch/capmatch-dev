@@ -147,7 +147,6 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 			// Call FastAPI endpoint to update DB and sync with Google Calendar
 			const { error } = await apiClient.updateCalendarResponse({
 				meeting_id: meetingId,
-				user_id: user.id,
 				status: status,
 			});
 

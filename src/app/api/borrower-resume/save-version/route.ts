@@ -37,11 +37,11 @@ export async function POST(request: Request) {
 	if (!parsed.success) {
 		return validationErrorResponse("Validation failed", parsed.error.issues);
 	}
-	const { projectId, userId } = parsed.data;
+	const { projectId } = parsed.data;
 	if (!projectId) {
 		return validationError("projectId is required");
 	}
-	logger.info({ projectId, userId }, "[API] Saving borrower resume version for project");
+	logger.info({ projectId }, "[API] Saving borrower resume version for project");
 
 	const hasAccess = await verifyProjectAccess(supabase, projectId);
 	if (!hasAccess) {

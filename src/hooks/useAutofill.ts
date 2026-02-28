@@ -1,6 +1,7 @@
 // src/hooks/useAutofill.ts
 import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getBackendUrl } from "@/lib/apiConfig";
 import { useProjects } from "@/hooks/useProjects";
 import {
 	AUTOFILL_POLL_INTERVAL_MS,
@@ -43,8 +44,8 @@ const documentPathMatchesContext = (
 
 const getEndpointPath = (context: AutofillContext) =>
 	context === "borrower"
-		? "/api/borrower-resume/autofill"
-		: "/api/project-resume/autofill";
+		? `${getBackendUrl()}/api/v1/borrower-resume/autofill`
+		: `${getBackendUrl()}/api/v1/project-resume/autofill`;
 
 const getChannelName = (context: AutofillContext, projectId: string) =>
 	`autofill-${context}-${projectId}`;
@@ -332,7 +333,7 @@ export const useAutofill = (
 				);
 			}
 
-			// 5. Call Next.js API route (which handles mock/backend logic internally)
+			// 5. Call FastAPI endpoint directly (backend derives user from JWT)
 			const {
 				data: { session },
 			} = await supabase.auth.getSession();
@@ -348,7 +349,6 @@ export const useAutofill = (
 					project_id: projectId,
 					project_address: projectAddress,
 					document_paths: documentPaths,
-					user_id: session?.user?.id || "unknown",
 				}),
 			});
 

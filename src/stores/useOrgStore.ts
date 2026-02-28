@@ -37,8 +37,7 @@ interface OrgActions {
   removeMember: (userId: string) => Promise<void>;
   updateMemberPermissions: (
     userId: string,
-    projectGrants: ProjectGrant[],
-    orgGrants: OrgGrant | null
+    projectGrants: ProjectGrant[]
   ) => Promise<void>;
   updateMemberName: (userId: string, fullName: string) => Promise<void>;
 
@@ -331,8 +330,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
 
   updateMemberPermissions: async (
     userId: string,
-    projectGrants: ProjectGrant[],
-    orgGrants: OrgGrant | null
+    projectGrants: ProjectGrant[]
   ) => {
     set({ error: null });
 
@@ -340,15 +338,18 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       const { currentOrg } = get();
       if (!currentOrg) throw new Error("No active org");
 
-      // Use the FastAPI endpoint to update member permissions
-      const { error: apiError } = await apiClient.updateMemberPermissions({
-        org_id: currentOrg.id,
-        user_id: userId,
-        project_grants: projectGrants,
-        org_grants: orgGrants,
-      });
+      // Call the Supabase RPC directly — no FastAPI roundtrip needed.
+      // The DB function validates auth, ownership, and emits domain events atomically.
+      const { error: rpcError } = await supabase.rpc(
+        "bulk_update_member_permissions",
+        {
+          p_org_id:         currentOrg.id,
+          p_user_id:        userId,
+          p_project_grants: projectGrants,
+        }
+      );
 
-      if (apiError) throw apiError;
+      if (rpcError) throw new Error(rpcError.message);
 
       // Refresh members list after successful update
       await get().refreshMembers();
