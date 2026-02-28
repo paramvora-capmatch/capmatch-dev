@@ -1,7 +1,10 @@
-// scripts/seed-hoque-project.ts
+// scripts/seed-hoque-project-backend.ts
 // Comprehensive seed script for the Hoque (SoGood Apartments) project
 // Creates complete account setup: advisor, borrower, team members, project, resumes, documents, and chat messages
-// Run with: npx tsx scripts/seed-hoque-project.ts [--prod] [cleanup]
+// Run with: npx tsx scripts/seed-hoque-project-backend.ts [--prod] [cleanup]
+//
+// For protected backend endpoints (projects/create, chat/threads, chat/messages, projects/update), the script
+// signs in as each user via Supabase Auth. Set NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY) in .env.local.
 
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
@@ -75,13 +78,23 @@ if (!serviceRoleKey) {
 	process.exit(1);
 }
 
-// Initialize Supabase client
+// Initialize Supabase client (service role for admin/DB operations)
 const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
 	auth: {
 		autoRefreshToken: false,
 		persistSession: false,
 	},
 });
+
+// Anon key for user sign-in (required when calling protected backend endpoints)
+const supabaseAnonKey =
+	process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+const supabaseAnon =
+	supabaseUrl && supabaseAnonKey
+		? createClient(supabaseUrl, supabaseAnonKey, {
+				auth: { autoRefreshToken: false, persistSession: false },
+			})
+		: null;
 
 // ============================================================================
 // HOQUE PROJECT DATA
@@ -1390,15 +1403,8 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 // ============================================================================
 
 interface OnboardResponse {
-	user?: {
-		id: string;
-		email: string;
-	};
-	error?: string;
-}
-
-interface OnboardResponse {
 	user?: { id: string; email: string };
+	org_id?: string;
 	error?: string;
 }
 
@@ -1409,6 +1415,34 @@ function getBackendUrl(): string {
 	const url = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || "http://127.0.0.1:8080";
 	// Remove trailing slash to prevent double slashes when constructing paths
 	return url.replace(/\/+$/, "");
+}
+
+/**
+ * Sign in as a user with Supabase Auth (anon key) and return headers for calling protected backend endpoints.
+ * Requires NEXT_PUBLIC_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY in env.
+ */
+async function getAuthHeadersForUser(
+	email: string,
+	password: string
+): Promise<Record<string, string>> {
+	if (!supabaseAnon) {
+		throw new Error(
+			"Supabase anon key required for authenticated API calls. Set NEXT_PUBLIC_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY in .env.local"
+		);
+	}
+	const {
+		data: { session },
+		error,
+	} = await supabaseAnon.auth.signInWithPassword({ email, password });
+	if (error || !session?.access_token) {
+		throw new Error(
+			`Failed to sign in as ${email}: ${error?.message ?? "No session"}`
+		);
+	}
+	return {
+		Authorization: `Bearer ${session.access_token}`,
+		"Content-Type": "application/json",
+	};
 }
 
 async function callOnboardBorrower(
@@ -1517,6 +1551,100 @@ async function callOnboardBorrower(
 		}
 	}
 
+	return { error: `Failed after ${retries} attempts` };
+}
+
+interface OnboardLenderResponse {
+	user?: { id: string; email: string };
+	org?: { id: string; name?: string };
+	error?: string;
+}
+
+async function callOnboardLender(
+	email: string,
+	password: string,
+	fullName: string,
+	orgName?: string,
+	retries = 3
+): Promise<OnboardLenderResponse> {
+	const backendUrl = getBackendUrl();
+	const endpoint = `${backendUrl}/api/v1/users/onboard-lender`;
+
+	for (let attempt = 1; attempt <= retries; attempt++) {
+		try {
+			if (attempt > 1) {
+				console.log(
+					`[onboard-lender] Retry attempt ${attempt}/${retries} for ${email}...`
+				);
+				await new Promise((resolve) =>
+					setTimeout(resolve, 1000 * attempt)
+				);
+			} else {
+				console.log(
+					`[onboard-lender] Calling FastAPI endpoint for ${email}...`
+				);
+			}
+
+			const response = await fetch(endpoint, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					email,
+					password,
+					full_name: fullName,
+					org_name: orgName ?? fullName,
+				}),
+			});
+
+			if (!response.ok) {
+				let errorMessage: string;
+				try {
+					const errorData = await response.json();
+					errorMessage =
+						errorData.detail ||
+						errorData.error ||
+						errorData.message ||
+						response.statusText;
+				} catch {
+					errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+				}
+				const isRetryable =
+					response.status === 502 ||
+					response.status === 503 ||
+					response.status === 504;
+				if (isRetryable && attempt < retries) {
+					console.warn(
+						`[onboard-lender] Retryable error for ${email} (attempt ${attempt}): ${errorMessage}`
+					);
+					continue;
+				}
+				return { error: errorMessage };
+			}
+
+			const data = await response.json();
+			if (data && typeof data === "object" && "user" in data) {
+				return data as OnboardLenderResponse;
+			}
+			return { error: "Invalid response from onboard-lender" };
+		} catch (err) {
+			const errorMessage =
+				err instanceof Error ? err.message : String(err);
+			const isRetryable =
+				errorMessage.includes("502") ||
+				errorMessage.includes("503") ||
+				errorMessage.includes("504") ||
+				errorMessage.includes("ECONNREFUSED") ||
+				errorMessage.includes("fetch");
+			if (isRetryable && attempt < retries) {
+				console.warn(
+					`[onboard-lender] Retryable exception for ${email} (attempt ${attempt}): ${errorMessage}`
+				);
+				continue;
+			}
+			console.error(`[onboard-lender] Exception for ${email}:`, err);
+			return { error: errorMessage };
+		}
+	}
 	return { error: `Failed after ${retries} attempts` };
 }
 
@@ -1709,20 +1837,21 @@ async function getOrCreateDemoBorrowerAccount(): Promise<{
 			return null;
 		}
 		borrowerUserId = borrowerResult.user.id;
-
-		// Get the org that was created during onboarding
-		const { data: borrowerProfile } = await supabaseAdmin
-			.from("profiles")
-			.select("active_org_id")
-			.eq("id", borrowerUserId)
-			.single();
-
-		if (!borrowerProfile?.active_org_id) {
+		// Use org_id from API response when available (avoids profile read)
+		if (borrowerResult.org_id) {
+			borrowerOrgId = borrowerResult.org_id;
+		} else {
+			const { data: borrowerProfile } = await supabaseAdmin
+				.from("profiles")
+				.select("active_org_id")
+				.eq("id", borrowerUserId)
+				.single();
+			borrowerOrgId = borrowerProfile?.active_org_id ?? null;
+		}
+		if (!borrowerOrgId) {
 			console.error("[seed] ❌ Borrower org not found after onboarding");
 			return null;
 		}
-
-		borrowerOrgId = borrowerProfile.active_org_id;
 		console.log(
 			`[seed] ✅ Created borrower: ${borrowerEmail} (${borrowerUserId})`
 		);
@@ -1742,6 +1871,7 @@ async function getOrCreateDemoBorrowerAccount(): Promise<{
 
 /**
  * Create lender account (lender@capmatch.com)
+ * Uses POST /api/v1/users/onboard-lender for create path.
  */
 async function createLenderAccount(): Promise<{
 	userId: string;
@@ -1753,94 +1883,42 @@ async function createLenderAccount(): Promise<{
 	const lenderPassword = "password";
 	const lenderName = "Capital Lending Group";
 
-	// Check if lender already exists
+	// Check if lender already exists (minimal read for "already exists" path)
 	const { data: existingProfile } = await supabaseAdmin
 		.from("profiles")
 		.select("id, active_org_id")
 		.eq("email", lenderEmail)
 		.maybeSingle();
 
-	let lenderUserId: string;
-	let lenderOrgId: string | null = null;
-
 	if (existingProfile) {
 		console.log(
 			`[seed] Lender already exists: ${lenderEmail} (${existingProfile.id})`
 		);
-		lenderUserId = existingProfile.id;
-		lenderOrgId = existingProfile.active_org_id;
-	} else {
-		// Create lender user via callOnboardBorrower and manually fix app_role
-		const lenderResult = await callOnboardBorrower(
-			lenderEmail,
-			lenderPassword,
-			lenderName
-		);
-		if (lenderResult.error || !lenderResult.user) {
-			console.error(
-				`[seed] ❌ Failed to create lender: ${lenderResult.error}`
-			);
+		const lenderOrgId = existingProfile.active_org_id;
+		if (!lenderOrgId) {
+			console.error("[seed] ❌ Lender org ID is null");
 			return null;
 		}
-		lenderUserId = lenderResult.user.id;
+		return { userId: existingProfile.id, orgId: lenderOrgId };
+	}
 
-		// Update profile to lender role
-		await supabaseAdmin
-			.from("profiles")
-			.update({ app_role: "lender" })
-			.eq("id", lenderUserId);
-
-		console.log(
-			`[seed] ✅ Created lender: ${lenderEmail} (${lenderUserId})`
+	// Create via backend onboard-lender API
+	const lenderResult = await callOnboardLender(
+		lenderEmail,
+		lenderPassword,
+		lenderName,
+		`${lenderName}'s Organization`
+	);
+	if (lenderResult.error || !lenderResult.user || !lenderResult.org) {
+		console.error(
+			`[seed] ❌ Failed to create lender: ${lenderResult.error ?? "Missing user/org in response"}`
 		);
-	}
-
-	// For the lender org, check if an org exists for this lender
-	// Lenders get their own org, similar to borrowers, but we will make an explicit one
-	// Or we reuse the one created by OnboardBorrower but rename its entity_type to lender
-	const { data: lenderProfile } = await supabaseAdmin
-		.from("profiles")
-		.select("active_org_id")
-		.eq("id", lenderUserId)
-		.single();
-
-	if (lenderProfile?.active_org_id) {
-		lenderOrgId = lenderProfile.active_org_id;
-		// Update org entity_type to 'lender'
-		await supabaseAdmin
-			.from("orgs")
-			.update({ entity_type: "lender" })
-			.eq("id", lenderOrgId);
-	} else {
-		// Create a new one just in case
-		const { data: orgData, error: orgError } = await supabaseAdmin.from("orgs").insert({
-			name: `${lenderName}'s Organization`,
-			entity_type: "lender",
-		}).select().single();
-
-		if (orgError) {
-			console.error("[seed] Failed to create lender org:", orgError);
-			return null;
-		}
-		lenderOrgId = orgData.id;
-
-		// Add owner
-		await supabaseAdmin.from("org_members").insert({
-			org_id: lenderOrgId,
-			user_id: lenderUserId,
-			role: "owner",
-		});
-		
-		await supabaseAdmin.from("profiles").update({ active_org_id: lenderOrgId }).eq("id", lenderUserId);
-	}
-
-	console.log(`[seed] ✅ Lender org: ${lenderOrgId}`);
-
-	if (!lenderOrgId) {
-		console.error("[seed] ❌ Lender org ID is null");
 		return null;
 	}
 
+	const lenderUserId = lenderResult.user.id;
+	const lenderOrgId = lenderResult.org.id;
+	console.log(`[seed] ✅ Created lender: ${lenderEmail} (${lenderUserId}), org: ${lenderOrgId}`);
 	return { userId: lenderUserId, orgId: lenderOrgId };
 }
 
@@ -2065,26 +2143,34 @@ async function uploadDocumentToProject(
 	}
 }
 
+/**
+ * Send a chat message via POST /api/v1/chat/messages.
+ * authHeaders must be for the user sending the message (userId).
+ */
 async function createChatMessage(
 	threadId: string,
-	userId: string,
 	content: string,
-	resourceIds?: string[]
+	authHeaders: Record<string, string>
 ): Promise<boolean> {
+	const backendUrl = getBackendUrl();
+	const endpoint = `${backendUrl}/api/v1/chat/messages`;
 	try {
-		const { error } = await supabaseAdmin.rpc("insert_thread_message", {
-			p_thread_id: threadId,
-			p_user_id: userId,
-			p_content: content,
-			p_resource_ids: resourceIds || [],
-			p_reply_to: null,
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: authHeaders,
+			body: JSON.stringify({ thread_id: threadId, content }),
 		});
-
-		if (error) {
-			console.error(`[seed] Failed to create chat message:`, error);
+		if (!response.ok) {
+			let msg: string;
+			try {
+				const d = await response.json();
+				msg = d.detail ?? d.error ?? response.statusText;
+			} catch {
+				msg = response.statusText;
+			}
+			console.error(`[seed] Failed to create chat message:`, msg);
 			return false;
 		}
-
 		return true;
 	} catch (err) {
 		console.error(`[seed] Exception creating chat message:`, err);
@@ -2092,46 +2178,42 @@ async function createChatMessage(
 	}
 }
 
+/**
+ * Create chat thread via POST /api/v1/chat/threads (action: create).
+ * Requires authHeaders for the user creating the thread.
+ */
 async function createThread(
 	projectId: string,
 	topic: string,
-	participantIds: string[]
+	participantIds: string[],
+	authHeaders: Record<string, string>
 ): Promise<string | null> {
+	const backendUrl = getBackendUrl();
+	const endpoint = `${backendUrl}/api/v1/chat/threads`;
 	try {
-		const { data: thread, error: threadError } = await supabaseAdmin
-			.from("chat_threads")
-			.insert({
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: authHeaders,
+			body: JSON.stringify({
+				action: "create",
 				project_id: projectId,
 				topic,
-				stage: null, // Team chat; only "AI Underwriter" thread should have stage = 'underwriting'
-			})
-			.select()
-			.single();
-
-		if (threadError) {
-			console.error(`[seed] Failed to create thread:`, threadError);
+				participant_ids: participantIds,
+			}),
+		});
+		if (!response.ok) {
+			let msg: string;
+			try {
+				const d = await response.json();
+				msg = d.detail ?? d.error ?? response.statusText;
+			} catch {
+				msg = response.statusText;
+			}
+			console.error(`[seed] Failed to create thread:`, msg);
 			return null;
 		}
-
-		// Add participants
-		const participants = participantIds.map((userId) => ({
-			thread_id: thread.id,
-			user_id: userId,
-		}));
-
-		const { error: participantsError } = await supabaseAdmin
-			.from("chat_thread_participants")
-			.insert(participants);
-
-		if (participantsError) {
-			console.error(
-				`[seed] Failed to add participants:`,
-				participantsError
-			);
-			// Continue anyway
-		}
-
-		return thread.id;
+		const data = (await response.json()) as { thread_id?: string };
+		return data.thread_id ?? null;
 	} catch (err) {
 		console.error(`[seed] Exception creating thread:`, err);
 		return null;
@@ -2479,14 +2561,17 @@ async function seedUnderwritingDocs(
 // MAIN SEEDING FUNCTIONS
 // ============================================================================
 
+/**
+ * Update project resume via POST /api/v1/projects/update.
+ * Requires ownerAuthHeaders for the project owner.
+ */
 async function seedProjectResume(
 	projectId: string,
-	createdById: string
+	_createdById: string,
+	ownerAuthHeaders: Record<string, string>
 ): Promise<boolean> {
 	console.log(`[seed] Updating project resume for SoGood Apartments...`);
 
-	// Calculate completeness_percent (stored in column, not content)
-	// Extract locked_fields from content (now stored in column, not content)
 	const lockedFields = hoqueProjectResume._lockedFields || {};
 	const { _lockedFields, ...contentWithoutLockedFields } = hoqueProjectResume;
 
@@ -2498,44 +2583,41 @@ async function seedProjectResume(
 		lockedFields
 	);
 
-	// Convert to rich format before saving (matches application format)
 	const richFormatContent = convertToRichFormat(contentWithoutLockedFields);
+	const resumeUpdates = {
+		...richFormatContent,
+		_lockedFields: lockedFields,
+		completenessPercent,
+	};
 
-	// Insert new resume version and get the ID
-	const { data: newResume, error } = await supabaseAdmin
-		.from("project_resumes")
-		.insert({
-			project_id: projectId,
-			content: richFormatContent,
-			locked_fields: lockedFields,
-			completeness_percent: completenessPercent,
-			created_by: createdById,
-		})
-		.select()
-		.single();
-
-	if (error || !newResume) {
-		console.error(`[seed] Failed to insert project resume:`, error);
+	const backendUrl = getBackendUrl();
+	const endpoint = `${backendUrl}/api/v1/projects/update`;
+	try {
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: ownerAuthHeaders,
+			body: JSON.stringify({
+				project_id: projectId,
+				resume_updates: resumeUpdates,
+			}),
+		});
+		if (!response.ok) {
+			let msg: string;
+			try {
+				const d = await response.json();
+				msg = d.detail ?? d.error ?? response.statusText;
+			} catch {
+				msg = response.statusText;
+			}
+			console.error(`[seed] Failed to update project resume:`, msg);
+			return false;
+		}
+		console.log(`[seed] ✅ Updated project resume`);
+		return true;
+	} catch (err) {
+		console.error(`[seed] Exception updating project resume:`, err);
 		return false;
 	}
-
-	// Update the PROJECT_RESUME resource's current_version_id
-	const { error: updateResourceError } = await supabaseAdmin
-		.from("resources")
-		.update({ current_version_id: newResume.id })
-		.eq("project_id", projectId)
-		.eq("resource_type", "PROJECT_RESUME");
-
-	if (updateResourceError) {
-		console.error(
-			`[seed] Failed to update PROJECT_RESUME resource current_version_id:`,
-			updateResourceError
-		);
-		return false;
-	}
-
-	console.log(`[seed] ✅ Updated project resume`);
-	return true;
 }
 
 async function seedBorrowerResume(
@@ -2955,7 +3037,9 @@ async function seedChatMessages(
 	advisorId: string,
 	borrowerId: string,
 	memberIds: string[],
-	documents: Record<string, string>
+	documents: Record<string, string>,
+	borrowerAuthHeaders: Record<string, string>,
+	advisorAuthHeaders: Record<string, string>
 ): Promise<void> {
 	console.log(`[seed] Seeding chat messages for SoGood Apartments...`);
 
@@ -2968,11 +3052,12 @@ async function seedChatMessages(
 		.maybeSingle();
 
 	if (!generalThread) {
-		const threadId = await createThread(projectId, "General", [
-			advisorId,
-			borrowerId,
-			...memberIds,
-		]);
+		const threadId = await createThread(
+			projectId,
+			"General",
+			[advisorId, borrowerId, ...memberIds],
+			borrowerAuthHeaders
+		);
 		if (!threadId) {
 			console.error(`[seed] Failed to create General thread`);
 			return;
@@ -2992,6 +3077,8 @@ async function seedChatMessages(
 	}
 
 	const threadId = generalThread.id;
+	const authFor = (userId: string) =>
+		userId === borrowerId ? borrowerAuthHeaders : advisorAuthHeaders;
 
 	// Get document IDs for references (using new document names)
 	const proFormaId = documents["Operating Pro Forma"];
@@ -3096,9 +3183,8 @@ async function seedChatMessages(
 	for (const message of messages) {
 		await createChatMessage(
 			threadId,
-			message.userId,
 			message.content,
-			message.resourceIds
+			authFor(message.userId)
 		);
 		// Small delay to space out messages
 		await new Promise((resolve) => setTimeout(resolve, 100));
@@ -3109,7 +3195,8 @@ async function seedChatMessages(
 		const constructionThreadId = await createThread(
 			projectId,
 			"Construction & Timeline",
-			[advisorId, borrowerId, ...memberIds]
+			[advisorId, borrowerId, ...memberIds],
+			borrowerAuthHeaders
 		);
 
 		if (constructionThreadId) {
@@ -3138,9 +3225,8 @@ async function seedChatMessages(
 			for (const message of constructionMessages) {
 				await createChatMessage(
 					constructionThreadId,
-					message.userId,
 					message.content,
-					message.resourceIds
+					authFor(message.userId)
 				);
 				await new Promise((resolve) => setTimeout(resolve, 100));
 			}
@@ -3149,7 +3235,8 @@ async function seedChatMessages(
 		const financingThreadId = await createThread(
 			projectId,
 			"Financing & Lender Outreach",
-			[advisorId, borrowerId, ...memberIds]
+			[advisorId, borrowerId, ...memberIds],
+			borrowerAuthHeaders
 		);
 
 		if (financingThreadId) {
@@ -3182,9 +3269,8 @@ async function seedChatMessages(
 			for (const message of financingMessages) {
 				await createChatMessage(
 					financingThreadId,
-					message.userId,
 					message.content,
-					message.resourceIds
+					authFor(message.userId)
 				);
 				await new Promise((resolve) => setTimeout(resolve, 100));
 			}
@@ -3194,249 +3280,56 @@ async function seedChatMessages(
 	console.log(`[seed] ✅ Seeded chat messages`);
 }
 
+/**
+ * Create project via POST /api/v1/projects/create.
+ * Requires ownerAuthHeaders from getAuthHeadersForUser(ownerEmail, ownerPassword).
+ */
 async function createProject(
 	ownerOrgId: string,
 	projectName: string,
 	assignedAdvisorId: string | null,
-	creatorId: string
+	_creatorId: string,
+	ownerAuthHeaders: Record<string, string>
 ): Promise<string | null> {
 	console.log(`[seed] Creating project: ${projectName}...`);
+	const backendUrl = getBackendUrl();
+	const endpoint = `${backendUrl}/api/v1/projects/create`;
 
 	try {
-		// 1. Create the project record
-		const { data: project, error: projectError } = await supabaseAdmin
-			.from("projects")
-			.insert({
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: ownerAuthHeaders,
+			body: JSON.stringify({
 				name: projectName,
 				owner_org_id: ownerOrgId,
 				assigned_advisor_id: assignedAdvisorId,
-			})
-			.select()
-			.single();
+				deal_type: "ground_up",
+			}),
+		});
 
-		if (projectError) {
-			console.error(
-				`[seed] Failed to create project record:`,
-				projectError
-			);
+		if (!response.ok) {
+			let errorMessage: string;
+			try {
+				const errorData = await response.json();
+				errorMessage =
+					errorData.detail ||
+					errorData.error ||
+					errorData.message ||
+					response.statusText;
+			} catch {
+				errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+			}
+			console.error(`[seed] Failed to create project:`, errorMessage);
 			return null;
 		}
 
-		const projectId = project.id;
-		console.log(`[seed] ✅ Created project record: ${projectId}`);
-
-		// 2. Create storage folders (project root, architectural-diagrams, site-images)
-		const { error: storageError } = await supabaseAdmin.storage
-			.from(ownerOrgId)
-			.upload(
-				`${projectId}/.placeholder`,
-				new Blob([""], { type: "text/plain" }),
-				{
-					contentType: "text/plain;charset=UTF-8",
-				}
-			);
-
-		if (
-			storageError &&
-			!storageError.message?.toLowerCase().includes("already exists")
-		) {
-			console.warn(
-				`[seed] Warning: Storage folder creation failed (non-critical):`,
-				storageError.message
-			);
+		const data = (await response.json()) as { project?: { id?: string } };
+		const projectId = data?.project?.id ?? null;
+		if (projectId) {
+			console.log(`[seed] ✅ Created project: ${projectName} (${projectId})`);
+		} else {
+			console.error("[seed] Create project response missing project.id");
 		}
-
-		// Create architectural-diagrams folder
-		const { error: archDiagramsError } = await supabaseAdmin.storage
-			.from(ownerOrgId)
-			.upload(
-				`${projectId}/architectural-diagrams/.keep`,
-				new Blob([""], { type: "text/plain" }),
-				{
-					contentType: "text/plain;charset=UTF-8",
-				}
-			);
-
-		if (
-			archDiagramsError &&
-			!archDiagramsError.message?.toLowerCase().includes("already exists")
-		) {
-			console.warn(
-				`[seed] Warning: architectural-diagrams folder creation failed (non-critical):`,
-				archDiagramsError.message
-			);
-		}
-
-		// Create site-images folder
-		const { error: siteImagesError } = await supabaseAdmin.storage
-			.from(ownerOrgId)
-			.upload(
-				`${projectId}/site-images/.keep`,
-				new Blob([""], { type: "text/plain" }),
-				{
-					contentType: "text/plain;charset=UTF-8",
-				}
-			);
-
-		if (
-			siteImagesError &&
-			!siteImagesError.message?.toLowerCase().includes("already exists")
-		) {
-			console.warn(
-				`[seed] Warning: site-images folder creation failed (non-critical):`,
-				siteImagesError.message
-			);
-		}
-
-		// 3. Create PROJECT_RESUME resource
-		const { data: projectResumeResource, error: resumeResourceError } =
-			await supabaseAdmin
-				.from("resources")
-				.insert({
-					org_id: ownerOrgId,
-					project_id: projectId,
-					resource_type: "PROJECT_RESUME",
-					name: `${projectName} Resume`,
-				})
-				.select()
-				.single();
-
-		if (resumeResourceError) {
-			console.error(
-				`[seed] Failed to create PROJECT_RESUME resource:`,
-				resumeResourceError
-			);
-		}
-
-		// 4. Create PROJECT_DOCS_ROOT resource
-		const { data: projectDocsRootResource, error: docsRootError } =
-			await supabaseAdmin
-				.from("resources")
-				.insert({
-					org_id: ownerOrgId,
-					project_id: projectId,
-					resource_type: "PROJECT_DOCS_ROOT",
-					name: `${projectName} Documents`,
-				})
-				.select()
-				.single();
-
-		if (docsRootError) {
-			console.error(
-				`[seed] Failed to create PROJECT_DOCS_ROOT resource:`,
-				docsRootError
-			);
-		}
-
-		// 5. Ensure borrower root resources
-		const { error: borrowerRootError } = await supabaseAdmin.rpc(
-			"ensure_project_borrower_roots",
-			{
-				p_project_id: projectId,
-			}
-		);
-
-		if (borrowerRootError) {
-			console.warn(
-				`[seed] Warning: Failed to ensure borrower root resources:`,
-				borrowerRootError.message
-			);
-		}
-
-		// 6. Grant creator access
-		const { error: grantError } = await supabaseAdmin
-			.from("project_access_grants")
-			.insert({
-				project_id: projectId,
-				org_id: ownerOrgId,
-				user_id: creatorId,
-				granted_by: creatorId,
-			});
-
-		if (grantError) {
-			console.warn(
-				`[seed] Warning: Failed to grant project access:`,
-				grantError.message
-			);
-		}
-
-		// 8. Grant permissions on resources
-		if (projectResumeResource?.id) {
-			await supabaseAdmin.from("permissions").upsert({
-				resource_id: projectResumeResource.id,
-				user_id: creatorId,
-				permission: "edit",
-				granted_by: creatorId,
-			});
-		}
-
-		if (projectDocsRootResource?.id) {
-			await supabaseAdmin.from("permissions").upsert({
-				resource_id: projectDocsRootResource.id,
-				user_id: creatorId,
-				permission: "edit",
-				granted_by: creatorId,
-			});
-		}
-
-		// 10. Create UNDERWRITING_DOCS_ROOT resource and grant access
-		const { data: underwritingDocsRoot, error: underwritingError } =
-			await supabaseAdmin
-				.from("resources")
-				.insert({
-					org_id: ownerOrgId,
-					project_id: projectId,
-					resource_type: "UNDERWRITING_DOCS_ROOT",
-					name: "Underwriting Documents",
-				})
-				.select()
-				.single();
-
-		if (underwritingError) {
-			console.error(
-				`[seed] Failed to create UNDERWRITING_DOCS_ROOT resource:`,
-				underwritingError
-			);
-		} else if (underwritingDocsRoot?.id) {
-			// Grant ADVISOR edit permission
-			// Borrowers (creator) explicitly get NO access to underwriting docs
-			if (assignedAdvisorId) {
-				await supabaseAdmin.from("permissions").upsert({
-					resource_id: underwritingDocsRoot.id,
-					user_id: assignedAdvisorId,
-					permission: "edit",
-					granted_by: creatorId,
-				});
-			}
-		}
-
-		// 9. Create default chat thread
-		const { data: chatThread, error: chatThreadError } = await supabaseAdmin
-			.from("chat_threads")
-			.insert({
-				project_id: projectId,
-				topic: "General",
-				stage: null,
-			})
-			.select()
-			.single();
-
-		if (!chatThreadError && chatThread) {
-			const participants = [
-				{ thread_id: chatThread.id, user_id: creatorId },
-			];
-			if (assignedAdvisorId) {
-				participants.push({
-					thread_id: chatThread.id,
-					user_id: assignedAdvisorId,
-				});
-			}
-			await supabaseAdmin
-				.from("chat_thread_participants")
-				.insert(participants);
-		}
-
-		console.log(`[seed] ✅ Created project: ${projectName} (${projectId})`);
 		return projectId;
 	} catch (err) {
 		console.error(`[seed] Exception creating project ${projectName}:`, err);
@@ -3648,13 +3541,27 @@ async function seedHoqueProject(): Promise<void> {
 				.eq("id", jeffUserId);
 		}
 
-		// Step 3: Create SoGood Apartments project
+		// Step 3: Create SoGood Apartments project (via backend API; needs borrower auth)
 		console.log("\n📋 Step 3: Creating SoGood Apartments project...");
+		let borrowerAuthHeaders: Record<string, string>;
+		try {
+			borrowerAuthHeaders = await getAuthHeadersForUser(
+				"param.vora@capmatch.com",
+				"password"
+			);
+		} catch (e) {
+			console.error(
+				"[seed] Failed to get auth headers for borrower (required for projects/create):",
+				e
+			);
+			return;
+		}
 		const projectId = await createProject(
 			borrowerOrgId,
 			HOQUE_PROJECT_NAME,
 			advisorId,
-			borrowerId
+			borrowerId,
+			borrowerAuthHeaders
 		);
 
 		if (!projectId) {
@@ -3681,7 +3588,7 @@ async function seedHoqueProject(): Promise<void> {
 
 		// Step 4: Seed project and borrower resumes
 		console.log("\n📋 Step 4: Seeding project and borrower resumes...");
-		await seedProjectResume(projectId, borrowerId);
+		await seedProjectResume(projectId, borrowerId, borrowerAuthHeaders);
 		await seedBorrowerResume(projectId, borrowerId);
 
 		// Note: OM data is NOT seeded here - it will be synced automatically when user clicks "View OM"
@@ -3713,14 +3620,29 @@ async function seedHoqueProject(): Promise<void> {
 			borrowerId
 		);
 
-		// Step 7: Seed chat messages
+		// Step 7: Seed chat messages (need borrower + advisor auth for sending as each user)
 		console.log("\n📋 Step 7: Seeding chat messages...");
+		let advisorAuthHeaders: Record<string, string>;
+		try {
+			advisorAuthHeaders = await getAuthHeadersForUser(
+				"cody.field@capmatch.com",
+				"password"
+			);
+		} catch (e) {
+			console.error(
+				"[seed] Failed to get auth headers for advisor (required for chat messages):",
+				e
+			);
+			return;
+		}
 		await seedChatMessages(
 			projectId,
 			advisorId,
 			borrowerId,
 			memberIds,
-			documents
+			documents,
+			borrowerAuthHeaders,
+			advisorAuthHeaders
 		);
 
 		// Step 8: Create lender account and grant access
