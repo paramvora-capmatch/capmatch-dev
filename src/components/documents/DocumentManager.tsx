@@ -51,6 +51,7 @@ import {
 	ALLOWED_DOCUMENT_MIME_TYPES,
 } from "@/utils/fileUploadValidation";
 import { toast } from "sonner";
+import { DeleteConfirmModal } from "../ui/DeleteConfirmModal";
 
 interface DocumentManagerProps {
 	projectId: string | null;
@@ -158,6 +159,11 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 	const [isCollapsed, setIsCollapsed] = useState(!defaultOpen);
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
     const [isExpandedAll, setIsExpandedAll] = useState(false);
+
+	// Deletion state
+	const [itemToDelete, setItemToDelete] = useState<DocumentFile | DocumentFolder | null>(null);
+	const [deleteType, setDeleteType] = useState<"file" | "folder" | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
 
 	// Handle mounting for portal
 	useEffect(() => {
@@ -432,29 +438,39 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 		}
 	};
 
-	const handleDeleteFile = async (file: DocumentFile) => {
-		if (window.confirm(`Are you sure you want to delete "${file.name}"?`)) {
-			try {
-				// deleteFile expects the resource ID, not the version ID
-				await deleteFile(file.resource_id);
-				await refresh(); // Refresh the list after deletion
-			} catch (error) {
-				console.error("[DocumentManager] Delete file error", error);
-			}
-		}
+	const handleDeleteFile = (file: DocumentFile) => {
+		setItemToDelete(file);
+		setDeleteType("file");
 	};
 
-	const handleDeleteFolder = async (folder: DocumentFolder) => {
-		if (
-			window.confirm(
-				`Are you sure you want to delete the folder "${folder.name}"? This will also delete all files and subfolders inside it.`
-			)
-		) {
-			try {
+	const handleDeleteFolder = (folder: DocumentFolder) => {
+		setItemToDelete(folder);
+		setDeleteType("folder");
+	};
+
+	const confirmDelete = async () => {
+		if (!itemToDelete || !deleteType) return;
+
+		setIsDeleting(true);
+		try {
+			if (deleteType === "file") {
+				const file = itemToDelete as DocumentFile;
+				await deleteFile(file.resource_id);
+				await refresh();
+				toast.success(`"${file.name}" deleted successfully`);
+			} else {
+				const folder = itemToDelete as DocumentFolder;
 				await deleteFolder(folder.id);
-			} catch (error) {
-				console.error("[DocumentManager] Delete folder error", error);
+				await refresh();
+				toast.success(`"${folder.name}" deleted successfully`);
 			}
+		} catch (error) {
+			console.error(`[DocumentManager] Delete ${deleteType} error`, error);
+			toast.error(`Failed to delete ${deleteType}`);
+		} finally {
+			setIsDeleting(false);
+			setItemToDelete(null);
+			setDeleteType(null);
 		}
 	};
 
@@ -1003,6 +1019,23 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 					onClose={() => setSharingFile(null)}
 					projectId={projectId}
 					advisorUserId={advisorUserId}
+				/>
+			)}
+			{itemToDelete && (
+				<DeleteConfirmModal
+					isOpen={!!itemToDelete}
+					onClose={() => {
+						setItemToDelete(null);
+						setDeleteType(null);
+					}}
+					onConfirm={confirmDelete}
+					title={deleteType === "file" ? "Delete Document" : "Delete Folder"}
+					message={
+						deleteType === "file"
+							? `Are you sure you want to delete "${itemToDelete.name}"?`
+							: `Are you sure you want to delete the folder "${itemToDelete.name}"? This will also delete all files and subfolders inside it.`
+					}
+					isLoading={isDeleting}
 				/>
 			)}
 		</Card>
