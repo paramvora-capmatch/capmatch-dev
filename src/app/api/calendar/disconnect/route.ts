@@ -9,6 +9,8 @@ import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { stopCalendarWatch } from '@/services/calendarSyncService';
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { getSecureCookieOptions } from '@/lib/cookie-options';
+import { safeErrorResponse } from '@/lib/api-validation';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -28,16 +30,16 @@ export async function POST(request: NextRequest) {
           get: (name: string) => {
             return cookieStore.get(name)?.value;
           },
-          set: (name: string, value: string, options: CookieOptions) => {
+          set: (name: string, value: string, options: any) => {
             try {
-              cookieStore.set({ name, value, ...options });
+              cookieStore.set({ name, value, ...getSecureCookieOptions(options) });
             } catch {
               // The `set` method was called from a Server Component.
             }
           },
-          remove: (name: string, options: CookieOptions) => {
+          remove: (name: string, options: any) => {
             try {
-              cookieStore.set({ name, value: '', ...options });
+              cookieStore.set({ name, value: '', ...getSecureCookieOptions(options) });
             } catch {
               // The `delete` method was called from a Server Component.
             }
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
     // Fetch the connection
     const { data: connection, error: fetchError } = await supabaseAdmin
       .from('calendar_connections')
-      .select('*')
+      .select('id, user_id, provider, provider_account_id, provider_email, access_token, refresh_token, token_expires_at, calendar_list, sync_enabled, last_synced_at, watch_channel_id, watch_resource_id, watch_expiration, created_at, updated_at')
       .eq('id', connectionId)
       .eq('user_id', userId)
       .single();
@@ -91,26 +93,11 @@ export async function POST(request: NextRequest) {
     try {
       await stopCalendarWatch(connection, supabaseAdmin);
     } catch (watchError) {
-      console.error('Error stopping calendar watch:', watchError);
-      // Return a more specific error if watch stop fails
-      const errorMessage = watchError instanceof Error 
-        ? watchError.message 
-        : 'Failed to stop calendar watch';
-      return NextResponse.json(
-        { error: errorMessage },
-        { status: 500 }
-      );
+      return safeErrorResponse(watchError, 'Failed to disconnect calendar');
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error('Error in disconnect calendar endpoint:', error);
-    const errorMessage = error instanceof Error 
-      ? error.message 
-      : 'Internal server error';
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, 'Failed to disconnect calendar');
   }
 }

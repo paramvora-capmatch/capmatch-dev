@@ -19,6 +19,8 @@ import { Loader2, Download, Edit, Share2, Trash2, Brain, ChevronLeft, ChevronRig
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { DeleteConfirmModal } from "../ui/DeleteConfirmModal";
+import { toast } from "sonner";
 
 interface DocumentPreviewModalProps {
   resourceId: string;
@@ -44,6 +46,8 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { activeOrg, currentOrgRole, user } = useAuthStore();
   const docContext = resource?.storage_path?.includes('/borrower-docs/')
@@ -170,16 +174,25 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
     fetchResourceDetails();
   }, [fetchResourceDetails]);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
     if (!resource) return;
-    if (window.confirm(`Are you sure you want to delete "${resource.name}"?`)) {
-      try {
-        await deleteFile(resource.id);
-        onDeleteSuccess?.();
-        onClose();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to delete file.");
-      }
+    setIsDeleting(true);
+    try {
+      await deleteFile(resource.id);
+      toast.success(`"${resource.name}" deleted successfully`);
+      onDeleteSuccess?.();
+      onClose();
+    } catch (err) {
+      console.error('[DocumentPreviewModal] Delete error:', err);
+      setError(err instanceof Error ? err.message : "Failed to delete file.");
+      toast.error("Failed to delete file");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -328,6 +341,16 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           resource={resource}
           isOpen={isSharing}
           onClose={() => setIsSharing(false)}
+        />
+      )}
+      {showDeleteConfirm && resource && (
+        <DeleteConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={confirmDelete}
+          title="Delete Document"
+          message={`Are you sure you want to delete "${resource.name}"?`}
+          isLoading={isDeleting}
         />
       )}
     </>

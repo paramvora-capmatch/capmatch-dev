@@ -3,15 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { createClient } from "@supabase/supabase-js";
-import { validateBody, onlyOfficeConfigBodySchema } from "@/lib/api-validation";
+import { validateBody, onlyOfficeConfigBodySchema, safeErrorResponse } from "@/lib/api-validation";
+import { unauthorized, validationError, internalError } from "@/lib/api-errors";
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
-
-// Initialize Supabase admin client to create signed URLs
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSecureCookieOptions } from "@/lib/cookie-options";
+import { logger } from "@/lib/logger";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
   const jwtSecret = process.env.ONLYOFFICE_JWT_SECRET;
@@ -19,14 +16,12 @@ export async function POST(request: NextRequest) {
   const internalServerUrl = process.env.ONLYOFFICE_CALLBACK_URL || siteUrl;
 
   if (!jwtSecret || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("Missing required server environment variables.");
-    return NextResponse.json(
-      { error: "Server configuration error." },
-      { status: 500 }
-    );
+    logger.error("Missing required server environment variables.");
+    return internalError("Server configuration error.");
   }
 
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     // Get current user session securely
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -37,16 +32,16 @@ export async function POST(request: NextRequest) {
           get: (name: string) => {
             return cookieStore.get(name)?.value;
           },
-          set: (name: string, value: string, options: CookieOptions) => {
+          set: (name: string, value: string, options: any) => {
             try {
-              cookieStore.set({ name, value, ...options });
+              cookieStore.set({ name, value, ...getSecureCookieOptions(options) });
             } catch {
               // The `set` method was called from a Server Component.
             }
           },
-          remove: (name: string, options: CookieOptions) => {
+          remove: (name: string, options: any) => {
             try {
-              cookieStore.set({ name, value: "", ...options });
+              cookieStore.set({ name, value: "", ...getSecureCookieOptions(options) });
             } catch {
               // The `delete` method was called from a Server Component.
             }
@@ -57,7 +52,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return unauthorized();
     }
 
     const rlId = getRateLimitId(request, user.id);
@@ -75,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     const [err, body] = await validateBody(request, onlyOfficeConfigBodySchema);
     if (err) return err;
-    if (!body) return NextResponse.json({ error: "Validation failed" }, { status: 400 });
+    if (!body) return validationError("Validation failed");
     const { bucketId, filePath, mode } = body;
 
     // --- VERSIONING CHANGES START ---
@@ -97,8 +92,7 @@ export async function POST(request: NextRequest) {
 
     if (versionError || !versionData || !versionData.resources) {
       throw new Error(
-        `Document version not found for path: ${filePath}. ${
-          versionError?.message || ""
+        `Document version not found for path: ${filePath}. ${versionError?.message || ""
         }`
       );
     }
@@ -143,18 +137,18 @@ export async function POST(request: NextRequest) {
       if (oldFormatMatch) return oldFormatMatch[1];
       return filename;
     };
-    
+
     const fileName = extractOriginalFilename(filePath);
-    
+
     // Extract file type - try multiple sources
     let fileType = "";
-    
+
     // First, try to get extension from extracted filename
     const nameParts = fileName.split(".");
     if (nameParts.length > 1 && nameParts[nameParts.length - 1].length <= 5) {
       fileType = nameParts[nameParts.length - 1].toLowerCase();
     }
-    
+
     // If not found, extract from storage path (format: v{number}_user{userId}_{filename} or v{number}_{filename})
     if (!fileType) {
       const storagePathParts = filePath.split("/");
@@ -177,7 +171,7 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    
+
     // Final fallback: extract from storage path directly
     if (!fileType) {
       const pathParts = filePath.split(".");
@@ -188,21 +182,21 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    
+
     // OnlyOffice supported file types
     const supportedFileTypes = ['docx', 'xlsx', 'pptx', 'pdf', 'doc', 'xls', 'ppt', 'odt', 'ods', 'odp'];
-    
+
     // Validate file type
     if (!fileType || fileType.length === 0) {
       throw new Error(`Could not determine file type for document: ${fileName}. Storage path: ${filePath}`);
     }
-    
+
     if (!supportedFileTypes.includes(fileType)) {
       throw new Error(
         `Unsupported file type for OnlyOffice: ${fileType}. Supported types: ${supportedFileTypes.join(', ')}`
       );
     }
-    
+
     const normalizedFileType = fileType;
 
     const documentTypeMap: { [key: string]: string } = {
@@ -230,9 +224,8 @@ export async function POST(request: NextRequest) {
     // Format: {resourceId}_{versionNumber}_{timestamp}
     // The timestamp ensures that even if versions get the same name,
     // opening the same version twice gets a fresh load.
-    const documentKey = `${resource.id}_v${
-      documentVersion.version_number
-    }_${Date.now()}`;
+    const documentKey = `${resource.id}_v${documentVersion.version_number
+      }_${Date.now()}`;
 
     const config = {
       document: {
@@ -264,11 +257,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(finalConfig);
   } catch (error: unknown) {
-    console.error("Error generating OnlyOffice config:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      { error: "Internal Server Error", message },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, "Internal Server Error");
   }
 }

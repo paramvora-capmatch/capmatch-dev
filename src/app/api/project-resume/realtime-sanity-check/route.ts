@@ -2,13 +2,16 @@ import { NextResponse } from "next/server";
 import { getBackendUrl } from "@/lib/apiConfig";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
+import { safeErrorResponse } from "@/lib/api-validation";
+import { unauthorized, internalError } from "@/lib/api-errors";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
 	try {
 		const supabase = await createClient();
 		const { data: { user }, error: authError } = await supabase.auth.getUser();
 		if (authError || !user) {
-			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+			return unauthorized();
 		}
 
 		const rlId = getRateLimitId(request, user.id);
@@ -19,10 +22,7 @@ export async function POST(request: Request) {
 		const backendUrl = getBackendUrl();
 
 		if (!backendUrl) {
-			return NextResponse.json(
-				{ error: "Backend URL not configured" },
-				{ status: 500 }
-			);
+			return internalError("Backend URL not configured");
 		}
 
 		const authHeader = request.headers.get("Authorization");
@@ -49,12 +49,9 @@ export async function POST(request: Request) {
 
 		const data = await response.json();
 		return NextResponse.json(data);
-	} catch (error: any) {
-		console.error("Realtime sanity check error:", error);
-		return NextResponse.json(
-			{ error: error.message || "Internal server error" },
-			{ status: 500 }
-		);
+	} catch (error: unknown) {
+		logger.error({ err: error }, "Realtime sanity check error");
+		return safeErrorResponse(error, "Internal server error");
 	}
 }
 

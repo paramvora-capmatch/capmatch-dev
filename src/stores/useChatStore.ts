@@ -3,15 +3,18 @@ import { supabase } from "../../lib/supabaseClient";
 import { apiClient } from "@/lib/apiClient";
 import { fetchProfilesMap } from "@/lib/profile-utils";
 import { formatStoreError } from "@/utils/errorUtils";
+import { isValidUuid } from "@/lib/isUuid";
 import {
-	CHAT_DELIVERED_STATUS_DURATION_MS,
-	CHAT_DELIVERED_STATUS_FADE_LEAD_MS,
-	CHAT_DEDUP_BY_CONTENT_WINDOW_MS,
-	CHAT_OPTIMISTIC_MATCH_WINDOW_MS,
-	CHAT_RECONNECT_BASE_DELAY_MS,
-	CHAT_RECONNECT_MAX_DELAY_MS,
+  CHAT_DELIVERED_STATUS_DURATION_MS,
+  CHAT_DELIVERED_STATUS_FADE_LEAD_MS,
+  CHAT_DEDUP_BY_CONTENT_WINDOW_MS,
+  CHAT_OPTIMISTIC_MATCH_WINDOW_MS,
+  CHAT_RECONNECT_BASE_DELAY_MS,
+  CHAT_RECONNECT_MAX_DELAY_MS,
 } from "@/config/constants";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useChatUnreadStore } from "./useChatUnreadStore";
+import { useChatRealtimeStore } from "./useChatRealtimeStore";
 
 /** Cleared on unsubscribe so reconnection does not run after unmount */
 let messageReconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -45,6 +48,7 @@ interface ProjectMessage {
   created_at: string;
   reply_to?: number | null; // ID of the message this is replying to
   image_urls?: string[] | null; // Storage paths in org bucket (chat-images folder)
+  client_request_id?: string | null; // Idempotency key for dedup and matching optimistic messages
   status?: 'sending' | 'delivered' | 'failed'; // iMessage-style status (no "sent" state)
   isOptimistic?: boolean; // Flag for optimistic messages
   isFadingOut?: boolean; // Flag for smooth fade-out animation
@@ -114,7 +118,7 @@ interface ChatActions {
 
   // Messages
   loadMessages: (threadId: string) => Promise<void>;
-  sendMessage: (threadId: string, content: string, replyTo?: number | null, clientContext?: any, imageUrls?: string[]) => Promise<void>;
+  sendMessage: (threadId: string, content: string, replyTo?: number | null, clientContext?: any, imageUrls?: string[], clientRequestId?: string) => Promise<void>;
   subscribeToMessages: (threadId: string) => void;
   unsubscribeFromMessages: () => void;
   subscribeToMembershipChanges: (projectId: string) => Promise<void>;
@@ -204,12 +208,16 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     attachableDocuments: [],
     isLoadingAttachable: false,
     messageCache: new Map<string, ProjectMessage[]>(),
-    threadUnreadCounts: new Map<string, number>(),
-    totalUnreadCount: 0,
-    isLoadingUnreadCounts: false,
+    threadUnreadCounts: useChatUnreadStore.getState().threadUnreadCounts,
+    totalUnreadCount: useChatUnreadStore.getState().totalUnreadCount,
+    isLoadingUnreadCounts: useChatUnreadStore.getState().isLoadingUnreadCounts,
 
     // Actions
     loadThreadsForProject: async (projectId: string) => {
+      if (!isValidUuid(projectId)) {
+        set({ threads: [], isLoading: false });
+        return;
+      }
       set({ isLoading: true, error: null });
       try {
         const { data, error } = await supabase
@@ -251,7 +259,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         await get().loadThreadsForProject(projectId); // Refresh thread list
         set({ isLoading: false });
         // Use the returned threadId to immediately select it if needed
-        return data.thread_id; 
+        return data.thread_id;
       } catch (err) {
         set({
           error: err instanceof Error ? err.message : 'Failed to create thread',
@@ -269,21 +277,21 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
           thread_id: threadId
         });
         if (error) throw error;
-        
+
         // Optimistically update local state
         set(state => ({
-          threads: state.threads.map(t => 
+          threads: state.threads.map(t =>
             t.id === threadId ? { ...t, status: 'resolved' } : t
           )
         }));
-        
+
         // Also refresh to be sure
         const state = get();
         const activeThread = state.threads.find(t => t.id === threadId);
         if (activeThread?.project_id) {
-            await get().loadThreadsForProject(activeThread.project_id);
+          await get().loadThreadsForProject(activeThread.project_id);
         }
-        
+
       } catch (err) {
         set({ error: err instanceof Error ? err.message : 'Failed to resolve thread' });
         throw err;
@@ -412,6 +420,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     },
 
     loadParticipants: async (threadId: string) => {
+      if (!isValidUuid(threadId)) return;
       try {
         // Query participants directly (RLS now allows this for threads user is part of)
         const { data: participants, error } = await supabase
@@ -442,11 +451,15 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     },
 
     loadMessages: async (threadId: string) => {
+      if (!isValidUuid(threadId)) {
+        set({ messages: [], isLoading: false });
+        return;
+      }
       set({ isLoading: true, error: null });
       try {
         const { data: messages, error } = await supabase
           .from('project_messages')
-          .select('id, thread_id, user_id, content, created_at, reply_to, image_urls')
+          .select('id, thread_id, user_id, content, created_at, reply_to, image_urls, client_request_id')
           .eq('thread_id', threadId)
           .order('created_at', { ascending: true });
 
@@ -498,24 +511,15 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       }
     },
 
-    sendMessage: async (threadId: string, content: string, replyTo?: number | null, clientContext?: any, imageUrls?: string[]) => {
+    sendMessage: async (threadId: string, content: string, replyTo?: number | null, clientContext?: any, imageUrls?: string[], clientRequestId?: string) => {
       // Get current authenticated user
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
         throw new Error('Not authenticated');
       }
 
-      // Extract resource IDs from mentions (same logic as edge function)
-      const mentionRegex = /@\[[^\]]+\]\(doc:([^)]+)\)/g;
-      const resourceIds = new Set<string>();
-      let match;
-      while ((match = mentionRegex.exec(content)) !== null) {
-        const resourceId = match[1];
-        if (resourceId) {
-          resourceIds.add(resourceId);
-        }
-      }
-      const resourceIdArray = Array.from(resourceIds);
+      // Idempotency key: one UUID per send attempt for dedup and realtime optimistic match
+      const requestId = clientRequestId ?? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `opt-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`);
 
       // Find the replied message if replyTo is provided
       const state = get();
@@ -531,6 +535,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         created_at: new Date().toISOString(),
         reply_to: replyTo || null,
         image_urls: imageUrls && imageUrls.length > 0 ? imageUrls : null,
+        client_request_id: requestId,
         status: 'sending',
         isOptimistic: true,
         sender: {
@@ -559,7 +564,9 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
           thread_id: threadId,
           content: content.trim(),
           client_context: clientContext,
-          image_urls: imageUrls && imageUrls.length > 0 ? imageUrls : undefined
+          image_urls: imageUrls && imageUrls.length > 0 ? imageUrls : undefined,
+          client_request_id: requestId,
+          reply_to: replyTo ?? undefined,
         });
 
         if (insertError) {
@@ -580,20 +587,12 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
           throw new Error(insertError.message || 'Failed to send message');
         }
 
-        // result is { message_id, response }. For underwriting threads, response is empty and the AI reply arrives via Realtime (subscribeToMessages).
-        // Need to handle old version (bigint) or new version (json) during migration transition
-        let messageId = null;
-        let eventId = null;
+        // result is { message_id, response }. message_id is number (DB bigint).
+        const messageId = typeof result === 'object' && result !== null && 'message_id' in result
+          ? result.message_id
+          : (result as unknown as number);
 
-        if (typeof result === 'object' && result !== null && 'message_id' in result) {
-          messageId = result.message_id;
-          // API doesn't return event_id currently, but that's fine for now
-          eventId = null; 
-        } else {
-          messageId = result; // Legacy support
-        }
-
-        if (!messageId) {
+        if (messageId == null || messageId === undefined) {
           // Remove optimistic message if no ID returned
           set((state) => {
             const updatedMessages = state.messages.filter((msg) => msg.id !== tempId);
@@ -668,10 +667,11 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       let reconnectAttempts = 0;
 
       const setupChannel = () => {
-        const prevChannel = get().messageChannel;
+        const prevChannel = useChatRealtimeStore.getState().messageChannel;
         if (prevChannel) {
+          useChatRealtimeStore.getState().setMessageChannelClosingIntentionally(true);
           supabase.removeChannel(prevChannel);
-          set({ messageChannel: null });
+          useChatRealtimeStore.getState().setMessageChannel(null);
         }
 
         const channel = supabase
@@ -685,126 +685,140 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
               filter: `thread_id=eq.${threadId}`
             },
             async (payload) => {
-            const newMessage = payload.new as ProjectMessage;
-            const state = get();
+              const newMessage = payload.new as ProjectMessage;
+              const state = get();
 
-            // Check for duplicate (already have this message ID?)
-            if (state.messages.some((msg) => String(msg.id) === String(newMessage.id))) {
-              return;
-            }
-
-            // Deduplication: skip if we already have a message with same thread, user, content, and created_at within 2s (avoids duplicate from race)
-            const newTime = new Date(newMessage.created_at).getTime();
-            const isDuplicateByContent = state.messages.some((msg) => {
-              if (msg.isOptimistic) return false;
-              if (msg.user_id !== newMessage.user_id) return false;
-              if (msg.content !== newMessage.content) return false;
-              const t = new Date(msg.created_at).getTime();
-              return Math.abs(newTime - t) < CHAT_DEDUP_BY_CONTENT_WINDOW_MS;
-            });
-            if (isDuplicateByContent) return;
-
-            // Deduplication: Check if this is replacing an optimistic message
-            // Match by content + user_id + approximate timestamp (within 5 seconds)
-            const messageTime = new Date(newMessage.created_at).getTime();
-            const optimisticMatch = state.messages.find((msg) => {
-              if (!msg.isOptimistic) return false;
-              if (msg.user_id !== newMessage.user_id) return false;
-              if (msg.content !== newMessage.content) return false;
-
-              const optimisticTime = new Date(msg.created_at).getTime();
-              return Math.abs(messageTime - optimisticTime) < CHAT_OPTIMISTIC_MATCH_WINDOW_MS;
-            });
-
-            // Fetch sender profile directly from profiles (RLS now allows related profile access)
-            const profilesMap = await fetchProfilesMap(supabase, [newMessage.user_id]);
-            const senderProfile = profilesMap.get(newMessage.user_id);
-
-            if (!senderProfile) {
-              console.error("Error fetching profile for new message");
-              // Fallback to refetching all messages if profile fetch fails
-              await get().loadMessages(threadId);
-              return;
-            }
-
-            // Append sender info to the real message (coerce null to undefined for sender type)
-            newMessage.sender = {
-              id: senderProfile.id,
-              full_name: senderProfile.full_name ?? undefined,
-              email: senderProfile.email ?? undefined,
-            };
-
-            // If this message is a reply, find and attach the replied message
-            if (newMessage.reply_to) {
-              const repliedMsg = state.messages.find((m) => Number(m.id) === newMessage.reply_to);
-              newMessage.repliedMessage = repliedMsg || null;
-            }
-
-            // Only show "Delivered" status for messages sent by current user (iMessage-style)
-            const { data: { user: currentUser } } = await supabase.auth.getUser();
-            const isOwnMessage = currentUser && newMessage.user_id === currentUser.id;
-
-            if (isOwnMessage) {
-              newMessage.status = 'delivered'; // Real message is delivered
-
-              // Clear "Delivered" status after 5 seconds (iMessage-style ephemeral status)
-              clearDeliveredStatusAfterTimeout(newMessage.id, CHAT_DELIVERED_STATUS_DURATION_MS);
-            }
-
-            // Replace optimistic message with real one, or append if no match
-            set((state) => {
-              let updatedMessages: ProjectMessage[];
-
-              if (optimisticMatch) {
-                // Replace optimistic message with real one
-                const optimisticIndex = state.messages.findIndex((msg) => msg.id === optimisticMatch.id);
-                updatedMessages = [...state.messages];
-                updatedMessages[optimisticIndex] = newMessage;
-              } else {
-                // Append new message (from another user or no optimistic match)
-                updatedMessages = [...state.messages, newMessage];
+              // Check for duplicate (already have this message ID?)
+              if (state.messages.some((msg) => String(msg.id) === String(newMessage.id))) {
+                return;
               }
 
-              // Update cache with new messages
-              const cache = new Map(state.messageCache);
-              cache.set(threadId, updatedMessages);
+              // Deduplication: match optimistic message by client_request_id (idempotency key)
+              const incomingRequestId = (newMessage as { client_request_id?: string | null }).client_request_id;
+              let optimisticMatch = incomingRequestId
+                ? state.messages.find((msg) => msg.isOptimistic && msg.client_request_id === incomingRequestId)
+                : undefined;
 
-              return {
-                messages: updatedMessages,
-                messageCache: cache,
+              // Fallback: match by content + user_id + timestamp (legacy messages without client_request_id)
+              if (!optimisticMatch) {
+                const messageTime = new Date(newMessage.created_at).getTime();
+                const isDuplicateByContent = state.messages.some((msg) => {
+                  if (msg.isOptimistic) return false;
+                  if (msg.user_id !== newMessage.user_id) return false;
+                  if (msg.content !== newMessage.content) return false;
+                  const t = new Date(msg.created_at).getTime();
+                  return Math.abs(messageTime - t) < CHAT_DEDUP_BY_CONTENT_WINDOW_MS;
+                });
+                if (isDuplicateByContent) return;
+
+                optimisticMatch = state.messages.find((msg) => {
+                  if (!msg.isOptimistic) return false;
+                  if (msg.user_id !== newMessage.user_id) return false;
+                  if (msg.content !== newMessage.content) return false;
+                  const optimisticTime = new Date(msg.created_at).getTime();
+                  return Math.abs(messageTime - optimisticTime) < CHAT_OPTIMISTIC_MATCH_WINDOW_MS;
+                });
+              }
+
+              // Fetch sender profile directly from profiles (RLS now allows related profile access)
+              const profilesMap = await fetchProfilesMap(supabase, [newMessage.user_id]);
+              const senderProfile = profilesMap.get(newMessage.user_id);
+
+              if (!senderProfile) {
+                console.error("Error fetching profile for new message");
+                // Fallback to refetching all messages if profile fetch fails
+                await get().loadMessages(threadId);
+                return;
+              }
+
+              // Append sender info to the real message (coerce null to undefined for sender type)
+              newMessage.sender = {
+                id: senderProfile.id,
+                full_name: senderProfile.full_name ?? undefined,
+                email: senderProfile.email ?? undefined,
               };
-            });
 
-            // Increment unread count if message is from another user and thread is not active (WhatsApp-style)
-            if (!isOwnMessage && get().activeThreadId !== threadId) {
-              get().incrementUnreadCount(threadId);
+              // If this message is a reply, find and attach the replied message
+              if (newMessage.reply_to) {
+                const repliedMsg = state.messages.find((m) => Number(m.id) === newMessage.reply_to);
+                newMessage.repliedMessage = repliedMsg || null;
+              }
+
+              // Only show "Delivered" status for messages sent by current user (iMessage-style)
+              const { data: { user: currentUser } } = await supabase.auth.getUser();
+              const isOwnMessage = currentUser && newMessage.user_id === currentUser.id;
+
+              if (isOwnMessage) {
+                newMessage.status = 'delivered'; // Real message is delivered
+
+                // Clear "Delivered" status after 5 seconds (iMessage-style ephemeral status)
+                clearDeliveredStatusAfterTimeout(newMessage.id, CHAT_DELIVERED_STATUS_DURATION_MS);
+              }
+
+              // Replace optimistic message with real one, or append if no match
+              // Preserve image_urls from optimistic message if realtime payload omitted them (e.g. publication filter)
+              const mergedMessage = { ...newMessage } as ProjectMessage;
+              if (optimisticMatch?.image_urls?.length && (!mergedMessage.image_urls || mergedMessage.image_urls.length === 0)) {
+                mergedMessage.image_urls = optimisticMatch.image_urls;
+              }
+
+              set((state) => {
+                let updatedMessages: ProjectMessage[];
+
+                if (optimisticMatch) {
+                  // Replace optimistic message with real one
+                  const optimisticIndex = state.messages.findIndex((msg) => msg.id === optimisticMatch.id);
+                  updatedMessages = [...state.messages];
+                  updatedMessages[optimisticIndex] = mergedMessage;
+                } else {
+                  // Append new message (from another user or no optimistic match)
+                  updatedMessages = [...state.messages, mergedMessage];
+                }
+
+                // Update cache with new messages
+                const cache = new Map(state.messageCache);
+                cache.set(threadId, updatedMessages);
+
+                return {
+                  messages: updatedMessages,
+                  messageCache: cache,
+                };
+              });
+
+              // Increment unread count if message is from another user and thread is not active (WhatsApp-style)
+              if (!isOwnMessage && get().activeThreadId !== threadId) {
+                get().incrementUnreadCount(threadId);
+              }
             }
-          }
-        )
-        .subscribe((status, err) => {
-          if (status === 'SUBSCRIBED') {
-            reconnectAttempts = 0;
-            return;
-          }
-          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            console.warn('[ChatStore] Realtime message channel status:', status, err);
-            if (reconnectAttempts >= maxReconnectAttempts) {
-              console.error('[ChatStore] Max reconnection attempts reached for messages');
-              set({ error: 'Connection lost. Please refresh the page.' });
+          )
+          .subscribe((status, err) => {
+            if (status === 'SUBSCRIBED') {
+              reconnectAttempts = 0;
               return;
             }
-            const delay = Math.min(CHAT_RECONNECT_BASE_DELAY_MS * 2 ** reconnectAttempts, CHAT_RECONNECT_MAX_DELAY_MS);
-            reconnectAttempts += 1;
-            messageReconnectTimeoutId = setTimeout(() => {
-              messageReconnectTimeoutId = null;
-              if (get().activeThreadId === threadId) {
-                setupChannel();
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+              if (useChatRealtimeStore.getState().messageChannelClosingIntentionally) {
+                useChatRealtimeStore.getState().setMessageChannelClosingIntentionally(false);
+                return;
               }
-            }, delay);
-          }
-        });
+              console.warn('[ChatStore] Realtime message channel status:', status, err);
+              if (reconnectAttempts >= maxReconnectAttempts) {
+                console.error('[ChatStore] Max reconnection attempts reached for messages');
+                set({ error: 'Connection lost. Please refresh the page.' });
+                return;
+              }
+              const delay = Math.min(CHAT_RECONNECT_BASE_DELAY_MS * 2 ** reconnectAttempts, CHAT_RECONNECT_MAX_DELAY_MS);
+              reconnectAttempts += 1;
+              messageReconnectTimeoutId = setTimeout(() => {
+                messageReconnectTimeoutId = null;
+                if (get().activeThreadId === threadId) {
+                  setupChannel();
+                }
+              }, delay);
+            }
+          });
 
-        set({ messageChannel: channel });
+        useChatRealtimeStore.getState().setMessageChannel(channel);
       };
 
       setupChannel();
@@ -815,10 +829,12 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         clearTimeout(messageReconnectTimeoutId);
         messageReconnectTimeoutId = null;
       }
-      const { messageChannel } = get();
+      const messageChannel = useChatRealtimeStore.getState().messageChannel;
       if (messageChannel) {
+        useChatRealtimeStore.getState().setMessageChannelClosingIntentionally(true);
         supabase.removeChannel(messageChannel);
-        set({ messageChannel: null });
+        useChatRealtimeStore.getState().setMessageChannel(null);
+        useChatRealtimeStore.getState().setMessageChannelClosingIntentionally(false);
       }
 
       // Clear all status timeouts when unsubscribing (cleanup)
@@ -829,11 +845,11 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     },
 
     subscribeToMembershipChanges: async (projectId: string) => {
-      const { membershipChannel } = get();
+      const membershipChannel = useChatRealtimeStore.getState().membershipChannel;
 
       if (membershipChannel) {
         supabase.removeChannel(membershipChannel);
-        set({ membershipChannel: null });
+        useChatRealtimeStore.getState().setMembershipChannel(null);
       }
 
       if (!projectId) {
@@ -886,27 +902,27 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         )
         .subscribe();
 
-      set({ membershipChannel: channel });
+      useChatRealtimeStore.getState().setMembershipChannel(channel);
     },
 
     unsubscribeFromMembershipChanges: () => {
-      const { membershipChannel } = get();
+      const membershipChannel = useChatRealtimeStore.getState().membershipChannel;
       if (membershipChannel) {
         supabase.removeChannel(membershipChannel);
-        set({ membershipChannel: null });
+        useChatRealtimeStore.getState().setMembershipChannel(null);
       }
     },
 
     subscribeToProjectUnreadCounts: async (projectId: string) => {
-      const { projectUnreadChannel } = get();
+      const projectUnreadChannel = useChatRealtimeStore.getState().projectUnreadChannel;
 
       // Clean up existing subscription
       if (projectUnreadChannel) {
         supabase.removeChannel(projectUnreadChannel);
-        set({ projectUnreadChannel: null });
+        useChatRealtimeStore.getState().setProjectUnreadChannel(null);
       }
 
-      if (!projectId) {
+      if (!projectId || !isValidUuid(projectId)) {
         return;
       }
 
@@ -962,15 +978,15 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         )
         .subscribe();
 
-      set({ projectUnreadChannel: channel });
+      useChatRealtimeStore.getState().setProjectUnreadChannel(channel);
       console.log('[ChatStore] Subscribed to project-wide unread counts for project:', projectId);
     },
 
     unsubscribeFromProjectUnreadCounts: () => {
-      const { projectUnreadChannel } = get();
+      const projectUnreadChannel = useChatRealtimeStore.getState().projectUnreadChannel;
       if (projectUnreadChannel) {
         supabase.removeChannel(projectUnreadChannel);
-        set({ projectUnreadChannel: null });
+        useChatRealtimeStore.getState().setProjectUnreadChannel(null);
         console.log('[ChatStore] Unsubscribed from project-wide unread counts');
       }
     },
@@ -1007,6 +1023,8 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
     // Unread count management (WhatsApp-style)
     loadUnreadCounts: async (projectId: string, userId: string) => {
+      const u0 = useChatUnreadStore.getState();
+      useChatUnreadStore.getState().setUnreadState(u0.threadUnreadCounts, u0.totalUnreadCount, true);
       set({ isLoadingUnreadCounts: true });
       try {
         const { data, error } = await supabase.rpc('get_unread_counts_for_project', {
@@ -1026,6 +1044,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
           total += count;
         });
 
+        useChatUnreadStore.getState().setUnreadState(unreadMap, total, false);
         set({
           threadUnreadCounts: unreadMap,
           totalUnreadCount: total,
@@ -1033,32 +1052,28 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         });
       } catch (err) {
         console.error('Failed to load unread counts:', err);
+        const u = useChatUnreadStore.getState();
+        useChatUnreadStore.getState().setUnreadState(u.threadUnreadCounts, u.totalUnreadCount, false);
         set({ isLoadingUnreadCounts: false });
       }
     },
 
     updateThreadUnreadCount: (threadId: string, count: number) => {
-      const state = get();
-      const oldCount = state.threadUnreadCounts.get(threadId) || 0;
-      const newCounts = new Map(state.threadUnreadCounts);
-      newCounts.set(threadId, count);
-
-      const totalDiff = count - oldCount;
-
-      set({
-        threadUnreadCounts: newCounts,
-        totalUnreadCount: Math.max(0, state.totalUnreadCount + totalDiff),
-      });
+      useChatUnreadStore.getState().updateThreadUnreadCount(threadId, count);
+      const u = useChatUnreadStore.getState();
+      set({ threadUnreadCounts: u.threadUnreadCounts, totalUnreadCount: u.totalUnreadCount });
     },
 
     incrementUnreadCount: (threadId: string) => {
-      const state = get();
-      const currentCount = state.threadUnreadCounts.get(threadId) || 0;
-      get().updateThreadUnreadCount(threadId, currentCount + 1);
+      useChatUnreadStore.getState().incrementUnreadCount(threadId);
+      const u = useChatUnreadStore.getState();
+      set({ threadUnreadCounts: u.threadUnreadCounts, totalUnreadCount: u.totalUnreadCount });
     },
 
     resetThreadUnreadCount: (threadId: string) => {
-      get().updateThreadUnreadCount(threadId, 0);
+      useChatUnreadStore.getState().resetThreadUnreadCount(threadId);
+      const u = useChatUnreadStore.getState();
+      set({ threadUnreadCounts: u.threadUnreadCounts, totalUnreadCount: u.totalUnreadCount });
     },
 
     reset: () => {
@@ -1072,6 +1087,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       fadeOutTimeouts.forEach((timeout) => clearTimeout(timeout));
       fadeOutTimeouts.clear();
 
+      useChatUnreadStore.getState().setUnreadState(new Map(), 0, false);
       set({
         activeThreadId: null,
         threads: [],
@@ -1091,4 +1107,21 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
     clearError: () => set({ error: null })
   };
+});
+
+// Sync realtime channel refs from useChatRealtimeStore so components reading useChatStore().messageChannel stay in sync
+useChatRealtimeStore.subscribe((state) => {
+  useChatStore.setState({
+    messageChannel: state.messageChannel,
+    membershipChannel: state.membershipChannel,
+    projectUnreadChannel: state.projectUnreadChannel,
+  });
+});
+// Sync unread state from useChatUnreadStore
+useChatUnreadStore.subscribe((state) => {
+  useChatStore.setState({
+    threadUnreadCounts: state.threadUnreadCounts,
+    totalUnreadCount: state.totalUnreadCount,
+    isLoadingUnreadCounts: state.isLoadingUnreadCounts,
+  });
 });

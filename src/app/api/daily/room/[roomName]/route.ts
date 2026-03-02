@@ -1,6 +1,5 @@
 // src/app/api/daily/room/[roomName]/route.ts
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import type {
   RoomDetailsResponse,
   DailyRoomConfig,
@@ -8,24 +7,16 @@ import type {
   DailyApiError,
 } from '@/types/daily-types';
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
-
-// Create Supabase client with service role for server-side operations
-function getSupabaseServiceClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Supabase credentials not configured');
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
+import { safeErrorResponse } from '@/lib/api-validation';
+import { unauthorized, validationError } from '@/lib/api-errors';
+import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 export async function GET(
   request: Request,
   context: { params: Promise<{ roomName: string }> }
 ) {
-  const supabase = getSupabaseServiceClient();
+  const supabase = getSupabaseAdmin();
   const params = await context.params;
 
   // Authenticate user
@@ -34,7 +25,7 @@ export async function GET(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorized();
   }
 
   const rlId = getRateLimitId(request, user.id);
@@ -45,10 +36,7 @@ export async function GET(
     const { roomName } = params;
 
     if (!roomName) {
-      return NextResponse.json(
-        { error: 'Room name is required' },
-        { status: 400 }
-      );
+      return validationError('Room name is required');
     }
 
     // Query database for meeting with this room name
@@ -95,7 +83,7 @@ export async function GET(
 
     if (!roomResponse.ok) {
       const errorData: DailyApiError = await roomResponse.json();
-      console.error('Daily.co API error:', errorData);
+      logger.error({ errorData }, 'Daily.co API error');
       return NextResponse.json(
         { error: errorData.error || 'Room not found' },
         { status: roomResponse.status }
@@ -123,7 +111,7 @@ export async function GET(
       }
     } catch (presenceError) {
       // Presence endpoint is optional - don't fail if it errors
-      console.warn('Failed to fetch room presence:', presenceError);
+      logger.warn({ err: presenceError }, 'Failed to fetch room presence');
     }
 
     // Build response
@@ -137,10 +125,6 @@ export async function GET(
 
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    console.error('Error fetching room details:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch room details' },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, 'Failed to fetch room details');
   }
 }

@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { createMiddlewareClient } from '@/lib/supabase/middleware';
+import { getSupabaseAuthCookieName } from '@/lib/supabase/auth-token';
 
 /** Routes that require an authenticated user (server-side check). */
 const PROTECTED_PREFIXES = [
@@ -40,34 +42,34 @@ function isProtectedPath(pathname: string): boolean {
 /** Allowed frame ancestors for embedding (e.g. dataroom). */
 const FRAME_ANCESTORS_ALLOWED = ["'self'", "https://dataroom.capmatch.com", "http://dataroom.capmatch.com"];
 
-/** Supabase sets cookies named sb-<project-ref>-auth-token. Derive project ref from URL. */
-function getSupabaseAuthCookieName(): string | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    const ref = parsed.hostname.split('.')[0];
-    return ref ? `sb-${ref}-auth-token` : null;
-  } catch {
-    return null;
+/** Build connect-src for CSP: allow Supabase and backend API URLs (e.g. local dev http origins). */
+function getConnectSrc(): string {
+  const parts = ["'self'", 'https:', 'wss:', 'ws:'];
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (supabaseUrl) {
+    const u = supabaseUrl.replace(/\/$/, '');
+    if (u && !parts.includes(u)) parts.push(u);
   }
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  if (backendUrl) {
+    const u = backendUrl.replace(/\/+$/, '');
+    if (u && !parts.includes(u)) parts.push(u);
+  }
+  return parts.join(' ');
 }
 
 /** Apply security headers to every response. */
 function withSecurityHeaders(response: NextResponse): NextResponse {
-  // Allow embedding only from self and dataroom.capmatch.com (no X-Frame-Options so CSP frame-ancestors applies)
-  response.headers.set('Content-Security-Policy', `frame-ancestors ${FRAME_ANCESTORS_ALLOWED.join(' ')}`);
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('X-XSS-Protection', '0');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  // CSP report-only: collect violations without blocking; tighten later to enforce
-  // connect-src: allow ws: for local Supabase Realtime (127.0.0.1 uses ws://); wss: for production
-  // style-src: allow fonts.googleapis.com for Google Fonts (e.g. TASA Orbiter)
+  // CSP enforcing (script-src includes unsafe-inline/unsafe-eval for compatibility; tighten with nonces when possible)
+  // connect-src includes NEXT_PUBLIC_SUPABASE_URL so auth token refresh to local Supabase (http://127.0.0.1:54321) works in dev
   response.headers.set(
-    'Content-Security-Policy-Report-Only',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: wss: ws:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    'Content-Security-Policy',
+    `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src ${getConnectSrc()}; frame-ancestors ${FRAME_ANCESTORS_ALLOWED.join(' ')}; base-uri 'self'; form-action 'self'`
   );
   return response;
 }
@@ -75,16 +77,32 @@ function withSecurityHeaders(response: NextResponse): NextResponse {
 /** Max body size for API state-changing requests (10MB). */
 const MAX_API_BODY_BYTES = 10 * 1024 * 1024;
 
+/** Document upload routes allow 100MB to align with fileUploadValidation.ts MAX_DOCUMENT_SIZE_BYTES. */
+const MAX_DOCUMENT_UPLOAD_BYTES = 100 * 1024 * 1024;
+
 /** Origins allowed for CSRF (state-changing API requests). Includes dataroom.capmatch.com for embedding. */
 const ALLOWED_ORIGINS = [
   'https://dataroom.capmatch.com',
   'http://dataroom.capmatch.com',
 ];
 
-/** CSRF: for state-changing API requests, allow same-origin, configured site URL, or dataroom.capmatch.com. */
+/** CSRF: for state-changing API requests, allow same-origin, configured site URL, or dataroom.capmatch.com.
+ * Note: This relies on the Origin header being present and validated. For defense-in-depth,
+ * cookie options use SameSite=lax (see cookie-options.ts) so cookies are not sent on cross-site POSTs.
+ */
 function isAllowedOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('Origin');
-  if (!origin) return true;
+  if (!origin) {
+    // Fallback: check Referer when Origin is missing (e.g. some same-site requests)
+    const referer = request.headers.get('Referer');
+    if (!referer) return true;
+    try {
+      const refUrl = new URL(referer);
+      return refUrl.host === request.nextUrl.host;
+    } catch {
+      return false;
+    }
+  }
   try {
     const actual = new URL(origin);
     // Allow when Origin host matches request host (same-origin, e.g. localhost:3000 in dev)
@@ -94,7 +112,7 @@ function isAllowedOrigin(request: NextRequest): boolean {
     if (ALLOWED_ORIGINS.some((o) => actual.origin === o)) return true;
     // Otherwise require Origin to match configured site URL
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    if (!siteUrl) return true;
+    if (!siteUrl) return false;
     const allowed = new URL(siteUrl);
     return actual.origin === allowed.origin;
   } catch {
@@ -118,7 +136,8 @@ export async function middleware(request: NextRequest) {
     const contentLength = request.headers.get('content-length');
     if (contentLength) {
       const bytes = parseInt(contentLength, 10);
-      if (Number.isFinite(bytes) && bytes > MAX_API_BODY_BYTES) {
+      const limit = pathname.startsWith('/api/documents') ? MAX_DOCUMENT_UPLOAD_BYTES : MAX_API_BODY_BYTES;
+      if (Number.isFinite(bytes) && bytes > limit) {
         const res = new NextResponse(
           JSON.stringify({ error: 'Request entity too large' }),
           { status: 413, headers: { 'Content-Type': 'application/json' } }
@@ -153,7 +172,19 @@ export async function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.redirect(loginUrl));
   }
 
-  return withSecurityHeaders(NextResponse.next());
+  // Validate JWT server-side (not just presence) using Supabase middleware client
+  const { supabase, response: nextResponse } = createMiddlewareClient(request);
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return withSecurityHeaders(NextResponse.redirect(loginUrl));
+  }
+
+  return withSecurityHeaders(nextResponse);
 }
 
 export const config = {

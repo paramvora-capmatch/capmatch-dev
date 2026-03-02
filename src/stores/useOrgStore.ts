@@ -7,6 +7,7 @@ import {
   OrgMember,
   Invite,
   OrgMemberRole,
+  AppRole,
   ProjectGrant,
   OrgGrant,
 } from "../types/enhanced-types";
@@ -37,8 +38,7 @@ interface OrgActions {
   removeMember: (userId: string) => Promise<void>;
   updateMemberPermissions: (
     userId: string,
-    projectGrants: ProjectGrant[],
-    orgGrants: OrgGrant | null
+    projectGrants: ProjectGrant[]
   ) => Promise<void>;
   updateMemberName: (userId: string, fullName: string) => Promise<void>;
 
@@ -97,7 +97,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       // Load org details
       const { data: org, error: orgError } = await supabase
         .from("orgs")
-        .select("*")
+        .select("id, created_at, updated_at, name, entity_type")
         .eq("id", orgId)
         .single();
 
@@ -106,7 +106,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       // Load members
       const { data: members, error: membersError } = await supabase
         .from("org_members")
-        .select("*")
+        .select("org_id, user_id, role, created_at")
         .eq("org_id", orgId);
 
       if (membersError) throw membersError;
@@ -114,7 +114,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       // Load pending invites
       const { data: invites, error: invitesError } = await supabase
         .from("invites")
-        .select("*")
+        .select("id, org_id, invited_by, invited_email, role, token, status, expires_at, accepted_at, created_at")
         .eq("org_id", orgId)
         .eq("status", "pending");
 
@@ -128,9 +128,9 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       const { data: memberProfiles, error: memberProfilesError } =
         memberUserIds.length > 0
           ? await supabase
-              .from("profiles")
-              .select("id, full_name, email, app_role")
-              .in("id", memberUserIds)
+            .from("profiles")
+            .select("id, full_name, email, app_role")
+            .in("id", memberUserIds)
           : { data: [], error: null };
 
       if (memberProfilesError) {
@@ -164,7 +164,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
             ...member,
             userName: (basic?.full_name && basic.full_name.trim()) || "Unknown User",
             userEmail: basic?.email || "user@example.com",
-            userRole: basic?.app_role,
+            userRole: (basic?.app_role as AppRole) ?? undefined,
           };
         }) || [];
 
@@ -331,8 +331,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
 
   updateMemberPermissions: async (
     userId: string,
-    projectGrants: ProjectGrant[],
-    orgGrants: OrgGrant | null
+    projectGrants: ProjectGrant[]
   ) => {
     set({ error: null });
 
@@ -340,15 +339,18 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       const { currentOrg } = get();
       if (!currentOrg) throw new Error("No active org");
 
-      // Use the FastAPI endpoint to update member permissions
-      const { error: apiError } = await apiClient.updateMemberPermissions({
-        org_id: currentOrg.id,
-        user_id: userId,
-        project_grants: projectGrants,
-        org_grants: orgGrants,
-      });
+      // Call the Supabase RPC directly — no FastAPI roundtrip needed.
+      // The DB function validates auth, ownership, and emits domain events atomically.
+      const { error: rpcError } = await supabase.rpc(
+        "bulk_update_member_permissions",
+        {
+          p_org_id: currentOrg.id,
+          p_user_id: userId,
+          p_project_grants: projectGrants,
+        }
+      );
 
-      if (apiError) throw apiError;
+      if (rpcError) throw new Error(rpcError.message);
 
       // Refresh members list after successful update
       await get().refreshMembers();
@@ -429,7 +431,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
   validateInviteToken: async (inviteToken: string) => {
     try {
       const { data, error: apiError } = await apiClient.validateInvite(inviteToken);
-      
+
       if (apiError || !data) {
         return { valid: false };
       }

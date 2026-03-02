@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
+import { getBackendUrl } from "@/lib/apiConfig";
 import { useProjects } from "@/hooks/useProjects";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -29,8 +30,8 @@ const documentPathMatchesContext = (
 
 const getEndpointPath = (context: AutofillContext) =>
 	context === "borrower"
-		? "/api/borrower-resume/autofill"
-		: "/api/project-resume/autofill";
+		? `${getBackendUrl()}/api/v1/borrower-resume/autofill`
+		: `${getBackendUrl()}/api/v1/project-resume/autofill`;
 
 /** Realtime payload.new row shape for jobs table */
 interface JobRow {
@@ -239,6 +240,7 @@ export const useAutofill = (
 
 			const projectAddress = options?.projectAddress ?? "";
 
+		// Call FastAPI endpoint directly (backend derives user from JWT)
 			const {
 				data: { session },
 			} = await supabase.auth.getSession();
@@ -254,7 +256,6 @@ export const useAutofill = (
 					project_id: projectId,
 					project_address: projectAddress,
 					document_paths: documentPaths,
-					user_id: session?.user?.id || "unknown",
 				}),
 			});
 

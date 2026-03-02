@@ -3,7 +3,12 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, TrendingUp, MapPin, BarChart3 } from 'lucide-react';
-import PopulationHeatmap from '@/components/om/PopulationHeatmap';
+import dynamic from 'next/dynamic';
+
+const PopulationHeatmap = dynamic(() => import('@/components/om/PopulationHeatmap'), {
+  ssr: false,
+  loading: () => <div className="min-h-[300px] animate-pulse rounded-lg bg-muted/50" />,
+});
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { formatLocale, formatCurrency, parseNumeric } from '@/lib/om-utils';

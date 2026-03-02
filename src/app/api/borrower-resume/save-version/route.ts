@@ -1,51 +1,35 @@
 "use server";
 
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { saveVersionBodySchema, validationErrorResponse, safeErrorResponse } from "@/lib/api-validation";
 import { verifyProjectAccess } from "@/lib/verify-project-access";
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from "@/lib/rate-limit";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !serviceRoleKey) {
-	throw new Error(
-		"Missing SUPABASE configuration. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set."
-	);
-}
-
-const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-	auth: { persistSession: false, autoRefreshToken: false },
-});
+import { unauthorized, validationError, forbidden, notFound } from "@/lib/api-errors";
+import { logger } from "@/lib/logger";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
+	const supabaseAdmin = getSupabaseAdmin();
 	const supabase = await createServerClient();
 	const { data: { user }, error: authError } = await supabase.auth.getUser();
 	if (authError || !user) {
-		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		return unauthorized();
 	}
 
 	const rlId = getRateLimitId(request, user.id);
 	const rl = checkRateLimit(rlId, GENERAL_RATE_LIMIT, "borrower-resume-save-version");
 	if (!rl.allowed) return rl.response;
 
-	console.log("[API] Borrower resume save-version called");
+	logger.info("[API] Borrower resume save-version called");
 	const rawBody = await request.text();
 	let payload: unknown = {};
 	if (rawBody) {
 		try {
 			payload = JSON.parse(rawBody);
 		} catch (error) {
-			console.error(
-				"[API] Failed to parse save-version request body:",
-				error
-			);
-			return NextResponse.json(
-				{ error: "Invalid request body. Expected JSON." },
-				{ status: 400 }
-			);
+			logger.error({ err: error }, "[API] Failed to parse save-version request body");
+			return validationError("Invalid request body. Expected JSON.");
 		}
 	}
 
@@ -53,20 +37,15 @@ export async function POST(request: Request) {
 	if (!parsed.success) {
 		return validationErrorResponse("Validation failed", parsed.error.issues);
 	}
-	const { projectId, userId } = parsed.data;
+	const { projectId } = parsed.data;
 	if (!projectId) {
-		return NextResponse.json({ error: "projectId is required" }, { status: 400 });
+		return validationError("projectId is required");
 	}
-	console.log(
-		"[API] Saving borrower resume version for project:",
-		projectId,
-		"user:",
-		userId
-	);
+	logger.info({ projectId }, "[API] Saving borrower resume version for project");
 
 	const hasAccess = await verifyProjectAccess(supabase, projectId);
 	if (!hasAccess) {
-		return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+		return forbidden();
 	}
 
 	const { data: resource, error: resourceError } = await supabaseAdmin
@@ -81,10 +60,7 @@ export async function POST(request: Request) {
 	}
 
 	if (!resource?.id) {
-		return NextResponse.json(
-			{ error: "Borrower resume resource not found" },
-			{ status: 404 }
-		);
+		return notFound("Borrower resume resource not found");
 	}
 
 	let resumeRow: {
@@ -121,10 +97,7 @@ export async function POST(request: Request) {
 	}
 
 	if (!resumeRow) {
-		return NextResponse.json(
-			{ error: "No resume data found for project" },
-			{ status: 404 }
-		);
+		return notFound("No resume data found for project");
 	}
 
 	// Create new version snapshot
@@ -153,11 +126,10 @@ export async function POST(request: Request) {
 		return safeErrorResponse(updateResourceError, "Failed to update version", 500);
 	}
 
-	console.log("[API] Successfully saved borrower resume version:", {
-		versionId: inserted.id,
-		versionNumber: inserted.version_number,
-		projectId,
-	});
+	logger.info(
+		{ versionId: inserted.id, versionNumber: inserted.version_number, projectId },
+		"[API] Successfully saved borrower resume version"
+	);
 
 	return NextResponse.json({
 		ok: true,

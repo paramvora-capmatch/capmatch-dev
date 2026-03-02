@@ -173,11 +173,10 @@ export default function TeamPage() {
   const handleUpdatePermissions = useCallback(
     async (
       userId: string,
-      projectGrants: ProjectGrant[],
-      orgGrants: OrgGrant | null
+      projectGrants: ProjectGrant[]
     ): Promise<void> => {
       try {
-        await updateMemberPermissions(userId, projectGrants, orgGrants);
+        await updateMemberPermissions(userId, projectGrants);
         // Reload org data to show the updated permissions
         if (activeOrg) {
           loadOrg(activeOrg.id);

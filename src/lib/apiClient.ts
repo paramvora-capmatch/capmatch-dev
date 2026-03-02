@@ -375,8 +375,10 @@ export const apiClient = {
     content: string;
     client_context?: any;
     image_urls?: string[];
+    client_request_id?: string;
+    reply_to?: number | null;
   }) => {
-    return apiRequest<{ message_id: string; response: string }>('/api/v1/chat/messages', {
+    return apiRequest<{ message_id: number; response: string }>('/api/v1/chat/messages', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -390,7 +392,6 @@ export const apiClient = {
    */
   updateCalendarResponse: async (params: {
     meeting_id: string;
-    user_id: string;
     status: 'accepted' | 'declined' | 'tentative' | 'pending';
   }) => {
     return apiRequest<{
@@ -487,47 +488,6 @@ export const apiClient = {
       success: boolean;
       message: string;
     }>('/api/v1/admin/revoke-lender-project-access', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  },
-
-  /**
-   * Update member permissions for a user in an organization
-   *
-   * @param params - Permission update parameters
-   * @returns Success response
-   */
-  updateMemberPermissions: async (params: {
-    org_id: string;
-    user_id: string;
-    project_grants?: Array<{
-      projectId: string;
-      permissions: Array<{
-        resource_type: string;
-        permission: string;
-      }>;
-      fileOverrides?: Array<{
-        resource_id: string;
-        permission: string;
-      }>;
-      exclusions?: string[];
-    }>;
-    org_grants?: {
-      permissions?: Array<{
-        resource_type: string;
-        permission: string;
-      }>;
-      fileOverrides?: Array<{
-        resource_id: string;
-        permission: string;
-      }>;
-    } | null;
-  }) => {
-    return apiRequest<{
-      success: boolean;
-      message: string;
-    }>('/api/v1/users/update-member-permissions', {
       method: 'POST',
       body: JSON.stringify(params),
     });

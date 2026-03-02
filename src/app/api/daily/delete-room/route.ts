@@ -1,23 +1,14 @@
 // src/app/api/daily/delete-room/route.ts
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import type { DeleteRoomRequest, DailyApiError } from '@/types/daily-types';
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
-
-// Create Supabase client with service role for server-side operations
-function getSupabaseServiceClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Supabase credentials not configured');
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
+import { safeErrorResponse } from '@/lib/api-validation';
+import { unauthorized } from '@/lib/api-errors';
+import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 export async function DELETE(request: Request) {
-  const supabase = getSupabaseServiceClient();
+  const supabase = getSupabaseAdmin();
 
   // Authenticate user
   const {
@@ -25,7 +16,7 @@ export async function DELETE(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorized();
   }
 
   const rlId = getRateLimitId(request, user.id);
@@ -50,7 +41,7 @@ export async function DELETE(request: Request) {
     if (meetingId) {
       const { data: meetingData, error: meetingError } = await supabase
         .from('meetings')
-        .select('*')
+        .select('id, organizer_id, meeting_link')
         .eq('id', meetingId)
         .single();
 
@@ -107,7 +98,7 @@ export async function DELETE(request: Request) {
 
     if (!dailyResponse.ok) {
       const errorData: DailyApiError = await dailyResponse.json();
-      console.error('Daily.co API error:', errorData);
+      logger.error({ errorData }, 'Daily.co API error');
       return NextResponse.json(
         { error: errorData.error || 'Failed to delete room' },
         { status: dailyResponse.status }
@@ -122,7 +113,7 @@ export async function DELETE(request: Request) {
         .eq('id', meetingId);
 
       if (updateError) {
-        console.error('Failed to update meeting status:', updateError);
+        logger.error({ err: updateError }, 'Failed to update meeting status');
         // Don't fail the request - room was deleted successfully
       }
     }
@@ -132,10 +123,6 @@ export async function DELETE(request: Request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('Error deleting room:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete room' },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, 'Failed to delete room');
   }
 }

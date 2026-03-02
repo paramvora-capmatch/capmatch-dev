@@ -6,6 +6,9 @@ import { createServerSupabaseClient } from '@/lib/calendarTokenManager';
 import { fetchUserBusyPeriods, findCommonFreeSlots } from '@/services/availabilityService';
 import type { AvailabilityRequest, AvailabilityResponse, UserAvailability } from '@/types/availability';
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
+import { safeErrorResponse } from '@/lib/api-validation';
+import { unauthorized } from '@/lib/api-errors';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return unauthorized();
     }
 
     const rlId = getRateLimitId(request, user.id);
@@ -36,11 +39,8 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return rl.response;
 
     // Create admin client for fetching calendar connections (requires service role)
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { persistSession: false, autoRefreshToken: false } }
-    );
+    const { getSupabaseAdmin } = await import('@/lib/supabase/admin');
+    const supabaseAdmin = getSupabaseAdmin();
 
     // Parse and validate request body
     const body: AvailabilityRequest = await request.json();
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[Availability API] Finding availability for ${userIds.length} users from ${startDate} to ${endDate}`);
+    logger.info({ userIds: userIds.length, startDate, endDate }, '[Availability API] Finding availability');
 
     // Fetch calendar connections for all users
     const userAvailabilities: UserAvailability[] = [];
@@ -103,12 +103,12 @@ export async function POST(request: NextRequest) {
       // We need admin access because RLS prevents users from seeing others' tokens
       const { data: connections, error: connectionsError } = await supabaseAdmin
         .from('calendar_connections')
-        .select('*')
+        .select('id, user_id, provider, provider_account_id, provider_email, access_token, refresh_token, token_expires_at, calendar_list, sync_enabled, last_synced_at, watch_channel_id, watch_resource_id, watch_expiration, created_at, updated_at')
         .eq('user_id', userId)
         .eq('sync_enabled', true);
 
       if (connectionsError) {
-        console.error(`[Availability API] Error fetching connections for user ${userId}:`, connectionsError);
+        logger.error({ userId, err: connectionsError }, '[Availability API] Error fetching connections');
         // Add user with no calendar connected
         userAvailabilities.push({
           userId,
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (!connections || connections.length === 0) {
-        console.log(`[Availability API] No calendar connections found for user ${userId}`);
+        logger.info({ userId }, '[Availability API] No calendar connections found');
         userAvailabilities.push({
           userId,
           hasCalendarConnected: false,
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      console.log(`[Availability API] Found ${connections.length} connections for user ${userId}`);
+      logger.info({ userId, count: connections.length }, '[Availability API] Found connections');
 
       // Fetch busy periods for this user
       // We pass supabaseAdmin to ensure we can update tokens if they need refreshing
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
       duration
     );
 
-    console.log(`[Availability API] Found ${freeSlots.length} free slots of ${duration} minutes`);
+    logger.info({ freeSlotsCount: freeSlots.length, duration }, '[Availability API] Found free slots');
 
     const response: AvailabilityResponse = {
       freeSlots,
@@ -171,8 +171,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response, { status: 200 });
 
   } catch (err) {
-    console.error('[Availability API] Error:', err);
-    const errorMessage = err instanceof Error ? err.message : 'Internal server error';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return safeErrorResponse(err, 'Internal server error');
   }
 }

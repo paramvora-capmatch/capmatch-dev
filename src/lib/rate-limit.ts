@@ -1,7 +1,12 @@
 /**
  * In-memory rate limiter for API routes.
  * Use with a consistent identifier (e.g. user id when authenticated, else IP).
- * For multi-instance deployments consider Redis (e.g. Upstash).
+ *
+ * SECURITY LIMITATION: This store is per-process. In multi-instance deployments
+ * (e.g. Vercel serverless, multiple Node processes), each instance has its own
+ * Map, so limits are not shared and can be bypassed by distributing requests
+ * across instances. For production at scale, use a distributed store (e.g. Upstash
+ * Redis, Vercel KV) and replace this implementation.
  */
 
 export interface RateLimitConfig {
@@ -65,7 +70,9 @@ export function checkRateLimit(
       response: new Response(
         JSON.stringify({
           error: 'Too many requests',
-          retryAfter,
+          error_code: 'RATE_LIMITED',
+          status_code: 429,
+          details: { retryAfter },
         }),
         {
           status: 429,

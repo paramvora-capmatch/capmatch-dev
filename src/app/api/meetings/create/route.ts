@@ -5,23 +5,20 @@ import { CreateMeetingResponse } from '@/types/meeting-types';
 import { validateBody, createMeetingBodySchema } from '@/lib/api-validation';
 import { checkRateLimit, getRateLimitId, GENERAL_RATE_LIMIT } from '@/lib/rate-limit';
 import { verifyProjectAccess } from '@/lib/verify-project-access';
+import { unauthorized, forbidden, validationError } from '@/lib/api-errors';
+import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Server-side Supabase client with service role
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
 export async function POST(request: NextRequest) {
+  const supabaseAdmin = getSupabaseAdmin();
   try {
     // Get authenticated user
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Unauthorized - No auth header' },
-        { status: 401 }
-      );
+      return unauthorized('Unauthorized - No auth header');
     }
 
     // Extract token from Bearer header
@@ -34,10 +31,7 @@ export async function POST(request: NextRequest) {
     } = await supabaseAdmin.auth.getUser(token);
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      );
+      return unauthorized('Unauthorized - Invalid token');
     }
 
     const rlId = getRateLimitId(request, user.id);
@@ -52,16 +46,13 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!connections || connections.length === 0) {
-      return NextResponse.json(
-        { error: 'Calendar connection required. Please connect your calendar in settings.' },
-        { status: 403 }
-      );
+      return forbidden('Calendar connection required. Please connect your calendar in settings.');
     }
 
     // Parse and validate request body
     const [validationErr, body] = await validateBody(request, createMeetingBodySchema);
     if (validationErr) return validationErr;
-    if (!body) return NextResponse.json({ error: 'Validation failed' }, { status: 400 });
+    if (!body) return validationError('Validation failed');
 
     // If linking to a project, verify user has access
     if (body.projectId) {
@@ -70,10 +61,7 @@ export async function POST(request: NextRequest) {
       });
       const hasAccess = await verifyProjectAccess(userClient, body.projectId);
       if (!hasAccess) {
-        return NextResponse.json(
-          { error: 'Forbidden - No access to this project' },
-          { status: 403 }
-        );
+        return forbidden('No access to this project');
       }
     }
 
@@ -129,14 +117,14 @@ export async function POST(request: NextRequest) {
           // Use your domain instead of Daily.co's domain
           const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
           dailyRoomUrl = `${siteUrl}/meeting/${roomName}`;
-          console.log('Daily.co room created, meeting URL:', dailyRoomUrl);
+          logger.info({ dailyRoomUrl }, 'Daily.co room created');
         } else {
           const errorData = await dailyResponse.json();
-          console.error('Failed to create Daily.co room:', errorData);
+          logger.error({ errorData }, 'Failed to create Daily.co room');
         }
       }
     } catch (dailyError) {
-      console.error('Error creating Daily.co room:', dailyError);
+      logger.error({ err: dailyError }, 'Error creating Daily.co room');
       // Don't fail the whole operation if Daily.co room creation fails
     }
 
@@ -147,7 +135,7 @@ export async function POST(request: NextRequest) {
       .in('id', body.participantIds);
 
     if (participantsError) {
-      console.error('Error fetching participants:', participantsError);
+      logger.error({ err: participantsError }, 'Error fetching participants');
       return NextResponse.json(
         { error: 'Failed to fetch participant information' },
         { status: 500 }
@@ -178,11 +166,11 @@ export async function POST(request: NextRequest) {
         status: 'scheduled',
         calendar_event_ids: [],
       })
-      .select()
+      .select("id")
       .single();
 
     if (meetingError || !meeting) {
-      console.error('Error creating meeting:', meetingError);
+      logger.error({ err: meetingError }, 'Error creating meeting');
       return NextResponse.json(
         { error: 'Failed to create meeting' },
         { status: 500 }
@@ -202,7 +190,7 @@ export async function POST(request: NextRequest) {
       .insert(participantRecords);
 
     if (participantInsertError) {
-      console.error('Error adding participants:', participantInsertError);
+      logger.error({ err: participantInsertError }, 'Error adding participants');
       // Don't fail the whole operation, just log the error
     }
 
@@ -220,17 +208,17 @@ export async function POST(request: NextRequest) {
         .eq('meeting_id', meeting.id);
 
       if (eventsError) {
-        console.error('Error fetching domain events:', eventsError);
+        logger.error({ err: eventsError }, 'Error fetching domain events');
       } else if (meetingEvents && meetingEvents.length > 0) {
-        console.log(`Found ${meetingEvents.length} meeting_invited events`);
+        logger.info({ count: meetingEvents.length }, 'Found meeting_invited events');
         // Note: Domain events created. The GCP notify-fan-out service will automatically
         // poll and process these events within 0-60 seconds (avg 30s).
-        console.log(`Triggered ${meetingEvents.length} meeting invitation notifications`);
+        logger.info({ count: meetingEvents.length }, 'Triggered meeting invitation notifications');
       } else {
-        console.log('No domain events found for meeting', meeting.id);
+        logger.info({ meetingId: meeting.id }, 'No domain events found for meeting');
       }
     } catch (notificationError) {
-      console.error('Error triggering meeting notifications:', notificationError);
+      logger.error({ err: notificationError }, 'Error triggering meeting notifications');
       // Don't fail the whole operation
     }
 
@@ -292,13 +280,15 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      console.log(
-        `Successfully sent ${inviteResults.filter((r) => r.success).length}/${
-          inviteResults.length
-        } calendar invites`
+      logger.info(
+        {
+          successCount: inviteResults.filter((r) => r.success).length,
+          total: inviteResults.length,
+        },
+        'Successfully sent calendar invites'
       );
     } catch (inviteError) {
-      console.error('Error sending calendar invites:', inviteError);
+      logger.error({ err: inviteError }, 'Error sending calendar invites');
       // Don't fail the whole operation if calendar invites fail
       inviteResults = body.participantIds.map((userId) => ({
         userId,
@@ -331,7 +321,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
-    console.error('Error in create meeting endpoint:', error);
+    logger.error({ err: error }, 'Error in create meeting endpoint');
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
