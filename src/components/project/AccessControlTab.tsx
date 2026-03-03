@@ -4,13 +4,16 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useProjects } from "@/hooks/useProjects";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabaseClient";
 import { Advisor, Permission, ProjectGrant } from "@/types/enhanced-types";
 import { PillToggle, PermissionLevel } from "@/components/ui/PillToggle";
 import { computeProjectLevel } from "@/components/ui/PillToggle";
 import { RESOURCE_TYPES } from "@/hooks/useProjectPermissionEditor";
 import { ProjectPermissionDetailPanel } from "@/components/team/ProjectPermissionDetailPanel";
-import { Loader2, User, Shield, Briefcase } from "lucide-react";
+import { AddLenderToProjectModal } from "@/components/project/AddLenderToProjectModal";
+import { Button } from "@/components/ui/Button";
+import { Loader2, User, Shield, Briefcase, Building2, PlusCircle, Trash2 } from "lucide-react";
 
 interface AccessControlTabProps {
   projectId: string;
@@ -29,8 +32,12 @@ type ResourceIdsMap = Record<string, string>;
 export const AccessControlTab: React.FC<AccessControlTabProps> = ({
   projectId,
 }) => {
+  const { user } = useAuth();
   const { members, loadOrg, currentOrg } = useOrgStore();
   const { activeProject } = useProjects();
+  const isAdvisorView =
+    user?.role === "advisor" &&
+    activeProject?.assignedAdvisorUserId === user?.id;
   const [resourceIds, setResourceIds] = useState<ResourceIdsMap | null>(null);
   const [permissions, setPermissions] = useState<MemberPermissionInfo[]>([]);
   const [advisor, setAdvisor] = useState<Advisor | null>(null);
@@ -56,6 +63,11 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
       Map<string, { id: string; parent_id: string | null; resource_type: string }>
     >
   >({});
+  const [lenderGrants, setLenderGrants] = useState<
+    { lender_org_id: string; org_name: string }[]
+  >([]);
+  const [addLenderModalOpen, setAddLenderModalOpen] = useState(false);
+  const [revokingOrgId, setRevokingOrgId] = useState<string | null>(null);
 
   const getDocumentRootType = useCallback(
     (
@@ -148,14 +160,20 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
   }, [projectDocsMap, projectRootsMap, projectResourcesMap]);
 
   const fetchAllData = useCallback(async () => {
-    if (!activeProject || !currentOrg) {
+    if (!activeProject) {
       setIsLoading(false);
       return;
     }
-    if (currentOrg.id !== activeProject.owner_org_id) {
-      setError("Organization mismatch. Please refresh the page.");
-      setIsLoading(false);
-      return;
+    if (!isAdvisorView) {
+      if (!currentOrg) {
+        setIsLoading(false);
+        return;
+      }
+      if (currentOrg.id !== activeProject.owner_org_id) {
+        setError("Organization mismatch. Please refresh the page.");
+        setIsLoading(false);
+        return;
+      }
     }
     setIsLoading(true);
     setError(null);
@@ -184,6 +202,33 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
         }
       } else {
         setAdvisor(null);
+      }
+
+      if (isAdvisorView) {
+        setResourceIds(null);
+        setPermissions([]);
+        const { data: accessRows, error: lenderError } = await supabase
+          .from("lender_project_access")
+          .select("lender_org_id")
+          .eq("project_id", projectId);
+        if (!lenderError && accessRows?.length) {
+          const orgIds = [...new Set(accessRows.map((r) => r.lender_org_id))];
+          const { data: orgs } = await supabase
+            .from("orgs")
+            .select("id, name")
+            .in("id", orgIds);
+          const nameById = new Map((orgs ?? []).map((o) => [o.id, o.name ?? ""]));
+          setLenderGrants(
+            accessRows.map((r) => ({
+              lender_org_id: r.lender_org_id,
+              org_name: nameById.get(r.lender_org_id) ?? "Unknown",
+            }))
+          );
+        } else {
+          setLenderGrants([]);
+        }
+        setIsLoading(false);
+        return;
       }
 
       const { data: resources, error: resourceError } = await supabase
@@ -283,7 +328,7 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
         return null;
       };
 
-      if (!members?.length) {
+      if (currentOrg && !members?.length) {
         await loadOrg(currentOrg.id);
       }
       const membersList = (members || []).filter((m) => m.role !== "owner");
@@ -349,6 +394,28 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
         };
       });
       setPermissions(memberPerms);
+
+      // Lender access: fetch grants for this project (assigned advisor can SELECT via RLS)
+      const { data: accessRows, error: lenderError } = await supabase
+        .from("lender_project_access")
+        .select("lender_org_id")
+        .eq("project_id", projectId);
+      if (!lenderError && accessRows?.length) {
+        const orgIds = [...new Set(accessRows.map((r) => r.lender_org_id))];
+        const { data: orgs } = await supabase
+          .from("orgs")
+          .select("id, name")
+          .in("id", orgIds);
+        const nameById = new Map((orgs ?? []).map((o) => [o.id, o.name ?? ""]));
+        setLenderGrants(
+          accessRows.map((r) => ({
+            lender_org_id: r.lender_org_id,
+            org_name: nameById.get(r.lender_org_id) ?? "Unknown",
+          }))
+        );
+      } else {
+        setLenderGrants([]);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load access control data"
@@ -356,7 +423,7 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, activeProject, members, currentOrg, loadOrg]);
+  }, [projectId, activeProject, members, currentOrg, loadOrg, isAdvisorView]);
 
   useEffect(() => {
     fetchAllData();
@@ -367,6 +434,45 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
       ensureProjectDocsLoaded(projectId);
     }
   }, [openMemberId, projectId, ensureProjectDocsLoaded]);
+
+  const refreshLenderGrants = useCallback(async () => {
+    const { data: accessRows } = await supabase
+      .from("lender_project_access")
+      .select("lender_org_id")
+      .eq("project_id", projectId);
+    if (!accessRows?.length) {
+      setLenderGrants([]);
+      return;
+    }
+    const orgIds = [...new Set(accessRows.map((r) => r.lender_org_id))];
+    const { data: orgs } = await supabase
+      .from("orgs")
+      .select("id, name")
+      .in("id", orgIds);
+    const nameById = new Map((orgs ?? []).map((o) => [o.id, o.name ?? ""]));
+    setLenderGrants(
+      accessRows.map((r) => ({
+        lender_org_id: r.lender_org_id,
+        org_name: nameById.get(r.lender_org_id) ?? "Unknown",
+      }))
+    );
+  }, [projectId]);
+
+  const handleRevokeLender = useCallback(
+    async (lenderOrgId: string) => {
+      setRevokingOrgId(lenderOrgId);
+      try {
+        await supabase.rpc("revoke_lender_project_access_by_advisor", {
+          p_project_id: projectId,
+          p_lender_org_id: lenderOrgId,
+        });
+        await refreshLenderGrants();
+      } finally {
+        setRevokingOrgId(null);
+      }
+    },
+    [projectId, refreshLenderGrants]
+  );
 
   const setPermissionForMember = useCallback(
     async (userId: string, permission: Permission | "none") => {
@@ -577,9 +683,9 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
 
   if (error) {
     return (
-      <div className="p-4">
+      <div className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800 font-medium">Error loading access control</p>
+          <p className="text-red-800 font-medium">Error loading lender matching</p>
           <p className="text-red-600 text-sm mt-1">{error}</p>
           <button
             onClick={() => {
@@ -597,9 +703,9 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
 
   if (isLoading) {
     return (
-      <div className="p-4 flex flex-col items-center justify-center h-64">
+      <div className="p-6 flex flex-col items-center justify-center h-64 bg-white rounded-xl border border-gray-200 shadow-sm">
         <Loader2 className="animate-spin h-8 w-8 text-blue-600 mb-2" />
-        <p className="text-sm text-gray-600">Loading access control...</p>
+        <p className="text-sm text-gray-600">Loading lender matching...</p>
       </div>
     );
   }
@@ -609,27 +715,54 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
     : null;
 
   return (
-    <div className="p-4 space-y-6">
-      <div className="border-b pb-4">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
+
+      <div>
         <h3 className="text-md font-semibold text-gray-800 flex items-center mb-3">
-          <Briefcase size={16} className="mr-2" />
-          Assigned Advisor
+          <Building2 size={16} className="mr-2" />
+          Matched Lenders
         </h3>
-        {advisor ? (
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600">
-              {advisor.name.charAt(0)}
+        <div className="space-y-2">
+          {lenderGrants.map((grant) => (
+            <div
+              key={grant.lender_org_id}
+              className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50"
+            >
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-gray-400" />
+                <span className="font-medium text-gray-900">{grant.org_name}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRevokeLender(grant.lender_org_id)}
+                disabled={revokingOrgId === grant.lender_org_id}
+                className="text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50 flex items-center gap-1"
+              >
+                {revokingOrgId === grant.lender_org_id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                Revoke
+              </button>
             </div>
-            <div>
-              <p className="font-medium text-gray-900">{advisor.name}</p>
-              <p className="text-sm text-gray-500">{advisor.email}</p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">No advisor assigned to this project.</p>
-        )}
+          ))}
+          {lenderGrants.length === 0 && (
+            <p className="text-sm text-gray-500 py-2">No lenders have been sent this package yet.</p>
+          )}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-3"
+          onClick={() => setAddLenderModalOpen(true)}
+          leftIcon={<PlusCircle className="h-4 w-4" />}
+        >
+          Send package to lender
+        </Button>
       </div>
 
+      {!isAdvisorView && (
       <div>
         <h3 className="text-md font-semibold text-gray-800 flex items-center mb-3">
           <Shield size={16} className="mr-2" />
@@ -673,6 +806,14 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
           )}
         </div>
       </div>
+      )}
+      {isAdvisorView && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+          <p className="text-sm text-gray-600">
+            Member permissions are managed by the project owner in their team settings.
+          </p>
+        </div>
+      )}
 
       {openMember && (
         <div className="border-t pt-4">
@@ -688,6 +829,14 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
           />
         </div>
       )}
+
+      <AddLenderToProjectModal
+        isOpen={addLenderModalOpen}
+        onClose={() => setAddLenderModalOpen(false)}
+        projectId={projectId}
+        existingLenderOrgIds={lenderGrants.map((g) => g.lender_org_id)}
+        onSuccess={refreshLenderGrants}
+      />
     </div>
   );
 };

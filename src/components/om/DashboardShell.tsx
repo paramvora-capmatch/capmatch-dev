@@ -260,7 +260,14 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
 				</div>
 			</div>
 
-			{/* Right Column: Sticky collapsible chat card */}
+			{/* Right Column: spacer so main content doesn't sit under fixed chat */}
+			<div
+				className={cn(
+					"flex-shrink-0 min-w-0 transition-[width] duration-300 ease-in-out",
+					isChatCollapsed ? "w-14" : "w-[30%]"
+				)}
+				aria-hidden
+			/>
 			<OMChatCard
 				projectId={projectId}
 				isCollapsed={isChatCollapsed}

@@ -18,20 +18,12 @@ interface LenderProject {
   owner_org_id: string;
   created_at: string;
   project_resume?: {
-    content: {
-      propertyAddressCity?: ResumeFieldValue<string>;
-      propertyAddressState?: ResumeFieldValue<string>;
-      loanAmountRequested?: ResumeFieldValue<number>;
-      assetType?: ResumeFieldValue<string>;
-      [key: string]: unknown;
-    };
+    content: Record<string, unknown>;
+    completeness_percent?: number | null;
   };
   borrower_resume?: {
-    content: {
-      fullLegalName?: ResumeFieldValue<string>;
-      primaryEntityName?: ResumeFieldValue<string>;
-      [key: string]: unknown;
-    };
+    content: Record<string, unknown>;
+    completeness_percent?: number | null;
   };
 }
 
@@ -85,42 +77,62 @@ export default function LenderDashboardPage() {
           throw projectsError;
         }
 
-        // Fetch project resumes
-        const { data: projectResumes, error: resumesError } = await supabase
+        // Fetch project resumes (latest per project) with completeness_percent
+        const { data: projectResumesRows, error: resumesError } = await supabase
           .from("project_resumes")
-          .select("project_id, content")
-          .in("project_id", projectIds);
+          .select("project_id, content, completeness_percent, created_at")
+          .in("project_id", projectIds)
+          .order("created_at", { ascending: false });
 
         if (resumesError) {
           console.error("Error fetching project resumes:", resumesError);
         }
 
-        // Fetch borrower resumes for these projects
-        // Note: borrower_resumes are project-scoped, not org-scoped
-        const { data: borrowerResumes, error: borrowerError } = await supabase
+        // Fetch borrower resumes (latest per project) with completeness_percent
+        const { data: borrowerResumesRows, error: borrowerError } = await supabase
           .from("borrower_resumes")
-          .select("project_id, content")
-          .in("project_id", projectIds);
+          .select("project_id, content, completeness_percent, created_at")
+          .in("project_id", projectIds)
+          .order("created_at", { ascending: false });
 
         if (borrowerError) {
           console.error("Error fetching borrower resumes:", borrowerError);
         }
 
-        // Combine data
-        const enrichedProjects = (projectsData || []).map((project) => {
-          const projectResume = projectResumes?.find(
-            (r) => r.project_id === project.id
-          );
-          const borrowerResume = borrowerResumes?.find(
-            (r) => r.project_id === project.id
-          );
-
-          return {
-            ...project,
-            project_resume: projectResume,
-            borrower_resume: borrowerResume,
-          };
+        // Latest resume per project (first row after ordering by created_at desc)
+        const latestProjectResumeByProject = new Map<string, (typeof projectResumesRows)[0]>();
+        (projectResumesRows || []).forEach((r) => {
+          if (!latestProjectResumeByProject.has(r.project_id)) {
+            latestProjectResumeByProject.set(r.project_id, r);
+          }
         });
+        const latestBorrowerResumeByProject = new Map<string, (typeof borrowerResumesRows)[0]>();
+        (borrowerResumesRows || []).forEach((r) => {
+          if (!latestBorrowerResumeByProject.has(r.project_id)) {
+            latestBorrowerResumeByProject.set(r.project_id, r);
+          }
+        });
+
+        // Combine and keep only projects where BOTH resumes are 100% complete
+        const enrichedProjects = (projectsData || [])
+          .map((project) => {
+            const projectResume = latestProjectResumeByProject.get(project.id);
+            const borrowerResume = latestBorrowerResumeByProject.get(project.id);
+            return {
+              ...project,
+              project_resume: projectResume
+                ? { content: projectResume.content, completeness_percent: projectResume.completeness_percent }
+                : undefined,
+              borrower_resume: borrowerResume
+                ? { content: borrowerResume.content, completeness_percent: borrowerResume.completeness_percent }
+                : undefined,
+            };
+          })
+          .filter((p) => {
+            const projectComplete = p.project_resume?.completeness_percent === 100;
+            const borrowerComplete = p.borrower_resume?.completeness_percent === 100;
+            return projectComplete && borrowerComplete;
+          });
 
         setProjects(enrichedProjects);
       } catch (err) {
@@ -200,11 +212,11 @@ export default function LenderDashboardPage() {
             <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
               <Building2 className="h-16 w-16 mx-auto text-gray-400 mb-4" />
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                No Projects Yet
+                No Ready Deals Yet
               </h3>
               <p className="text-gray-600 max-w-md mx-auto">
-                You don&apos;t have access to any projects yet. Projects will appear
-                here once an advisor grants you access.
+                Deals appear here once an advisor adds you to a project and both the
+                project and borrower resumes are 100% complete.
               </p>
             </div>
           )}

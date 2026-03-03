@@ -55,7 +55,8 @@ import { generateOMInsights, subscribeToOMInsightsJob } from "@/lib/om-insights"
 import { toast } from "sonner";
 import { apiClient } from "@/lib/apiClient";
 import { UnderwritingVault } from "../lender/UnderwritingVault";
-import { FileText, ShieldCheck } from "lucide-react";
+import { AccessControlTab } from "./AccessControlTab";
+import { FileText, ShieldCheck, Users } from "lucide-react";
 import { cn } from "@/utils/cn";
 
 const unwrapValue = (val: any) => {
@@ -137,14 +138,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	const [isEditing, setIsEditing] = useState(false);
-	const [viewMode, setViewMode] = useState<"resume" | "underwriting">(() => {
+	const [viewMode, setViewMode] = useState<"resume" | "underwriting" | "access">(() => {
 		const view = searchParams?.get("view");
-		return view === "underwriting" ? "underwriting" : "resume";
+		if (view === "underwriting") return "underwriting";
+		if (view === "access") return "access";
+		return "resume";
 	});
 
 	useEffect(() => {
 		const view = searchParams?.get("view");
-		if (view === "underwriting" || view === "resume") {
+		if (view === "underwriting" || view === "resume" || view === "access") {
 			setViewMode(view);
 		}
 	}, [searchParams]);
@@ -171,7 +174,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	const handleViewChange = useCallback(
-		(mode: "resume" | "underwriting") => {
+		(mode: "resume" | "underwriting" | "access") => {
 			setViewMode(mode);
 			const params = new URLSearchParams(searchParams.toString());
 			params.set("view", mode);
@@ -1283,11 +1286,29 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 										<ShieldCheck className="h-4 w-4" />
 										Underwriting Mode
 									</button>
+									<button
+										onClick={() =>
+											handleViewChange("access")
+										}
+										className={cn(
+											"flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+											viewMode === "access"
+												? "bg-white text-blue-600 shadow-sm"
+												: "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+										)}
+									>
+										<Users className="h-4 w-4" />
+										Lender Matching
+									</button>
 								</div>
 							</div>
 						)}
 
-						{viewMode === "underwriting" ? (
+						{viewMode === "access" ? (
+							<div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+								<AccessControlTab projectId={projectId} />
+							</div>
+						) : viewMode === "underwriting" ? (
 							<div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
 								{isInitialLoad || !activeProject?.owner_org_id ? (
 									<div className="flex items-center justify-center p-8">
