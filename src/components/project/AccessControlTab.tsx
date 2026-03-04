@@ -13,7 +13,9 @@ import { RESOURCE_TYPES } from "@/hooks/useProjectPermissionEditor";
 import { ProjectPermissionDetailPanel } from "@/components/team/ProjectPermissionDetailPanel";
 import { AddLenderToProjectModal } from "@/components/project/AddLenderToProjectModal";
 import { Button } from "@/components/ui/Button";
-import { Loader2, User, Shield, Briefcase, Building2, PlusCircle, Trash2 } from "lucide-react";
+import { Loader2, User, Shield, Building2, PlusCircle, Trash2, Zap, RefreshCw, AlertCircle, Trophy, Clock, BarChart3 } from "lucide-react";
+import { useMatchmaking } from "@/hooks/useMatchmaking";
+import { MatchExplorer3D } from "@/components/matchmaking/MatchExplorer3D";
 
 interface AccessControlTabProps {
   projectId: string;
@@ -68,6 +70,20 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
   >([]);
   const [addLenderModalOpen, setAddLenderModalOpen] = useState(false);
   const [revokingOrgId, setRevokingOrgId] = useState<string | null>(null);
+  const [vizExpanded, setVizExpanded] = useState(false);
+
+  const {
+    isRunning: matchRunning,
+    isLoading: matchLoading,
+    visualizationData,
+    matchScores,
+    totalLenders: matchedLenderCount,
+    topMatchName,
+    topMatchScore,
+    lastRunAt,
+    error: matchError,
+    runMatchmaking,
+  } = useMatchmaking(projectId);
 
   const getDocumentRootType = useCallback(
     (
@@ -714,43 +730,184 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
     ? permissions.find((p) => p.userId === openMemberId)
     : null;
 
+  const formatDate = (iso: string | null) => {
+    if (!iso) return null;
+    try {
+      return new Date(iso).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return null;
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
 
       <div>
-        <h3 className="text-md font-semibold text-gray-800 flex items-center mb-3">
-          <Building2 size={16} className="mr-2" />
-          Matched Lenders
-        </h3>
-        <div className="space-y-2">
-          {lenderGrants.map((grant) => (
-            <div
-              key={grant.lender_org_id}
-              className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50"
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-md font-semibold text-gray-800 flex items-center">
+            <Building2 size={16} className="mr-2" />
+            Matched Lenders
+          </h3>
+          {isAdvisorView && (
+            <button
+              onClick={runMatchmaking}
+              disabled={matchRunning}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-gray-400" />
-                <span className="font-medium text-gray-900">{grant.org_name}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleRevokeLender(grant.lender_org_id)}
-                disabled={revokingOrgId === grant.lender_org_id}
-                className="text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50 flex items-center gap-1"
-              >
-                {revokingOrgId === grant.lender_org_id ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-                Revoke
-              </button>
-            </div>
-          ))}
-          {lenderGrants.length === 0 && (
-            <p className="text-sm text-gray-500 py-2">No lenders have been sent this package yet.</p>
+              {matchRunning ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Running Engine...
+                </>
+              ) : visualizationData ? (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  Re-run Matchmaking
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4" />
+                  Run Matchmaking
+                </>
+              )}
+            </button>
           )}
         </div>
+
+        {/* Matchmaking error */}
+        {matchError && (
+          <div className="flex items-start gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Matchmaking failed</p>
+              <p className="text-red-600 mt-0.5">{matchError}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Running indicator */}
+        {matchRunning && (
+          <div className="flex flex-col items-center justify-center py-16 px-6 mb-4 bg-slate-900 rounded-xl border border-slate-700">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-slate-700 rounded-full" />
+              <div className="absolute inset-0 w-16 h-16 border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
+            </div>
+            <p className="text-sm text-slate-300 mt-4 font-medium">Running matchmaking engine...</p>
+            <p className="text-xs text-slate-500 mt-1">Profiling lenders from HMDA data and scoring against your deal</p>
+          </div>
+        )}
+
+        {/* Summary bar */}
+        {visualizationData && !matchRunning && (
+          <div className="flex flex-wrap gap-3 mb-4">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-600">
+              <BarChart3 className="h-3.5 w-3.5" />
+              {matchedLenderCount} lenders scored
+            </div>
+            {topMatchName && topMatchScore !== null && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-lg text-xs font-medium text-emerald-700">
+                <Trophy className="h-3.5 w-3.5" />
+                Top: {topMatchName} ({topMatchScore.toFixed(1)}/100)
+              </div>
+            )}
+            {lastRunAt && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-500">
+                <Clock className="h-3.5 w-3.5" />
+                {formatDate(lastRunAt)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 3D Visualization */}
+        {visualizationData && !matchRunning && (
+          <div className="mb-4">
+            <MatchExplorer3D
+              data={visualizationData}
+              expanded={vizExpanded}
+              onToggleExpand={() => setVizExpanded((v) => !v)}
+            />
+          </div>
+        )}
+
+        {/* Scored lender list from match_scores */}
+        {matchScores.length > 0 && !matchRunning && (
+          <div className="space-y-2 mb-4">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Scored Matches</p>
+            {matchScores.map((score) => {
+              const pct = score.total_score;
+              const colorClass = pct >= 70
+                ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                : pct >= 45
+                  ? "text-amber-700 bg-amber-50 border-amber-200"
+                  : "text-red-700 bg-red-50 border-red-200";
+              return (
+                <div
+                  key={score.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-gray-400 w-5 text-right">#{score.rank}</span>
+                    <Building2 className="h-4 w-4 text-gray-400" />
+                    <span className="font-medium text-gray-900">{score.lender_name || score.lender_lei}</span>
+                  </div>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${colorClass}`}>
+                    {pct.toFixed(1)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Empty state: no matches yet, not loading, advisor view */}
+        {isAdvisorView && !matchLoading && matchScores.length === 0 && !visualizationData && !matchRunning && !matchError && lenderGrants.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-10 px-6 mb-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
+            <BarChart3 className="h-10 w-10 text-gray-300 mb-3" />
+            <p className="text-sm text-gray-500 text-center max-w-sm">
+              No matchmaking results yet. Click &quot;Run Matchmaking&quot; to score lenders against this deal
+              using HMDA multifamily lending data.
+            </p>
+          </div>
+        )}
+
+        {/* Manually granted lenders */}
+        {lenderGrants.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Sent Packages</p>
+            {lenderGrants.map((grant) => (
+              <div
+                key={grant.lender_org_id}
+                className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50"
+              >
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-gray-400" />
+                  <span className="font-medium text-gray-900">{grant.org_name}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRevokeLender(grant.lender_org_id)}
+                  disabled={revokingOrgId === grant.lender_org_id}
+                  className="text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50 flex items-center gap-1"
+                >
+                  {revokingOrgId === grant.lender_org_id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  Revoke
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <Button
           variant="outline"
           size="sm"
@@ -837,6 +994,7 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
         existingLenderOrgIds={lenderGrants.map((g) => g.lender_org_id)}
         onSuccess={refreshLenderGrants}
       />
+    </div>
     </div>
   );
 };
