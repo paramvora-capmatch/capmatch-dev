@@ -150,6 +150,7 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
 
   useEffect(() => {
     if (!containerRef.current) return;
+    const container = containerRef.current;
 
     let disposed = false;
 
@@ -467,8 +468,8 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
     return () => {
       disposed = true;
       cancelAnimationFrame(animFrameRef.current);
-      if (containerRef.current && (containerRef.current as any).__cleanup) {
-        (containerRef.current as any).__cleanup();
+      if (container && (container as any).__cleanup) {
+        (container as any).__cleanup();
       }
     };
   }, [data, handleLenderClick]);

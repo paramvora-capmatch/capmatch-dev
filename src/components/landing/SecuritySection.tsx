@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Lock, ShieldCheck, UserCheck, BadgeCheck } from "lucide-react";
 import { getBackendUrl } from "@/lib/apiConfig";
@@ -158,9 +159,11 @@ export function SecuritySection() {
 								key={`${logo.name}-${index}`}
 								className="relative h-24 w-52 sm:h-28 sm:w-60 flex-shrink-0 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-500 transform hover:scale-110 hover:-translate-y-4 hover:z-50 cursor-pointer filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)]"
 							>
-								<img
+								<Image
 									src={logo.src}
 									alt={logo.name}
+									width={240}
+									height={112}
 									className="h-full w-full object-contain mix-blend-multiply"
 								/>
 							</div>

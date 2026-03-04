@@ -501,7 +501,7 @@ export default function LenderGraph({
     const cardPos = calculateCardPositionFromNode(pos.x, pos.y, rect);
     cardPositionRef.current = { relativeX: cardPos.x, relativeY: cardPos.y };
     setContainerRect(rect);
-  }, [selectedLender?.lender_id, calculateCardPositionFromNode]);
+  }, [selectedLender, calculateCardPositionFromNode]);
 
   // Find lender at mouse position
   const findLenderAtPosition = useCallback((x: number, y: number): LenderProfile | null => {

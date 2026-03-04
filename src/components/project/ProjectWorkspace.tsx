@@ -88,6 +88,8 @@ interface ProjectWorkspaceProps {
 	onBorrowerEditingChange?: (value: boolean) => void;
 	onBorrowerDirtyChange?: (isDirty: boolean) => void;
 	onBorrowerRegisterSave?: (saveFn: () => Promise<void>) => void;
+	/** When false (borrower workspace), hide mode switcher and lock to resume view. Default true for advisor. */
+	showAdvisorOnlySections?: boolean;
 }
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
@@ -96,6 +98,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	onBorrowerEditingChange,
 	onBorrowerDirtyChange,
 	onBorrowerRegisterSave,
+	showAdvisorOnlySections = true,
 }) => {
 	const router = useRouter();
 	const pathname = usePathname();
@@ -149,20 +152,23 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		getPermission(underwritingDocsResourceId) === 'edit'
 	);
 
-	// Sync viewMode from URL param — only users with vault permission may enter underwriting mode
+	// Sync viewMode from URL — only for advisor view; borrower always resume
 	useEffect(() => {
+		if (!showAdvisorOnlySections) {
+			setViewMode("resume");
+			return;
+		}
 		const view = searchParams?.get("view");
 		if (view === "underwriting" && canViewUnderwriting) {
 			setViewMode("underwriting");
 		} else if (view === "underwriting" && !canViewUnderwriting && underwritingDocsResourceId !== null) {
-			// Permissions loaded but user doesn't have access — reset to resume
 			setViewMode("resume");
 		} else if (view === "access") {
 			setViewMode("access");
 		} else if (view === "resume") {
 			setViewMode("resume");
 		}
-	}, [searchParams, canViewUnderwriting, underwritingDocsResourceId]);
+	}, [searchParams, canViewUnderwriting, underwritingDocsResourceId, showAdvisorOnlySections]);
 	const [initialProjectStepId, setInitialProjectStepId] = useState<
 		string | null
 	>(null);
@@ -322,19 +328,22 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		} else if (step.startsWith("project:")) {
 			const sectionId = step.slice("project:".length).trim();
 
-			if (sectionId === "underwriting") {
-				// Guard via Supabase permission store — same check as the vault itself uses
+			if (sectionId === "underwriting" && showAdvisorOnlySections) {
 				if (canViewUnderwriting) {
 					setViewMode("underwriting");
 					params.set("view", "underwriting");
 					setIsEditing(false);
 					setBorrowerEditing(false);
 				} else {
-					// No vault permission — silently keep resume view
 					params.delete("view");
 					setIsEditing(false);
 					setBorrowerEditing(false);
 				}
+			} else if (sectionId === "underwriting" && !showAdvisorOnlySections) {
+				setViewMode("resume");
+				params.delete("view");
+				setIsEditing(false);
+				setBorrowerEditing(false);
 			} else {
 				setViewMode("resume");
 				params.set("view", "resume");
@@ -364,7 +373,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 		const nextPath = params.toString() ? `${pathname}?${params}` : pathname;
 		router.replace(nextPath);
-	}, [pathname, router, searchParams, setBorrowerEditing]);
+	}, [pathname, router, searchParams, setBorrowerEditing, canViewUnderwriting, showAdvisorOnlySections]);
 
 	// Workspace heartbeat for accurate abandonment detection (visit-based)
 	useEffect(() => {
@@ -1281,8 +1290,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 					<div className="flex-1 relative z-[1] min-w-0">
 						{/* Content with padding */}
 						<div className="relative p-6 min-w-0">
-							{/* Mode Switcher — only visible to users with vault permission */}
-							{canViewUnderwriting && (
+							{/* Mode Switcher — advisor only; borrower always sees resume */}
+							{showAdvisorOnlySections && canViewUnderwriting && (
 								<div className="mb-6 flex justify-center">
 									<div className="flex bg-gray-100 p-1 rounded-lg shadow-md border-2 border-gray-300">
 										<button
@@ -1331,11 +1340,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 								</div>
 							)}
 
-							{viewMode === "access" ? (
+							{viewMode === "access" && showAdvisorOnlySections ? (
 								<div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
 									<AccessControlTab projectId={projectId} />
 								</div>
-							) : viewMode === "underwriting" ? (
+							) : viewMode === "underwriting" && showAdvisorOnlySections ? (
 								<div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
 									{isInitialLoad || !activeProject?.owner_org_id ? (
 										<div className="flex items-center justify-center p-8">
