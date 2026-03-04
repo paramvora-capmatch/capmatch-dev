@@ -7,21 +7,21 @@ import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
 import { MetricCard } from '@/components/om/widgets/MetricCard';
 import dynamic from "next/dynamic";
+import { useOMDashboard } from '@/contexts/OMDashboardContext';
+import { DollarSign, BarChart3, Users, Activity } from 'lucide-react';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
+import { useOmContent } from '@/hooks/useOmContent';
+import { formatFixed } from '@/lib/om-utils';
 
 const MiniChart = dynamic(
     () => import("@/components/om/widgets/MiniChart").then((m) => ({ default: m.MiniChart })),
     { ssr: false }
 );
-import { useOMDashboard } from '@/contexts/OMDashboardContext';
-import { DollarSign, BarChart3, Users, Activity } from 'lucide-react';
 
 const ReturnsCharts = dynamic(() => import('@/components/om/ReturnsCharts'), {
     ssr: false,
     loading: () => <div className="min-h-[200px] animate-pulse rounded-lg bg-muted/50" />,
 });
-import { useOMPageHeader } from '@/hooks/useOMPageHeader';
-import { useOmContent } from '@/hooks/useOmContent';
-import { formatFixed } from '@/lib/om-utils';
 
 export default function FinancialSponsorPage() {
     const params = useParams();
@@ -86,6 +86,10 @@ export default function FinancialSponsorPage() {
     const baseIRR = irr ?? null;
     const upsideIRR = content?.upsideIRR ?? null;
     const downsideIRR = content?.downsideIRR ?? null;
+
+    // Suppress unused variable warning
+    void totalDevCost;
+    void scenario;
 
     if (!project) return <div>Project not found</div>;
 

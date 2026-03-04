@@ -32,6 +32,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMeetings } from "@/hooks/useMeetings";
 import { useCalendarConnections } from "@/hooks/useCalendarConnections";
 import { supabase } from "@/lib/supabaseClient";
+import { getBackendUrl } from "@/lib/apiConfig";
 import type { MeetingSummary } from "@/lib/gemini-summarize";
 
 interface MeetInterfaceProps {
@@ -202,13 +203,15 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 
 				// Include organizer's user ID to check their calendar for conflicts
 				const userIdsToCheck = [user.id, ...selectedParticipants];
+				const { data: { session } } = await supabase.auth.getSession();
+				const token = session?.access_token;
 
-				const response = await fetch("/api/meetings/availability", {
+				const response = await fetch(`${getBackendUrl()}/api/v1/meetings/availability`, {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
+						...(token && { Authorization: `Bearer ${token}` }),
 					},
-					credentials: "include",
 					body: JSON.stringify({
 						userIds: userIdsToCheck,
 						startDate: startDate.toISOString(),
@@ -291,7 +294,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 				throw new Error("Not authenticated");
 			}
 
-			const response = await fetch(`/api/meetings/${meetingId}/cancel`, {
+			const response = await fetch(`${getBackendUrl()}/api/v1/meetings/${meetingId}/cancel`, {
 				method: "POST",
 				headers: {
 					Authorization: `Bearer ${token}`,
@@ -353,7 +356,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 				throw new Error("Not authenticated");
 			}
 
-			const response = await fetch("/api/meetings/create", {
+			const response = await fetch(`${getBackendUrl()}/api/v1/meetings`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -371,14 +374,14 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 			if (!response.ok) {
 				const errorData = await response.json();
 				const errorMessage = errorData.error || "Failed to create meeting";
-				
+
 				// Check if error is about calendar connection requirement
 				if (response.status === 403 && errorMessage.includes("calendar")) {
 					setIsScheduleModalOpen(false);
 					setIsCalendarNudgeModalOpen(true);
 					return;
 				}
-				
+
 				throw new Error(errorMessage);
 			}
 
@@ -458,7 +461,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 			}
 
 			const response = await fetch(
-				`/api/meetings/${editingMeeting.id}/update`,
+				`${getBackendUrl()}/api/v1/meetings/${editingMeeting.id}/update`,
 				{
 					method: "PUT",
 					headers: {
@@ -478,14 +481,14 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 			if (!response.ok) {
 				const errorData = await response.json();
 				const errorMessage = errorData.error || "Failed to update meeting";
-				
+
 				// Check if error is about calendar connection requirement
 				if (response.status === 403 && errorMessage.includes("calendar")) {
 					setIsScheduleModalOpen(false);
 					setIsCalendarNudgeModalOpen(true);
 					return;
 				}
-				
+
 				throw new Error(errorMessage);
 			}
 
@@ -620,7 +623,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 						<Loader2 className="w-8 h-8 animate-spin text-blue-600" />
 					</div>
 				) : upcomingMeetings.length === 0 &&
-				  pastMeetings.length === 0 ? (
+					pastMeetings.length === 0 ? (
 					<div className="flex flex-col items-center justify-center h-full text-center p-8">
 						<div className="p-4 bg-gray-100 rounded-full mb-4">
 							<Video className="w-8 h-8 text-gray-400" />
@@ -764,10 +767,10 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 																		try {
 																			const summaryData: MeetingSummary =
 																				typeof meeting.summary ===
-																				"string"
+																					"string"
 																					? JSON.parse(
-																							meeting.summary
-																					  )
+																						meeting.summary
+																					)
 																					: meeting.summary;
 
 																			return (
@@ -789,26 +792,26 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 																						summaryData
 																							.action_items
 																							?.length >
-																							0) && (
-																						<Button
-																							variant="ghost"
-																							size="sm"
-																							onClick={() => {
-																								setSelectedSummaryMeeting(
-																									meeting
-																								);
-																								setIsSummaryModalOpen(
-																									true
-																								);
-																							}}
-																							className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 mt-2 p-0"
-																						>
-																							View
-																							Full
-																							Summary
-																							→
-																						</Button>
-																					)}
+																						0) && (
+																							<Button
+																								variant="ghost"
+																								size="sm"
+																								onClick={() => {
+																									setSelectedSummaryMeeting(
+																										meeting
+																									);
+																									setIsSummaryModalOpen(
+																										true
+																									);
+																								}}
+																								className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 mt-2 p-0"
+																							>
+																								View
+																								Full
+																								Summary
+																								→
+																							</Button>
+																						)}
 																				</div>
 																			);
 																		} catch (error) {
@@ -937,42 +940,42 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 
 																	{meeting.organizer_id ===
 																		user?.id && (
-																		<>
-																			<Button
-																				size="sm"
-																				variant="outline"
-																				onClick={() =>
-																					handleEditMeeting(
-																						meeting
-																					)
-																				}
-																				className="text-blue-600 hover:bg-blue-50 border-blue-200 hover:border-blue-300"
-																			>
-																				Edit
-																			</Button>
-																			<Button
-																				size="sm"
-																				variant="outline"
-																				onClick={() =>
-																					handleCancelMeeting(
+																			<>
+																				<Button
+																					size="sm"
+																					variant="outline"
+																					onClick={() =>
+																						handleEditMeeting(
+																							meeting
+																						)
+																					}
+																					className="text-blue-600 hover:bg-blue-50 border-blue-200 hover:border-blue-300"
+																				>
+																					Edit
+																				</Button>
+																				<Button
+																					size="sm"
+																					variant="outline"
+																					onClick={() =>
+																						handleCancelMeeting(
+																							meeting.id
+																						)
+																					}
+																					disabled={
+																						cancellingMeetingId ===
 																						meeting.id
-																					)
-																				}
-																				disabled={
-																					cancellingMeetingId ===
-																					meeting.id
-																				}
-																				className="text-red-600 hover:bg-red-50 border-red-200 hover:border-red-300"
-																			>
-																				{cancellingMeetingId ===
-																				meeting.id ? (
-																					<Loader2 className="w-4 h-4 animate-spin" />
-																				) : (
-																					<Trash2 className="w-4 h-4" />
-																				)}
-																			</Button>
-																		</>
-																	)}
+																					}
+																					className="text-red-600 hover:bg-red-50 border-red-200 hover:border-red-300"
+																				>
+																					{cancellingMeetingId ===
+																						meeting.id ? (
+																						<Loader2 className="w-4 h-4 animate-spin" />
+																					) : (
+																						<Trash2 className="w-4 h-4" />
+																					)}
+																				</Button>
+																			</>
+																		)}
 																</div>
 
 																{/* Transcript and Recording Actions */}
@@ -1162,10 +1165,10 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 																	try {
 																		const summaryData: MeetingSummary =
 																			typeof meeting.summary ===
-																			"string"
+																				"string"
 																				? JSON.parse(
-																						meeting.summary
-																				  )
+																					meeting.summary
+																				)
 																				: meeting.summary;
 
 																		return (
@@ -1187,26 +1190,26 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 																					summaryData
 																						.action_items
 																						?.length >
-																						0) && (
-																					<Button
-																						variant="ghost"
-																						size="sm"
-																						onClick={() => {
-																							setSelectedSummaryMeeting(
-																								meeting
-																							);
-																							setIsSummaryModalOpen(
-																								true
-																							);
-																						}}
-																						className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 mt-2 p-0"
-																					>
-																						View
-																						Full
-																						Summary
-																						→
-																					</Button>
-																				)}
+																					0) && (
+																						<Button
+																							variant="ghost"
+																							size="sm"
+																							onClick={() => {
+																								setSelectedSummaryMeeting(
+																									meeting
+																								);
+																								setIsSummaryModalOpen(
+																									true
+																								);
+																							}}
+																							className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 mt-2 p-0"
+																						>
+																							View
+																							Full
+																							Summary
+																							→
+																						</Button>
+																					)}
 																			</div>
 																		);
 																	} catch (error) {
@@ -1757,7 +1760,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 									for (const entry of entries) {
 										const lastGroup =
 											groupedEntries[
-												groupedEntries.length - 1
+											groupedEntries.length - 1
 											];
 
 										if (
@@ -1930,10 +1933,10 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 							try {
 								const summaryData: MeetingSummary =
 									typeof selectedSummaryMeeting.summary ===
-									"string"
+										"string"
 										? JSON.parse(
-												selectedSummaryMeeting.summary
-										  )
+											selectedSummaryMeeting.summary
+										)
 										: selectedSummaryMeeting.summary;
 
 								return (
@@ -1956,7 +1959,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 										{/* Key Points */}
 										{summaryData.key_points &&
 											summaryData.key_points.length >
-												0 && (
+											0 && (
 												<div>
 													<h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
 														<CheckCircle className="w-4 h-4 mr-2 text-green-600" />
@@ -1983,7 +1986,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 										{/* Action Items */}
 										{summaryData.action_items &&
 											summaryData.action_items.length >
-												0 && (
+											0 && (
 												<div>
 													<h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
 														<CheckCircle className="w-4 h-4 mr-2 text-blue-600" />
@@ -2070,7 +2073,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 										{/* Open Questions */}
 										{summaryData.open_questions &&
 											summaryData.open_questions.length >
-												0 && (
+											0 && (
 												<div>
 													<h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
 														<AlertCircle className="w-4 h-4 mr-2 text-red-600" />
@@ -2189,7 +2192,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 							Calendar Connection Required
 						</p>
 						<p className="text-sm text-gray-600">
-							To schedule and manage meetings, you need to connect your calendar first. 
+							To schedule and manage meetings, you need to connect your calendar first.
 							This allows us to sync your availability and send calendar invites.
 						</p>
 					</div>

@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useStreamingAI } from '@/hooks/useStreamingAI';
 import { Modal } from '@/components/ui/Modal';
+import { getBackendUrl } from '@/lib/apiConfig';
 
 interface OMChatSidebarProps {
   setIsChatOpen?: (isOpen: boolean) => void;
@@ -31,7 +32,7 @@ const TableWrapper: React.FC<{
 }> = ({ children, props: tableProps, onViewTable }) => {
   const tableRef = React.useRef<HTMLTableElement>(null);
   const tableId = React.useId();
-  
+
   const handleViewTable = () => {
     if (tableRef.current) {
       const clonedTable = tableRef.current.cloneNode(true) as HTMLTableElement;
@@ -78,7 +79,7 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
 
   // Custom streaming hook - replaces Vercel AI SDK's useObject
   const { response, isLoading, error, submit, stop, reset } = useStreamingAI({
-    api: '/api/om-qa',
+    api: `${getBackendUrl()}/api/v1/ai/om-qa`,
   });
 
   const handleResetChat = React.useCallback(() => {
@@ -168,11 +169,11 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
     e?.preventDefault();
     const queryToUse = queryOverride || question;
     if (!queryToUse.trim() || isLoading) return;
-    
+
     // Abort any previous request
     stop();
     reset();
-    
+
     const userMessage: Message = { id: Date.now().toString(), role: 'user', question: queryToUse };
     const thinkingMessage: Message = { id: (Date.now() + 1).toString(), role: 'thinking' };
     setMessages(prev => [...prev, userMessage, thinkingMessage]);
@@ -253,92 +254,92 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
       {/* Chat Content Area */}
       <div className="flex-1 p-0 min-h-0 overflow-hidden bg-transparent">
         <div className="h-full bg-transparent overflow-y-auto px-4">
-        {/* Welcome Message - Centered */}
-        {messages.length === 0 && !isLoading && (
-          <div className="h-full flex flex-col items-center justify-center py-4">
-            <div className="text-center space-y-4">
-              <p className="text-base text-gray-700 font-medium">
-                Welcome to the OM
-              </p>
-              <p className="text-sm text-gray-600 max-w-xs mx-auto">
-                You can use the Talk to OM feature to discuss the data in the OM
-              </p>
-              
-              {/* Sample Query Pills */}
-              <div className="flex flex-col gap-2 mt-6">
-                {[
-                  "Create a 5-year cash flow projection for the base case scenario",
-                  "Analyze the impact of a 50 basis point cap rate expansion on exit valuation across all scenarios",
-                  "Compare risk-adjusted returns and recommend the optimal scenario given current market conditions"
-                ].map((query, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => askQuestion(undefined, query)}
-                    className="px-4 py-2 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full transition-colors"
-                  >
-                    {query}
-                  </button>
-                ))}
+          {/* Welcome Message - Centered */}
+          {messages.length === 0 && !isLoading && (
+            <div className="h-full flex flex-col items-center justify-center py-4">
+              <div className="text-center space-y-4">
+                <p className="text-base text-gray-700 font-medium">
+                  Welcome to the OM
+                </p>
+                <p className="text-sm text-gray-600 max-w-xs mx-auto">
+                  You can use the Talk to OM feature to discuss the data in the OM
+                </p>
+
+                {/* Sample Query Pills */}
+                <div className="flex flex-col gap-2 mt-6">
+                  {[
+                    "Create a 5-year cash flow projection for the base case scenario",
+                    "Analyze the impact of a 50 basis point cap rate expansion on exit valuation across all scenarios",
+                    "Compare risk-adjusted returns and recommend the optimal scenario given current market conditions"
+                  ].map((query, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => askQuestion(undefined, query)}
+                      className="px-4 py-2 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full transition-colors"
+                    >
+                      {query}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Chat Messages */}
-        {messages.length > 0 && (
-        <div className="space-y-4 py-4">
-          {messages.map((message) => {
-            if (message.role === 'user') {
-              return (
-                <div key={message.id} className="flex justify-end">
-                  <div className="bg-blue-600 text-white rounded-lg px-3 py-2 max-w-[80%]">
-                    <p className="text-sm">{message.question}</p>
-                  </div>
-                </div>
-              );
-            }
-
-            if (message.role === 'assistant' && message.content) {
-              return (
-                <div key={message.id} className="flex justify-start">
-                  <div className="bg-white border border-gray-200 text-gray-800 rounded-lg px-4 py-3 max-w-[80%] shadow-sm">
-                    <div className="prose prose-sm max-w-none">
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm]}
-                        components={markdownComponents}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
+          {/* Chat Messages */}
+          {messages.length > 0 && (
+            <div className="space-y-4 py-4">
+              {messages.map((message) => {
+                if (message.role === 'user') {
+                  return (
+                    <div key={message.id} className="flex justify-end">
+                      <div className="bg-blue-600 text-white rounded-lg px-3 py-2 max-w-[80%]">
+                        <p className="text-sm">{message.question}</p>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              );
-            }
-            
-            if (message.role === 'thinking') {
-                return (
+                  );
+                }
+
+                if (message.role === 'assistant' && message.content) {
+                  return (
                     <div key={message.id} className="flex justify-start">
-                        <div className="bg-gray-100 text-gray-800 rounded-lg px-4 py-3 max-w-[80%]">
-                            <div className="flex items-center space-x-2">
-                                <span className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-0"></span>
-                                <span className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-150"></span>
-                                <span className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-300"></span>
-                            </div>
+                      <div className="bg-white border border-gray-200 text-gray-800 rounded-lg px-4 py-3 max-w-[80%] shadow-sm">
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={markdownComponents}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
                         </div>
+                      </div>
                     </div>
-                )
-            }
+                  );
+                }
 
-            return null;
-          })}
-        </div>
-        )}
+                if (message.role === 'thinking') {
+                  return (
+                    <div key={message.id} className="flex justify-start">
+                      <div className="bg-gray-100 text-gray-800 rounded-lg px-4 py-3 max-w-[80%]">
+                        <div className="flex items-center space-x-2">
+                          <span className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-0"></span>
+                          <span className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-150"></span>
+                          <span className="h-2 w-2 bg-gray-400 rounded-full animate-pulse delay-300"></span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-4">
-            <p className="text-sm text-red-600">{error.message}</p>
-          </div>
-        )}
+                return null;
+              })}
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-4">
+              <p className="text-sm text-red-600">{error.message}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -398,12 +399,14 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
         size="5xl"
       >
         <div className="overflow-x-auto -mx-6 px-6">
-          <div 
+          <div
             className="prose prose-sm max-w-none [&_table]:min-w-full [&_table]:border-collapse [&_th]:border [&_th]:border-gray-300 [&_th]:bg-gray-50 [&_th]:px-4 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold [&_th]:text-gray-900 [&_td]:border [&_td]:border-gray-300 [&_td]:px-4 [&_td]:py-2 [&_td]:text-gray-700"
-            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(tableContent, {
-              ALLOWED_TAGS: ['table', 'thead', 'tbody', 'tr', 'th', 'td', 'colgroup', 'col'],
-              ALLOWED_ATTR: ['class', 'style', 'data-table-id'],
-            }) }}
+            dangerouslySetInnerHTML={{
+              __html: DOMPurify.sanitize(tableContent, {
+                ALLOWED_TAGS: ['table', 'thead', 'tbody', 'tr', 'th', 'td', 'colgroup', 'col'],
+                ALLOWED_ATTR: ['class', 'style', 'data-table-id'],
+              })
+            }}
           />
         </div>
       </Modal>

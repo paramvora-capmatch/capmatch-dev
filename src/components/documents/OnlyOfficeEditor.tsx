@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { extractOriginalFilename } from "@/utils/documentUtils";
+import { supabase } from "@/lib/supabaseClient";
 
 interface OnlyOfficeEditorProps {
   bucketId: string;
@@ -118,9 +119,15 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
     }
 
     try {
-      const res = await fetch("/api/onlyoffice/config", {
+      const { getBackendUrl } = await import("@/lib/apiConfig");
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch(`${getBackendUrl()}/api/v1/onlyoffice/config`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
         body: JSON.stringify({ bucketId, filePath, mode }),
       });
 

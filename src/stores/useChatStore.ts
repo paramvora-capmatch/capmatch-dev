@@ -132,7 +132,7 @@ interface ChatActions {
   loadAttachableDocuments: (threadId: string) => Promise<void>;
 
   // Unread counts (WhatsApp-style)
-  loadUnreadCounts: (projectId: string, userId: string) => Promise<void>;
+  loadUnreadCounts: (projectId: string) => Promise<void>;
   updateThreadUnreadCount: (threadId: string, count: number) => void;
   incrementUnreadCount: (threadId: string) => void;
   resetThreadUnreadCount: (threadId: string) => void;
@@ -232,7 +232,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         // Load unread counts for this project
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          await get().loadUnreadCounts(projectId, user.id);
+          await get().loadUnreadCounts(projectId);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to load threads';
@@ -1024,7 +1024,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     },
 
     // Unread count management (WhatsApp-style)
-    loadUnreadCounts: async (projectId: string, userId: string) => {
+    loadUnreadCounts: async (projectId: string) => {
       const u0 = useChatUnreadStore.getState();
       useChatUnreadStore.getState().setUnreadState(u0.threadUnreadCounts, u0.totalUnreadCount, true);
       set({ isLoadingUnreadCounts: true });

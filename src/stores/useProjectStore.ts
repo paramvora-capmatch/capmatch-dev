@@ -13,6 +13,7 @@ import { usePermissionStore } from "./usePermissionStore";
 import { useProjectProgressStore } from "./useProjectProgressStore";
 import { useProjectResumeStore } from "./useProjectResumeStore";
 import { ProjectProfile } from "@/types/enhanced-types";
+import { getBackendUrl } from "@/lib/apiConfig";
 
 const parsePercentage = (value: unknown): number => {
 	if (typeof value === "number" && Number.isFinite(value)) {
@@ -550,8 +551,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				return false;
 			}
 
-			const base = typeof window !== "undefined" ? window.location.origin : "";
-			const res = await fetch(`${base}/api/projects/${id}`, {
+			const base = typeof window !== "undefined" ? getBackendUrl() : "";
+			const res = await fetch(`${base}/api/v1/projects/${id}`, {
 				method: "DELETE",
 				headers: { Authorization: `Bearer ${session.access_token}` },
 			});
