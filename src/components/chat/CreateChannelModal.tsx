@@ -7,7 +7,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import { AttachableDocument } from "../../stores/useChatStore";
 import { cn } from "../../utils/cn";
 
-type MemberRole = "owner" | "member" | "advisor";
+type MemberRole = "owner" | "member" | "advisor" | "lender";
 
 interface MemberOption {
   value: string;
@@ -65,6 +65,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
       owner: 0,
       advisor: 1,
       member: 2,
+      lender: 3,
     };
 
     return [...memberOptions].sort((a, b) => {

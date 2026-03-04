@@ -13,7 +13,7 @@ import { RESOURCE_TYPES } from "@/hooks/useProjectPermissionEditor";
 import { ProjectPermissionDetailPanel } from "@/components/team/ProjectPermissionDetailPanel";
 import { AddLenderToProjectModal } from "@/components/project/AddLenderToProjectModal";
 import { Button } from "@/components/ui/Button";
-import { Loader2, User, Shield, Building2, PlusCircle, Trash2, Zap, RefreshCw, AlertCircle, Trophy, Clock, BarChart3 } from "lucide-react";
+import { Loader2, User, Shield, Building2, PlusCircle, Trash2, Zap, RefreshCw, AlertCircle, Trophy, Clock, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
 import { useMatchmaking } from "@/hooks/useMatchmaking";
 import { MatchExplorer3D } from "@/components/matchmaking/MatchExplorer3D";
 
@@ -71,6 +71,7 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
   const [addLenderModalOpen, setAddLenderModalOpen] = useState(false);
   const [revokingOrgId, setRevokingOrgId] = useState<string | null>(null);
   const [vizExpanded, setVizExpanded] = useState(false);
+  const [scoredMatchesExpanded, setScoredMatchesExpanded] = useState(false);
 
   const {
     isRunning: matchRunning,
@@ -793,13 +794,13 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
 
         {/* Running indicator */}
         {matchRunning && (
-          <div className="flex flex-col items-center justify-center py-16 px-6 mb-4 bg-slate-900 rounded-xl border border-slate-700">
+          <div className="flex flex-col items-center justify-center py-16 px-6 mb-4 bg-gray-50 rounded-xl border border-gray-200">
             <div className="relative">
-              <div className="w-16 h-16 border-4 border-slate-700 rounded-full" />
-              <div className="absolute inset-0 w-16 h-16 border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
+              <div className="w-16 h-16 border-4 border-gray-200 rounded-full" />
+              <div className="absolute inset-0 w-16 h-16 border-4 border-t-blue-600 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
             </div>
-            <p className="text-sm text-slate-300 mt-4 font-medium">Running matchmaking engine...</p>
-            <p className="text-xs text-slate-500 mt-1">Profiling lenders from HMDA data and scoring against your deal</p>
+            <p className="text-sm text-gray-700 mt-4 font-medium">Running matchmaking engine...</p>
+            <p className="text-xs text-gray-500 mt-1">Profiling lenders from HMDA data and scoring against your deal</p>
           </div>
         )}
 
@@ -836,11 +837,11 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
           </div>
         )}
 
-        {/* Scored lender list from match_scores */}
+        {/* Scored lender list from match_scores - collapsed by default, first 5 visible */}
         {matchScores.length > 0 && !matchRunning && (
           <div className="space-y-2 mb-4">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Scored Matches</p>
-            {matchScores.map((score) => {
+            {(scoredMatchesExpanded ? matchScores : matchScores.slice(0, 5)).map((score) => {
               const pct = score.total_score;
               const colorClass = pct >= 70
                 ? "text-emerald-700 bg-emerald-50 border-emerald-200"
@@ -863,6 +864,25 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
                 </div>
               );
             })}
+            {matchScores.length > 5 && (
+              <button
+                type="button"
+                onClick={() => setScoredMatchesExpanded((e) => !e)}
+                className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+              >
+                {scoredMatchesExpanded ? (
+                  <>
+                    <ChevronUp className="h-4 w-4" />
+                    Show less
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4" />
+                    Show {matchScores.length - 5} more
+                  </>
+                )}
+              </button>
+            )}
           </div>
         )}
 

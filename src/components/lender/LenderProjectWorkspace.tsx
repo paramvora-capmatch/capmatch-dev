@@ -4,7 +4,7 @@ import React from "react";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { UnderwritingVault } from "./UnderwritingVault";
 import { Button } from "@/components/ui/Button";
-import { ExternalLink } from "lucide-react";
+import { FileSpreadsheet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { StickyChatCard } from "@/components/chat/StickyChatCard";
 
@@ -67,17 +67,27 @@ export const LenderProjectWorkspace: React.FC<LenderProjectWorkspaceProps> = ({
         </div>
       </div>
 
-      {/* Left column: View OM + Underwriting Vault (view-only) */}
+      {/* Left column: View OM (styled like borrower/advisor) + Underwriting Vault (view-only) */}
       <div className="flex-1 relative z-[1] min-w-0">
         <div className="relative p-6 min-w-0 space-y-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">Deal workspace</h2>
+          <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-300 rounded-xl p-4 flex items-center justify-between shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-transparent to-green-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-200 to-green-200 rounded-lg blur-sm opacity-30 group-hover:opacity-50 transition-opacity duration-300 animate-pulse" />
+            <div className="relative z-10">
+              <h3 className="text-base font-semibold text-emerald-800 flex items-center">
+                <span className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse" />
+                Deal Ready!
+              </h3>
+              <p className="text-sm text-emerald-700">
+                View the Offering Memorandum for this deal.
+              </p>
+            </div>
             <Button
               variant="outline"
               onClick={handleViewOM}
-              className="flex items-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
+              className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10 whitespace-nowrap flex-shrink-0"
             >
-              <ExternalLink className="h-4 w-4" />
+              <FileSpreadsheet className="mr-2 h-5 w-5" />
               View OM
             </Button>
           </div>

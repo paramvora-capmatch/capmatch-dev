@@ -355,6 +355,17 @@ export const apiClient = {
   },
 
   /**
+   * Get lender users that can be added to channels for a project (for Create Channel modal).
+   * Caller must be project owner or assigned advisor.
+   */
+  getChannelEligibleMembers: async (projectId: string) => {
+    return apiRequest<{ members: Array<{ user_id: string; full_name?: string | null; email?: string | null; role: string }> }>(
+      `/api/v1/chat/projects/${encodeURIComponent(projectId)}/eligible-members`,
+      { method: 'GET' }
+    );
+  },
+
+  /**
    * Resolve a chat thread
    *
    * @param threadId - ID of the thread to resolve

@@ -96,7 +96,7 @@ export default function LenderProjectViewPage() {
         Projects
       </button>
       <ChevronLeft className="h-4 w-4 text-gray-400 rotate-180" />
-      <span className="text-gray-900 font-medium">{project?.name || "Project"}</span>
+      <span className="text-gray-900 font-medium">{projectProfile?.projectName ?? project?.name ?? "Project"}</span>
     </div>
   );
 

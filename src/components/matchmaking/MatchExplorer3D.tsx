@@ -34,13 +34,13 @@ function LenderDetailPanel({ lender, totalCount }: { lender: LenderVizData; tota
   const rc = scoreColor(lender.total_score);
 
   return (
-    <div className="p-5 space-y-4 overflow-y-auto h-full">
+    <div className="p-5 space-y-4 overflow-y-auto h-full bg-white">
       <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-[17px] font-bold text-slate-200 leading-tight max-w-[280px] break-words">
+          <h2 className="text-[17px] font-bold text-gray-900 leading-tight max-w-[280px] break-words">
             {lender.name}
           </h2>
-          <p className="text-[11px] text-slate-500 mt-0.5 font-medium">
+          <p className="text-[11px] text-gray-500 mt-0.5 font-medium">
             Rank #{lender.rank} of {totalCount} lenders
           </p>
         </div>
@@ -49,7 +49,7 @@ function LenderDetailPanel({ lender, totalCount }: { lender: LenderVizData; tota
       <div className="flex justify-center">
         <div className="relative w-[110px] h-[110px]">
           <svg viewBox="0 0 110 110" className="w-[110px] h-[110px]" style={{ transform: "rotate(-90deg)" }}>
-            <circle cx="55" cy="55" r="46" fill="none" stroke="rgba(100,116,139,0.15)" strokeWidth="7" />
+            <circle cx="55" cy="55" r="46" fill="none" stroke="rgba(203,213,225,0.8)" strokeWidth="7" />
             <circle
               cx="55" cy="55" r="46" fill="none" stroke={rc} strokeWidth="7"
               strokeLinecap="round"
@@ -62,12 +62,12 @@ function LenderDetailPanel({ lender, totalCount }: { lender: LenderVizData; tota
             <div className="text-[26px] font-bold leading-none" style={{ color: rc }}>
               {lender.total_score.toFixed(1)}
             </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">/ 100</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">/ 100</div>
           </div>
         </div>
       </div>
 
-      <div className="text-[12.5px] leading-relaxed text-slate-400 p-3 bg-slate-800/30 rounded-lg italic">
+      <div className="text-[12.5px] leading-relaxed text-gray-600 p-3 bg-gray-100 rounded-lg italic border border-gray-200">
         {lender.narrative}
       </div>
 
@@ -79,40 +79,40 @@ function LenderDetailPanel({ lender, totalCount }: { lender: LenderVizData; tota
         const isExpanded = expanded === key;
 
         return (
-          <div key={key} className="rounded-lg border border-slate-700/50 overflow-hidden">
+          <div key={key} className="rounded-lg border border-gray-200 overflow-hidden bg-gray-50/80">
             <button
               onClick={() => setExpanded(isExpanded ? null : key)}
-              className="w-full flex justify-between items-center px-3.5 py-2.5 hover:bg-slate-800/30 transition-colors"
+              className="w-full flex justify-between items-center px-3.5 py-2.5 hover:bg-gray-100 transition-colors"
             >
-              <span className="text-[12px] font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <span className="text-[12px] font-semibold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
                 <span className="text-sm opacity-60">{meta.icon}</span> {meta.label}
               </span>
               <span className="flex items-center">
                 <span className="text-[13px] font-bold" style={{ color: pc }}>{ppct}%</span>
-                <span className={`text-[10px] text-slate-500 ml-2 transition-transform ${isExpanded ? "rotate-180" : ""}`}>
+                <span className={`text-[10px] text-gray-500 ml-2 transition-transform ${isExpanded ? "rotate-180" : ""}`}>
                   &#9660;
                 </span>
               </span>
             </button>
             {isExpanded && (
-              <div className="px-3.5 pb-3.5 space-y-3">
+              <div className="px-3.5 pb-3.5 space-y-3 bg-white">
                 {vars.map((v) => {
                   const vp = (v.score * 100).toFixed(0);
                   const vc = barColor(v.score);
                   return (
                     <div key={v.key}>
                       <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-[11.5px] font-medium text-slate-300">{v.name}</span>
+                        <span className="text-[11.5px] font-medium text-gray-700">{v.name}</span>
                         <span className="text-[11.5px] font-semibold" style={{ color: vc }}>{vp}%</span>
                       </div>
-                      <div className="h-1 bg-slate-700/30 rounded-full overflow-hidden">
+                      <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-700"
                           style={{ width: `${vp}%`, background: vc }}
                         />
                       </div>
-                      <p className="text-[10.5px] text-slate-500 leading-snug mt-1">{v.explanation}</p>
-                      <p className="text-[10px] text-slate-600 mt-0.5">
+                      <p className="text-[10.5px] text-gray-500 leading-snug mt-1">{v.explanation}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">
                         Weight: {v.weight} &middot; Contribution: {v.weighted.toFixed(1)} pts
                       </p>
                     </div>
@@ -175,10 +175,11 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
       container.appendChild(renderer.domElement);
       rendererRef.current = renderer;
 
-      // Scene
+      // Scene - light mode brand (white/blue)
+      const sceneBg = 0xf8fafc;
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x0f172a);
-      scene.fog = new THREE.FogExp2(0x0f172a, 0.012);
+      scene.background = new THREE.Color(sceneBg);
+      scene.fog = new THREE.FogExp2(sceneBg, 0.008);
       sceneRef.current = scene;
 
       // CSS2D label renderer
@@ -209,25 +210,25 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
       controls.autoRotateSpeed = 0.35;
       controlsRef.current = controls;
 
-      // Lights
-      scene.add(new THREE.AmbientLight(0x94a3b8, 0.5));
-      const dir1 = new THREE.DirectionalLight(0xffffff, 1.3);
+      // Lights - brighter for light background
+      scene.add(new THREE.AmbientLight(0xe2e8f0, 0.7));
+      const dir1 = new THREE.DirectionalLight(0xffffff, 1.4);
       dir1.position.set(S + 4, S + 6, S + 4);
       scene.add(dir1);
-      const dir2 = new THREE.DirectionalLight(0x3b82f6, 0.25);
+      const dir2 = new THREE.DirectionalLight(0x007bff, 0.2);
       dir2.position.set(-4, -2, -6);
       scene.add(dir2);
 
-      // Stars
+      // Subtle particles (light mode - very faint)
       const starGeo = new THREE.BufferGeometry();
       const starPos = new Float32Array(1200 * 3);
       for (let i = 0; i < starPos.length; i++) starPos[i] = (Math.random() - 0.5) * 100;
       starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
-      scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0x475569, size: 0.06, transparent: true, opacity: 0.5 })));
+      scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xcbd5e1, size: 0.04, transparent: true, opacity: 0.2 })));
 
-      // Grid
+      // Grid - light gray lines
       const gridSize = S + 2;
-      const grid = new THREE.GridHelper(gridSize, Math.round(gridSize / 0.5), 0x1e293b, 0x1a2235);
+      const grid = new THREE.GridHelper(gridSize, Math.round(gridSize / 0.5), 0xcbd5e1, 0xe2e8f0);
       grid.position.set(MID, -0.02, MID);
       scene.add(grid);
 
@@ -235,23 +236,24 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
       const cubeEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(S, S, S));
       const cubeLine = new THREE.LineSegments(
         cubeEdges,
-        new THREE.LineDashedMaterial({ color: 0x334155, dashSize: 0.2, gapSize: 0.15, transparent: true, opacity: 0.25 })
+        new THREE.LineDashedMaterial({ color: 0x94a3b8, dashSize: 0.2, gapSize: 0.15, transparent: true, opacity: 0.4 })
       );
       cubeLine.position.set(MID, MID, MID);
       cubeLine.computeLineDistances();
       scene.add(cubeLine);
 
-      // Axes
+      // Axes - brand blue + supporting grays
+      const primaryBlue = 0x007bff;
       const axConf = [
-        { dir: [1, 0, 0], color: 0x3b82f6, label: "Market Fit \u2192", cls: "x-ax" },
-        { dir: [0, 1, 0], color: 0x10b981, label: "Capital Fit \u2191", cls: "y-ax" },
-        { dir: [0, 0, 1], color: 0xf59e0b, label: "Product Fit \u2193", cls: "z-ax" },
+        { dir: [1, 0, 0], color: primaryBlue, label: "Market Fit \u2192", cls: "x-ax" },
+        { dir: [0, 1, 0], color: 0x64748b, label: "Capital Fit \u2191", cls: "y-ax" },
+        { dir: [0, 0, 1], color: 0x94a3b8, label: "Product Fit \u2193", cls: "z-ax" },
       ];
 
       const clsToColor: Record<string, string> = {
-        "x-ax": "rgba(96,165,250,1)",
-        "y-ax": "rgba(52,211,153,1)",
-        "z-ax": "rgba(251,191,36,1)",
+        "x-ax": "#007BFF",
+        "y-ax": "#64748b",
+        "z-ax": "#94a3b8",
       };
 
       axConf.forEach((a) => {
@@ -279,33 +281,38 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
         scene.add(lbl);
       });
 
-      // Lender spheres
+      // Lender spheres - smaller radius, pale blue (deal diamond stays dark blue below)
       const sphereGeo = new THREE.SphereGeometry(1, 32, 24);
       const lenderMeshes: THREE.Mesh[] = [];
+      // Pale blue for all lender bubbles (slightly stronger blue for higher score)
+      const paleBlueLow = 0xbfdbfe;  // blue-200
+      const paleBlueHigh = 0x93c5fd; // blue-300
 
-      function lerpColor(t: number): THREE.Color {
+      function lenderSphereColor(score: number): THREE.Color {
         const c = new THREE.Color();
-        if (t < 50) c.lerpColors(new THREE.Color(0xef4444), new THREE.Color(0xf59e0b), t / 50);
-        else c.lerpColors(new THREE.Color(0xf59e0b), new THREE.Color(0x10b981), (t - 50) / 50);
+        c.lerpColors(new THREE.Color(paleBlueLow), new THREE.Color(paleBlueHigh), score / 100);
         return c;
       }
 
       data.lenders.forEach((l, i) => {
-        const radius = 0.12 + (l.total_score / 100) * 0.32;
-        const color = lerpColor(l.total_score);
+        const radius = 0.05 + (l.total_score / 100) * 0.12;
+        const color = lenderSphereColor(l.total_score);
         const mat = new THREE.MeshStandardMaterial({
-          color, metalness: 0.15, roughness: 0.3,
-          transparent: true, opacity: 0.88,
-          emissive: color, emissiveIntensity: 0.12,
+          color, metalness: 0.1, roughness: 0.4,
+          transparent: true, opacity: 0.9,
+          emissive: color, emissiveIntensity: 0.06,
         });
         const mesh = new THREE.Mesh(sphereGeo, mat);
         mesh.scale.setScalar(radius);
         mesh.position.set(l.x, l.y, l.z);
-        mesh.userData = { index: i, baseRadius: radius, baseOpacity: 0.88 };
+        mesh.userData = { index: i, baseRadius: radius, baseOpacity: 0.9 };
         scene.add(mesh);
         lenderMeshes.push(mesh);
       });
       lenderMeshesRef.current = lenderMeshes;
+
+      // Primary blue for deal / top matches (brand)
+      const dealColor = 0x007bff;
 
       // Top 3 rank labels + dashed lines to deal
       const top3 = data.lenders.slice(0, Math.min(3, data.lenders.length));
@@ -313,15 +320,15 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
         const pts = [new THREE.Vector3(l.x, l.y, l.z), new THREE.Vector3(data.deal.x, data.deal.y, data.deal.z)];
         const geo = new THREE.BufferGeometry().setFromPoints(pts);
         const mat = new THREE.LineDashedMaterial({
-          color: 0xfbbf24, dashSize: 0.25, gapSize: 0.12,
-          transparent: true, opacity: 0.4 + (2 - i) * 0.1,
+          color: dealColor, dashSize: 0.25, gapSize: 0.12,
+          transparent: true, opacity: 0.45 + (2 - i) * 0.1,
         });
         const line = new THREE.Line(geo, mat);
         line.computeLineDistances();
         scene.add(line);
 
         const div = document.createElement("div");
-        div.style.cssText = `font-family:Inter,system-ui,sans-serif;font-size:10px;font-weight:700;background:rgba(251,191,36,0.9);color:#0f172a;padding:1px 6px;border-radius:4px;pointer-events:none;white-space:nowrap`;
+        div.style.cssText = `font-family:Inter,system-ui,sans-serif;font-size:10px;font-weight:700;background:rgba(0,123,255,0.9);color:#fff;padding:1px 6px;border-radius:4px;pointer-events:none;white-space:nowrap`;
         const displayName = l.name.length > 18 ? l.name.slice(0, 18) + "\u2026" : l.name;
         div.textContent = `#${i + 1} ${displayName}`;
         const lbl = new CSS2DObject(div);
@@ -329,23 +336,23 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
         scene.add(lbl);
       });
 
-      // Deal marker
+      // Deal marker - brand blue
       const dealMesh = new THREE.Mesh(
         new THREE.OctahedronGeometry(0.4, 0),
-        new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.4, roughness: 0.2, emissive: 0xfbbf24, emissiveIntensity: 0.45 })
+        new THREE.MeshStandardMaterial({ color: dealColor, metalness: 0.3, roughness: 0.25, emissive: dealColor, emissiveIntensity: 0.2 })
       );
       dealMesh.position.set(data.deal.x, data.deal.y, data.deal.z);
       scene.add(dealMesh);
 
       const dealWire = new THREE.LineSegments(
         new THREE.EdgesGeometry(new THREE.OctahedronGeometry(0.55, 0)),
-        new THREE.LineBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.25 })
+        new THREE.LineBasicMaterial({ color: dealColor, transparent: true, opacity: 0.35 })
       );
       dealWire.position.copy(dealMesh.position);
       scene.add(dealWire);
 
       const dealDiv = document.createElement("div");
-      dealDiv.style.cssText = `font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:700;color:#fbbf24;pointer-events:none;text-shadow:0 0 12px rgba(251,191,36,0.4)`;
+      dealDiv.style.cssText = `font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:700;color:#007BFF;pointer-events:none;text-shadow:0 0 8px rgba(0,123,255,0.3)`;
       dealDiv.textContent = "YOUR DEAL";
       const dealLabel = new CSS2DObject(dealDiv);
       dealLabel.position.set(data.deal.x, data.deal.y + 0.65, data.deal.z);
@@ -481,7 +488,7 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
   const HEADER_OFFSET_PX = 56;
   const wrapperClasses = expanded
     ? "fixed left-0 right-0 bottom-0 z-50 flex flex-col"
-    : "flex rounded-xl overflow-hidden border border-slate-700/50";
+    : "flex rounded-xl overflow-hidden border border-gray-200 shadow-sm";
 
   return (
     <div
@@ -490,15 +497,15 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
         ...(expanded
           ? { top: HEADER_OFFSET_PX, height: `calc(100vh - ${HEADER_OFFSET_PX}px)` }
           : { height: "600px" }),
-        background: "#0f172a",
+        background: "#f8fafc",
       }}
     >
       <div className="flex flex-1 overflow-hidden">
         {/* 3D scene */}
         <div className="flex-1 relative min-w-0" ref={containerRef}>
           {/* Search overlay */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/90 backdrop-blur border border-slate-700/50 shadow-lg">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 opacity-40">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/95 backdrop-blur border border-gray-200 shadow-sm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-gray-400">
               <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
@@ -506,13 +513,13 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
               placeholder="Search lenders..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent border-none outline-none text-slate-200 text-sm w-48 placeholder:text-slate-600 font-[Inter,system-ui,sans-serif]"
+              className="bg-transparent border-none outline-none text-gray-800 text-sm w-48 placeholder:text-gray-400 font-[Inter,system-ui,sans-serif]"
             />
           </div>
 
           {/* Deal title */}
-          <div className="absolute top-4 left-4 z-10 text-[13px] font-semibold text-slate-400 tracking-wide flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+          <div className="absolute top-4 left-4 z-10 text-[13px] font-semibold text-gray-700 tracking-wide flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-600 shadow-[0_0_6px_rgba(37,99,235,0.4)]" />
             {data.deal.name}
           </div>
 
@@ -520,7 +527,7 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
           {onToggleExpand && (
             <button
               onClick={onToggleExpand}
-              className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-slate-800/90 backdrop-blur border border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700/90 transition-colors"
+              className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-white/95 backdrop-blur border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors shadow-sm"
               title={expanded ? "Exit full screen" : "Expand to full screen"}
             >
               {expanded ? (
@@ -544,24 +551,24 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
               { color: "#f59e0b", label: "Moderate (45-69)" },
               { color: "#ef4444", label: "Weak (<45)" },
             ].map((item) => (
-              <div key={item.label} className="px-3 py-1 rounded-lg text-[11px] font-medium bg-slate-800/90 backdrop-blur border border-slate-700/50 text-slate-300">
+              <div key={item.label} className="px-3 py-1 rounded-lg text-[11px] font-medium bg-white/95 backdrop-blur border border-gray-200 text-gray-700 shadow-sm">
                 <span className="inline-block w-[7px] h-[7px] rounded-full mr-1.5" style={{ background: item.color }} />
                 {item.label}
               </div>
             ))}
-            <div className="px-3 py-1 rounded-lg text-[11px] font-medium bg-slate-800/90 backdrop-blur border border-slate-700/50 text-slate-300">
+            <div className="px-3 py-1 rounded-lg text-[11px] font-medium bg-white/95 backdrop-blur border border-gray-200 text-gray-700 shadow-sm">
               {data.lenders.length} lenders
             </div>
           </div>
         </div>
 
         {/* Side panel */}
-        <div className={`${expanded ? "w-[450px] min-w-[450px]" : "w-[400px] min-w-[400px]"} bg-[#131c2e] border-l border-slate-700/50 overflow-y-auto`}>
+        <div className={`${expanded ? "w-[450px] min-w-[450px]" : "w-[400px] min-w-[400px]"} bg-white border-l border-gray-200 overflow-y-auto`}>
           {selectedLender ? (
             <LenderDetailPanel lender={selectedLender} totalCount={data.lenders.length} />
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-slate-500 text-[13px] text-center px-10 gap-3">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 opacity-25">
+            <div className="flex flex-col items-center justify-center h-full text-gray-500 text-[13px] text-center px-10 gap-3">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 opacity-30 text-gray-400">
                 <circle cx="12" cy="12" r="10" /><path d="M12 8v4l2 2" />
               </svg>
               Click any lender sphere<br />to explore match details

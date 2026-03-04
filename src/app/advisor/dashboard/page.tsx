@@ -155,7 +155,6 @@ async function computeUnreadIndicators(
       try {
         const { data, error } = await supabase.rpc('get_unread_counts_for_project', {
           p_project_id: projectId,
-          p_user_id: advisorUserId,
         });
 
         if (error) {

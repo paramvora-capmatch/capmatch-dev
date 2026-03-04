@@ -42,7 +42,7 @@ export const MatchmakingPanel: React.FC<MatchmakingPanelProps> = ({ projectId })
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-md font-semibold text-gray-800 flex items-center gap-2">
-            <Zap size={16} className="text-amber-500" />
+            <Zap size={16} className="text-blue-600" />
             AI Matchmaking Engine
           </h3>
           <p className="text-sm text-gray-500 mt-0.5">
@@ -127,13 +127,13 @@ export const MatchmakingPanel: React.FC<MatchmakingPanelProps> = ({ projectId })
 
       {/* Running indicator overlay */}
       {isRunning && (
-        <div className="flex flex-col items-center justify-center py-16 px-6 bg-slate-900 rounded-xl border border-slate-700">
+        <div className="flex flex-col items-center justify-center py-16 px-6 bg-gray-50 rounded-xl border border-gray-200">
           <div className="relative">
-            <div className="w-16 h-16 border-4 border-slate-700 rounded-full" />
-            <div className="absolute inset-0 w-16 h-16 border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
+            <div className="w-16 h-16 border-4 border-gray-200 rounded-full" />
+            <div className="absolute inset-0 w-16 h-16 border-4 border-t-blue-600 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
           </div>
-          <p className="text-sm text-slate-300 mt-4 font-medium">Running matchmaking engine...</p>
-          <p className="text-xs text-slate-500 mt-1">Profiling lenders from HMDA data and scoring against your deal</p>
+          <p className="text-sm text-gray-700 mt-4 font-medium">Running matchmaking engine...</p>
+          <p className="text-xs text-gray-500 mt-1">Profiling lenders from HMDA data and scoring against your deal</p>
         </div>
       )}
 
