@@ -477,12 +477,22 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
     });
   }, [searchQuery, data.lenders]);
 
+  // When expanded, sit below the app header (DashboardLayout sticky nav) so the diagram doesn't go under it
+  const HEADER_OFFSET_PX = 56;
   const wrapperClasses = expanded
-    ? "fixed inset-0 z-50 flex flex-col"
+    ? "fixed left-0 right-0 bottom-0 z-50 flex flex-col"
     : "flex rounded-xl overflow-hidden border border-slate-700/50";
 
   return (
-    <div className={wrapperClasses} style={{ height: expanded ? "100vh" : "600px", background: "#0f172a" }}>
+    <div
+      className={wrapperClasses}
+      style={{
+        ...(expanded
+          ? { top: HEADER_OFFSET_PX, height: `calc(100vh - ${HEADER_OFFSET_PX}px)` }
+          : { height: "600px" }),
+        background: "#0f172a",
+      }}
+    >
       <div className="flex flex-1 overflow-hidden">
         {/* 3D scene */}
         <div className="flex-1 relative min-w-0" ref={containerRef}>
