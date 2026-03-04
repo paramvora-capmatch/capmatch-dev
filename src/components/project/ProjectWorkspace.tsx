@@ -51,7 +51,7 @@ import { AlertModal } from "@/components/ui/AlertModal";
 import { useChatStore } from "@/stores/useChatStore";
 import { usePermissionStore } from "@/stores/usePermissionStore";
 import { usePermissions } from "@/hooks/usePermissions";
-import { generateOMInsights, subscribeToOMInsightsJob } from "@/lib/om-insights";
+import { generateOMInsights } from "@/lib/om-insights";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/apiClient";
 import { UnderwritingVault } from "../lender/UnderwritingVault";
@@ -1528,26 +1528,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 														onClick={async () => {
 															setIsGeneratingInsights(true);
 															try {
-																const result = await generateOMInsights(projectId);
-																if (result.job_id) {
-																	// Track job via realtime; redirect when completed
-																	const jobResult = await subscribeToOMInsightsJob(result.job_id);
-																	if (jobResult.status === "completed") {
-																		toast.success("OM insights ready");
-																		router.push(`/project/om/${projectId}/dashboard`);
-																	} else if (jobResult.status === "failed") {
-																		toast.error(jobResult.error_message || "Failed to generate insights. You can still view the OM.");
-																		router.push(`/project/om/${projectId}/dashboard`);
-																	} else {
-																		toast.warning("Insights are taking longer than expected. Opening OM—they may appear shortly.");
-																		router.push(`/project/om/${projectId}/dashboard`);
-																	}
-																} else if (result.already_has_insights) {
-																	toast.success("Opening OM");
-																	router.push(`/project/om/${projectId}/dashboard`);
-																} else {
-																	router.push(`/project/om/${projectId}/dashboard`);
-																}
+																await generateOMInsights(projectId);
+																toast.success("OM insights generated");
+																router.push(`/project/om/${projectId}/dashboard`);
 															} catch (error) {
 																console.error("Failed to generate insights:", error);
 																toast.error("Failed to generate insights. You can still view the OM.");

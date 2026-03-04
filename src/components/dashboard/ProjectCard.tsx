@@ -19,7 +19,7 @@ import { ProjectProfile } from "@/types/enhanced-types";
 import { useProjectStore as useProjects } from "@/stores/useProjectStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { formatDateShort } from "@/utils/dateUtils";
-import { generateOMInsights, subscribeToOMInsightsJob } from "@/lib/om-insights";
+import { generateOMInsights } from "@/lib/om-insights";
 import { toast } from "sonner";
 
 interface ProjectMember {
@@ -149,12 +149,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 			/>
 			{/* Unread count indicator badge - positioned on top-right corner of card */}
 			{unreadCount > 0 && (
-				<div className={`absolute -top-2 -right-2 z-20 flex items-center justify-center px-2.5 py-1.5 bg-white rounded-lg border-2 shadow-md ${
-					isComplete ? 'border-green-500' : 'border-blue-500'
-				}`}>
-					<span className={`text-xs font-semibold tracking-wide leading-none whitespace-nowrap italic ${
-						isComplete ? 'text-green-700' : 'text-blue-700'
+				<div className={`absolute -top-2 -right-2 z-20 flex items-center justify-center px-2.5 py-1.5 bg-white rounded-lg border-2 shadow-md ${isComplete ? 'border-green-500' : 'border-blue-500'
 					}`}>
+					<span className={`text-xs font-semibold tracking-wide leading-none whitespace-nowrap italic ${isComplete ? 'text-green-700' : 'text-blue-700'
+						}`}>
 						{unreadCount} unread {unreadCount === 1 ? 'message' : 'messages'}
 					</span>
 				</div>
@@ -172,11 +170,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 				{/* Completion status indicator bar */}
 				<div className="h-2 bg-gray-100">
 					<div
-						className={`h-full transition-all duration-500 ${
-							isComplete
+						className={`h-full transition-all duration-500 ${isComplete
 								? "bg-gradient-to-r from-emerald-500 to-green-500"
 								: "bg-blue-600"
-						}`}
+							}`}
 						style={{ width: `${overallProgress}%` }}
 					/>
 				</div>
@@ -236,18 +233,16 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 						{isAdvisor && borrowerName && borrowerName.trim() && (
 							<div className="flex items-center text-sm text-gray-600">
 								<div
-									className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${
-										isComplete
+									className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${isComplete
 											? "bg-green-100"
 											: "bg-blue-100"
-									}`}
+										}`}
 								>
 									<Users
-										className={`h-4 w-4 ${
-											isComplete
+										className={`h-4 w-4 ${isComplete
 												? "text-green-600"
 												: "text-blue-600"
-										}`}
+											}`}
 									/>
 								</div>
 								<span>
@@ -261,16 +256,14 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
 						<div className="flex items-center text-sm text-gray-600">
 							<div
-								className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${
-									isComplete ? "bg-green-100" : "bg-blue-100"
-								}`}
+								className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${isComplete ? "bg-green-100" : "bg-blue-100"
+									}`}
 							>
 								<Building
-									className={`h-4 w-4 ${
-										isComplete
+									className={`h-4 w-4 ${isComplete
 											? "text-green-600"
 											: "text-blue-600"
-									}`}
+										}`}
 								/>
 							</div>
 							<span className="font-medium">
@@ -281,16 +274,14 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
 						<div className="flex items-center text-sm text-gray-600">
 							<div
-								className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${
-									isComplete ? "bg-green-100" : "bg-blue-100"
-								}`}
+								className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${isComplete ? "bg-green-100" : "bg-blue-100"
+									}`}
 							>
 								<Calendar
-									className={`h-4 w-4 ${
-										isComplete
+									className={`h-4 w-4 ${isComplete
 											? "text-green-600"
 											: "text-blue-600"
-									}`}
+										}`}
 								/>
 							</div>
 							<span>
@@ -298,8 +289,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 								<span className="font-medium">
 									{formatDateShort(
 										unwrapValue(project.updatedAt) as
-											| string
-											| undefined
+										| string
+										| undefined
 									)}
 								</span>
 							</span>
@@ -309,18 +300,16 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 						{showMembers && (
 							<div className="flex items-start text-sm text-gray-600">
 								<div
-									className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-0.5 ${
-										isComplete
+									className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-0.5 ${isComplete
 											? "bg-green-100"
 											: "bg-blue-100"
-									}`}
+										}`}
 								>
 									<Users
-										className={`h-4 w-4 ${
-											isComplete
+										className={`h-4 w-4 ${isComplete
 												? "text-green-600"
 												: "text-blue-600"
-										}`}
+											}`}
 									/>
 								</div>
 								<div className="flex-1 min-w-0">
@@ -363,11 +352,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 									Overall Progress
 								</span>
 								<span
-									className={`font-semibold ${
-										isComplete
+									className={`font-semibold ${isComplete
 											? "text-green-600"
 											: "text-blue-600"
-									}`}
+										}`}
 								>
 									{overallProgress}%
 								</span>
@@ -375,11 +363,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
 							<div className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
 								<div
-									className={`absolute top 0 left-0 h-full rounded-full transition-all duration-700 shadow-sm ${
-										isComplete
+									className={`absolute top 0 left-0 h-full rounded-full transition-all duration-700 shadow-sm ${isComplete
 											? "bg-gradient-to-r from-emerald-500 to-green-500"
 											: "bg-blue-600"
-									}`}
+										}`}
 									style={{ width: `${overallProgress}%` }}
 								/>
 							</div>
@@ -422,19 +409,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 									e.stopPropagation();
 									setIsGeneratingInsights(true);
 									try {
-										const result = await generateOMInsights(project.id);
-										if (result.job_id) {
-											const jobResult = await subscribeToOMInsightsJob(result.job_id);
-											if (jobResult.status === "completed") {
-												toast.success("OM insights ready");
-											} else if (jobResult.status === "failed") {
-												toast.error(jobResult.error_message || "Failed to generate insights. You can still view the OM.");
-											} else {
-												toast.warning("Insights are taking longer than expected. Opening OM—they may appear shortly.");
-											}
-										} else if (result.already_has_insights) {
-											toast.success("Opening OM");
-										}
+										await generateOMInsights(project.id);
+										toast.success("OM insights generated");
 										router.push(`/project/om/${project.id}/dashboard`);
 									} catch (error) {
 										console.error("Failed to generate insights:", error);
@@ -502,6 +478,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 				cancelLabel="Cancel"
 				isLoading={isDeleting}
 			/>
-		</div>
+		</div >
 	);
 };
