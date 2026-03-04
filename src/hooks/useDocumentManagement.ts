@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { extractOriginalFilename } from "@/utils/documentUtils";
+import { getBackendUrl } from "@/lib/apiConfig";
 
 export interface DocumentFile {
   id: string;
@@ -175,14 +176,14 @@ export const useDocumentManagement = ({
 
       setFiles(filesList);
       setFolders(foldersList);
-      
+
       console.log("[DocumentManagement] Fetch complete:", {
-          context,
-          rootId: root.id,
-          parentId,
-          resourcesFound: resources?.length,
-          filesList: filesList.map(f => f.name),
-          foldersList: foldersList.map(f => f.name)
+        context,
+        rootId: root.id,
+        parentId,
+        resourcesFound: resources?.length,
+        filesList: filesList.map(f => f.name),
+        foldersList: foldersList.map(f => f.name)
       });
 
       return { files: filesList, folders: foldersList };
@@ -219,14 +220,14 @@ export const useDocumentManagement = ({
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) throw new Error("Not authenticated");
 
-        const base = typeof window !== "undefined" ? window.location.origin : "";
+        const base = getBackendUrl();
         const formData = new FormData();
         formData.set("projectId", projectId);
         formData.set("context", context);
         if (folderId) formData.set("folderId", folderId);
         formData.set("file", file);
 
-        const res = await fetch(`${base}/api/documents/upload`, {
+        const res = await fetch(`${base}/api/v1/documents/upload`, {
           method: "POST",
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: formData,
@@ -317,8 +318,8 @@ export const useDocumentManagement = ({
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) throw new Error("Not authenticated");
 
-        const base = typeof window !== "undefined" ? window.location.origin : "";
-        const res = await fetch(`${base}/api/documents/${resourceId}`, {
+        const base = getBackendUrl();
+        const res = await fetch(`${base}/api/v1/documents/${resourceId}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${session.access_token}` },
         });

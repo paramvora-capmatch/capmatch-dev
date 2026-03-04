@@ -2,12 +2,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../../components/auth/RoleBasedRoute";
 import { useAuth } from "../../../hooks/useAuth";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { supabase } from "@/lib/supabaseClient";
-import { Building2, MapPin, DollarSign, Calendar } from "lucide-react";
+import { Building2 } from "lucide-react";
+import { ProjectCard } from "@/components/dashboard/ProjectCard";
+import { ProjectProfile } from "@/types/enhanced-types";
 
 // Resume fields can be simple values or enhanced objects with {value, source, warnings, other_values}
 type ResumeFieldValue<T> = T | { value: T; source?: string; warnings?: string[]; other_values?: T[] };
@@ -18,25 +19,43 @@ interface LenderProject {
   owner_org_id: string;
   created_at: string;
   project_resume?: {
-    content: {
-      propertyAddressCity?: ResumeFieldValue<string>;
-      propertyAddressState?: ResumeFieldValue<string>;
-      loanAmountRequested?: ResumeFieldValue<number>;
-      assetType?: ResumeFieldValue<string>;
-      [key: string]: unknown;
-    };
+    content: Record<string, unknown>;
+    completeness_percent?: number | null;
   };
   borrower_resume?: {
-    content: {
-      fullLegalName?: ResumeFieldValue<string>;
-      primaryEntityName?: ResumeFieldValue<string>;
-      [key: string]: unknown;
-    };
+    content: Record<string, unknown>;
+    completeness_percent?: number | null;
   };
 }
 
+// Build ProjectProfile from lender project data for use with ProjectCard
+function lenderProjectToProfile(project: LenderProject): ProjectProfile {
+  const content = project.project_resume?.content || {};
+  const extractValue = (field: unknown): string | number | undefined => {
+    if (field === null || field === undefined) return undefined;
+    if (typeof field === "object" && "value" in (field as Record<string, unknown>)) {
+      return (field as { value: string | number }).value;
+    }
+    if (typeof field === "string" || typeof field === "number") return field;
+    return undefined;
+  };
+  const projectComplete = project.project_resume?.completeness_percent === 100;
+  const borrowerComplete = project.borrower_resume?.completeness_percent === 100;
+  const overallProgress = projectComplete && borrowerComplete ? 100 : 0;
+  return {
+    id: project.id,
+    owner_org_id: project.owner_org_id,
+    projectName: project.name,
+    assetType: (extractValue(content.assetType) as string) || "Asset Type TBD",
+    projectStatus: "active",
+    createdAt: project.created_at,
+    updatedAt: project.created_at,
+    completenessPercent: project.project_resume?.completeness_percent ?? 100,
+    borrowerProgress: project.borrower_resume?.completeness_percent ?? 100,
+  } as ProjectProfile;
+}
+
 export default function LenderDashboardPage() {
-  const router = useRouter();
   const { user, activeOrg } = useAuth();
   const [projects, setProjects] = useState<LenderProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +69,6 @@ export default function LenderDashboardPage() {
       }
 
       try {
-        // Fetch projects that this lender org has access to
         const { data: accessGrants, error: accessError } = await supabase
           .from("lender_project_access")
           .select("project_id")
@@ -68,66 +86,72 @@ export default function LenderDashboardPage() {
 
         const projectIds = accessGrants.map((g) => g.project_id);
 
-        // Fetch project details
         const { data: projectsData, error: projectsError } = await supabase
           .from("projects")
-          .select(
-            `
-            id,
-            name,
-            owner_org_id,
-            created_at
-          `
-          )
+          .select("id, name, owner_org_id, created_at")
           .in("id", projectIds);
 
         if (projectsError) {
           throw projectsError;
         }
 
-        // Fetch project resumes
-        const { data: projectResumes, error: resumesError } = await supabase
+        const { data: projectResumesRows, error: resumesError } = await supabase
           .from("project_resumes")
-          .select("project_id, content")
-          .in("project_id", projectIds);
+          .select("project_id, content, completeness_percent, created_at")
+          .in("project_id", projectIds)
+          .order("created_at", { ascending: false });
 
         if (resumesError) {
           console.error("Error fetching project resumes:", resumesError);
         }
 
-        // Fetch borrower resumes for these projects
-        // Note: borrower_resumes are project-scoped, not org-scoped
-        const { data: borrowerResumes, error: borrowerError } = await supabase
+        const { data: borrowerResumesRows, error: borrowerError } = await supabase
           .from("borrower_resumes")
-          .select("project_id, content")
-          .in("project_id", projectIds);
+          .select("project_id, content, completeness_percent, created_at")
+          .in("project_id", projectIds)
+          .order("created_at", { ascending: false });
 
         if (borrowerError) {
           console.error("Error fetching borrower resumes:", borrowerError);
         }
 
-        // Combine data
-        const enrichedProjects = (projectsData || []).map((project) => {
-          const projectResume = projectResumes?.find(
-            (r) => r.project_id === project.id
-          );
-          const borrowerResume = borrowerResumes?.find(
-            (r) => r.project_id === project.id
-          );
-
-          return {
-            ...project,
-            project_resume: projectResume,
-            borrower_resume: borrowerResume,
-          };
+        const latestProjectResumeByProject = new Map<string, NonNullable<typeof projectResumesRows>[number]>();
+        (projectResumesRows || []).forEach((r) => {
+          if (!latestProjectResumeByProject.has(r.project_id)) {
+            latestProjectResumeByProject.set(r.project_id, r);
+          }
         });
+        const latestBorrowerResumeByProject = new Map<string, NonNullable<typeof borrowerResumesRows>[number]>();
+        (borrowerResumesRows || []).forEach((r) => {
+          if (!latestBorrowerResumeByProject.has(r.project_id)) {
+            latestBorrowerResumeByProject.set(r.project_id, r);
+          }
+        });
+
+        const enrichedProjects = (projectsData || [])
+          .map((project) => {
+            const projectResume = latestProjectResumeByProject.get(project.id);
+            const borrowerResume = latestBorrowerResumeByProject.get(project.id);
+            return {
+              ...project,
+              project_resume: projectResume
+                ? { content: projectResume.content, completeness_percent: projectResume.completeness_percent }
+                : undefined,
+              borrower_resume: borrowerResume
+                ? { content: borrowerResume.content, completeness_percent: borrowerResume.completeness_percent }
+                : undefined,
+            };
+          })
+          .filter((p) => {
+            const projectComplete = p.project_resume?.completeness_percent === 100;
+            const borrowerComplete = p.borrower_resume?.completeness_percent === 100;
+            return projectComplete && borrowerComplete;
+          });
 
         setProjects(enrichedProjects);
       } catch (err) {
         console.error("Error fetching lender projects:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load projects"
-        );
+        setError(err instanceof Error ? err.message : "Failed to load projects");
       } finally {
         setIsLoading(false);
       }
@@ -136,169 +160,109 @@ export default function LenderDashboardPage() {
     fetchLenderProjects();
   }, [user, activeOrg]);
 
-  const formatCurrency = (amount?: number) => {
-    if (!amount) return "N/A";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  // Helper to extract value from enhanced resume fields
-  // Fields can be either simple values or objects with {value, source, ...}
-  const extractValue = (field: unknown): string | number | undefined => {
-    if (field === null || field === undefined) return undefined;
-    if (typeof field === "object" && "value" in (field as Record<string, unknown>)) {
-      return (field as { value: string | number }).value;
-    }
-    if (typeof field === "string" || typeof field === "number") {
-      return field;
-    }
-    return undefined;
-  };
-
   return (
     <RoleBasedRoute roles={["lender"]}>
       <DashboardLayout title="Lender Dashboard">
-        <div className="max-w-7xl mx-auto py-6">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Investment Opportunities
-            </h1>
-            <p className="mt-2 text-gray-600">
-              Projects matched to your investment criteria
-            </p>
+        <div className="relative -mx-6 sm:-mx-6 lg:-mx-6 bg-gray-200 min-h-[calc(100vh-5rem)]">
+          <div className="pointer-events-none absolute inset-0 opacity-[0.5]">
+            <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
+              <defs>
+                <pattern id="lender-dash-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                  <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#lender-dash-grid)" />
+            </svg>
           </div>
 
-          {/* Loading State */}
-          {isLoading && (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-          )}
+          <div className="relative z-[1] pt-6 pb-6">
+            <div className="relative overflow-hidden">
+              <div className="pointer-events-none absolute inset-0 opacity-[0.25]">
+                <svg className="absolute inset-0 h-full w-full text-slate-300" aria-hidden="true">
+                  <defs>
+                    <pattern id="lender-dash-inner" width="24" height="24" patternUnits="userSpaceOnUse">
+                      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#lender-dash-inner)" />
+                </svg>
+              </div>
 
-          {/* Error State */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <p className="text-red-800">{error}</p>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!isLoading && !error && projects.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
-              <Building2 className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                No Projects Yet
-              </h3>
-              <p className="text-gray-600 max-w-md mx-auto">
-                You don&apos;t have access to any projects yet. Projects will appear
-                here once an advisor grants you access.
-              </p>
-            </div>
-          )}
-
-          {/* Projects Grid */}
-          {!isLoading && !error && projects.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project) => {
-                const content = project.project_resume?.content || {};
-                const borrowerContent = project.borrower_resume?.content || {};
-                // Extract values from enhanced resume fields (which may be objects with {value, source, ...})
-                const city = extractValue(content.propertyAddressCity);
-                const state = extractValue(content.propertyAddressState);
-                const loanAmount = extractValue(content.loanAmountRequested) as number | undefined;
-                const assetType = extractValue(content.assetType);
-                const borrowerName =
-                  extractValue(borrowerContent.primaryEntityName) ||
-                  extractValue(borrowerContent.fullLegalName);
-
-                return (
-                  <div
-                    key={project.id}
-                    className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
-                    onClick={() =>
-                      router.push(`/lender/project/${project.id}`)
-                    }
-                  >
-                    {/* Project Header */}
-                    <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
-                      <h3 className="text-lg font-semibold text-white truncate">
-                        {project.name}
-                      </h3>
-                      {borrowerName && (
-                        <p className="text-blue-100 text-sm mt-1">
-                          {borrowerName}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Project Details */}
-                    <div className="px-6 py-4 space-y-3">
-                      {/* Location */}
-                      {(city || state) && (
-                        <div className="flex items-start gap-2">
-                          <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                          <span className="text-sm text-gray-700">
-                            {city && state
-                              ? `${city}, ${state}`
-                              : city || state}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Asset Type */}
-                      {assetType && (
-                        <div className="flex items-start gap-2">
-                          <Building2 className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                          <span className="text-sm text-gray-700">
-                            {assetType}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Loan Amount */}
-                      {loanAmount && (
-                        <div className="flex items-start gap-2">
-                          <DollarSign className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                          <span className="text-sm text-gray-700">
-                            {formatCurrency(loanAmount)} requested
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Created Date */}
-                      <div className="flex items-start gap-2">
-                        <Calendar className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm text-gray-500">
-                          Added {formatDate(project.created_at)}
-                        </span>
+              <div className="relative p-6 sm:p-8 lg:p-10">
+                <div className="space-y-10">
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                      <div className="space-y-1">
+                        <h2 className="text-2xl font-bold text-gray-800">Active Deals</h2>
+                        <p className="text-gray-600">Deals you have access to</p>
                       </div>
                     </div>
 
-                    {/* Action */}
-                    <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
-                      <button className="text-sm font-medium text-blue-600 hover:text-blue-700">
-                        View Details →
-                      </button>
-                    </div>
+                    {isLoading && (
+                      <div className="flex justify-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+                      </div>
+                    )}
+
+                    {error && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <p className="text-red-800">{error}</p>
+                      </div>
+                    )}
+
+                    {!isLoading && !error && projects.length === 0 && (
+                      <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
+                        <Building2 className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Ready Deals Yet</h3>
+                        <p className="text-gray-600 max-w-md mx-auto">
+                          Deals appear here once an advisor adds you to a project and both the project and borrower
+                          resumes are 100% complete.
+                        </p>
+                      </div>
+                    )}
+
+                    {!isLoading && !error && projects.length > 0 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {projects.map((project, index) => (
+                          <div
+                            key={project.id}
+                            className="animate-fade-up h-full"
+                            style={{ animationDelay: `${(index + 1) * 80}ms` }}
+                          >
+                            <ProjectCard
+                              project={lenderProjectToProfile(project)}
+                              primaryCtaHref={`/lender/project/${project.id}`}
+                              primaryCtaLabel="View Deal"
+                              showDeleteButton={false}
+                              showMembers={false}
+                              unreadCount={0}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                );
-              })}
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
+
+        <style jsx>{`
+          @keyframes fadeUp {
+            0% {
+              opacity: 0;
+              transform: translateY(16px);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          .animate-fade-up {
+            animation: fadeUp 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          }
+        `}</style>
       </DashboardLayout>
     </RoleBasedRoute>
   );

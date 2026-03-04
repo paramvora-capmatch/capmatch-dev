@@ -4,21 +4,42 @@
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePathname, useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { SplashScreen } from "@/components/ui/SplashScreen";
+
+/** Routes that require an authenticated user — mirrors middleware.ts PROTECTED_PREFIXES. */
+const PROTECTED_PREFIXES = [
+  '/dashboard',
+  '/project/',
+  '/advisor',
+  '/lender',
+  '/team',
+  '/documents/edit',
+  '/meeting/',
+];
+
+function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(prefix + '/')
+  );
+}
 
 export const AuthRedirector = () => {
   const { user, isAuthenticated, isLoading, justLoggedIn, clearJustLoggedIn } =
     useAuth();
+  const isHydrating = useAuthStore((s) => s.isHydrating);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    // Don't do anything while auth state is loading
-    if (isLoading) {
+    // Wait for initial auth hydration to complete before making any routing decisions
+    if (isHydrating || isLoading) {
       return;
     }
 
     const isAuthPage = pathname === "/login";
     const isHomePage = pathname === "/";
+    const isProtected = isProtectedPath(pathname);
 
     const performRedirect = () => {
       if (!user) return;
@@ -33,24 +54,32 @@ export const AuthRedirector = () => {
           router.replace("/lender/dashboard");
           break;
         default:
-          router.replace("/dashboard"); // Fallback
+          router.replace("/dashboard");
       }
     };
 
     if (isAuthenticated && user) {
-      // Case 1: An already logged-in user navigates to the login page. Redirect them away.
+      // Logged-in user on the login page → send to dashboard
       if (isAuthPage) {
         performRedirect();
       }
 
-      // Case 2: A user just logged in via magic link or password and was redirected to the homepage.
-      // Perform the one-time redirect to their dashboard.
+      // Just logged in and on the homepage → redirect to dashboard
       if (isHomePage && justLoggedIn) {
-        clearJustLoggedIn(); // Clear the flag in the store
+        clearJustLoggedIn();
         performRedirect();
       }
+    } else if (!isAuthenticated && isProtected) {
+      // Unauthenticated on a protected route → redirect to login
+      const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
+      router.replace(loginUrl);
     }
-  }, [isAuthenticated, isLoading, user, pathname, router, justLoggedIn, clearJustLoggedIn]);
+  }, [isAuthenticated, isHydrating, isLoading, user, pathname, router, justLoggedIn, clearJustLoggedIn]);
 
-  return null; // This component does not render anything
+  // While hydrating on a protected page, show the splash screen to prevent flash
+  if ((isHydrating || isLoading) && isProtectedPath(pathname)) {
+    return <SplashScreen text="Loading..." />;
+  }
+
+  return null;
 };

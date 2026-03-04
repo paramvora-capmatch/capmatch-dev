@@ -115,8 +115,9 @@ export function useCalendarConnections(): UseCalendarConnectionsReturn {
 						const { data: { session } } = await supabase.auth.getSession();
 						const token = session?.access_token;
 
+						const { getBackendUrl } = await import("@/lib/apiConfig");
 						const response = await fetch(
-							"/api/calendar/disconnect",
+							`${getBackendUrl()}/api/v1/calendar/disconnect`,
 							{
 								method: "POST",
 								headers: {
@@ -259,42 +260,37 @@ export function useCalendarConnections(): UseCalendarConnectionsReturn {
 	);
 
 	/**
-	 * Initiate OAuth flow for connecting a calendar
+	 * Initiate OAuth flow for connecting a calendar (backend returns authorize URL with signed state).
 	 */
-	const initiateConnection = useCallback((provider: CalendarProvider) => {
-		// Construct OAuth URL based on provider
-		const baseUrl = window.location.origin;
-		const redirectUri = `${baseUrl}/api/calendar/callback`;
-
-		// Encode return URL in state parameter (format: provider|returnUrl)
-		const returnUrl = window.location.pathname + window.location.search;
-		const state = `${provider}|${encodeURIComponent(returnUrl)}`;
-
-		let authUrl = "";
-
-		switch (provider) {
-			case "google":
-				authUrl =
-					`https://accounts.google.com/o/oauth2/v2/auth?` +
-					`client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}` +
-					`&redirect_uri=${encodeURIComponent(redirectUri)}` +
-					`&response_type=code` +
-					`&scope=${encodeURIComponent(
-						"openid email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events"
-					)}` +
-					`&access_type=offline` +
-					`&prompt=consent` +
-					`&state=${encodeURIComponent(state)}`;
-				break;
-
-			default:
-				setError(`Unknown calendar provider: ${provider}`);
+	const initiateConnection = useCallback(
+		async (provider: CalendarProvider) => {
+			const {
+				data: { session },
+			} = await supabase.auth.getSession();
+			if (!session?.access_token) {
+				setError("Not authenticated");
 				return;
-		}
-
-		// Open OAuth flow in popup or redirect
-		window.location.href = authUrl;
-	}, []);
+			}
+			const returnUrl =
+				window.location.pathname + window.location.search;
+			const { getBackendUrl } = await import("@/lib/apiConfig");
+			const url = `${getBackendUrl()}/api/v1/calendar/oauth/authorize?provider=${encodeURIComponent(provider)}&return_url=${encodeURIComponent(returnUrl)}`;
+			const res = await fetch(url, {
+				headers: { Authorization: `Bearer ${session.access_token}` },
+			});
+			if (!res.ok) {
+				setError("Failed to get authorization URL");
+				return;
+			}
+			const data = await res.json();
+			if (data?.url) {
+				window.location.href = data.url;
+			} else {
+				setError("Invalid response from server");
+			}
+		},
+		[]
+	);
 
 	/**
 	 * Check if a connection is being disconnected

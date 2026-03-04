@@ -132,7 +132,7 @@ interface ChatActions {
   loadAttachableDocuments: (threadId: string) => Promise<void>;
 
   // Unread counts (WhatsApp-style)
-  loadUnreadCounts: (projectId: string, userId: string) => Promise<void>;
+  loadUnreadCounts: (projectId: string) => Promise<void>;
   updateThreadUnreadCount: (threadId: string, count: number) => void;
   incrementUnreadCount: (threadId: string) => void;
   resetThreadUnreadCount: (threadId: string) => void;
@@ -232,11 +232,13 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         // Load unread counts for this project
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          await get().loadUnreadCounts(projectId, user.id);
+          await get().loadUnreadCounts(projectId);
         }
       } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to load threads';
+        const isPermissionError = /permission|403|insufficient|row-level security|RLS/i.test(msg);
         set({
-          error: err instanceof Error ? err.message : 'Failed to load threads',
+          ...(isPermissionError ? { threads: [], error: null } : { error: msg }),
           isLoading: false
         });
       }
@@ -1022,14 +1024,13 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     },
 
     // Unread count management (WhatsApp-style)
-    loadUnreadCounts: async (projectId: string, userId: string) => {
+    loadUnreadCounts: async (projectId: string) => {
       const u0 = useChatUnreadStore.getState();
       useChatUnreadStore.getState().setUnreadState(u0.threadUnreadCounts, u0.totalUnreadCount, true);
       set({ isLoadingUnreadCounts: true });
       try {
         const { data, error } = await supabase.rpc('get_unread_counts_for_project', {
           p_project_id: projectId,
-          p_user_id: userId,
         });
 
         if (error) throw error;
@@ -1051,7 +1052,13 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
           isLoadingUnreadCounts: false,
         });
       } catch (err) {
-        console.error('Failed to load unread counts:', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        const isPermissionError = /permission|403|insufficient/i.test(msg);
+        if (isPermissionError && process.env.NODE_ENV === 'development') {
+          console.warn('Unread counts not available for this role (e.g. lender):', err);
+        } else {
+          console.error('Failed to load unread counts:', err);
+        }
         const u = useChatUnreadStore.getState();
         useChatUnreadStore.getState().setUnreadState(u.threadUnreadCounts, u.totalUnreadCount, false);
         set({ isLoadingUnreadCounts: false });

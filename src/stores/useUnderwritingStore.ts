@@ -81,8 +81,17 @@ export const useUnderwritingStore = create<UnderwritingState>((set, get) => ({
             if (error) throw error;
             set({ threads: data || [], isLoaded: true });
         } catch (err) {
-            console.error("Failed to load underwriting threads:", err);
-            set({ error: err instanceof Error ? err.message : "Failed to load threads" });
+            const message = err instanceof Error ? err.message : "Failed to load threads";
+            const isPermissionError = message.includes("Insufficient permissions") || message.includes("403");
+            if (isPermissionError) {
+                set({ threads: [], error: null, isLoaded: true });
+                if (process.env.NODE_ENV === "development") {
+                    console.warn("Underwriting threads: no access (lender/role) — showing empty list.", err);
+                }
+            } else {
+                console.error("Failed to load underwriting threads:", err);
+                set({ error: message });
+            }
         } finally {
             set({ isLoading: false });
         }

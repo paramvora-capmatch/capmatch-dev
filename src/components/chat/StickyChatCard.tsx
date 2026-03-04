@@ -54,7 +54,10 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   clientContext,
   defaultTopic,
 }) => {
-  const [rightTab, setRightTab] = useState<"team" | "ai" | "meet">(hideTeamTab ? "ai" : "team");
+  const isUnderwritingMode = mode === "underwriter";
+  const [rightTab, setRightTab] = useState<"team" | "ai" | "meet">(
+    hideTeamTab ? "ai" : isUnderwritingMode ? "ai" : "team"
+  );
   const [isChatCollapsed, setIsChatCollapsed] = useState<boolean>(() => {
     try {
       return JSON.parse(
@@ -118,8 +121,6 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
       setRequestedTab(null); // Clear once consumed
     }
   }, [requestedTab, setRequestedTab]);
-
-  const isUnderwritingMode = mode === "underwriter";
 
   const currentStore = isUnderwritingMode ? underwritingSlice : chatSlice;
   const threads = currentStore.threads;
@@ -214,6 +215,19 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
               {!hideTeamTab ? (
                 <div className="flex flex-1 bg-gradient-to-r from-gray-100 to-gray-50 p-1 rounded-lg shadow-inner">
                   <button
+                    onClick={() => setRightTab("ai")}
+                    className={cn(
+                      "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
+                      rightTab === "ai"
+                        ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm border border-blue-200/50"
+                        : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02]"
+                    )}
+                    aria-pressed={rightTab === "ai"}
+                  >
+                    <Brain size={16} className={cn("transition-transform duration-300", rightTab === "ai" ? "scale-110" : "")} />
+                    <span>{isUnderwritingMode ? "AI Underwriter" : "AI Chat"}</span>
+                  </button>
+                  <button
                     onClick={() => setRightTab("team")}
                     className={cn(
                       "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
@@ -238,19 +252,6 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
                   >
                     <Users size={16} className={cn("transition-transform duration-300", rightTab === "meet" ? "scale-110" : "")} />
                     <span>Meet</span>
-                  </button>
-                  <button
-                    onClick={() => setRightTab("ai")}
-                    className={cn(
-                      "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
-                      rightTab === "ai"
-                        ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm border border-blue-200/50"
-                        : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02]"
-                    )}
-                    aria-pressed={rightTab === "ai"}
-                  >
-                    <Brain size={16} className={cn("transition-transform duration-300", rightTab === "ai" ? "scale-110" : "")} />
-                    <span>{isUnderwritingMode ? "AI Underwriter" : "AI Chat"}</span>
                   </button>
                 </div>
               ) : (

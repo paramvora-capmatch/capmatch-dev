@@ -37,10 +37,10 @@ interface StageProps {
     onSelectFromResume: (docName: string) => void;
     onGenerate: (docName: string) => void;
     isGenerating: (docName: string) => boolean;
-
     onGenerateStage: (docs: DocItem[]) => void;
     onActionRequired: (idOrName: string) => void;
     progress?: { total: number; completed: number };
+    viewerOnly?: boolean;
 }
 
 const StageAccordion: React.FC<StageProps> = ({
@@ -54,16 +54,13 @@ const StageAccordion: React.FC<StageProps> = ({
     onSelectFromResume,
     onGenerate,
     isGenerating,
-
     onGenerateStage,
     onActionRequired,
-    progress
+    progress,
+    viewerOnly = false,
 }) => {
-    // Use all generateable docs for the stage action, supporting regeneration
     const generateableDocs = docs.filter(d => d.canGenerate);
-
-    // Button is visible if there are ANY generateable docs (not just missing ones)
-    const canGenerateAny = generateableDocs.length > 0;
+    const canGenerateAny = generateableDocs.length > 0 && !viewerOnly;
     const isBatchGenerating = !!progress;
     const percentComplete = isBatchGenerating && progress && progress.total > 0
         ? Math.round((progress.completed / progress.total) * 100)
@@ -191,11 +188,8 @@ const StageAccordion: React.FC<StageProps> = ({
                                     )}
                                 </div>
 
-                                {/* Hover View: Actions */}
+                                {/* Hover View: Actions (viewerOnly: only View Document / Download) */}
                                 <div className="hidden group-hover:flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-200">
-
-
-                                    {/* Document Actions */}
                                     {doc.file ? (
                                         <>
                                             <button
@@ -205,59 +199,62 @@ const StageAccordion: React.FC<StageProps> = ({
                                                 <FileText className="h-3.5 w-3.5" />
                                                 View Document
                                             </button>
-
-                                            {doc.canGenerate && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onGenerate(doc.name); }}
-                                                    disabled={isGenerating(doc.name)}
-                                                    className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50"
-                                                >
-                                                    {isGenerating(doc.name) ? (
-                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                    ) : (
-                                                        <Play className="h-3.5 w-3.5 text-gray-500" />
+                                            {!viewerOnly && (
+                                                <>
+                                                    {doc.canGenerate && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onGenerate(doc.name); }}
+                                                            disabled={isGenerating(doc.name)}
+                                                            className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50"
+                                                        >
+                                                            {isGenerating(doc.name) ? (
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            ) : (
+                                                                <Play className="h-3.5 w-3.5 text-gray-500" />
+                                                            )}
+                                                            {isGenerating(doc.name) ? "Regenerating..." : "Regenerate"}
+                                                        </button>
                                                     )}
-                                                    {isGenerating(doc.name) ? "Regenerating..." : "Regenerate"}
-                                                </button>
-                                            )}
-
-                                            {doc.addFromResume && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onSelectFromResume(doc.name); }}
-                                                    className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all"
-                                                >
-                                                    <ExternalLink className="h-3.5 w-3.5 text-gray-500" />
-                                                    Change Document
-                                                </button>
+                                                    {doc.addFromResume && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onSelectFromResume(doc.name); }}
+                                                            className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all"
+                                                        >
+                                                            <ExternalLink className="h-3.5 w-3.5 text-gray-500" />
+                                                            Change Document
+                                                        </button>
+                                                    )}
+                                                </>
                                             )}
                                         </>
                                     ) : (
-                                        <>
-                                            {doc.canGenerate && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onGenerate(doc.name); }}
-                                                    disabled={isGenerating(doc.name)}
-                                                    className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all"
-                                                >
-                                                    {isGenerating(doc.name) ? (
-                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                    ) : (
-                                                        <Play className="h-3.5 w-3.5 fill-current" />
-                                                    )}
-                                                    {isGenerating(doc.name) ? "Generating..." : "Generate"}
-                                                </button>
-                                            )}
-
-                                            {(doc.addFromResume || !doc.canGenerate) && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onSelectFromResume(doc.name); }}
-                                                    className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 transition-all"
-                                                >
-                                                    <ExternalLink className="h-3.5 w-3.5" />
-                                                    Copy from Resume
-                                                </button>
-                                            )}
-                                        </>
+                                        !viewerOnly && (
+                                            <>
+                                                {doc.canGenerate && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onGenerate(doc.name); }}
+                                                        disabled={isGenerating(doc.name)}
+                                                        className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all"
+                                                    >
+                                                        {isGenerating(doc.name) ? (
+                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        ) : (
+                                                            <Play className="h-3.5 w-3.5 fill-current" />
+                                                        )}
+                                                        {isGenerating(doc.name) ? "Generating..." : "Generate"}
+                                                    </button>
+                                                )}
+                                                {(doc.addFromResume || !doc.canGenerate) && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onSelectFromResume(doc.name); }}
+                                                        className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 transition-all"
+                                                    >
+                                                        <ExternalLink className="h-3.5 w-3.5" />
+                                                        Copy from Resume
+                                                    </button>
+                                                )}
+                                            </>
+                                        )
                                     )}
                                 </div>
                             </div>
@@ -272,6 +269,8 @@ const StageAccordion: React.FC<StageProps> = ({
 interface UnderwritingVaultProps {
     projectId?: string;
     orgId?: string; // Optional: needed for lenders to view borrower docs (pass owner_org_id)
+    /** When true, only View Document is shown; no Generate/Regenerate/Copy from Resume */
+    viewerOnly?: boolean;
 }
 
 const initialStages = [
@@ -362,7 +361,7 @@ const initialStages = [
     },
 ];
 
-export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId, orgId }) => {
+export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId, orgId, viewerOnly = false }) => {
     const [expandedStage, setExpandedStage] = useState<string | null>("stage-1");
     // const [isGenerating, setIsGenerating] = useState(false); // Global generation disabled for generic button
     const [generatingDocs, setGeneratingDocs] = useState<Set<string>>(new Set());
@@ -796,9 +795,10 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                         onGenerate={(docName) => handleGenerateDoc(docName)}
                         isGenerating={(name) => generatingDocs.has(name)}
 
-                        onGenerateStage={(docs) => handleGenerateStage(stage.id, docs)} // Pass docs, stage ID implicit from state/map iteration? No, pass stage.id
+                        onGenerateStage={(docs) => handleGenerateStage(stage.id, docs)}
                         onActionRequired={handleActionRequired}
                         progress={stageProgress[stage.id]}
+                        viewerOnly={viewerOnly}
                     />
                 ))}
             </div>

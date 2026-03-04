@@ -4,13 +4,18 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useProjects } from "@/hooks/useProjects";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabaseClient";
 import { Advisor, Permission, ProjectGrant } from "@/types/enhanced-types";
 import { PillToggle, PermissionLevel } from "@/components/ui/PillToggle";
 import { computeProjectLevel } from "@/components/ui/PillToggle";
 import { RESOURCE_TYPES } from "@/hooks/useProjectPermissionEditor";
 import { ProjectPermissionDetailPanel } from "@/components/team/ProjectPermissionDetailPanel";
-import { Loader2, User, Shield, Briefcase } from "lucide-react";
+import { AddLenderToProjectModal } from "@/components/project/AddLenderToProjectModal";
+import { Button } from "@/components/ui/Button";
+import { Loader2, User, Shield, Building2, PlusCircle, Trash2, Zap, RefreshCw, AlertCircle, Trophy, Clock, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
+import { useMatchmaking } from "@/hooks/useMatchmaking";
+import { MatchExplorer3D } from "@/components/matchmaking/MatchExplorer3D";
 
 interface AccessControlTabProps {
   projectId: string;
@@ -29,8 +34,12 @@ type ResourceIdsMap = Record<string, string>;
 export const AccessControlTab: React.FC<AccessControlTabProps> = ({
   projectId,
 }) => {
+  const { user } = useAuth();
   const { members, loadOrg, currentOrg } = useOrgStore();
   const { activeProject } = useProjects();
+  const isAdvisorView =
+    user?.role === "advisor" &&
+    activeProject?.assignedAdvisorUserId === user?.id;
   const [resourceIds, setResourceIds] = useState<ResourceIdsMap | null>(null);
   const [permissions, setPermissions] = useState<MemberPermissionInfo[]>([]);
   const [advisor, setAdvisor] = useState<Advisor | null>(null);
@@ -56,6 +65,26 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
       Map<string, { id: string; parent_id: string | null; resource_type: string }>
     >
   >({});
+  const [lenderGrants, setLenderGrants] = useState<
+    { lender_org_id: string; org_name: string }[]
+  >([]);
+  const [addLenderModalOpen, setAddLenderModalOpen] = useState(false);
+  const [revokingOrgId, setRevokingOrgId] = useState<string | null>(null);
+  const [vizExpanded, setVizExpanded] = useState(false);
+  const [scoredMatchesExpanded, setScoredMatchesExpanded] = useState(false);
+
+  const {
+    isRunning: matchRunning,
+    isLoading: matchLoading,
+    visualizationData,
+    matchScores,
+    totalLenders: matchedLenderCount,
+    topMatchName,
+    topMatchScore,
+    lastRunAt,
+    error: matchError,
+    runMatchmaking,
+  } = useMatchmaking(projectId);
 
   const getDocumentRootType = useCallback(
     (
@@ -148,14 +177,20 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
   }, [projectDocsMap, projectRootsMap, projectResourcesMap]);
 
   const fetchAllData = useCallback(async () => {
-    if (!activeProject || !currentOrg) {
+    if (!activeProject) {
       setIsLoading(false);
       return;
     }
-    if (currentOrg.id !== activeProject.owner_org_id) {
-      setError("Organization mismatch. Please refresh the page.");
-      setIsLoading(false);
-      return;
+    if (!isAdvisorView) {
+      if (!currentOrg) {
+        setIsLoading(false);
+        return;
+      }
+      if (currentOrg.id !== activeProject.owner_org_id) {
+        setError("Organization mismatch. Please refresh the page.");
+        setIsLoading(false);
+        return;
+      }
     }
     setIsLoading(true);
     setError(null);
@@ -184,6 +219,33 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
         }
       } else {
         setAdvisor(null);
+      }
+
+      if (isAdvisorView) {
+        setResourceIds(null);
+        setPermissions([]);
+        const { data: accessRows, error: lenderError } = await supabase
+          .from("lender_project_access")
+          .select("lender_org_id")
+          .eq("project_id", projectId);
+        if (!lenderError && accessRows?.length) {
+          const orgIds = [...new Set(accessRows.map((r) => r.lender_org_id))];
+          const { data: orgs } = await supabase
+            .from("orgs")
+            .select("id, name")
+            .in("id", orgIds);
+          const nameById = new Map((orgs ?? []).map((o) => [o.id, o.name ?? ""]));
+          setLenderGrants(
+            accessRows.map((r) => ({
+              lender_org_id: r.lender_org_id,
+              org_name: nameById.get(r.lender_org_id) ?? "Unknown",
+            }))
+          );
+        } else {
+          setLenderGrants([]);
+        }
+        setIsLoading(false);
+        return;
       }
 
       const { data: resources, error: resourceError } = await supabase
@@ -283,7 +345,7 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
         return null;
       };
 
-      if (!members?.length) {
+      if (currentOrg && !members?.length) {
         await loadOrg(currentOrg.id);
       }
       const membersList = (members || []).filter((m) => m.role !== "owner");
@@ -349,6 +411,28 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
         };
       });
       setPermissions(memberPerms);
+
+      // Lender access: fetch grants for this project (assigned advisor can SELECT via RLS)
+      const { data: accessRows, error: lenderError } = await supabase
+        .from("lender_project_access")
+        .select("lender_org_id")
+        .eq("project_id", projectId);
+      if (!lenderError && accessRows?.length) {
+        const orgIds = [...new Set(accessRows.map((r) => r.lender_org_id))];
+        const { data: orgs } = await supabase
+          .from("orgs")
+          .select("id, name")
+          .in("id", orgIds);
+        const nameById = new Map((orgs ?? []).map((o) => [o.id, o.name ?? ""]));
+        setLenderGrants(
+          accessRows.map((r) => ({
+            lender_org_id: r.lender_org_id,
+            org_name: nameById.get(r.lender_org_id) ?? "Unknown",
+          }))
+        );
+      } else {
+        setLenderGrants([]);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load access control data"
@@ -356,7 +440,7 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, activeProject, members, currentOrg, loadOrg]);
+  }, [projectId, activeProject, members, currentOrg, loadOrg, isAdvisorView]);
 
   useEffect(() => {
     fetchAllData();
@@ -367,6 +451,45 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
       ensureProjectDocsLoaded(projectId);
     }
   }, [openMemberId, projectId, ensureProjectDocsLoaded]);
+
+  const refreshLenderGrants = useCallback(async () => {
+    const { data: accessRows } = await supabase
+      .from("lender_project_access")
+      .select("lender_org_id")
+      .eq("project_id", projectId);
+    if (!accessRows?.length) {
+      setLenderGrants([]);
+      return;
+    }
+    const orgIds = [...new Set(accessRows.map((r) => r.lender_org_id))];
+    const { data: orgs } = await supabase
+      .from("orgs")
+      .select("id, name")
+      .in("id", orgIds);
+    const nameById = new Map((orgs ?? []).map((o) => [o.id, o.name ?? ""]));
+    setLenderGrants(
+      accessRows.map((r) => ({
+        lender_org_id: r.lender_org_id,
+        org_name: nameById.get(r.lender_org_id) ?? "Unknown",
+      }))
+    );
+  }, [projectId]);
+
+  const handleRevokeLender = useCallback(
+    async (lenderOrgId: string) => {
+      setRevokingOrgId(lenderOrgId);
+      try {
+        await supabase.rpc("revoke_lender_project_access_by_advisor", {
+          p_project_id: projectId,
+          p_lender_org_id: lenderOrgId,
+        });
+        await refreshLenderGrants();
+      } finally {
+        setRevokingOrgId(null);
+      }
+    },
+    [projectId, refreshLenderGrants]
+  );
 
   const setPermissionForMember = useCallback(
     async (userId: string, permission: Permission | "none") => {
@@ -577,9 +700,9 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
 
   if (error) {
     return (
-      <div className="p-4">
+      <div className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800 font-medium">Error loading access control</p>
+          <p className="text-red-800 font-medium">Error loading lender matching</p>
           <p className="text-red-600 text-sm mt-1">{error}</p>
           <button
             onClick={() => {
@@ -597,9 +720,9 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
 
   if (isLoading) {
     return (
-      <div className="p-4 flex flex-col items-center justify-center h-64">
+      <div className="p-6 flex flex-col items-center justify-center h-64 bg-white rounded-xl border border-gray-200 shadow-sm">
         <Loader2 className="animate-spin h-8 w-8 text-blue-600 mb-2" />
-        <p className="text-sm text-gray-600">Loading access control...</p>
+        <p className="text-sm text-gray-600">Loading lender matching...</p>
       </div>
     );
   }
@@ -608,28 +731,215 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
     ? permissions.find((p) => p.userId === openMemberId)
     : null;
 
+  const formatDate = (iso: string | null) => {
+    if (!iso) return null;
+    try {
+      return new Date(iso).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return null;
+    }
+  };
+
   return (
-    <div className="p-4 space-y-6">
-      <div className="border-b pb-4">
-        <h3 className="text-md font-semibold text-gray-800 flex items-center mb-3">
-          <Briefcase size={16} className="mr-2" />
-          Assigned Advisor
-        </h3>
-        {advisor ? (
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600">
-              {advisor.name.charAt(0)}
-            </div>
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
+
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-md font-semibold text-gray-800 flex items-center">
+            <Building2 size={16} className="mr-2" />
+            Matched Lenders
+          </h3>
+          {isAdvisorView && (
+            <button
+              onClick={runMatchmaking}
+              disabled={matchRunning}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+            >
+              {matchRunning ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Running Engine...
+                </>
+              ) : visualizationData ? (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  Re-run Matchmaking
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4" />
+                  Run Matchmaking
+                </>
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* Matchmaking error */}
+        {matchError && (
+          <div className="flex items-start gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="font-medium text-gray-900">{advisor.name}</p>
-              <p className="text-sm text-gray-500">{advisor.email}</p>
+              <p className="font-medium">Matchmaking failed</p>
+              <p className="text-red-600 mt-0.5">{matchError}</p>
             </div>
           </div>
-        ) : (
-          <p className="text-sm text-gray-500">No advisor assigned to this project.</p>
         )}
+
+        {/* Running indicator */}
+        {matchRunning && (
+          <div className="flex flex-col items-center justify-center py-16 px-6 mb-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-gray-200 rounded-full" />
+              <div className="absolute inset-0 w-16 h-16 border-4 border-t-blue-600 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
+            </div>
+            <p className="text-sm text-gray-700 mt-4 font-medium">Running matchmaking engine...</p>
+            <p className="text-xs text-gray-500 mt-1">Profiling lenders from HMDA data and scoring against your deal</p>
+          </div>
+        )}
+
+        {/* Summary bar */}
+        {visualizationData && !matchRunning && (
+          <div className="flex flex-wrap gap-3 mb-4">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-600">
+              <BarChart3 className="h-3.5 w-3.5" />
+              {matchedLenderCount} lenders scored
+            </div>
+            {topMatchName && topMatchScore !== null && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-lg text-xs font-medium text-emerald-700">
+                <Trophy className="h-3.5 w-3.5" />
+                Top: {topMatchName} ({topMatchScore.toFixed(1)}/100)
+              </div>
+            )}
+            {lastRunAt && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-500">
+                <Clock className="h-3.5 w-3.5" />
+                {formatDate(lastRunAt)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 3D Visualization */}
+        {visualizationData && !matchRunning && (
+          <div className="mb-4">
+            <MatchExplorer3D
+              data={visualizationData}
+              expanded={vizExpanded}
+              onToggleExpand={() => setVizExpanded((v) => !v)}
+            />
+          </div>
+        )}
+
+        {/* Scored lender list from match_scores - collapsed by default, first 5 visible */}
+        {matchScores.length > 0 && !matchRunning && (
+          <div className="space-y-2 mb-4">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Scored Matches</p>
+            {(scoredMatchesExpanded ? matchScores : matchScores.slice(0, 5)).map((score) => {
+              const pct = score.total_score;
+              const colorClass = pct >= 70
+                ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                : pct >= 45
+                  ? "text-amber-700 bg-amber-50 border-amber-200"
+                  : "text-red-700 bg-red-50 border-red-200";
+              return (
+                <div
+                  key={score.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-gray-400 w-5 text-right">#{score.rank}</span>
+                    <Building2 className="h-4 w-4 text-gray-400" />
+                    <span className="font-medium text-gray-900">{score.lender_name || score.lender_lei}</span>
+                  </div>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${colorClass}`}>
+                    {pct.toFixed(1)}
+                  </span>
+                </div>
+              );
+            })}
+            {matchScores.length > 5 && (
+              <button
+                type="button"
+                onClick={() => setScoredMatchesExpanded((e) => !e)}
+                className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+              >
+                {scoredMatchesExpanded ? (
+                  <>
+                    <ChevronUp className="h-4 w-4" />
+                    Show less
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4" />
+                    Show {matchScores.length - 5} more
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Empty state: no matches yet, not loading, advisor view */}
+        {isAdvisorView && !matchLoading && matchScores.length === 0 && !visualizationData && !matchRunning && !matchError && lenderGrants.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-10 px-6 mb-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
+            <BarChart3 className="h-10 w-10 text-gray-300 mb-3" />
+            <p className="text-sm text-gray-500 text-center max-w-sm">
+              No matchmaking results yet. Click &quot;Run Matchmaking&quot; to score lenders against this deal
+              using HMDA multifamily lending data.
+            </p>
+          </div>
+        )}
+
+        {/* Manually granted lenders */}
+        {lenderGrants.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Sent Packages</p>
+            {lenderGrants.map((grant) => (
+              <div
+                key={grant.lender_org_id}
+                className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50"
+              >
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-gray-400" />
+                  <span className="font-medium text-gray-900">{grant.org_name}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRevokeLender(grant.lender_org_id)}
+                  disabled={revokingOrgId === grant.lender_org_id}
+                  className="text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50 flex items-center gap-1"
+                >
+                  {revokingOrgId === grant.lender_org_id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  Revoke
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-3"
+          onClick={() => setAddLenderModalOpen(true)}
+          leftIcon={<PlusCircle className="h-4 w-4" />}
+        >
+          Send package to lender
+        </Button>
       </div>
 
+      {!isAdvisorView && (
       <div>
         <h3 className="text-md font-semibold text-gray-800 flex items-center mb-3">
           <Shield size={16} className="mr-2" />
@@ -673,6 +983,14 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
           )}
         </div>
       </div>
+      )}
+      {isAdvisorView && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+          <p className="text-sm text-gray-600">
+            Member permissions are managed by the project owner in their team settings.
+          </p>
+        </div>
+      )}
 
       {openMember && (
         <div className="border-t pt-4">
@@ -688,6 +1006,15 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
           />
         </div>
       )}
+
+      <AddLenderToProjectModal
+        isOpen={addLenderModalOpen}
+        onClose={() => setAddLenderModalOpen(false)}
+        projectId={projectId}
+        existingLenderOrgIds={lenderGrants.map((g) => g.lender_org_id)}
+        onSuccess={refreshLenderGrants}
+      />
+    </div>
     </div>
   );
 };

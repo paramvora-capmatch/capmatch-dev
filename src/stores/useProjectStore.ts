@@ -13,6 +13,7 @@ import { usePermissionStore } from "./usePermissionStore";
 import { useProjectProgressStore } from "./useProjectProgressStore";
 import { useProjectResumeStore } from "./useProjectResumeStore";
 import { ProjectProfile } from "@/types/enhanced-types";
+import { getBackendUrl } from "@/lib/apiConfig";
 
 const parsePercentage = (value: unknown): number => {
 	if (typeof value === "number" && Number.isFinite(value)) {
@@ -33,7 +34,7 @@ interface ProjectState {
 
 interface ProjectActions {
 	loadUserProjects: () => Promise<void>;
-	refreshProject: (projectId: string) => Promise<void>;
+	refreshProject: (projectId: string) => Promise<boolean>;
 	createProject: (
 		projectData: Partial<ProjectProfile>
 	) => Promise<ProjectProfile>;
@@ -295,17 +296,16 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					borrowerProgress: finalProject.borrowerProgress,
 				});
 
-				// 3. Update state
+				// 3. Update state (add project to list if missing, e.g. lender opening OM)
 				set((state) => {
 					const isActiveProject = state.activeProject?.id === projectId;
-					console.log(`[ProjectStore] 🔄 Updating state - isActiveProject: ${isActiveProject}`);
-					
+					const exists = state.projects.some((p) => p.id === projectId);
 					return {
-						// Update in projects list
-						projects: state.projects.map((p) =>
-							p.id === projectId ? finalProject : p
-						),
-						// Update activeProject if it matches
+						projects: exists
+							? state.projects.map((p) =>
+									p.id === projectId ? finalProject : p
+								)
+							: [...state.projects, finalProject],
 						activeProject:
 							isActiveProject
 								? finalProject
@@ -314,9 +314,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				});
 				
 				console.log(`[ProjectStore] ✅ refreshProject completed for project ${projectId}`);
+				return true;
 			} catch (error) {
 				console.error(`[ProjectStore] ❌ Failed to refresh project ${projectId}:`, error);
-				// Don't throw, just log - this is a background refresh
+				return false;
 			}
 		},
 
@@ -550,8 +551,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				return false;
 			}
 
-			const base = typeof window !== "undefined" ? window.location.origin : "";
-			const res = await fetch(`${base}/api/projects/${id}`, {
+			const base = typeof window !== "undefined" ? getBackendUrl() : "";
+			const res = await fetch(`${base}/api/v1/projects/${id}`, {
 				method: "DELETE",
 				headers: { Authorization: `Bearer ${session.access_token}` },
 			});

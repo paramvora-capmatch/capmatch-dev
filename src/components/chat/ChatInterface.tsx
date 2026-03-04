@@ -217,6 +217,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     projectId,
     members,
     advisorUserId: activeProject?.assignedAdvisorUserId,
+    // Lenders cannot create channels or see eligible members; only owners/advisors can.
+    enabled: user?.role !== "lender",
   });
 
   const [newMessage, setNewMessage] = useState("");

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { FileText, Loader2 } from "lucide-react";
 // No Card wrapper to avoid extra white container
 import { ProjectProfile } from "@/types/enhanced-types";
-import { generateOMInsights, subscribeToOMInsightsJob } from "@/lib/om-insights";
+import { generateOMInsights } from "@/lib/om-insights";
 import { toast } from "sonner";
 
 interface ProjectCompletionCardProps {
@@ -27,13 +27,13 @@ export const ProjectCompletionCard: React.FC<ProjectCompletionCardProps> = ({
 	const progressColor = isProjectComplete
 		? "bg-green-600"
 		: isProjectHealthy
-		? "bg-blue-600"
-		: "bg-red-600";
+			? "bg-blue-600"
+			: "bg-red-600";
 	const progressBgColor = isProjectComplete
 		? "bg-green-50"
 		: isProjectHealthy
-		? "bg-blue-50"
-		: "bg-red-50";
+			? "bg-blue-50"
+			: "bg-red-50";
 	const router = useRouter();
 	const isOmReady = completeness >= 100;
 	const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
@@ -86,19 +86,8 @@ export const ProjectCompletionCard: React.FC<ProjectCompletionCardProps> = ({
 								if (!isOmReady || !project?.id) return;
 								setIsGeneratingInsights(true);
 								try {
-									const result = await generateOMInsights(project.id);
-									if (result.job_id) {
-										const jobResult = await subscribeToOMInsightsJob(result.job_id);
-										if (jobResult.status === "completed") {
-											toast.success("OM insights ready");
-										} else if (jobResult.status === "failed") {
-											toast.error(jobResult.error_message || "Failed to generate insights. You can still view the OM.");
-										} else {
-											toast.warning("Insights are taking longer than expected. Opening OM—they may appear shortly.");
-										}
-									} else if (result.already_has_insights) {
-										toast.success("Opening OM");
-									}
+									await generateOMInsights(project.id);
+									toast.success("OM insights generated");
 									router.push(`/project/om/${project.id}/dashboard`);
 								} catch (error) {
 									console.error("Failed to generate insights:", error);

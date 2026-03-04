@@ -3,6 +3,7 @@
  * Used when user edits a field to validate the input in realtime
  */
 import { supabase } from "@/lib/supabaseClient";
+import { getBackendUrl } from "@/lib/apiConfig";
 
 export interface RealtimeSanityCheckRequest {
 	fieldId: string;
@@ -26,10 +27,12 @@ export interface RealtimeSanityCheckResponse {
 export async function checkRealtimeSanity(
 	request: RealtimeSanityCheckRequest
 ): Promise<RealtimeSanityCheckResponse> {
-	const endpoint =
+	const base = getBackendUrl();
+	const path =
 		request.resumeType === "project"
-			? "/api/project-resume/realtime-sanity-check"
-			: "/api/borrower-resume/realtime-sanity-check";
+			? "/api/v1/project-resume/realtime-sanity-check"
+			: "/api/v1/borrower-resume/realtime-sanity-check";
+	const endpoint = `${base}${path}`;
 
 	const {
 		data: { session },

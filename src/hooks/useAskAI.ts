@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useStreamingAI } from './useStreamingAI';
 import { Message, FieldContext, PresetQuestion } from '../types/ask-ai-types';
 import { AIContextBuilder } from '../services/aiContextBuilder';
+import { getBackendUrl } from '../lib/apiConfig';
 
 // Helper to create a standardized error message
 const createErrorMessage = (fieldContext: FieldContext | null): Message => ({
@@ -21,7 +22,7 @@ interface UseAskAIOptions {
   contextType?: 'project' | 'borrower';
 }
 
-export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 'project' }: UseAskAIOptions) => {
+export const useAskAI = ({ formData, apiPath = '/api/v1/ai/project-qa', contextType = 'project' }: UseAskAIOptions) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [fieldContext, setFieldContext] = useState<FieldContext | null>(null);
   const [isBuildingContext, setIsBuildingContext] = useState(false);
@@ -31,17 +32,17 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
   const [presetQuestions, setPresetQuestions] = useState<PresetQuestion[]>([]);
   const [contextCache, setContextCache] = useState<Map<string, FieldContext>>(new Map());
   const [autoSendRequested, setAutoSendRequested] = useState<boolean>(false);
-  
+
   // Clear context cache when form data changes to ensure fresh context
   // Do not reset chat when form data changes; keep conversation stable.
   // If needed, context will be rebuilt on the next explicit Ask AI click.
   useEffect(() => {
     // Intentionally no-op to avoid resets on keystrokes
   }, [formData]);
-  
+
   // Custom streaming hook - replaces Vercel AI SDK's useObject
   const { response, isLoading: isStreaming, error: streamError, submit, stop } = useStreamingAI({
-    api: apiPath,
+    api: `${getBackendUrl()}${apiPath}`,
   });
 
   // Handle streaming response updates
@@ -112,10 +113,10 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
   const sendMessage = useCallback(async (content: string, displayMessage?: string, contextOverride?: FieldContext, replyTo?: Message | null) => {
     const effectiveContext = contextOverride || fieldContext;
     if (!effectiveContext || !content.trim() || isBuildingContext) return;
-    
+
     // Abort any previous requests
     stop();
-    
+
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
@@ -125,10 +126,10 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
       reply_to: replyTo?.id || null,
       repliedMessage: replyTo || null,
     };
-    
+
     // Add user message immediately
     setMessages(prev => [...prev, userMessage]);
-    
+
     // Add thinking message for streaming feedback
     const thinkingMessage: Message = {
       id: (Date.now() + 1).toString(),
@@ -139,7 +140,7 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
       isStreaming: true
     };
     setMessages(prev => [...prev, thinkingMessage]);
-    
+
     try {
       let requestBody: Record<string, unknown>;
       if (contextType === 'borrower') {
@@ -158,17 +159,17 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
           question: content.trim(),
         } as unknown as Record<string, unknown>;
       }
-      
+
       // Submit to streaming API
       await submit(requestBody);
-      
+
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
         // Request was cancelled, no need to show an error
         return;
       }
       console.error('Error sending message:', error);
-      
+
       // Remove thinking message and add error message
       setMessages(prev => prev.filter(msg => !msg.isStreaming));
       setMessages(prev => [...prev, createErrorMessage(fieldContext)]);
@@ -179,7 +180,7 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
   const activateField = useCallback(async (fieldId: string, options?: { autoSend?: boolean }) => {
     // Abort any ongoing streaming requests
     stop();
-    
+
     try {
       // Validate field exists
       if (!fieldId) {
@@ -196,7 +197,7 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
 
       // 1. Immediate intent capture (optimistic)
       // 2. Context building will continue in background
-      
+
       try {
         // Build context from scratch with latest form data
         const context = await AIContextBuilder.buildFieldContext(fieldId, formData);
@@ -257,7 +258,7 @@ Provide actionable advice that helps me make the best decision for my project.`;
       } finally {
         setIsBuildingContext(false);
       }
-      
+
     } catch (error) {
       console.error('Error handling field drop:', error);
       setContextError(error instanceof Error ? error.message : 'Failed to process field drop');
@@ -275,11 +276,11 @@ Provide actionable advice that helps me make the best decision for my project.`;
     contextError,
     activeFieldId,
     presetQuestions,
-    
+
     // Actions
     activateField,
     sendMessage,
-    
+
     // Utilities
     hasActiveContext: !!fieldContext,
     hasMessages: messages.length > 0

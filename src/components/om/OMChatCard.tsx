@@ -34,16 +34,18 @@ export const OMChatCard: React.FC<OMChatCardProps> = ({
   return (
     <aside
       className={cn(
-        "pl-3 sm:pl-4 mr-3 sm:mr-4 lg:mr-6 transition-[width] duration-300 ease-in-out pt-4",
+        "fixed -translate-y-8 z-40 pl-3 sm:pl-4 pr-3 sm:pr-4 lg:pr-6 py-1 transition-[width] duration-300 ease-in-out flex flex-col",
+        topOffsetClassName,
+        "right-0 bottom-0",
         isCollapsed ? "w-14" : widthClassName
       )}
     >
-      <div className={cn("sticky", topOffsetClassName)}>
+      <div className="h-[calc(100vh-8.5rem)] w-full flex flex-col min-h-0">
         {isCollapsed ? (
           <button
             aria-label="Open Talk to OM chat"
             onClick={() => setIsCollapsed(false)}
-            className="h-[calc(100vh-10rem)] w-14 rounded-2xl shadow-lg border border-gray-200 bg-white/70 hover:bg-white/80 backdrop-blur-xl flex flex-col items-center justify-center gap-2 relative transition-colors"
+            className="h-full w-14 rounded-2xl shadow-lg border border-gray-200 bg-white/70 hover:bg-white/80 backdrop-blur-xl flex flex-col items-center justify-center gap-2 relative transition-colors"
             title="Open Talk to OM chat"
           >
             <div className="relative">
@@ -54,7 +56,7 @@ export const OMChatCard: React.FC<OMChatCardProps> = ({
             </span>
           </button>
         ) : (
-          <div className="h-[calc(100vh-10rem)] flex flex-col">
+          <div className="h-full flex flex-col">
             <OMChatSidebar onCollapse={() => setIsCollapsed(true)} />
           </div>
         )}
