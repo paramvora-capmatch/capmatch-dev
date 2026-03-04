@@ -5,6 +5,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabaseClient";
+import { getBackendUrl } from "../../../lib/apiConfig";
 
 import AuthLayout from "../../../components/layout/AuthLayout";
 import { Form, FormGroup } from "../../../components/ui/Form";
@@ -110,23 +111,18 @@ const LoginForm = () => {
       try {
         setIsCheckingNewAccount(true);
 
-        // Use a Postgres RPC that checks the mirrored profiles table for this email.
-        const { data, error } = await supabase.rpc(
-          "check_profile_email_exists",
-          { p_email: email }
-        );
-
-        if (error) {
-          console.error(
-            "[Login] check_profile_email_exists error:",
-            (error as any)?.message || String(error)
-          );
-          // Fall back to the generic invalid-credentials message.
+        // Check if email has a profile via backend (rate-limited).
+        const res = await fetch(`${getBackendUrl()}/api/v1/auth/check-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        if (!res.ok) {
           setValidationError("Incorrect email or password.");
           return;
         }
-
-        const exists = !!data;
+        const json = await res.json();
+        const exists = !!json?.exists;
 
         if (exists) {
           // Email is already registered; treat this as an incorrect password.

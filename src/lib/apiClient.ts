@@ -403,7 +403,7 @@ export const apiClient = {
     existing_user?: boolean;
     user_id?: string;
   }) => {
-    return apiRequest<{
+    return unauthenticatedApiRequest<{
       user: {
         id: string;
         email: string;
@@ -428,7 +428,7 @@ export const apiClient = {
     existing_user?: boolean;
     user_id?: string;
   }) => {
-    return apiRequest<{
+    return unauthenticatedApiRequest<{
       user: {
         id: string;
         email: string;
@@ -456,7 +456,7 @@ export const apiClient = {
     return apiRequest<{
       access_id: string;
       message: string;
-    }>('/api/v1/admin/grant-lender-project-access', {
+    }>('/api/v1/users/admin/grant-lender-project-access', {
       method: 'POST',
       body: JSON.stringify(params),
     });
@@ -475,7 +475,7 @@ export const apiClient = {
     return apiRequest<{
       success: boolean;
       message: string;
-    }>('/api/v1/admin/revoke-lender-project-access', {
+    }>('/api/v1/users/admin/revoke-lender-project-access', {
       method: 'POST',
       body: JSON.stringify(params),
     });

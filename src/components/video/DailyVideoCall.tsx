@@ -51,7 +51,8 @@ export function DailyVideoCall({
           throw new Error('Not authenticated');
         }
 
-        const res = await fetch('/api/daily/meeting-token', {
+        const { getBackendUrl } = await import('@/lib/apiConfig');
+        const res = await fetch(`${getBackendUrl()}/api/v1/daily/meeting-token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

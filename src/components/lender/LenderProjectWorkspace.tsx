@@ -43,7 +43,7 @@ export const LenderProjectWorkspace: React.FC<LenderProjectWorkspaceProps> = ({
     // Ideally, this could switch contexts based on the mode, but 'project' is a safe default for general retrieval
     const activeAskAi = useAskAI({
         formData: (project as unknown as Record<string, unknown>) || {},
-        apiPath: "/api/project-qa",
+        apiPath: "/api/v1/ai/project-qa",
         contextType: "project",
     });
 

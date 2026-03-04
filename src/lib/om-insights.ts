@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { getBackendUrl } from '@/lib/apiConfig';
 
 /**
  * Generate OM insights for a project and store them in the database.
@@ -10,8 +11,9 @@ import { supabase } from '@/lib/supabaseClient';
 export async function generateOMInsights(projectId: string): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
+  const base = getBackendUrl();
 
-  const response = await fetch(`/api/projects/${projectId}/om/generate-insights`, {
+  const response = await fetch(`${base}/api/v1/projects/${projectId}/om/generate-insights`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -28,7 +30,7 @@ export async function generateOMInsights(projectId: string): Promise<void> {
   // We don't await this to avoid delaying the UI response, or we await it but don't block on error.
   // User requested "generation ... to also happen".
   try {
-      fetch(`/api/v1/underwriting/generate?project_id=${projectId}`, {
+      fetch(`${base}/api/v1/underwriting/generate?project_id=${projectId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

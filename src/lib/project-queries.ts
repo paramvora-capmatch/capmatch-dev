@@ -650,7 +650,7 @@ export const getProjectWithResume = async (
 	// Fetch resume data using helper
 	const resumeData = await fetchProjectResumeData(projectId);
 	const { flatContent, metadata } = processResumeContent(
-		resumeData.resume?.content || {}
+		(resumeData.resume?.content || {}) as Record<string, unknown>
 	);
 
 	// Fetch borrower resume data using helper
@@ -706,13 +706,13 @@ export const getProjectsWithResumes = async (
 
 	projectResources?.forEach((resource: Record<string, unknown>) => {
 		if (resource.resource_type === "PROJECT_RESUME") {
-			projectResumeResources.set(resource.project_id, {
-				id: resource.id,
-				current_version_id: resource.current_version_id,
+			projectResumeResources.set(resource.project_id as string, {
+				id: resource.id as string,
+				current_version_id: resource.current_version_id as string | null,
 			});
 		} else if (resource.resource_type === "BORROWER_RESUME") {
-			borrowerResumeResources.set(resource.project_id, {
-				current_version_id: resource.current_version_id,
+			borrowerResumeResources.set(resource.project_id as string, {
+				current_version_id: resource.current_version_id as string | null,
 			});
 		}
 	});
@@ -764,13 +764,13 @@ export const getProjectsWithResumes = async (
 		result.data?.forEach((resume: Record<string, unknown>) => {
 			if (resume.id && !resume.project_id) {
 				// This is from the version ID query
-				projectResumesByVersionId.set(resume.id, resume);
+				projectResumesByVersionId.set(resume.id as string, resume);
 			} else if (resume.project_id) {
 				// This is from the project_id query (fallback)
-				if (!projectResumesByProjectId.has(resume.project_id)) {
-					projectResumesByProjectId.set(resume.project_id, []);
+				if (!projectResumesByProjectId.has(resume.project_id as string)) {
+					projectResumesByProjectId.set(resume.project_id as string, []);
 				}
-				projectResumesByProjectId.get(resume.project_id)!.push(resume);
+				projectResumesByProjectId.get(resume.project_id as string)!.push(resume);
 			}
 		});
 	});
@@ -812,13 +812,13 @@ export const getProjectsWithResumes = async (
 		result.data?.forEach((resume: Record<string, unknown>) => {
 			if (resume.id && !resume.project_id) {
 				// This is from the version ID query
-				borrowerResumesByVersionId.set(resume.id, resume);
+				borrowerResumesByVersionId.set(resume.id as string, resume);
 			} else if (resume.project_id) {
 				// This is from the project_id query (fallback)
-				if (!borrowerResumesByProjectId.has(resume.project_id)) {
-					borrowerResumesByProjectId.set(resume.project_id, []);
+				if (!borrowerResumesByProjectId.has(resume.project_id as string)) {
+					borrowerResumesByProjectId.set(resume.project_id as string, []);
 				}
-				borrowerResumesByProjectId.get(resume.project_id)!.push(resume);
+				borrowerResumesByProjectId.get(resume.project_id as string)!.push(resume);
 			}
 		});
 	});
@@ -834,14 +834,14 @@ export const getProjectsWithResumes = async (
 			if (projectResource?.current_version_id) {
 				projectResume = projectResumesByVersionId.get(
 					projectResource.current_version_id
-				);
+				) ?? null;
 				projectResumeResourceId = projectResource.id;
 			}
 
 			// Fallback: get latest by project_id
 			if (!projectResume) {
 				const fallbackResumes = projectResumesByProjectId.get(
-					project.id
+					project.id as string
 				);
 				if (fallbackResumes && fallbackResumes.length > 0) {
 					projectResume = fallbackResumes[0]; // Already sorted by created_at desc
@@ -849,7 +849,7 @@ export const getProjectsWithResumes = async (
 			}
 
 			// Get borrower resume
-			const borrowerResource = borrowerResumeResources.get(project.id);
+			const borrowerResource = borrowerResumeResources.get(project.id as string);
 			let borrowerResume: any = null;
 
 			if (borrowerResource?.current_version_id) {
@@ -861,7 +861,7 @@ export const getProjectsWithResumes = async (
 			// Fallback: get latest by project_id
 			if (!borrowerResume) {
 				const fallbackResumes = borrowerResumesByProjectId.get(
-					project.id
+					project.id as string
 				);
 				if (fallbackResumes && fallbackResumes.length > 0) {
 					borrowerResume = fallbackResumes[0]; // Already sorted by created_at desc
@@ -919,7 +919,7 @@ export const getProjectsWithResumes = async (
 				{
 					flatContent,
 					metadata,
-					completenessPercent: projectResume?.completeness_percent,
+					completenessPercent: projectResume?.completeness_percent as number | undefined,
 					lockedFields: projectLockedFields,
 					fieldStates,
 					resourceId: projectResumeResourceId,
@@ -1236,13 +1236,13 @@ function isCorruptedBooleanSnapshot(content: unknown): boolean {
 	if (!content || typeof content !== "object") return false;
 
 	// Strip metadata/root keys - content is always flat now
-	const raw = { ...content };
+	const raw = { ...content } as Record<string, unknown>;
 	delete raw._lockedFields;
 	delete raw._fieldStates;
 	delete raw._metadata;
 	delete raw.completenessPercent;
 
-	const flat = raw; // Content is always flat now
+	const flat: Record<string, unknown> = raw; // Content is always flat now
 
 	// If at least one known borrower field has a non-boolean value (or a rich
 	// { value: ... } object with a non-boolean value), we consider the snapshot valid.
@@ -1799,9 +1799,9 @@ export const saveProjectBorrowerResume = async (
 			}
 			const base =
 				typeof window !== "undefined"
-					? window.location.origin
-					: process.env.NEXT_PUBLIC_SITE_URL ?? "";
-			const res = await fetch(`${base}/api/borrower-resume/ensure-resource`, {
+					? (await import("@/lib/apiConfig")).getBackendUrl()
+					: process.env.NEXT_PUBLIC_BACKEND_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "";
+			const res = await fetch(`${base}/api/v1/borrower-resume/ensure-resource`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",

@@ -3,8 +3,22 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Lock, ShieldCheck, UserCheck, BadgeCheck } from "lucide-react";
+import { getBackendUrl } from "@/lib/apiConfig";
 
 type PartnerLogo = { src: string; name: string; scale: number };
+
+/** Fallback: Trusted Data Sources logos from public (no backend required). */
+const SECURITY_LOGO_FILES: { file: string; name: string }[] = [
+	{ file: "BLS.png", name: "BLS" },
+	{ file: "CoStar.png", name: "CoStar" },
+	{ file: "FEMA.png", name: "FEMA" },
+	{ file: "FHFA.png", name: "FHFA" },
+	{ file: "US Census.png", name: "US Census" },
+	{ file: "US HUD.png", name: "US HUD" },
+	{ file: "YARDI.png", name: "YARDI" },
+	{ file: "capitalize.png", name: "Capitalize" },
+];
+const SECURITY_LOGOS_BASE = "/Landing-Page/SecuritySectionLogos";
 
 const securityFeatures = [
 	{
@@ -40,15 +54,28 @@ const securityFeatures = [
 ];
 
 export function SecuritySection() {
-	const [partnerLogos, setPartnerLogos] = useState<PartnerLogo[]>([]);
+	const [partnerLogos, setPartnerLogos] = useState<PartnerLogo[]>(() =>
+		SECURITY_LOGO_FILES.map(({ file, name }) => ({
+			src: `${SECURITY_LOGOS_BASE}/${encodeURIComponent(file)}`,
+			name,
+			scale: 1.0,
+		}))
+	);
 
 	useEffect(() => {
-		fetch("/api/security-logos")
+		fetch(`${getBackendUrl()}/api/v1/security-logos`)
 			.then((res) => res.json())
 			.then((data) => {
-				if (Array.isArray(data.logos)) setPartnerLogos(data.logos);
+				if (Array.isArray(data.logos) && data.logos.length > 0) {
+					setPartnerLogos(
+						data.logos.map((l: PartnerLogo) => ({
+							...l,
+							src: l.src.startsWith("http") ? l.src : getBackendUrl() + l.src,
+						}))
+					);
+				}
 			})
-			.catch((err) => console.error("Failed to load security logos:", err));
+			.catch(() => { /* keep fallback from public */ });
 	}, []);
 
 	return (

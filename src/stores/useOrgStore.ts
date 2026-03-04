@@ -127,9 +127,9 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       const { data: memberProfiles, error: memberProfilesError } =
         memberUserIds.length > 0
           ? await supabase
-              .from("profiles")
-              .select("id, full_name, email, app_role")
-              .in("id", memberUserIds)
+            .from("profiles")
+            .select("id, full_name, email, app_role")
+            .in("id", memberUserIds)
           : { data: [], error: null };
 
       if (memberProfilesError) {
@@ -163,7 +163,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
             ...member,
             userName: (basic?.full_name && basic.full_name.trim()) || "Unknown User",
             userEmail: basic?.email || "user@example.com",
-            userRole: basic?.app_role,
+            userRole: (basic?.app_role ?? undefined) as import("../types/enhanced-types").AppRole | undefined,
           };
         }) || [];
 
@@ -343,8 +343,8 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       const { error: rpcError } = await supabase.rpc(
         "bulk_update_member_permissions",
         {
-          p_org_id:         currentOrg.id,
-          p_user_id:        userId,
+          p_org_id: currentOrg.id,
+          p_user_id: userId,
           p_project_grants: projectGrants,
         }
       );
@@ -430,7 +430,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
   validateInviteToken: async (inviteToken: string) => {
     try {
       const { data, error: apiError } = await apiClient.validateInvite(inviteToken);
-      
+
       if (apiError || !data) {
         return { valid: false };
       }

@@ -297,7 +297,6 @@ export default function DashboardPage() {
           try {
             const { data, error } = await supabase.rpc('get_unread_counts_for_project', {
               p_project_id: project.id,
-              p_user_id: user.id,
             });
 
             if (error) {

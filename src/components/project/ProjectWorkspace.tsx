@@ -135,17 +135,29 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	const [isEditing, setIsEditing] = useState(false);
-	const [viewMode, setViewMode] = useState<"resume" | "underwriting">(() => {
-		const view = searchParams?.get("view");
-		return view === "underwriting" ? "underwriting" : "resume";
-	});
+	const [viewMode, setViewMode] = useState<"resume" | "underwriting">("resume");
+	// Resource ID for the underwriting vault root — populated from Supabase at mount
+	const [underwritingDocsResourceId, setUnderwritingDocsResourceId] = useState<string | null>(null);
 
+	// Derive vault access from the Supabase-backed permission store
+	const getPermission = usePermissionStore((state) => state.getPermission);
+	const canViewUnderwriting = !!underwritingDocsResourceId && (
+		getPermission(underwritingDocsResourceId) === 'view' ||
+		getPermission(underwritingDocsResourceId) === 'edit'
+	);
+
+	// Sync viewMode from URL param — only users with vault permission may enter underwriting mode
 	useEffect(() => {
 		const view = searchParams?.get("view");
-		if (view === "underwriting" || view === "resume") {
-			setViewMode(view);
+		if (view === "underwriting" && canViewUnderwriting) {
+			setViewMode("underwriting");
+		} else if (view === "underwriting" && !canViewUnderwriting && underwritingDocsResourceId !== null) {
+			// Permissions loaded but user doesn't have access — reset to resume
+			setViewMode("resume");
+		} else if (view === "resume") {
+			setViewMode("resume");
 		}
-	}, [searchParams]);
+	}, [searchParams, canViewUnderwriting, underwritingDocsResourceId]);
 	const [initialProjectStepId, setInitialProjectStepId] = useState<
 		string | null
 	>(null);
@@ -221,7 +233,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	// Separate hooks for project and borrower contexts to ensure correct API endpoints and isolated chat history
 	const projectAskAi = useAskAI({
 		formData: (currentFormData as unknown as Record<string, unknown>) || {},
-		apiPath: "/api/project-qa",
+		apiPath: "/api/v1/ai/project-qa",
 		contextType: "project",
 	});
 
@@ -229,7 +241,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		formData:
 			(borrowerResumeSnapshot as unknown as Record<string, unknown>) ||
 			{},
-		apiPath: "/api/borrower-qa",
+		apiPath: "/api/v1/ai/borrower-qa",
 		contextType: "borrower",
 	});
 
@@ -306,10 +318,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 			const sectionId = step.slice("project:".length).trim();
 
 			if (sectionId === "underwriting") {
-				setViewMode("underwriting");
-				params.set("view", "underwriting");
-				setIsEditing(false);
-				setBorrowerEditing(false);
+				// Guard via Supabase permission store — same check as the vault itself uses
+				if (canViewUnderwriting) {
+					setViewMode("underwriting");
+					params.set("view", "underwriting");
+					setIsEditing(false);
+					setBorrowerEditing(false);
+				} else {
+					// No vault permission — silently keep resume view
+					params.delete("view");
+					setIsEditing(false);
+					setBorrowerEditing(false);
+				}
 			} else {
 				setViewMode("resume");
 				params.set("view", "resume");
@@ -648,6 +668,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				const borrowerDocsResource = resourcesData?.find(
 					(r: any) => r.resource_type === "BORROWER_DOCS_ROOT"
 				);
+				const underwritingDocsResource = resourcesData?.find(
+					(r: any) => r.resource_type === "UNDERWRITING_DOCS_ROOT"
+				);
+				// Expose the underwriting root resource ID so the permission store can gate vault access
+				if (underwritingDocsResource?.id) {
+					setUnderwritingDocsResourceId(underwritingDocsResource.id);
+				}
 
 				const projectWithResources = {
 					...fetchedProject,
@@ -1248,8 +1275,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				<div className="flex-1 relative z-[1] min-w-0">
 					{/* Content with padding */}
 					<div className="relative p-6 min-w-0">
-						{/* Advisor-only Mode Switcher */}
-						{user?.role === "advisor" && (
+						{/* Mode Switcher — only visible to users with vault permission */}
+						{canViewUnderwriting && (
 							<div className="mb-6 flex justify-center">
 								<div className="flex bg-gray-100 p-1 rounded-lg shadow-md border-2 border-gray-300">
 									<button
@@ -1637,48 +1664,48 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 														}}
 													>
 														<ErrorBoundary sectionName="Project form">
-														<EnhancedProjectForm
-															key={`enhanced-form-${resumeRefreshKey}`}
-															existingProject={
-																activeProject
-															}
-															initialStepId={
-																initialProjectStepId
-															}
-															onComplete={() =>
-																setIsEditing(false)
-															}
-															onAskAI={(fieldId) => {
-																setActiveFieldId(
-																	fieldId
-																);
-																void projectAskAi.activateField(
-																	fieldId,
-																	{
-																		autoSend:
-																			true,
-																	}
-																);
-																setChatTab("ai");
-																setShouldExpandChat(
-																	true
-																);
-																setTimeout(
-																	() =>
-																		setShouldExpandChat(
-																			false
-																		),
-																	100
-																);
-															}}
-															onFormDataChange={
-																setCurrentFormData
-															}
-															onVersionChange={
-																handleResumeVersionChange
-															}
-														/>
-													</ErrorBoundary>
+															<EnhancedProjectForm
+																key={`enhanced-form-${resumeRefreshKey}`}
+																existingProject={
+																	activeProject
+																}
+																initialStepId={
+																	initialProjectStepId
+																}
+																onComplete={() =>
+																	setIsEditing(false)
+																}
+																onAskAI={(fieldId) => {
+																	setActiveFieldId(
+																		fieldId
+																	);
+																	void projectAskAi.activateField(
+																		fieldId,
+																		{
+																			autoSend:
+																				true,
+																		}
+																	);
+																	setChatTab("ai");
+																	setShouldExpandChat(
+																		true
+																	);
+																	setTimeout(
+																		() =>
+																			setShouldExpandChat(
+																				false
+																			),
+																		100
+																	);
+																}}
+																onFormDataChange={
+																	setCurrentFormData
+																}
+																onVersionChange={
+																	handleResumeVersionChange
+																}
+															/>
+														</ErrorBoundary>
 													</motion.div>
 												) : (
 													<>
@@ -1755,34 +1782,34 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				{/* Right Column: Sticky collapsible chat card */}
 				<ErrorBoundary sectionName="Chat">
 					<StickyChatCard
-					projectId={projectId}
-					onMentionClick={handleMentionClick}
-					topOffsetClassName="top-4 sm:top-6"
-					widthClassName="w-[45%] md:w-[50%] xl:w-[55%] max-w-[700px]"
-					messages={activeAskAi.messages}
-					fieldContext={activeAskAi.fieldContext}
-					isLoading={activeAskAi.isLoading}
-					isBuildingContext={activeAskAi.isBuildingContext}
-					contextError={activeAskAi.contextError}
-					hasActiveContext={activeAskAi.hasActiveContext}
-					externalActiveTab={chatTab}
-					externalShouldExpand={shouldExpandChat}
-					onAIReplyClick={(message) => {
-						// When user clicks reply on an AI message, send a follow-up question
-						const followUpQuestion = `Following up on your previous response: "${message.content?.substring(
-							0,
-							100
-						)}..." - Can you provide more details?`;
-						void activeAskAi.sendMessage(
-							followUpQuestion,
-							undefined,
-							undefined,
-							message
-						);
-					}}
-					mode={viewMode === "underwriting" ? "underwriter" : "ask-ai"}
-					defaultTopic="AI Underwriter"
-				/>
+						projectId={projectId}
+						onMentionClick={handleMentionClick}
+						topOffsetClassName="top-4 sm:top-6"
+						widthClassName="w-[45%] md:w-[50%] xl:w-[55%] max-w-[700px]"
+						messages={activeAskAi.messages}
+						fieldContext={activeAskAi.fieldContext}
+						isLoading={activeAskAi.isLoading}
+						isBuildingContext={activeAskAi.isBuildingContext}
+						contextError={activeAskAi.contextError}
+						hasActiveContext={activeAskAi.hasActiveContext}
+						externalActiveTab={chatTab}
+						externalShouldExpand={shouldExpandChat}
+						onAIReplyClick={(message) => {
+							// When user clicks reply on an AI message, send a follow-up question
+							const followUpQuestion = `Following up on your previous response: "${message.content?.substring(
+								0,
+								100
+							)}..." - Can you provide more details?`;
+							void activeAskAi.sendMessage(
+								followUpQuestion,
+								undefined,
+								undefined,
+								message
+							);
+						}}
+						mode={viewMode === "underwriting" ? "underwriter" : "ask-ai"}
+						defaultTopic="AI Underwriter"
+					/>
 				</ErrorBoundary>
 			</AskAIProvider>
 			{previewingResourceId && (
