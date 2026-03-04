@@ -115,13 +115,13 @@ export default function LenderDashboardPage() {
           console.error("Error fetching borrower resumes:", borrowerError);
         }
 
-        const latestProjectResumeByProject = new Map<string, (typeof projectResumesRows)[0]>();
+        const latestProjectResumeByProject = new Map<string, NonNullable<typeof projectResumesRows>[number]>();
         (projectResumesRows || []).forEach((r) => {
           if (!latestProjectResumeByProject.has(r.project_id)) {
             latestProjectResumeByProject.set(r.project_id, r);
           }
         });
-        const latestBorrowerResumeByProject = new Map<string, (typeof borrowerResumesRows)[0]>();
+        const latestBorrowerResumeByProject = new Map<string, NonNullable<typeof borrowerResumesRows>[number]>();
         (borrowerResumesRows || []).forEach((r) => {
           if (!latestBorrowerResumeByProject.has(r.project_id)) {
             latestBorrowerResumeByProject.set(r.project_id, r);

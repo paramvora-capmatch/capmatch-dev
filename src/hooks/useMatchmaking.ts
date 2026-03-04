@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { getBackendUrl } from "@/lib/apiConfig";
+import { supabase } from "@/lib/supabaseClient";
 
 export interface VisualizationData {
   deal: { name: string; x: number; y: number; z: number };
@@ -71,8 +73,17 @@ export function useMatchmaking(projectId: string) {
 
   const fetchScores = useCallback(async () => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = getBackendUrl();
+
       const res = await fetch(
-        `/api/matchmaking/scores?projectId=${encodeURIComponent(projectId)}`
+        `${base}/api/v1/matchmaking/${encodeURIComponent(projectId)}/scores`,
+        {
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        }
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -87,8 +98,17 @@ export function useMatchmaking(projectId: string) {
   const fetchLatestResults = useCallback(async () => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = getBackendUrl();
+
       const res = await fetch(
-        `/api/matchmaking/latest?projectId=${encodeURIComponent(projectId)}`
+        `${base}/api/v1/matchmaking/${encodeURIComponent(projectId)}/latest`,
+        {
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        }
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -122,10 +142,16 @@ export function useMatchmaking(projectId: string) {
   const runMatchmaking = useCallback(async () => {
     setState((s) => ({ ...s, isRunning: true, error: null }));
     try {
-      const res = await fetch("/api/matchmaking/run", {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = getBackendUrl();
+
+      const res = await fetch(`${base}/api/v1/matchmaking/run/${encodeURIComponent(projectId)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));

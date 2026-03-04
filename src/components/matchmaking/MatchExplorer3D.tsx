@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState, useCallback } from "react";
+import type * as THREE from "three";
 import type { VisualizationData, LenderVizData } from "@/hooks/useMatchmaking";
 
 interface MatchExplorer3DProps {
