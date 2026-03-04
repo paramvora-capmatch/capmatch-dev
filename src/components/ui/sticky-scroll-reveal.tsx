@@ -5,6 +5,18 @@ import { useMotionValueEvent, useScroll } from "framer-motion";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
+const BACKGROUND_COLORS = [
+	"#0f172a", // slate-900
+	"#000000", // black
+	"#171717", // neutral-900
+];
+
+const LINEAR_GRADIENTS = [
+	"linear-gradient(to bottom right, #06b6d4, #10b981)", // cyan-500 to emerald-500
+	"linear-gradient(to bottom right, #ec4899, #6366f1)", // pink-500 to indigo-500
+	"linear-gradient(to bottom right, #f97316, #eab308)", // orange-500 to yellow-500
+];
+
 export const StickyScroll = ({
 	content,
 	contentClassName,
@@ -39,29 +51,18 @@ export const StickyScroll = ({
 		setActiveCard(closestBreakpointIndex);
 	});
 
-	const backgroundColors = [
-		"#0f172a", // slate-900
-		"#000000", // black
-		"#171717", // neutral-900
-	];
-	const linearGradients = [
-		"linear-gradient(to bottom right, #06b6d4, #10b981)", // cyan-500 to emerald-500
-		"linear-gradient(to bottom right, #ec4899, #6366f1)", // pink-500 to indigo-500
-		"linear-gradient(to bottom right, #f97316, #eab308)", // orange-500 to yellow-500
-	];
-
 	const [backgroundGradient, setBackgroundGradient] = useState(
-		linearGradients[0]
+		LINEAR_GRADIENTS[0]
 	);
 
 	useEffect(() => {
-		setBackgroundGradient(linearGradients[activeCard % linearGradients.length]);
+		setBackgroundGradient(LINEAR_GRADIENTS[activeCard % LINEAR_GRADIENTS.length]);
 	}, [activeCard]);
 
 	return (
 		<motion.div
 			animate={{
-				backgroundColor: backgroundColors[activeCard % backgroundColors.length],
+				backgroundColor: BACKGROUND_COLORS[activeCard % BACKGROUND_COLORS.length],
 			}}
 			className="relative flex h-[30rem] justify-center space-x-10 overflow-y-auto rounded-md p-10"
 			ref={ref}

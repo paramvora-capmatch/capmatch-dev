@@ -654,7 +654,6 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
       openMemberId,
       resourceIds,
       projectId,
-      permissions,
       projectDocsMap,
       getDocumentRootType,
     ]

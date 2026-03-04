@@ -121,6 +121,7 @@ export default function AdvisorProjectWorkspacePage() {
           projectId={projectId}
           isBorrowerEditing={isBorrowerEditing}
           onBorrowerEditingChange={handleBorrowerEditingChange}
+          showAdvisorOnlySections={true}
         />
       </DashboardLayout>
     </RoleBasedRoute>

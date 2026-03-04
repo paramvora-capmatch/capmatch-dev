@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Counter } from "@/components/ui/Counter";
@@ -103,11 +104,13 @@ export function CaseStudiesSection() {
 				>
 					<div className="flex flex-col md:flex-row flex-1 min-h-0 h-full">
 						{/* Image - fixed column height = card height; image fills with object-cover */}
-						<div className="w-full md:w-3/5 h-[220px] md:h-full flex-shrink-0 bg-gray-200 rounded-l-xl overflow-hidden">
-							<img
+						<div className="w-full md:w-3/5 h-[220px] md:h-full flex-shrink-0 bg-gray-200 rounded-l-xl overflow-hidden relative">
+							<Image
 								src={deal.image}
 								alt={deal.headline}
-								className="w-full h-full object-cover object-center"
+								fill
+								className="object-cover object-center"
+								sizes="(max-width: 768px) 100vw, 60vw"
 							/>
 						</div>
 						{/* Content side - scrolls if text is long */}

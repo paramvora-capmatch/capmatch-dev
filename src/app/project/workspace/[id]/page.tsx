@@ -170,6 +170,7 @@ export default function ProjectWorkspacePage() {
           onBorrowerEditingChange={handleBorrowerEditingChange}
           onBorrowerDirtyChange={handleBorrowerDirtyChange}
           onBorrowerRegisterSave={handleBorrowerRegisterSave}
+          showAdvisorOnlySections={false}
         />
         <UnsavedChangesModal
           isOpen={showUnsavedModal}

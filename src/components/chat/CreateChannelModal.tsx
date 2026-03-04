@@ -201,6 +201,8 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
                         ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
                         : normalizedRole === "member"
                         ? "bg-slate-100 text-slate-700 border border-slate-200"
+                        : normalizedRole === "lender"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                         : null;
                     return (
                       <div
@@ -253,8 +255,8 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
           </div>
 
           {/* Right Panel - Documents */}
-          <div className="flex flex-col pl-4">
-            <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col pl-4 min-h-0">
+            <div className="flex items-center justify-between mb-3 flex-shrink-0">
               <div className="text-sm font-semibold text-gray-900">
                 Documents everyone can reference
               </div>
@@ -262,7 +264,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
                 {documents.length} {documents.length === 1 ? "item" : "items"}
               </span>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {isLoadingDocs ? (
                 <div className="flex items-center justify-center py-12 text-sm text-gray-500">
                   <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading...
