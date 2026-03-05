@@ -10,16 +10,21 @@ interface MatchExplorer3DProps {
   onToggleExpand?: () => void;
 }
 
+// Blue shades for Strong / Moderate / Weak (aligned with legend and 3D spheres)
+const BLUE_STRONG = "#2563eb";   // blue-600
+const BLUE_MODERATE = "#3b82f6"; // blue-500
+const BLUE_WEAK = "#93c5fd";     // blue-300
+
 function scoreColor(t: number): string {
-  if (t >= 70) return "#10b981";
-  if (t >= 45) return "#f59e0b";
-  return "#ef4444";
+  if (t >= 70) return BLUE_STRONG;
+  if (t >= 45) return BLUE_MODERATE;
+  return BLUE_WEAK;
 }
 
 function barColor(s: number): string {
-  if (s >= 0.7) return "#10b981";
-  if (s >= 0.4) return "#f59e0b";
-  return "#ef4444";
+  if (s >= 0.7) return BLUE_STRONG;
+  if (s >= 0.4) return BLUE_MODERATE;
+  return BLUE_WEAK;
 }
 
 const PILLAR_META: Record<string, { label: string; icon: string; vars: string[] }> = {
@@ -283,17 +288,17 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
         scene.add(lbl);
       });
 
-      // Lender spheres - smaller radius, pale blue (deal diamond stays dark blue below)
+      // Lender spheres - three shades of blue by match band (Strong / Moderate / Weak)
       const sphereGeo = new THREE.SphereGeometry(1, 32, 24);
       const lenderMeshes: THREE.Mesh[] = [];
-      // Pale blue for all lender bubbles (slightly stronger blue for higher score)
-      const paleBlueLow = 0xbfdbfe;  // blue-200
-      const paleBlueHigh = 0x93c5fd; // blue-300
+      const blueStrong = 0x2563eb;   // blue-600
+      const blueModerate = 0x3b82f6; // blue-500
+      const blueWeak = 0x93c5fd;     // blue-300
 
       function lenderSphereColor(score: number): THREE.Color {
-        const c = new THREE.Color();
-        c.lerpColors(new THREE.Color(paleBlueLow), new THREE.Color(paleBlueHigh), score / 100);
-        return c;
+        if (score >= 70) return new THREE.Color(blueStrong);
+        if (score >= 45) return new THREE.Color(blueModerate);
+        return new THREE.Color(blueWeak);
       }
 
       data.lenders.forEach((l, i) => {
@@ -546,12 +551,12 @@ export const MatchExplorer3D: React.FC<MatchExplorer3DProps> = ({ data, expanded
             </button>
           )}
 
-          {/* Legend */}
+          {/* Legend - blue shades matching 3D lender spheres */}
           <div className="absolute bottom-4 left-4 z-10 flex gap-2.5 flex-wrap">
             {[
-              { color: "#10b981", label: "Strong (\u226570)" },
-              { color: "#f59e0b", label: "Moderate (45-69)" },
-              { color: "#ef4444", label: "Weak (<45)" },
+              { color: BLUE_STRONG, label: "Strong (\u226570)" },
+              { color: BLUE_MODERATE, label: "Moderate (45-69)" },
+              { color: BLUE_WEAK, label: "Weak (<45)" },
             ].map((item) => (
               <div key={item.label} className="px-3 py-1 rounded-lg text-[11px] font-medium bg-white/95 backdrop-blur border border-gray-200 text-gray-700 shadow-sm">
                 <span className="inline-block w-[7px] h-[7px] rounded-full mr-1.5" style={{ background: item.color }} />
