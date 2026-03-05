@@ -78,6 +78,14 @@ const steps: {
 		youtubeEmbedId: "",
 		localVideoSrc: "/Landing-Page/HowItWorksClips/Clip8.mp4",
 	},
+	{
+		title: "Lender Matching at a Glance",
+		shortTitle: "Lender Matching",
+		description:
+			"Get matched with the ideal lender for your deal. Our matchmaking algorithm will use hundreds of datapoints—property type, loan size, lender appetite, terms—to surface the best fit. No more spray and pray; focus on the conversations that matter.",
+		youtubeEmbedId: "",
+		localVideoSrc: "/Landing-Page/HowItWorksClips/Clip 9.mp4",
+	},
 ];
 
 const FALLBACK_SLIDE_MS = 15000;
