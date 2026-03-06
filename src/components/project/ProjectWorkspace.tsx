@@ -1310,20 +1310,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 										</button>
 										<button
 											onClick={() =>
-												handleViewChange("underwriting")
-											}
-											className={cn(
-												"flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
-												viewMode === "underwriting"
-													? "bg-white text-blue-600 shadow-sm"
-													: "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
-											)}
-										>
-											<ShieldCheck className="h-4 w-4" />
-											Underwriting Mode
-										</button>
-										<button
-											onClick={() =>
 												handleViewChange("access")
 											}
 											className={cn(
@@ -1336,6 +1322,20 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 											<Users className="h-4 w-4" />
 											Lender Matching
 										</button>
+										<button
+											onClick={() =>
+												handleViewChange("underwriting")
+											}
+											className={cn(
+												"flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+												viewMode === "underwriting"
+													? "bg-white text-blue-600 shadow-sm"
+													: "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+											)}
+										>
+											<ShieldCheck className="h-4 w-4" />
+											Underwriting Mode
+										</button>
 									</div>
 								</div>
 							)}
@@ -1345,13 +1345,28 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 									<AccessControlTab projectId={projectId} />
 								</div>
 							) : viewMode === "underwriting" && showAdvisorOnlySections ? (
-								<div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+								<div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-4">
 									{isInitialLoad || !activeProject?.owner_org_id ? (
 										<div className="flex items-center justify-center p-8">
 											<div className="text-gray-500">Loading underwriting vault...</div>
 										</div>
 									) : (
-										<UnderwritingVault projectId={projectId} orgId={activeProject.owner_org_id} />
+										<>
+											{/* Mock: loan package / matchmaking iteration selector (underwriting per iteration) */}
+											<div className="flex flex-wrap items-center gap-2">
+												<span className="text-sm font-medium text-gray-600">Loan package:</span>
+												<select
+													className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+													aria-label="Select loan package"
+												>
+													<option value="p1">Package 1 (Run 1)</option>
+													<option value="p2">Package 2 (Run 2)</option>
+													<option value="p3">Package 3 (Run 3)</option>
+												</select>
+												<span className="text-xs text-gray-500">Underwriting for this package</span>
+											</div>
+											<UnderwritingVault projectId={projectId} orgId={activeProject.owner_org_id} />
+										</>
 									)}
 								</div>
 							) : (
@@ -1751,6 +1766,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 																		been refreshed.
 																	</span>
 																</motion.div>
+															)}
+															{/* Borrower: packages sent to (mock for now) */}
+															{!showAdvisorOnlySections && (
+																<div className="mx-6 mb-4 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-700">
+																	<span className="font-medium">Package sent to:</span>
+																	<span>Capital Lending Group</span>
+																</div>
 															)}
 															<motion.div
 																initial={{

@@ -20,6 +20,7 @@ import { FieldWarningsTooltip } from "../ui/FieldWarningsTooltip";
 import { HelpCircle } from "lucide-react";
 import { useAutofill } from "@/hooks/useAutofill";
 import { AlertModal } from "@/components/ui/AlertModal";
+import { Modal } from "@/components/ui/Modal";
 import { cn } from "@/utils/cn";
 import {
 	FileText,
@@ -42,6 +43,7 @@ import {
 	Upload,
 	X,
 	Plus,
+	Copy,
 	FileText as FileTextIcon,
 } from "lucide-react";
 import { ProjectProfile } from "@/types/enhanced-types";
@@ -52,7 +54,7 @@ import {
 	projectResumeFieldMetadata,
 	FieldMetadata as ProjectFieldMeta,
 } from "@/lib/project-resume-field-metadata";
-import { saveProjectResume } from "@/lib/project-queries";
+import { saveProjectResume, getProjectResumeContentByVersionId, type ProjectResumeContent } from "@/lib/project-queries";
 import { isFieldVisibleForDealType, type DealType } from "@/lib/deal-type-field-config";
 import {
 	assetTypeOptions,
@@ -115,6 +117,11 @@ interface EnhancedProjectFormProps {
 	initialFocusFieldId?: string;
 	onVersionChange?: () => void;
 	initialStepId?: string | null;
+	/** When set, form initializes from this content (e.g. "Copy from version") and Save & Exit creates a new version. */
+	initialResumeOverride?: {
+		content: ProjectResumeContent;
+		lockedFields: Record<string, boolean>;
+	} | null;
 }
 
 const isProjectValueProvided = (value: unknown): boolean => {
@@ -1113,13 +1120,22 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	initialFocusFieldId,
 	onVersionChange,
 	initialStepId,
+	initialResumeOverride,
 }) => {
 	const { activeOrg, user } = useAuthStore();
-	// 1. Initialize state with sanitized data
-	const sanitizedExistingProject = useMemo(
-		() => sanitizeProjectProfile(existingProject),
-		[existingProject]
-	);
+	// 1. Initialize state with sanitized data (merge initialResumeOverride when "Copy from version")
+	const sanitizedExistingProject = useMemo(() => {
+		const base = existingProject;
+		if (initialResumeOverride?.content) {
+			const merged = {
+				...base,
+				...initialResumeOverride.content,
+				_lockedFields: initialResumeOverride.lockedFields,
+			} as ProjectProfile;
+			return sanitizeProjectProfile(merged);
+		}
+		return sanitizeProjectProfile(base);
+	}, [existingProject, initialResumeOverride]);
 	const [formData, setFormData] = useState<ProjectProfile>(
 		sanitizedExistingProject
 	);
@@ -1155,9 +1171,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[fieldLabelMap]
 	);
 
-	// Initialize locked state from props
+	// Initialize locked state from props (or from initialResumeOverride when copying a version)
 	const [lockedFields, setLockedFields] = useState<Set<string>>(() => {
-		const saved = existingProject._lockedFields || {};
+		const saved = initialResumeOverride?.lockedFields ?? existingProject._lockedFields ?? {};
 		return new Set(Object.keys(saved).filter((key) => saved[key] === true));
 	});
 
@@ -1167,6 +1183,50 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const [showAutofillNotification, setShowAutofillNotification] =
 		useState(false);
 	const [formSaved, setFormSaved] = useState(false);
+	const [copyModalOpen, setCopyModalOpen] = useState(false);
+	const [copyVersions, setCopyVersions] = useState<{ id: string; version_number: number | null; created_at: string }[]>([]);
+	const [copyVersionsLoading, setCopyVersionsLoading] = useState(false);
+	const [copyApplying, setCopyApplying] = useState(false);
+
+	const openCopyModal = useCallback(async () => {
+		setCopyModalOpen(true);
+		setCopyVersionsLoading(true);
+		setCopyVersions([]);
+		try {
+			const { data, error } = await supabase
+				.from("project_resumes")
+				.select("id, version_number, created_at")
+				.eq("project_id", existingProject.id)
+				.order("version_number", { ascending: false });
+			if (error) throw error;
+			setCopyVersions(data ?? []);
+		} catch (err) {
+			console.error("[EnhancedProjectForm] Failed to fetch versions for copy:", err);
+		} finally {
+			setCopyVersionsLoading(false);
+		}
+	}, [existingProject.id]);
+
+	const applyCopyFromVersion = useCallback(async (versionId: string) => {
+		setCopyApplying(true);
+		try {
+			const data = await getProjectResumeContentByVersionId(versionId);
+			if (!data) return;
+			const merged = {
+				...existingProject,
+				...data.content,
+				_lockedFields: data.lockedFields,
+			} as ProjectProfile;
+			const sanitized = sanitizeProjectProfile(merged);
+			setFormData(sanitized);
+			setLockedFields(new Set(Object.keys(data.lockedFields).filter((k) => data.lockedFields[k] === true)));
+			setCopyModalOpen(false);
+		} catch (err) {
+			console.error("[EnhancedProjectForm] Failed to apply copy from version:", err);
+		} finally {
+			setCopyApplying(false);
+		}
+	}, [existingProject]);
 
 	const touchWorkspace = useCallback(
 		async (stepId?: string) => {
@@ -9287,6 +9347,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					<Button
 						variant="outline"
 						size="sm"
+						onClick={openCopyModal}
+						disabled={isAutofilling}
+						className="flex items-center gap-1"
+					>
+						<Copy className="h-4 w-4" />
+						<span className="text-xs font-medium">Copy from version</span>
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
 						onClick={() => handleFormSubmit()}
 						isLoading={formSaved}
 						disabled={formSaved || isAutofilling}
@@ -9327,6 +9397,44 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			message={errorModal.message}
 			variant="error"
 		/>
+		<Modal
+			isOpen={copyModalOpen}
+			onClose={() => !copyApplying && setCopyModalOpen(false)}
+			title="Copy from version"
+			size="md"
+		>
+			<div className="space-y-3">
+				<p className="text-sm text-gray-600">
+					Load a previous resume version into this form. You can edit and then Save &amp; Exit to create a new version.
+				</p>
+				{copyVersionsLoading ? (
+					<div className="flex items-center justify-center py-8">
+						<Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+					</div>
+				) : copyVersions.length === 0 ? (
+					<p className="text-sm text-gray-500 py-4">No versions found.</p>
+				) : (
+					<ul className="divide-y divide-gray-200 max-h-64 overflow-y-auto rounded-lg border border-gray-200">
+						{copyVersions.map((v) => (
+							<li key={v.id} className="flex items-center justify-between px-3 py-2.5 hover:bg-gray-50">
+								<span className="text-sm text-gray-800">
+									Version {v.version_number ?? "—"} · {v.created_at ? new Date(v.created_at).toLocaleString() : ""}
+								</span>
+								<Button
+									size="sm"
+									variant="outline"
+									onClick={() => applyCopyFromVersion(v.id)}
+									disabled={copyApplying}
+								>
+									{copyApplying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+									Copy from this version
+								</Button>
+							</li>
+						))}
+					</ul>
+				)}
+			</div>
+		</Modal>
 		</>
 	);
 };

@@ -1,7 +1,7 @@
 // src/components/project/AccessControlTab.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useProjects } from "@/hooks/useProjects";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,9 +13,19 @@ import { RESOURCE_TYPES } from "@/hooks/useProjectPermissionEditor";
 import { ProjectPermissionDetailPanel } from "@/components/team/ProjectPermissionDetailPanel";
 import { AddLenderToProjectModal } from "@/components/project/AddLenderToProjectModal";
 import { Button } from "@/components/ui/Button";
-import { Loader2, User, Shield, Building2, PlusCircle, Trash2, Zap, RefreshCw, AlertCircle, Trophy, Clock, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
-import { useMatchmaking } from "@/hooks/useMatchmaking";
-import { MatchExplorer3D } from "@/components/matchmaking/MatchExplorer3D";
+import { Loader2, Building2, PlusCircle, Trash2, Zap, RefreshCw, AlertCircle, Trophy, Clock, BarChart3 } from "lucide-react";
+import { useMatchmaking, type MatchScore } from "@/hooks/useMatchmaking";
+import { MatchmakingResultsLayout } from "@/components/matchmaking/MatchmakingResultsLayout";
+import { MatchmakingDials, type MatchmakingDialsValues } from "@/components/matchmaking/MatchmakingDials";
+
+export interface MatchmakingRun {
+  id: string;
+  label: string;
+  projectResumeVersionId: string | null;
+  projectResumeVersionNumber: number | null;
+  createdAt: string;
+  matchScores: MatchScore[];
+}
 
 interface AccessControlTabProps {
   projectId: string;
@@ -70,8 +80,10 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
   >([]);
   const [addLenderModalOpen, setAddLenderModalOpen] = useState(false);
   const [revokingOrgId, setRevokingOrgId] = useState<string | null>(null);
-  const [vizExpanded, setVizExpanded] = useState(false);
-  const [scoredMatchesExpanded, setScoredMatchesExpanded] = useState(false);
+  const [selectedLenderId, setSelectedLenderId] = useState<string | null>(null);
+  const [matchRuns, setMatchRuns] = useState<MatchmakingRun[]>([]);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const runJustCompletedRef = useRef(false);
 
   const {
     isRunning: matchRunning,
@@ -85,6 +97,51 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
     error: matchError,
     runMatchmaking,
   } = useMatchmaking(projectId);
+
+  // When a matchmaking run completes, add it to run history (mock iterations)
+  useEffect(() => {
+    if (!matchRunning && runJustCompletedRef.current && matchScores.length > 0) {
+      runJustCompletedRef.current = false;
+      const runNumber = matchRuns.length + 1;
+      const newRun: MatchmakingRun = {
+        id: `run-${Date.now()}`,
+        label: `Run ${runNumber} (v${runNumber})`,
+        projectResumeVersionId: null,
+        projectResumeVersionNumber: runNumber,
+        createdAt: new Date().toISOString(),
+        matchScores: [...matchScores],
+      };
+      setMatchRuns((prev) => [...prev, newRun]);
+      setActiveRunId(newRun.id);
+    }
+  }, [matchRunning, matchScores.length, matchRuns.length]);
+
+  const activeRun = activeRunId ? matchRuns.find((r) => r.id === activeRunId) : null;
+  const scoresToShow = activeRun?.matchScores ?? matchScores;
+  const summaryTopScore = scoresToShow.length > 0 ? scoresToShow[0] : null;
+  const summaryTopName = summaryTopScore?.lender_name ?? summaryTopScore?.lender_lei ?? topMatchName;
+  const summaryTopValue = summaryTopScore?.total_score ?? topMatchScore;
+
+  const dialInitialValues: Partial<MatchmakingDialsValues> | undefined = activeProject
+    ? {
+        loanAmountRequested: activeProject.loanAmountRequested ?? undefined,
+        stabilizedValue: (activeProject as any).stabilizedValue ?? undefined,
+        purchasePrice: activeProject.purchasePrice ?? undefined,
+        targetLtvPercent: activeProject.targetLtvPercent ?? undefined,
+        dscr: (activeProject as any).dscr ?? undefined,
+        propertyNoiT12: activeProject.propertyNoiT12 ?? undefined,
+        interestRate: (activeProject as any).interestRate ?? undefined,
+        totalResidentialUnits: activeProject.totalResidentialUnits ?? undefined,
+        requestedTerm: activeProject.requestedTerm ?? undefined,
+        interestOnlyPeriodMonths: activeProject.interestOnlyPeriodMonths ?? undefined,
+        projectPhase: activeProject.projectPhase ?? undefined,
+        propertyAddressState: activeProject.propertyAddressState ?? undefined,
+        propertyAddressCounty: activeProject.propertyAddressCounty ?? undefined,
+        propertyAddressCity: activeProject.propertyAddressCity ?? undefined,
+        propertyAddressZip: activeProject.propertyAddressZip ?? undefined,
+        msaName: (activeProject as any).msaName ?? undefined,
+      }
+    : undefined;
 
   const getDocumentRootType = useCallback(
     (
@@ -756,7 +813,10 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
           </h3>
           {isAdvisorView && (
             <button
-              onClick={runMatchmaking}
+              onClick={() => {
+                runJustCompletedRef.current = true;
+                runMatchmaking();
+              }}
               disabled={matchRunning}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
@@ -803,17 +863,50 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
           </div>
         )}
 
+        {/* Financial dials: tune deal parameters for matchmaking (advisor only) */}
+        <MatchmakingDials
+          initialValues={dialInitialValues}
+          onRunMatchmaking={() => {
+            runJustCompletedRef.current = true;
+            runMatchmaking();
+          }}
+          disabled={matchRunning}
+          isAdvisorView={isAdvisorView}
+        />
+
+        {/* Matchmaking runs: always visible; empty state when no runs yet */}
+        {isAdvisorView && !matchRunning && (
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <span className="text-xs font-medium text-gray-600">Matchmaking run:</span>
+            {matchRuns.length === 0 ? (
+              <span className="text-sm text-gray-500">No runs yet. Run matchmaking below to create your first run.</span>
+            ) : (
+              <select
+                value={activeRunId ?? ""}
+                onChange={(e) => setActiveRunId(e.target.value || null)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {matchRuns.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
+
         {/* Summary bar */}
-        {visualizationData && !matchRunning && (
+        {(scoresToShow.length > 0 || visualizationData) && !matchRunning && (
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-600">
               <BarChart3 className="h-3.5 w-3.5" />
-              {matchedLenderCount} lenders scored
+              {scoresToShow.length} lenders scored
             </div>
-            {topMatchName && topMatchScore !== null && (
+            {summaryTopName && summaryTopValue !== null && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-lg text-xs font-medium text-emerald-700">
                 <Trophy className="h-3.5 w-3.5" />
-                Top: {topMatchName} ({topMatchScore.toFixed(1)}/100)
+                Top: {summaryTopName} ({summaryTopValue.toFixed(1)}/100)
               </div>
             )}
             {lastRunAt && (
@@ -825,64 +918,13 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
           </div>
         )}
 
-        {/* 3D Visualization */}
-        {visualizationData && !matchRunning && (
-          <div className="mb-4">
-            <MatchExplorer3D
-              data={visualizationData}
-              expanded={vizExpanded}
-              onToggleExpand={() => setVizExpanded((v) => !v)}
-            />
-          </div>
-        )}
-
-        {/* Scored lender list from match_scores - collapsed by default, first 5 visible */}
-        {matchScores.length > 0 && !matchRunning && (
-          <div className="space-y-2 mb-4">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Scored Matches</p>
-            {(scoredMatchesExpanded ? matchScores : matchScores.slice(0, 5)).map((score) => {
-              const pct = score.total_score;
-              const colorClass = pct >= 70
-                ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                : pct >= 45
-                  ? "text-amber-700 bg-amber-50 border-amber-200"
-                  : "text-red-700 bg-red-50 border-red-200";
-              return (
-                <div
-                  key={score.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-gray-400 w-5 text-right">#{score.rank}</span>
-                    <Building2 className="h-4 w-4 text-gray-400" />
-                    <span className="font-medium text-gray-900">{score.lender_name || score.lender_lei}</span>
-                  </div>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${colorClass}`}>
-                    {pct.toFixed(1)}
-                  </span>
-                </div>
-              );
-            })}
-            {matchScores.length > 5 && (
-              <button
-                type="button"
-                onClick={() => setScoredMatchesExpanded((e) => !e)}
-                className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-800 transition-colors"
-              >
-                {scoredMatchesExpanded ? (
-                  <>
-                    <ChevronUp className="h-4 w-4" />
-                    Show less
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-4 w-4" />
-                    Show {matchScores.length - 5} more
-                  </>
-                )}
-              </button>
-            )}
-          </div>
+        {/* Two-panel: lender list (left) + lender report with improvement tips (right) */}
+        {scoresToShow.length > 0 && !matchRunning && (
+          <MatchmakingResultsLayout
+            matchScores={scoresToShow}
+            selectedLenderId={selectedLenderId}
+            onSelectLender={setSelectedLenderId}
+          />
         )}
 
         {/* Empty state: no matches yet, not loading, advisor view */}
@@ -937,74 +979,6 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
           Send package to lender
         </Button>
       </div>
-
-      {!isAdvisorView && (
-      <div>
-        <h3 className="text-md font-semibold text-gray-800 flex items-center mb-3">
-          <Shield size={16} className="mr-2" />
-          Member Permissions
-        </h3>
-        <div className="space-y-3">
-          {permissions.map((p) => (
-            <div
-              key={p.userId}
-              className="flex items-center justify-between p-2 rounded hover:bg-gray-50"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                  <User size={16} />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{p.userName}</p>
-                  <p className="text-sm text-gray-500">{p.userEmail}</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">Access:</span>
-                <PillToggle
-                  value={computeProjectLevel(
-                    p.grant.permissions,
-                    RESOURCE_TYPES,
-                    (p.grant.fileOverrides && p.grant.fileOverrides.length > 0) ||
-                    (p.grant.exclusions && p.grant.exclusions.length > 0)
-                  )}
-                  onChange={(val) => handleLevelChange(p.userId, val)}
-                  size="xs"
-                  showCustom={true}
-                />
-              </div>
-            </div>
-          ))}
-          {permissions.length === 0 && (
-            <p className="text-sm text-gray-500 text-center py-4">
-              No members to manage.
-            </p>
-          )}
-        </div>
-      </div>
-      )}
-      {isAdvisorView && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
-          <p className="text-sm text-gray-600">
-            Member permissions are managed by the project owner in their team settings.
-          </p>
-        </div>
-      )}
-
-      {openMember && (
-        <div className="border-t pt-4">
-          <ProjectPermissionDetailPanel
-            projectId={projectId}
-            projectName={activeProject?.projectName ?? "Project"}
-            grant={openMember.grant}
-            projectDocsMap={projectDocsMap}
-            setResourcePermission={handleSetResourcePermission}
-            setProjectDocPermission={handleSetProjectDocPermission}
-            getDocumentRootType={getDocumentRootType}
-            onClose={() => setOpenMemberId(null)}
-          />
-        </div>
-      )}
 
       <AddLenderToProjectModal
         isOpen={addLenderModalOpen}

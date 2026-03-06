@@ -517,6 +517,33 @@ async function fetchProjectResumeData(projectId: string): Promise<{
 }
 
 /**
+ * Fetch project resume content by version id (for "Copy from version").
+ * Returns content and locked_fields in a shape suitable for form initial data.
+ */
+export async function getProjectResumeContentByVersionId(versionId: string): Promise<{
+	content: ProjectResumeContent;
+	lockedFields: Record<string, boolean>;
+} | null> {
+	const { data, error } = await supabase
+		.from("project_resumes")
+		.select("content, locked_fields")
+		.eq("id", versionId)
+		.single();
+	if (error || !data) return null;
+	const rawContent = (data.content || {}) as any;
+	const projectLockedFields =
+		(data.locked_fields as Record<string, boolean> | undefined) || {};
+	const content = { ...rawContent };
+	delete content._lockedFields;
+	delete content._fieldStates;
+	delete content._metadata;
+	return {
+		content: content as ProjectResumeContent,
+		lockedFields: projectLockedFields,
+	};
+}
+
+/**
  * Helper: Fetch and process borrower resume for a single project
  * Uses the centralized getProjectBorrowerResume function
  */
