@@ -10,27 +10,27 @@ const LEADERSHIP = [
 	{
 		name: "Dr. Jeff Richmond",
 		title: "Chief Executive Officer",
-		bio: "Dr. Richmond brings decades of leadership across real estate, capital markets, and organizational scale. He has built and led real estate organizations responsible for $2B+ in annual transaction volume, with a focus on strategic growth, execution discipline, and long-term value creation. At CapMatch, he leads vision, partnerships, and the integration of market realities into a scalable operating company.",
-	},
-	{
-		name: "Todd Vitzthum",
-		title: "Executive Chairman",
-		bio: "Todd has over 20 years of institutional commercial real estate experience, including senior leadership roles at Greystone, Cushman & Wakefield, and CBRE. He has personally originated, structured, and placed debt across market cycles, asset classes, and capital stacks. CapMatch is the productization of systems he built manually, refined through real deals, real lenders, and real borrower outcomes.",
+		bio: "15 years of experience driving AI-powered capital markets for multifamily and Opportunity Zone investments at CapMatch and OZ Listings. Former growth leadership at eXp Realty ($2B+ annual volume) and Chief Operating Partner at ACARA Management.",
 	},
 	{
 		name: "Param Vora",
 		title: "Chief Technology Officer & Chief Operating Officer",
-		bio: "Param leads CapMatch's technology, data, and operational execution. With over a decade of experience in AI/ML, systems architecture, and large-scale platform development, he has built and scaled AI-driven products used at national scale and led teams through high-growth phases and successful exits. At CapMatch, he is responsible for translating institutional lending workflows into a durable, vertically integrated operating system.",
+		bio: "Director of AI at The Cool Down (60M+ monthly visits, fastest-growing U.S. media brand in early 2025). Former CTO of Solarcheckr (650% increase in financing approvals, successful acquisition); Cleantech Open alumnus. Chief BD at Urbanests Housing Services for 1Y. 9+ years of ML/AI experience. Leading CapMatch's technology vision across underwriting, automation, and investor intelligence.",
+	},
+	{
+		name: "Todd Vitzthum",
+		title: "Executive Chairman",
+		bio: "23 years of experience, executing over $3B in commercial real estate transactions. Drives tech-enabled capital platforms at CapMatch and OZ Listings. Managing Partner at ACARA Management leading multifamily investment strategy and Opportunity Zone deployment.",
 	},
 	{
 		name: "Michael Krueger",
 		title: "Chief Legal Officer",
-		bio: "Michael is a partner at Lucosky Brookman LLP and a corporate and securities attorney specializing in capital markets, structured finance, and complex transactions. He ensures CapMatch operates with regulatory rigor, transaction integrity, and governance frameworks suitable for institutional counterparties.",
+		bio: "Partner at Lucosky Brookman LLP, corporate and securities attorney specializing in capital markets, structured finance, and complex transactions. Ensures CapMatch operates with regulatory rigor, transaction integrity, and governance frameworks suitable for institutional counterparties.",
 	},
 	{
-		name: "Greg Kapust",
-		title: "Finance & Governance",
-		bio: "Greg brings deep experience in finance, governance, and capital allocation, with four successful exits, including three exceeding $100M. An active real estate investor, he provides disciplined financial oversight and ensures CapMatch is built to scale responsibly while competing aggressively on outcomes.",
+		name: "Gregory J. Kapust",
+		title: "Advisory",
+		bio: "Deep experience in finance, governance, and capital allocation, with four successful exits including three exceeding $100M. Active real estate investor, providing disciplined financial oversight and ensuring CapMatch is built to scale responsibly while competing aggressively on outcomes.",
 	},
 ];
 
@@ -38,27 +38,27 @@ const TECHNICAL_STAFF = [
 	{
 		name: "Cody Field",
 		department: "Capital Markets Advisory",
-		bio: "Strategic and entrepreneurial mortgage banker with demonstrated expertise in structuring and brokering commercial, industrial, and multifamily real estate assets. Draws from an uncommon background as yacht Captain to build consensus and communicate clearly. An insightful partner with excellent problem-solving skills and a talent for building collaborative and inclusive relationships in dynamic, fast-paced working environments.",
+		bio: "20 years as a strategic mortgage banker structuring and brokering commercial, industrial, and multifamily real estate. Served as Vice President at NorthMarq and Senior Analyst at Greystone. Also held the role of Yacht Captain.",
 	},
 	{
 		name: "Aryan Jain",
 		department: "Engineering",
-		bio: "Aryan brings strong systems thinking and a thorough, detail-oriented approach to building robust technical solutions. He excels at breaking down complex problems into clear architectures and has a keen eye for edge cases and long-term maintainability. His combination of technical depth and structured reasoning makes him a key contributor to CapMatch's engineering foundation.",
+		bio: "Former founder and software engineer with a background in AI productivity tools. Built and scaled a venture-backed company from zero to revenue and through a successful exit. Founded SmailBox and UsePRD, a gradCapital-backed startup focused on intelligent automation. Originally developed SmailBox, an AI-driven email client designed for advanced email inbox automation. Successfully pivoted the core technology to UsePRD, an application generating high-fidelity implementation plans for coding agents, and sold the product after seeing early revenue and traction. Selected as one of 50 founders for Founders Inc. Off-Season in San Francisco — a highly selective residency for building emerging technology at their Fort Mason campus.\n\nEducation: IIT Madras, Computer Science & Engineering — B.Tech (2023–2027). Achieved a historic branch change from Metallurgy to Computer Science (top 150 AIR cutoff), placing in the top 0.01% of 1.5 million JEE entrants.",
 	},
 	{
 		name: "Sarthak Karandikar",
 		department: "Engineering",
-		bio: "Sarthak focuses on applying technology and systematic thinking to complex commercial real estate and platform problems. He has experience across startups and open-source development, with a strong interest in AI and in building tools that improve how the industry operates. He is committed to clear communication and to shipping solutions that create measurable impact.",
+		bio: "Former founder of AI startup Existence, building products including open-source personal assistant Sentient with 700+ GitHub stars and 400+ users. Published 4 research papers at international conferences; holds an Indian patent for an edtech AI product. Experience scaling and monetizing content across social platforms. Contributes across product management, engineering, and content at CapMatch.\n\nEducation: Pune Vidyarthi Griha's College of Engineering and Technology",
 	},
 	{
 		name: "Kabeer Ahmed Merchant",
 		department: "Engineering",
-		bio: "Kabeer is focused on solving hard, overlooked problems in commercial real estate by rebuilding workflows from first principles and applying technology where it delivers real value. He has deep experience in AI, machine learning, data science, and systems design, with a focus on how complex systems fail and how to rebuild them more reliably. He works closely with investors, developers, and operators to align technology with business outcomes.",
+		bio: "Former founder of Existence with experience across engineering, product development, community building and research. Built Sentient, an open-source proactive personal assistant (700+ GitHub stars) engineered to operate with the autonomy required to replace traditional human assistants. The project evolved into Sentient Cloud, an international platform serving 200+ users across the US, Germany, Turkey, and other global markets, successfully generating initial revenue. This global reach was driven by an organic ecosystem, scaling a dedicated WhatsApp community to 1,000+ members and amassing over 14 million total views across YouTube (5,000+ subscribers, 10M+ views) and Instagram (1,000+ followers, 4M+ views). Holds a granted Indian patent and has published three research papers resulting from other technical products developed at Existence.\n\nEducation: Artificial Intelligence and Data Science (2022–2026) @ Pune Vidyarthi Griha's College of Engineering and Technology, Pune",
 	},
 	{
 		name: "Vatsal Hariramani",
 		department: "Engineering",
-		bio: "Vatsal is a builder and entrepreneur focused on complex problems at the intersection of technology and real-world impact. His background spans AI/ML, IoT, automation, and robotics. At CapMatch he contributes to product and engineering with an emphasis on moving from concept to scalable solutions.",
+		bio: "Former founder with experience in robotics, computer vision, and reliability-focused systems engineering. Previously at MITI Labs and Fortiss Labs (Munich). Founded Syncubator, a venture-backed MedTech startup supported by Emergent Ventures, NIDHI PRAYAS, CPS PRAYAS, and gradCapital. Holds a granted Indian utility patent.\n\nEducation: B.Tech, Computer Science & Engineering, IIT Mandi · TU Munich, Informatics (Semester Abroad)",
 	},
 ];
 
@@ -197,7 +197,7 @@ export default function AboutPage() {
 							transition={{ duration: 0.4 }}
 							className="text-center text-2xl md:text-3xl font-bold text-gray-900 tracking-tight mb-4"
 						>
-							Leadership Team
+							Team Leadership
 						</motion.h2>
 						<motion.p
 							initial={{ opacity: 0, y: 12 }}
@@ -206,14 +206,10 @@ export default function AboutPage() {
 							transition={{ duration: 0.4, delay: 0.06 }}
 							className="text-gray-600 text-base max-w-2xl mb-12 text-center mx-auto"
 						>
-							CapMatch is led by operators who have built,
-							financed, executed, and governed complex real
-							estate and technology businesses, and who
-							understand that infrastructure, not tooling,
-							determines outcomes.
+							$6B+ in combined transaction volume and 20+ years of expertise in real estate, lending, and technology.
 						</motion.p>
 
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 							{LEADERSHIP.map((person, index) => (
 								<motion.article
 									key={person.name}
@@ -249,7 +245,7 @@ export default function AboutPage() {
 										<p className="text-sm font-semibold text-blue-600 mb-4">
 											{person.title}
 										</p>
-										<p className="text-gray-700 leading-relaxed text-[15px]">
+										<p className="text-gray-700 leading-relaxed text-[15px] whitespace-pre-wrap">
 											{person.bio}
 										</p>
 									</div>
@@ -273,7 +269,7 @@ export default function AboutPage() {
 							transition={{ duration: 0.4 }}
 							className="text-center text-2xl md:text-3xl font-bold text-gray-900 tracking-tight mb-4"
 						>
-							Technical Staff
+							Engineering & Advisory
 						</motion.h2>
 						<motion.p
 							initial={{ opacity: 0, y: 12 }}
@@ -282,7 +278,7 @@ export default function AboutPage() {
 							transition={{ duration: 0.4, delay: 0.06 }}
 							className="text-gray-600 text-base max-w-2xl mb-12 text-center mx-auto"
 						>
-							Our technical and advisory teams bring deep domain expertise and engineering rigor to CapMatch’s platform and client outcomes.
+							Our technical and advisory teams bring deep domain expertise and engineering rigor to CapMatch's platform and client outcomes.
 						</motion.p>
 
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -320,7 +316,7 @@ export default function AboutPage() {
 										<p className="text-sm font-semibold text-blue-600 mb-4">
 											{person.department}
 										</p>
-										<p className="text-gray-700 leading-relaxed text-[15px]">
+										<p className="text-gray-700 leading-relaxed text-[15px] whitespace-pre-wrap">
 											{person.bio}
 										</p>
 									</div>
