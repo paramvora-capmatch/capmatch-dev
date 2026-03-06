@@ -15,7 +15,7 @@ const LEADERSHIP = [
 	{
 		name: "Param Vora",
 		title: "Chief Technology Officer & Chief Operating Officer",
-		bio: "Director of AI at The Cool Down (60M+ monthly visits, fastest-growing U.S. media brand in early 2025). Former CTO of Solarcheckr (650% increase in financing approvals, successful acquisition); Cleantech Open alumnus. Chief BD at Urbanests Housing Services for 1Y. 9+ years of ML/AI experience. Leading CapMatch's technology vision across underwriting, automation, and investor intelligence.",
+		bio: "Director of AI at The Cool Down (60M+ monthly visits, fastest-growing U.S. media brand in early 2025). Former CTO of Solarcheckr (650% increase in financing approvals, successful acquisition); Cleantech Open alumnus. Chief BD at Urbanests Housing Services for 1Y. 9+ years of ML/AI experience. Leading CapMatch&apos;s technology vision across underwriting, automation, and investor intelligence.",
 	},
 	{
 		name: "Todd Vitzthum",
@@ -278,7 +278,7 @@ export default function AboutPage() {
 							transition={{ duration: 0.4, delay: 0.06 }}
 							className="text-gray-600 text-base max-w-2xl mb-12 text-center mx-auto"
 						>
-							Our technical and advisory teams bring deep domain expertise and engineering rigor to CapMatch's platform and client outcomes.
+							Our technical and advisory teams bring deep domain expertise and engineering rigor to CapMatch&apos;s platform and client outcomes.
 						</motion.p>
 
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
