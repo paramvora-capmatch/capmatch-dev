@@ -121,6 +121,8 @@ import {
 	buildFieldLabelMap,
 	mapWarningsToLabels as mapWarningsToLabelsUtil,
 } from "@/features/project-resume/domain/schemaSelectors";
+import { useProjectResumeDraft } from "@/features/project-resume/hooks/useProjectResumeDraft";
+import { useProjectResumePersistence } from "@/features/project-resume/hooks/useProjectResumePersistence";
 
 interface EnhancedProjectFormProps {
 	existingProject: ProjectProfile;
@@ -1096,19 +1098,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		Map<string, React.RefObject<HTMLDivElement>>
 	>(new Map());
 
-	// Track the last state that was successfully persisted to the DB
-	// so we can detect "unsaved changes" (dirty state) on any kind of exit.
-	const initialSnapshotRef = useRef<{
-		formData: ProjectProfile;
-		fieldMetadata: Record<string, any>;
-		lockedFields: Set<string>;
-	} | null>(null);
-	const lastSavedSnapshotRef = useRef<{
-		formData: ProjectProfile;
-		fieldMetadata: Record<string, any>;
-		lockedFields: Set<string>;
-	} | null>(null);
-
 	const {
 		isAutofilling,
 		showSparkles,
@@ -1116,6 +1105,31 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		errorModal,
 		clearErrorModal,
 	} = useAutofill(existingProject.id, { context: "project" });
+
+	const { storageKey, clearDraft } = useProjectResumeDraft({
+		projectId: existingProject.id,
+		formData,
+		fieldMetadata,
+		lockedFields,
+		setFormData,
+		setFieldMetadata,
+		setLockedFields,
+		setLastSavedAt,
+		setIsRestoring,
+		isRestoring,
+	});
+
+	const { setBaselineSnapshot, hasUnsavedChanges, saveToDatabase } =
+		useProjectResumePersistence({
+			projectId: existingProject.id,
+			formData,
+			fieldMetadata,
+			lockedFields,
+			storageKey,
+			clearDraft,
+			saveProjectResume,
+			setFormSaved,
+		});
 
 	// Effect to handle updates from parent (e.g. after Autofill)
 	useEffect(() => {
@@ -1144,92 +1158,14 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		setUnlockedFields(new Set());
 
 		// Establish / refresh the baseline snapshot from the DB-backed project.
-		// We treat this as the "saved" state until an explicit or implicit save succeeds.
 		const snapshotLocked = new Set(newLockedFields);
-		const snapshot: {
-			formData: ProjectProfile;
-			fieldMetadata: Record<string, any>;
-			lockedFields: Set<string>;
-		} = {
+		const snapshot = {
 			formData: sanitized,
 			fieldMetadata: metadata,
 			lockedFields: snapshotLocked,
 		};
-		initialSnapshotRef.current = snapshot;
-		lastSavedSnapshotRef.current = snapshot;
-	}, [existingProject, isRestoring]);
-
-	// Local Storage Autosave Key
-	const storageKey = useMemo(
-		() => `capmatch_resume_draft_${existingProject.id}`,
-		[existingProject.id]
-	);
-
-	// Restore from Local Storage on Mount (in-memory only; no automatic DB flush)
-	useEffect(() => {
-		if (typeof window === "undefined") return;
-		try {
-			const saved = localStorage.getItem(storageKey);
-			if (saved) {
-				const draft = JSON.parse(saved);
-				// Basic check to ensure draft belongs to this project (though key already ensures it)
-				if (draft.projectId === existingProject.id) {
-					console.log(
-						"[EnhancedProjectForm] Restoring draft from local storage"
-					);
-					setIsRestoring(true); // Prevent prop updates from overwriting restored state temporarily
-
-					setFormData(draft.formData);
-					setFieldMetadata(draft.fieldMetadata || {});
-					if (draft.lockedFields) {
-						setLockedFields(new Set(draft.lockedFields));
-					}
-					setLastSavedAt(draft.updatedAt);
-
-					// Clear restoring flag after a tick to allow subsequent prop updates (e.g. real remote changes)
-					// Ideally we only restore once on mount.
-					setTimeout(() => setIsRestoring(false), 100);
-				}
-			}
-		} catch (err) {
-			console.warn("[EnhancedProjectForm] Failed to restore draft:", err);
-		}
-	}, [existingProject.id, storageKey]);
-
-	// Save to Local Storage on Change (Debounced)
-	useEffect(() => {
-		// Don't autosave while restoring
-		if (isRestoring) return;
-
-		const handler = setTimeout(() => {
-			if (typeof window === "undefined") return;
-			try {
-				const draft = {
-					projectId: existingProject.id,
-					formData,
-					fieldMetadata,
-					lockedFields: Array.from(lockedFields),
-					updatedAt: Date.now(),
-				};
-				localStorage.setItem(storageKey, JSON.stringify(draft));
-				setLastSavedAt(Date.now());
-			} catch (err) {
-				console.warn(
-					"[EnhancedProjectForm] Failed to save draft:",
-					err
-				);
-			}
-		}, 1000); // 1 second debounce
-
-		return () => clearTimeout(handler);
-	}, [
-		formData,
-		fieldMetadata,
-		lockedFields,
-		existingProject.id,
-		storageKey,
-		isRestoring,
-	]);
+		setBaselineSnapshot(snapshot);
+	}, [existingProject, isRestoring, setBaselineSnapshot]);
 
 	// Autosave notification handler (from autofill)
 	useEffect(() => {
@@ -2055,112 +1991,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		}
 	}, [initialFocusFieldId]);
 
-	// Save Logic (Explicit or Unmount)
-	// Use refs to access the latest state and track in-flight saves when checking for dirtiness.
-	const stateRef = useRef({ formData, fieldMetadata, lockedFields });
-	const isSavingRef = useRef(false);
-	useEffect(() => {
-		stateRef.current = { formData, fieldMetadata, lockedFields };
-	}, [formData, fieldMetadata, lockedFields]);
-
-	// Helper to determine if there are unsaved changes compared to the last
-	// known persisted snapshot (or the initial DB snapshot if none).
-	const hasUnsavedChanges = useCallback((): boolean => {
-		const baseline =
-			lastSavedSnapshotRef.current || initialSnapshotRef.current;
-		if (!baseline) return true;
-
-		const current = stateRef.current;
-
-		const lockedToArray = (s: Set<string>) =>
-			Array.from(s).sort((a, b) => a.localeCompare(b));
-
-		try {
-			const formEqual =
-				JSON.stringify(current.formData) ===
-				JSON.stringify(baseline.formData);
-			const metaEqual =
-				JSON.stringify(current.fieldMetadata) ===
-				JSON.stringify(baseline.fieldMetadata);
-			const locksEqual =
-				JSON.stringify(lockedToArray(current.lockedFields)) ===
-				JSON.stringify(lockedToArray(baseline.lockedFields));
-
-			return !(formEqual && metaEqual && locksEqual);
-		} catch {
-			// If comparison fails for any reason, err on the side of treating
-			// the form as dirty so changes are not lost.
-			return true;
-		}
-	}, []);
-
-	const saveToDatabase = useCallback(
-		async (finalData: ProjectProfile, createNewVersion: boolean) => {
-			// If there are no unsaved changes relative to our baseline, skip creating
-			// another version row. Still clear any local draft.
-			if (!hasUnsavedChanges()) {
-				if (typeof window !== "undefined") {
-					localStorage.removeItem(storageKey);
-					setLastSavedAt(null);
-				}
-				return;
-			}
-
-			setFormSaved(true);
-			isSavingRef.current = true;
-
-			// Signal to realtime hooks that this is a local save
-			if (typeof window !== "undefined") {
-				window.dispatchEvent(
-					new CustomEvent("local-save-started", {
-						detail: { projectId: finalData.id, context: "project" },
-					})
-				);
-			}
-
-			try {
-				await saveProjectResume(finalData.id, finalData, {
-					createNewVersion,
-				});
-
-				// After a successful save, update the baseline snapshot so subsequent
-				// exits only create new versions when there are further edits.
-				const snapshotLocked = new Set(
-					Object.keys(finalData._lockedFields || {}).filter(
-						(k) => finalData._lockedFields?.[k]
-					)
-				);
-				const snapshot: {
-					formData: ProjectProfile;
-					fieldMetadata: Record<string, any>;
-					lockedFields: Set<string>;
-				} = {
-					formData: finalData,
-					fieldMetadata: (finalData as any)._metadata || {},
-					lockedFields: snapshotLocked,
-				};
-				lastSavedSnapshotRef.current = snapshot;
-				// Also sync the "current" in-memory state to this snapshot so that
-				// a subsequent unmount doesn't see the old pre-save formData and
-				// incorrectly conclude there are unsaved changes, which would
-				// create a duplicate version.
-				stateRef.current = snapshot;
-
-				// Clear local storage after successful save
-				if (typeof window !== "undefined") {
-					localStorage.removeItem(storageKey);
-					setLastSavedAt(null);
-				}
-			} catch (err) {
-				console.error("[EnhancedProjectForm] Save failed:", err);
-			} finally {
-				isSavingRef.current = false;
-				setTimeout(() => setFormSaved(false), 1500);
-			}
-		},
-		[hasUnsavedChanges, storageKey]
-	);
-
 	const handleFormSubmit = useCallback(
 		async (finalData?: ProjectProfile) => {
 			const lockedFieldsObj: Record<string, boolean> = {};
@@ -2189,110 +2019,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			onVersionChange,
 		]
 	);
-
-	// Save on Unmount
-	useEffect(() => {
-		return () => {
-			// If an explicit save is currently in-flight, skip the unmount save to
-			// avoid creating duplicate versions with identical content (e.g. when
-			// navigating away immediately after clicking "Save & Exit").
-			if (isSavingRef.current) {
-				return;
-			}
-
-			// If there are no unsaved changes relative to our last saved snapshot,
-			// don't create another version on unmount.
-			if (!hasUnsavedChanges()) {
-				return;
-			}
-
-			const {
-				formData: currentFormData,
-				fieldMetadata: currentMeta,
-				lockedFields: currentLocks,
-			} = stateRef.current;
-
-			const lockedFieldsObj: Record<string, boolean> = {};
-			currentLocks.forEach((id) => {
-				lockedFieldsObj[id] = true;
-			});
-
-			const dataToSave: ProjectProfile = {
-				...currentFormData,
-				_metadata: currentMeta,
-				_lockedFields: lockedFieldsObj,
-			};
-
-			// Signal to realtime hooks that this is a local save
-			if (typeof window !== "undefined") {
-				window.dispatchEvent(
-					new CustomEvent("local-save-started", {
-						detail: {
-							projectId: dataToSave.id,
-							context: "project",
-						},
-					})
-				);
-			}
-
-			// Fire and forget save on unmount. We always create a new version
-			// here when dirty, since this represents an exit with draft changes.
-			void saveProjectResume(dataToSave.id, dataToSave, {
-				createNewVersion: true,
-			})
-				.then(() => {
-					// Update baseline snapshot after successful background save
-					const snapshotLocked = new Set(
-						Object.keys(lockedFieldsObj).filter(
-							(k) => lockedFieldsObj[k]
-						)
-					);
-					const snapshot: {
-						formData: ProjectProfile;
-						fieldMetadata: Record<string, any>;
-						lockedFields: Set<string>;
-					} = {
-						formData: dataToSave,
-						fieldMetadata: currentMeta,
-						lockedFields: snapshotLocked,
-					};
-					lastSavedSnapshotRef.current = snapshot;
-
-					// Also clear local storage so the same draft isn't re-applied.
-					if (typeof window !== "undefined") {
-						localStorage.removeItem(storageKey);
-					}
-				})
-				.catch((err) =>
-					console.error(
-						"[EnhancedProjectForm] Unmount save failed",
-						err
-					)
-				);
-		};
-	}, [hasUnsavedChanges, storageKey]);
-
-	// Warn the user when attempting to close/refresh the tab or navigate away
-	// from the page entirely while there are unsaved changes. Browsers only
-	// allow a generic confirmation dialog here – we can't customize the text
-	// or add buttons, but this at least nudges the user to use Save & Exit.
-	useEffect(() => {
-		if (typeof window === "undefined") return;
-
-		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-			// If nothing has changed, allow navigation without warning.
-			if (!hasUnsavedChanges()) return;
-
-			event.preventDefault();
-			// Some browsers require setting returnValue for the prompt to appear.
-			event.returnValue = "";
-		};
-
-		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => {
-			window.removeEventListener("beforeunload", handleBeforeUnload);
-		};
-	}, [hasUnsavedChanges]);
 
 	// Derived / calculated fields
 	// - incentiveStacking: concatenated labels of enabled incentives

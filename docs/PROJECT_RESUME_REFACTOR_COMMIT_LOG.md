@@ -10,7 +10,7 @@ Use this log to roll back to a previous state: `git checkout <commit-hash>`.
 | 1 | refactor(project-resume): add characterization tests and harness | Jest + fixtures + domain copies for isProjectValueProvided, sanitizeProjectProfile; completion tests. |
 | 2 | refactor(project-resume): extract pure domain helpers | Form imports isProjectValueProvided, sanitizeProjectProfile; lockSelectors, fieldStateSelectors, subsectionBadgeState, schemaSelectors; tests for lock/field-state. |
 | 3 | (pending) | Extract schema and field registries. |
-| 4 | (pending) | Extract persistence and draft hooks. |
+| 4 | refactor(project-resume): extract persistence and draft hooks | useProjectResumeDraft (localStorage restore + debounce), useProjectResumePersistence (dirty tracking, save, unmount, beforeunload). |
 | 5 | (pending) | Extract validation into useProjectResumeValidation. |
 | 6 | (pending) | Extract derived-field engine. |
 | 7 | (pending) | Extract generic field UI primitives. |
