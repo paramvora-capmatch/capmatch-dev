@@ -48,10 +48,7 @@ import { ProjectProfile } from "@/types/enhanced-types";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { PROJECT_REQUIRED_FIELDS } from "@/utils/resumeCompletion";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
-import {
-	projectResumeFieldMetadata,
-	FieldMetadata as ProjectFieldMeta,
-} from "@/lib/project-resume-field-metadata";
+import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
 import { saveProjectResume } from "@/lib/project-queries";
 import { isFieldVisibleForDealType, type DealType } from "@/lib/deal-type-field-config";
 import {
@@ -105,6 +102,25 @@ import {
 	MAX_IMAGE_OR_PDF_SIZE_BYTES,
 	ALLOWED_IMAGE_OR_PDF_TYPES,
 } from "@/utils/fileUploadValidation";
+import { isProjectValueProvided } from "@/features/project-resume/domain/isProjectValueProvided";
+import { sanitizeProjectProfile } from "@/features/project-resume/domain/sanitizeProjectProfile";
+import {
+	isFieldLocked as isFieldLockedSelector,
+	isSubsectionFullyLocked as isSubsectionFullyLockedSelector,
+	type LockSelectorContext,
+} from "@/features/project-resume/domain/lockSelectors";
+import {
+	isFieldRed as isFieldRedSelector,
+	isFieldBlue as isFieldBlueSelector,
+	isFieldWhite as isFieldWhiteSelector,
+	isFieldGreen as isFieldGreenSelector,
+	type FieldStateContext,
+} from "@/features/project-resume/domain/fieldStateSelectors";
+import { getSubsectionBadgeState } from "@/features/project-resume/domain/subsectionBadgeState";
+import {
+	buildFieldLabelMap,
+	mapWarningsToLabels as mapWarningsToLabelsUtil,
+} from "@/features/project-resume/domain/schemaSelectors";
 
 interface EnhancedProjectFormProps {
 	existingProject: ProjectProfile;
@@ -116,102 +132,6 @@ interface EnhancedProjectFormProps {
 	onVersionChange?: () => void;
 	initialStepId?: string | null;
 }
-
-const isProjectValueProvided = (value: unknown): boolean => {
-	if (value === null || value === undefined) return false;
-	if (typeof value === "string") return value.trim().length > 0;
-	if (Array.isArray(value)) return value.length > 0;
-	if (typeof value === "number") return !Number.isNaN(value);
-	if (typeof value === "boolean") return true;
-	return false;
-};
-
-// Sanitize incoming ProjectProfile / metadata so obviously wrong legacy values
-// (e.g. boolean `true` where dataType is Integer/Percent/Text) are nulled out
-// before they ever hit the form state or get written back to the DB again.
-const sanitizeProjectProfile = (profile: ProjectProfile): ProjectProfile => {
-	const next: any = { ...profile };
-
-	// Fix flat field values
-	for (const [fieldId, meta] of Object.entries(projectResumeFieldMetadata)) {
-		const dataType = (meta as ProjectFieldMeta).dataType;
-		if (!dataType || dataType === "Boolean") continue;
-
-		const current = (next as any)[fieldId];
-		if (typeof current === "boolean") {
-			(next as any)[fieldId] = null;
-		}
-	}
-
-	// Normalize and enrich rich metadata container on the profile itself
-	const fixedMeta: Record<string, any> =
-		next._metadata && typeof next._metadata === "object"
-			? { ...next._metadata }
-			: {};
-
-	for (const [fieldId, meta] of Object.entries(fixedMeta)) {
-		const fieldConfig = projectResumeFieldMetadata[fieldId];
-		const dataType = fieldConfig?.dataType;
-		if (!dataType || dataType === "Boolean") continue;
-
-		if (meta && typeof meta === "object") {
-			if (typeof (meta as any).value === "boolean") {
-				(meta as any).value = null;
-			}
-			// Remove original_value (deprecated)
-			if ("original_value" in (meta as any)) {
-				delete (meta as any).original_value;
-			}
-			// Convert sources array to single source (backward compatibility)
-			if (
-				(meta as any).sources &&
-				Array.isArray((meta as any).sources) &&
-				(meta as any).sources.length > 0 &&
-				!(meta as any).source
-			) {
-				(meta as any).source = (meta as any).sources[0];
-				delete (meta as any).sources;
-			}
-		}
-	}
-
-	// Ensure every configured field has default user_input metadata when backend
-	// didn't provide any. This mirrors the old mock API behavior where fields
-	// that weren't autofilled were treated as user_input and shown as blue.
-	// CRITICAL: Only create metadata for fields that have values OR already have metadata.
-	// Empty fields without existing metadata should remain without metadata (white) until user inputs something.
-	for (const fieldId of Object.keys(projectResumeFieldMetadata)) {
-		const existingMeta = fixedMeta[fieldId];
-		const currentValue = (next as any)[fieldId];
-
-		// If field already has metadata from backend, ensure it has a source
-		if (existingMeta) {
-			if (!existingMeta.source) {
-				// If we have metadata but no explicit source, treat it as user_input.
-				existingMeta.source = { type: "user_input" };
-			}
-			continue; // Preserve existing metadata
-		}
-
-		// Only create NEW metadata for fields that have actual values
-		// Empty fields (null, undefined, empty string) should NOT get metadata created
-		// This prevents empty fields from turning blue before user interaction
-		const hasValue = isProjectValueProvided(currentValue);
-		if (hasValue) {
-			fixedMeta[fieldId] = {
-				value: currentValue,
-				source: { type: "user_input" },
-				warnings: [],
-				other_values: [],
-			};
-		}
-		// If field is empty and has no existing metadata, don't create metadata - it should remain white
-	}
-
-	next._metadata = fixedMeta;
-
-	return next as ProjectProfile;
-};
 
 interface ProjectMediaUploadProps {
 	projectId: string;
@@ -1127,31 +1047,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		sanitizedExistingProject._metadata || {}
 	);
 
-	// Map field IDs to human-readable labels from the project form schema
-	const fieldLabelMap = useMemo(() => {
-		const cfg = (formSchema as any)?.fields || {};
-		const map: Record<string, string> = {};
-		for (const [fid, def] of Object.entries<any>(cfg)) {
-			if (def?.label) {
-				map[fid] = String(def.label);
-			}
-		}
-		return map;
-	}, []);
+	const fieldLabelMap = useMemo(
+		() => buildFieldLabelMap(formSchema as any),
+		[]
+	);
 
 	// Replace raw field IDs in warning messages with user-friendly labels
 	const mapWarningsToLabels = useCallback(
-		(warnings?: string[] | null): string[] | undefined => {
-			if (!warnings || warnings.length === 0) return undefined;
-			return warnings.map((w) => {
-				let result = w;
-				for (const [fid, label] of Object.entries(fieldLabelMap)) {
-					const pattern = new RegExp(`\\b${fid}\\b`, "g");
-					result = result.replace(pattern, label);
-				}
-				return result;
-			});
-		},
+		(warnings?: string[] | null): string[] | undefined =>
+			mapWarningsToLabelsUtil(warnings ?? undefined, fieldLabelMap),
 		[fieldLabelMap]
 	);
 
@@ -1809,32 +1713,32 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	}, [formData, onFormDataChange]);
 
 	// Helper to derive subsection lock status from its field locks
-	const isSubsectionFullyLocked = useCallback(
-		(fieldIds: string[]) => {
-			if (fieldIds.length === 0) return false;
+	const lockContext = useMemo(
+		(): LockSelectorContext => ({
+			lockedFields,
+			unlockedFields,
+			fieldMetadata,
+		}),
+		[lockedFields, unlockedFields, fieldMetadata]
+	);
+	const fieldStateContext = useMemo(
+		(): FieldStateContext => ({
+			...lockContext,
+			formData: formData as unknown as Record<string, unknown>,
+		}),
+		[lockContext, formData]
+	);
 
-			// Check if all fields in subsection are locked (and not explicitly unlocked)
-			return fieldIds.every(
-				(fieldId) =>
-					!unlockedFields.has(fieldId) && lockedFields.has(fieldId)
-			);
-		},
-		[lockedFields, unlockedFields]
+	const isSubsectionFullyLocked = useCallback(
+		(fieldIds: string[]) =>
+			isSubsectionFullyLockedSelector(lockContext, fieldIds),
+		[lockContext]
 	);
 
 	const isFieldLocked = useCallback(
-		(fieldId: string, _sectionId?: string) => {
-			const meta = fieldMetadata[fieldId];
-			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
-
-			// Fields with warnings must remain editable/red, never locked.
-			if (hasWarnings) return false;
-
-			if (unlockedFields.has(fieldId)) return false;
-			if (lockedFields.has(fieldId)) return true;
-			return false;
-		},
-		[lockedFields, unlockedFields, fieldMetadata]
+		(fieldId: string, _sectionId?: string) =>
+			isFieldLockedSelector(lockContext, fieldId),
+		[lockContext]
 	);
 
 	const toggleFieldLock = useCallback(
@@ -2003,73 +1907,27 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	);
 
 	const isFieldRed = useCallback(
-		(fieldId: string, sectionId?: string): boolean => {
-			const locked = isFieldLocked(fieldId, sectionId);
-			const meta = fieldMetadata[fieldId];
-			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
-			return hasWarnings && !locked;
-		},
-		[fieldMetadata, isFieldLocked]
+		(fieldId: string, _sectionId?: string): boolean =>
+			isFieldRedSelector(fieldStateContext, fieldId),
+		[fieldStateContext]
 	);
 
 	const isFieldBlue = useCallback(
-		(fieldId: string, sectionId?: string): boolean => {
-			const value = (formData as any)[fieldId];
-			const hasValue = isProjectValueProvided(value);
-			const locked = isFieldLocked(fieldId, sectionId);
-			const meta = fieldMetadata[fieldId];
-			// Check single source (new format) or sources array (backward compatibility)
-			const hasSource =
-				meta?.source ||
-				(meta?.sources &&
-					Array.isArray(meta.sources) &&
-					meta.sources.length > 0);
-			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
-
-			// Don't show as blue if locked (should be green)
-			if (locked) {
-				return false;
-			}
-
-			// Don't show as blue if there are warnings (should be red instead)
-			if (hasWarnings) {
-				return false;
-			}
-
-			if (!hasValue) {
-				// Blue: has source but no value, not locked, no warnings
-				return hasSource;
-			}
-
-			// Blue: has value, not locked, no warnings (matches visual styling - regardless of source type)
-			return true;
-		},
-		[formData, fieldMetadata, isFieldLocked]
+		(fieldId: string, _sectionId?: string): boolean =>
+			isFieldBlueSelector(fieldStateContext, fieldId),
+		[fieldStateContext]
 	);
 
 	const isFieldWhite = useCallback(
-		(fieldId: string, sectionId?: string): boolean => {
-			const value = (formData as any)[fieldId];
-			const hasValue = isProjectValueProvided(value);
-			const meta = fieldMetadata[fieldId];
-			// Check single source (new format) or sources array (backward compatibility)
-			const hasSource =
-				meta?.source ||
-				(meta?.sources &&
-					Array.isArray(meta.sources) &&
-					meta.sources.length > 0);
-			return !hasValue && !hasSource;
-		},
-		[formData, fieldMetadata]
+		(fieldId: string, _sectionId?: string): boolean =>
+			isFieldWhiteSelector(fieldStateContext, fieldId),
+		[fieldStateContext]
 	);
 
 	const isFieldGreen = useCallback(
-		(fieldId: string, sectionId?: string): boolean => {
-			const locked = isFieldLocked(fieldId, sectionId);
-			// Green: locked (regardless of warnings)
-			return locked;
-		},
-		[isFieldLocked]
+		(fieldId: string, _sectionId?: string): boolean =>
+			isFieldGreenSelector(fieldStateContext, fieldId),
+		[fieldStateContext]
 	);
 
 	const renderFieldLockButton = useCallback(
@@ -3274,74 +3132,14 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 				const allFieldIds: string[] = subsection.fields || [];
 
-				// Determine subsection state for visual indication
-				const subsectionLocked = isSubsectionFullyLocked(allFieldIds);
-				const fieldStates =
-					allFieldIds.length > 0
-						? allFieldIds.map((fieldId) => {
-							const meta = fieldMetadata[fieldId];
-							const hasWarnings =
-								meta?.warnings && meta.warnings.length > 0;
-							return {
-								isBlue: isFieldBlue(fieldId, sectionId),
-								isGreen: isFieldGreen(fieldId, sectionId),
-								isWhite: isFieldWhite(fieldId, sectionId),
-								hasValue: isProjectValueProvided(
-									(formData as any)[fieldId]
-								),
-								isLocked: isFieldLocked(fieldId, sectionId),
-								hasWarnings: hasWarnings,
-							};
-						})
-						: [];
-
-				const allGreen =
-					fieldStates.length > 0 &&
-					fieldStates.every(
-						(state) =>
-							state.isGreen &&
-							!state.isBlue &&
-							!state.isWhite &&
-							state.isLocked
-					);
-				const allWhite =
-					fieldStates.length > 0 &&
-					fieldStates.every(
-						(state) =>
-							state.isWhite && !state.isBlue && !state.isGreen
-					);
-				const hasBlue = fieldStates.some((state) => state.isBlue);
-				const hasWarnings = fieldStates.some(
-					(state) => state.hasWarnings
-				);
-
-				// Determine badge state
-				// Multiple badges can show simultaneously:
-				// - Error badge: shows if any field has warnings (can coexist with Needs Input)
-				// - Needs Input badge: shows if any field is blue (can coexist with Error)
-				// - Complete badge: exclusive, only shows when all green AND no errors AND no needs input
-				const showError = hasWarnings;
-				const showNeedsInput = hasBlue;
-				const showComplete =
-					allFieldIds.length > 0 &&
-					allGreen &&
-					!hasBlue &&
-					!hasWarnings;
-
-				// A subsection can only be locked when all fields that should be part of it
-				// are non-empty. If any field is empty, we prevent locking the subsection
-				// and instead show a tooltip explaining why.
-				const hasEmptyField = fieldStates.some(
-					(state) => !state.hasValue
-				);
-				const subsectionLockDisabled =
-					!subsectionLocked && hasEmptyField;
-
-				const subsectionLockTitle = subsectionLockDisabled
-					? "Cannot lock subsection because one or more fields are empty. Please fill in all fields first."
-					: subsectionLocked
-						? "Unlock subsection"
-						: "Lock subsection";
+				const {
+					showError,
+					showNeedsInput,
+					showComplete,
+					subsectionLocked,
+					subsectionLockDisabled,
+					subsectionLockTitle,
+				} = getSubsectionBadgeState(fieldStateContext, allFieldIds);
 
 				// Remove leading numbers (e.g., "1.1 ", "2.3 ") from subsection titles
 				const cleanTitle = subsection.title.replace(/^\d+\.\d+\s*/, "");

@@ -8,7 +8,7 @@ Use this log to roll back to a previous state: `git checkout <commit-hash>`.
 |---|----------------|-------------|
 | 0 | (branch point) | Branch created from main. |
 | 1 | refactor(project-resume): add characterization tests and harness | Jest + fixtures + domain copies for isProjectValueProvided, sanitizeProjectProfile; completion tests. |
-| 2 | (pending) | Extract pure domain helpers. |
+| 2 | refactor(project-resume): extract pure domain helpers | Form imports isProjectValueProvided, sanitizeProjectProfile; lockSelectors, fieldStateSelectors, subsectionBadgeState, schemaSelectors; tests for lock/field-state. |
 | 3 | (pending) | Extract schema and field registries. |
 | 4 | (pending) | Extract persistence and draft hooks. |
 | 5 | (pending) | Extract validation into useProjectResumeValidation. |
