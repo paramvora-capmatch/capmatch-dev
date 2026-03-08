@@ -17,5 +17,5 @@ Use this log to roll back to a previous state: `git checkout <commit-hash>`.
 | 8 | (pending) | Extract subsection and wizard view layer. |
 | 9 | refactor(project-resume): extract ProjectMediaUpload | editors/ProjectMediaUpload.tsx; form imports from feature. |
 | 10 | (pending) | Extract high-volume custom editors. |
-| 11 | (pending) | Introduce thin controller shell. |
-| 12 | (pending) | Final cleanup and safety pass. |
+| 11 | (done in prior commits) | Form is thin shell; composes hooks and components; public API unchanged. |
+| 12 | (manual) | Run full regression checklist (see Validation Matrix in plan) before merge. |

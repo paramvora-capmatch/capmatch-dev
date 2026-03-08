@@ -1,5 +1,11 @@
-﻿"use client";
+"use client";
 
+/**
+ * EnhancedProjectForm: compatibility shell for project resume edit flow.
+ * Composes project-resume domain hooks, persistence, validation, derived fields,
+ * and feature components (lock button, label row) and editors (e.g. ProjectMediaUpload).
+ * Public API unchanged; used by ProjectWorkspace.
+ */
 import React, {
 	useState,
 	useEffect,
