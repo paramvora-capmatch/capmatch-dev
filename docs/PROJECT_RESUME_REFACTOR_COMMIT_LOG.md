@@ -13,7 +13,7 @@ Use this log to roll back to a previous state: `git checkout <commit-hash>`.
 | 4 | refactor(project-resume): extract persistence and draft hooks | useProjectResumeDraft (localStorage restore + debounce), useProjectResumePersistence (dirty tracking, save, unmount, beforeunload). |
 | 5 | refactor(project-resume): extract validation hook | useProjectResumeValidation (sanity checker, handleBlur, fieldDependencies, batch revalidation). |
 | 6 | refactor(project-resume): extract derived-field engine | derivedFieldCalculators.ts + useProjectResumeDerivedFields (incentiveStacking, targetLtv/Ltc, totalCommercialGRSF, unit counts). |
-| 7 | (pending) | Extract generic field UI primitives. |
+| 7 | refactor(project-resume): extract generic field UI primitives | ProjectFieldLockButton, ProjectFieldLabelRow; form uses them for lock button and label/help/warnings/Ask AI row. |
 | 8 | (pending) | Extract subsection and wizard view layer. |
 | 9 | (pending) | Extract ProjectMediaUpload. |
 | 10 | (pending) | Extract high-volume custom editors. |

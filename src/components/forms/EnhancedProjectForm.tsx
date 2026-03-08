@@ -124,6 +124,8 @@ import { useProjectResumeDraft } from "@/features/project-resume/hooks/useProjec
 import { useProjectResumePersistence } from "@/features/project-resume/hooks/useProjectResumePersistence";
 import { useProjectResumeDerivedFields } from "@/features/project-resume/hooks/useProjectResumeDerivedFields";
 import { useProjectResumeValidation } from "@/features/project-resume/hooks/useProjectResumeValidation";
+import { ProjectFieldLockButton } from "@/features/project-resume/components/ProjectFieldLockButton";
+import { ProjectFieldLabelRow } from "@/features/project-resume/components/ProjectFieldLabelRow";
 
 interface EnhancedProjectFormProps {
 	existingProject: ProjectProfile;
@@ -1552,62 +1554,25 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	);
 
 	const renderFieldLockButton = useCallback(
-		(fieldId: string, sectionId: string) => {
-			const locked = isFieldLocked(fieldId, sectionId);
+		(fieldId: string, _sectionId: string) => {
+			const locked = isFieldLocked(fieldId);
 			const value = (formData as any)[fieldId];
 			const meta = fieldMetadata[fieldId];
-			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
-			// Check if value is provided - handle objects with keys
+			const hasWarnings = !!(meta?.warnings && meta.warnings.length > 0);
 			const hasValue = (() => {
-				if (Array.isArray(value)) {
-					return isProjectValueProvided(value);
-				}
-				if (value && typeof value === "object") {
-					// For objects, check if they have any keys
+				if (Array.isArray(value)) return isProjectValueProvided(value);
+				if (value && typeof value === "object")
 					return Object.keys(value).length > 0;
-				}
 				return isProjectValueProvided(value);
 			})();
-			// Disable if empty (and not already locked) OR if has warnings
-			// Still allow unlocking even if the value is now empty so users are never stuck with a locked empty field.
-			const isDisabled = (!hasValue && !locked) || hasWarnings;
-
-			const tooltipTitle = isDisabled
-				? hasWarnings
-					? "Cannot lock a field with warnings. Please resolve warnings first."
-					: "Cannot lock an empty field. Please fill in a value first."
-				: locked
-					? "Unlock field"
-					: "Lock field";
-
 			return (
-				<div className="flex items-center" title={tooltipTitle}>
-					<button
-						type="button"
-						onClick={(e) => {
-							e.stopPropagation();
-							e.preventDefault();
-							if (isDisabled) return;
-							toggleFieldLock(fieldId);
-						}}
-						disabled={isDisabled}
-						className={cn(
-							"flex items-center justify-center p-1 rounded transition-colors z-10",
-							isDisabled
-								? "cursor-not-allowed text-gray-300"
-								: "cursor-pointer",
-							locked
-								? "text-emerald-600 hover:text-emerald-700"
-								: "text-gray-400 hover:text-blue-600"
-						)}
-					>
-						{locked ? (
-							<Lock className="h-4 w-4" />
-						) : (
-							<Unlock className="h-4 w-4" />
-						)}
-					</button>
-				</div>
+				<ProjectFieldLockButton
+					fieldId={fieldId}
+					locked={locked}
+					hasValue={hasValue}
+					hasWarnings={hasWarnings}
+					onToggleLock={toggleFieldLock}
+				/>
 			);
 		},
 		[formData, isFieldLocked, toggleFieldLock, fieldMetadata]
@@ -1620,46 +1585,26 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			labelText: string,
 			required: boolean = false,
 			fieldWrapperRef?: React.RefObject<HTMLDivElement>
-		) => {
-			const hasWarnings =
-				fieldMetadata[fieldId]?.warnings &&
-				fieldMetadata[fieldId].warnings.length > 0;
-			return (
-				<div className="mb-1">
-					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field w-full">
-						<span>
-							{labelText}
-							{required && (
-								<span className="text-red-500 ml-1">*</span>
-							)}
-						</span>
-						<FieldHelpTooltip
-							fieldId={fieldId}
-							fieldMetadata={fieldMetadata[fieldId]}
-						/>
-						{hasWarnings && fieldWrapperRef && (
-							<FieldWarningsTooltip
-								warnings={mapWarningsToLabels(
-									fieldMetadata[fieldId]?.warnings
-								)}
-								triggerRef={fieldWrapperRef}
-								showIcon={true}
-							/>
-						)}
-						<div className="ml-auto flex items-center gap-1">
-							<button
-								type="button"
-								onClick={() => (onAskAI || (() => { }))(fieldId)}
-								className="px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md text-xs font-medium text-blue-600 opacity-0 group-hover/field:opacity-100 transition-opacity"
-							>
-								Ask AI
-							</button>
-							{renderFieldLockButton(fieldId, sectionId)}
-						</div>
-					</label>
-				</div>
-			);
-		},
+		) => (
+			<ProjectFieldLabelRow
+				fieldId={fieldId}
+				labelText={labelText}
+				required={required}
+				hasWarnings={
+					!!(
+						fieldMetadata[fieldId]?.warnings &&
+						fieldMetadata[fieldId].warnings.length > 0
+					)
+				}
+				warningMessages={mapWarningsToLabels(
+					fieldMetadata[fieldId]?.warnings
+				)}
+				fieldWrapperRef={fieldWrapperRef}
+				fieldMetadataItem={fieldMetadata[fieldId]}
+				onAskAI={onAskAI}
+				lockButton={renderFieldLockButton(fieldId, sectionId)}
+			/>
+		),
 		[onAskAI, renderFieldLockButton, fieldMetadata, mapWarningsToLabels]
 	);
 
