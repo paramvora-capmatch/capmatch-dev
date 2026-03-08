@@ -7,7 +7,7 @@ Use this log to roll back to a previous state: `git checkout <commit-hash>`.
 | # | Commit (short) | Description |
 |---|----------------|-------------|
 | 0 | (branch point) | Branch created from main. |
-| 1 | (pending) | Add characterization tests and refactor harness. |
+| 1 | refactor(project-resume): add characterization tests and harness | Jest + fixtures + domain copies for isProjectValueProvided, sanitizeProjectProfile; completion tests. |
 | 2 | (pending) | Extract pure domain helpers. |
 | 3 | (pending) | Extract schema and field registries. |
 | 4 | (pending) | Extract persistence and draft hooks. |
