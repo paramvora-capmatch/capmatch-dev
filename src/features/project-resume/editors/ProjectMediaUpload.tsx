@@ -903,3 +903,4 @@ export const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		</div>
 		</>
 	);
+};

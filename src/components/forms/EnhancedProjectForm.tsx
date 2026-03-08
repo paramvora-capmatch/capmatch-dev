@@ -14,7 +14,8 @@ import React, {
 	useCallback,
 } from "react";
 import Image from "next/image";
-import { FormWizard, Step } from "../ui/FormWizard";
+import { Step } from "../ui/FormWizard";
+import { ProjectResumeWizard } from "@/features/project-resume/components/ProjectResumeWizard";
 import { FormGroup } from "../ui/Form";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
@@ -133,6 +134,21 @@ import { useProjectResumeValidation } from "@/features/project-resume/hooks/useP
 import { ProjectFieldLockButton } from "@/features/project-resume/components/ProjectFieldLockButton";
 import { ProjectFieldLabelRow } from "@/features/project-resume/components/ProjectFieldLabelRow";
 import { ProjectMediaUpload } from "@/features/project-resume/editors/ProjectMediaUpload";
+import { ResidentialUnitMixEditor } from "@/features/project-resume/editors/ResidentialUnitMixEditor";
+import { CommercialSpaceMixEditor } from "@/features/project-resume/editors/CommercialSpaceMixEditor";
+import { DrawScheduleEditor } from "@/features/project-resume/editors/DrawScheduleEditor";
+import { RentCompsEditor } from "@/features/project-resume/editors/RentCompsEditor";
+import { MajorEmployersEditor } from "@/features/project-resume/editors/MajorEmployersEditor";
+import { DeliveryByQuarterEditor } from "@/features/project-resume/editors/DeliveryByQuarterEditor";
+import { T12FinancialEditor } from "@/features/project-resume/editors/T12FinancialEditor";
+import { FiveYearCashFlowEditor } from "@/features/project-resume/editors/FiveYearCashFlowEditor";
+import { ReturnsBreakdownEditor } from "@/features/project-resume/editors/ReturnsBreakdownEditor";
+import { SensitivityAnalysisEditor } from "@/features/project-resume/editors/SensitivityAnalysisEditor";
+import { CapitalUseTimingEditor } from "@/features/project-resume/editors/CapitalUseTimingEditor";
+import { RiskListEditor } from "@/features/project-resume/editors/RiskListEditor";
+import { RentRollEditor } from "@/features/project-resume/editors/RentRollEditor";
+import { T12MonthlyDataEditor } from "@/features/project-resume/editors/T12MonthlyDataEditor";
+import { ProjectResumeSubsection } from "@/features/project-resume/components/ProjectResumeSubsection";
 
 interface EnhancedProjectFormProps {
 	existingProject: ProjectProfile;
@@ -1409,80 +1425,25 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					subsectionLockTitle,
 				} = getSubsectionBadgeState(fieldStateContext, allFieldIds);
 
-				// Remove leading numbers (e.g., "1.1 ", "2.3 ") from subsection titles
-				const cleanTitle = subsection.title.replace(/^\d+\.\d+\s*/, "");
-
 				return (
-					<div
-						key={subsectionId}
-						className="rounded-md border border-gray-200 bg-gray-50 overflow-hidden shadow-md"
+					<ProjectResumeSubsection
+						key={subsectionKey}
+						subsection={subsection}
+						sectionId={sectionId}
+						isExpanded={isExpanded}
+						onToggle={() => toggleSubsection(subsectionKey)}
+						badgeState={{
+							showError,
+							showNeedsInput,
+							showComplete,
+							subsectionLocked,
+							subsectionLockDisabled,
+							subsectionLockTitle,
+						}}
+						onLockClick={() => toggleSubsectionLock(allFieldIds)}
 					>
-						<button
-							type="button"
-							onClick={() => toggleSubsection(subsectionKey)}
-							className="w-full flex items-center justify-between p-3 hover:bg-gray-100 transition-colors"
-						>
-							<div className="flex items-center gap-2">
-								{isExpanded ? (
-									<ChevronDown className="h-4 w-4 text-gray-500" />
-								) : (
-									<ChevronRight className="h-4 w-4 text-gray-500" />
-								)}
-								<h3 className="text-sm font-semibold text-gray-800">
-									{cleanTitle}
-								</h3>
-							</div>
-							<div className="flex items-center gap-2">
-								<div
-									onClick={(e) => {
-										e.stopPropagation();
-										if (subsectionLockDisabled) return;
-										toggleSubsectionLock(allFieldIds);
-									}}
-									className={cn(
-										"flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all border",
-										subsectionLockDisabled
-											? "cursor-not-allowed bg-gray-50 text-gray-400 border-gray-200"
-											: "cursor-pointer",
-										!subsectionLockDisabled &&
-										(subsectionLocked
-											? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-											: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100")
-									)}
-									title={subsectionLockTitle}
-								>
-									{subsectionLocked ? (
-										<>
-											<Lock className="h-3 w-3" />
-											<span>Unlock</span>
-										</>
-									) : (
-										<>
-											<Unlock className="h-3 w-3" />
-											<span>Lock</span>
-										</>
-									)}
-								</div>
-								{showError && (
-									<span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700 font-medium">
-										Error
-									</span>
-								)}
-								{showNeedsInput && (
-									<span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
-										Needs Input
-									</span>
-								)}
-								{showComplete && (
-									<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
-										Complete
-									</span>
-								)}
-							</div>
-						</button>
-						{isExpanded && (
-							<div className="p-3 pt-0 space-y-4">
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 									{allFieldIds
 										// drawSchedule is rendered as a structured table below
 										.filter(
@@ -1550,2255 +1511,269 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									subsectionId === "physical-structure" && (
 										<>
 											{/* Residential Unit Mix */}
-											<div
-												className={cn(
-													getTableWrapperClasses(
+											<ResidentialUnitMixEditor
+												value={
+													(formData as any)
+														.residentialUnitMix ?? []
+												}
+												onChange={(next) =>
+													handleInputChange(
 														"residentialUnitMix",
-														sectionId
-													),
-													"p-4"
+														next
+													)
+												}
+												disabled={isFieldLocked(
+													"residentialUnitMix",
+													sectionId
 												)}
-											>
-												<div className="mb-3 flex items-center justify-between">
-													<div className="flex items-center gap-2">
-														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-															Residential Unit Mix
-														</h4>
-														{isFieldRequiredFromSchema(
-															"residentialUnitMix"
-														) && (
-																<span className="text-red-500 ml-1">
-																	*
-																</span>
-															)}
-														<FieldHelpTooltip
-															fieldId="residentialUnitMix"
-															fieldMetadata={
-																fieldMetadata[
-																"residentialUnitMix"
-																]
-															}
-														/>
-													</div>
-													<div className="flex items-center gap-1">
-														{renderFieldLockButton(
-															"residentialUnitMix",
-															sectionId
-														)}
-													</div>
-												</div>
-												<div className="overflow-x-auto">
-													<table className="min-w-full divide-y divide-gray-200 text-sm">
-														<thead className="bg-gray-50">
-															<tr>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Unit Type
-																</th>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Count
-																</th>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Avg SF
-																</th>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Monthly Rent
-																</th>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Total SF
-																</th>
-															</tr>
-														</thead>
-														<tbody className="bg-white divide-y divide-gray-100">
-															{(() => {
-																const value = (
-																	formData as any
-																)
-																	.residentialUnitMix;
-																const rows: any[] =
-																	Array.isArray(
-																		value
-																	)
-																		? value
-																		: [];
-																const isLocked =
-																	isFieldLocked(
-																		"residentialUnitMix",
-																		sectionId
-																	);
-
-																const handleRowChange =
-																	(
-																		index: number,
-																		key:
-																			| "unitType"
-																			| "unitCount"
-																			| "avgSF"
-																			| "monthlyRent"
-																			| "totalSF",
-																		raw: string
-																	) => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		const current =
-																			next[
-																			index
-																			] ||
-																			{};
-																		let v: any =
-																			raw;
-																		if (
-																			[
-																				"unitCount",
-																				"avgSF",
-																				"monthlyRent",
-																				"totalSF",
-																			].includes(
-																				key
-																			)
-																		) {
-																			v =
-																				raw.trim() ===
-																					""
-																					? undefined
-																					: Number(
-																						raw
-																					);
-																			if (
-																				Number.isNaN(
-																					v
-																				)
-																			) {
-																				v =
-																					undefined;
-																			}
-																		}
-																		next[
-																			index
-																		] = {
-																			...current,
-																			[key]: v,
-																		};
-																		handleInputChange(
-																			"residentialUnitMix",
-																			next
-																		);
-																	};
-
-																const handleAddRow =
-																	() => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		next.push(
-																			{
-																				unitType:
-																					"",
-																				unitCount:
-																					undefined,
-																				avgSF: undefined,
-																				monthlyRent:
-																					undefined,
-																				totalSF:
-																					undefined,
-																			}
-																		);
-																		handleInputChange(
-																			"residentialUnitMix",
-																			next
-																		);
-																	};
-
-																const handleRemoveRow =
-																	(
-																		index: number
-																	) => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		next.splice(
-																			index,
-																			1
-																		);
-																		handleInputChange(
-																			"residentialUnitMix",
-																			next
-																		);
-																	};
-
-																const displayRows =
-																	rows.length >
-																		0
-																		? rows
-																		: [{}];
-
-																return (
-																	<>
-																		{displayRows.map(
-																			(
-																				row,
-																				idx
-																			) => (
-																				<tr
-																					key={
-																						idx
-																					}
-																				>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="text"
-																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.unitType ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"unitType",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</td>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="number"
-																							min={
-																								0
-																							}
-																							className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.unitCount ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"unitCount",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</td>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="number"
-																							min={
-																								0
-																							}
-																							className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.avgSF ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"avgSF",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</td>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="number"
-																							min={
-																								0
-																							}
-																							className="w-28 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.monthlyRent ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"monthlyRent",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</td>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="number"
-																							min={
-																								0
-																							}
-																							className="w-28 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.totalSF ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"totalSF",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</td>
-																					<td className="px-3 py-2 text-right align-middle">
-																						<Button
-																							type="button"
-																							variant="ghost"
-																							size="sm"
-																							onClick={() =>
-																								handleRemoveRow(
-																									idx
-																								)
-																							}
-																							disabled={
-																								isLocked ||
-																								rows.length <=
-																								1
-																							}
-																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																						>
-																							Remove
-																						</Button>
-																					</td>
-																				</tr>
-																			)
-																		)}
-																		<tr>
-																			<td
-																				colSpan={
-																					6
-																				}
-																				className="px-3 pt-3"
-																			>
-																				<Button
-																					type="button"
-																					variant="outline"
-																					size="sm"
-																					onClick={
-																						handleAddRow
-																					}
-																					disabled={
-																						isLocked
-																					}
-																					className="text-xs px-3 py-1"
-																				>
-																					Add
-																					Row
-																				</Button>
-																			</td>
-																		</tr>
-																	</>
-																);
-															})()}
-														</tbody>
-													</table>
-												</div>
-											</div>
+												fieldId="residentialUnitMix"
+												sectionId={sectionId}
+												title="Residential Unit Mix"
+												required={isFieldRequiredFromSchema(
+													"residentialUnitMix"
+												)}
+												fieldMetadata={
+													fieldMetadata[
+														"residentialUnitMix"
+													]
+												}
+												lockButton={renderFieldLockButton(
+													"residentialUnitMix",
+													sectionId
+												)}
+												className={getTableWrapperClasses(
+													"residentialUnitMix",
+													sectionId
+												)}
+											/>
 
 											{/* Commercial Space Mix */}
-											<div
-												className={cn(
-													getTableWrapperClasses(
+											<CommercialSpaceMixEditor
+												value={
+													(formData as any)
+														.commercialSpaceMix ?? []
+												}
+												onChange={(next) =>
+													handleInputChange(
 														"commercialSpaceMix",
-														sectionId
-													),
-													"p-4"
+														next
+													)
+												}
+												disabled={isFieldLocked(
+													"commercialSpaceMix",
+													sectionId
 												)}
-											>
-												<div className="mb-3 flex items-center justify-between">
-													<div className="flex items-center gap-2">
-														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-															Commercial Space Mix
-														</h4>
-														{isFieldRequiredFromSchema(
-															"commercialSpaceMix"
-														) && (
-																<span className="text-red-500 ml-1">
-																	*
-																</span>
-															)}
-														<FieldHelpTooltip
-															fieldId="commercialSpaceMix"
-															fieldMetadata={
-																fieldMetadata[
-																"commercialSpaceMix"
-																]
-															}
-														/>
-													</div>
-													<div className="flex items-center gap-1">
-														{renderFieldLockButton(
-															"commercialSpaceMix",
-															sectionId
-														)}
-													</div>
-												</div>
-												<div className="overflow-x-auto">
-													<table className="min-w-full divide-y divide-gray-200 text-sm">
-														<thead className="bg-gray-50">
-															<tr>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Space Type
-																</th>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Square
-																	Footage
-																</th>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Tenant
-																</th>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Lease Term
-																</th>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Annual Rent
-																</th>
-															</tr>
-														</thead>
-														<tbody className="bg-white divide-y divide-gray-100">
-															{(() => {
-																const value = (
-																	formData as any
-																)
-																	.commercialSpaceMix;
-																const rows: any[] =
-																	Array.isArray(
-																		value
-																	)
-																		? value
-																		: [];
-																const isLocked =
-																	isFieldLocked(
-																		"commercialSpaceMix",
-																		sectionId
-																	);
-
-																const handleRowChange =
-																	(
-																		index: number,
-																		key:
-																			| "spaceType"
-																			| "squareFootage"
-																			| "tenant"
-																			| "leaseTerm"
-																			| "annualRent",
-																		raw: string
-																	) => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		const current =
-																			next[
-																			index
-																			] ||
-																			{};
-																		let v: any =
-																			raw;
-																		if (
-																			[
-																				"squareFootage",
-																				"annualRent",
-																			].includes(
-																				key
-																			)
-																		) {
-																			v =
-																				raw.trim() ===
-																					""
-																					? undefined
-																					: Number(
-																						raw
-																					);
-																			if (
-																				Number.isNaN(
-																					v
-																				)
-																			) {
-																				v =
-																					undefined;
-																			}
-																		}
-																		next[
-																			index
-																		] = {
-																			...current,
-																			[key]: v,
-																		};
-																		handleInputChange(
-																			"commercialSpaceMix",
-																			next
-																		);
-																	};
-
-																const handleAddRow =
-																	() => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		next.push(
-																			{
-																				spaceType:
-																					"",
-																				squareFootage:
-																					undefined,
-																				tenant: "",
-																				leaseTerm:
-																					"",
-																				annualRent:
-																					undefined,
-																			}
-																		);
-																		handleInputChange(
-																			"commercialSpaceMix",
-																			next
-																		);
-																	};
-
-																const handleRemoveRow =
-																	(
-																		index: number
-																	) => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		next.splice(
-																			index,
-																			1
-																		);
-																		handleInputChange(
-																			"commercialSpaceMix",
-																			next
-																		);
-																	};
-
-																const displayRows =
-																	rows.length >
-																		0
-																		? rows
-																		: [{}];
-
-																return (
-																	<>
-																		{displayRows.map(
-																			(
-																				row,
-																				idx
-																			) => (
-																				<tr
-																					key={
-																						idx
-																					}
-																				>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="text"
-																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.spaceType ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"spaceType",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</td>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="number"
-																							min={
-																								0
-																							}
-																							className="w-28 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.squareFootage ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"squareFootage",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</td>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="text"
-																							className="w-36 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.tenant ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"tenant",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</td>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="text"
-																							className="w-28 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.leaseTerm ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"leaseTerm",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</td>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="number"
-																							min={
-																								0
-																							}
-																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.annualRent ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"annualRent",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</td>
-																					<td className="px-3 py-2 text-right align-middle">
-																						<Button
-																							type="button"
-																							variant="ghost"
-																							size="sm"
-																							onClick={() =>
-																								handleRemoveRow(
-																									idx
-																								)
-																							}
-																							disabled={
-																								isLocked ||
-																								rows.length <=
-																								1
-																							}
-																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																						>
-																							Remove
-																						</Button>
-																					</td>
-																				</tr>
-																			)
-																		)}
-																		<tr>
-																			<td
-																				colSpan={
-																					6
-																				}
-																				className="px-3 pt-3"
-																			>
-																				<Button
-																					type="button"
-																					variant="outline"
-																					size="sm"
-																					onClick={
-																						handleAddRow
-																					}
-																					disabled={
-																						isLocked
-																					}
-																					className="text-xs px-3 py-1"
-																				>
-																					Add
-																					Row
-																				</Button>
-																			</td>
-																		</tr>
-																	</>
-																);
-															})()}
-														</tbody>
-													</table>
-												</div>
-											</div>
+												fieldId="commercialSpaceMix"
+												sectionId={sectionId}
+												title="Commercial Space Mix"
+												required={isFieldRequiredFromSchema(
+													"commercialSpaceMix"
+												)}
+												fieldMetadata={
+													fieldMetadata[
+														"commercialSpaceMix"
+													]
+												}
+												lockButton={renderFieldLockButton(
+													"commercialSpaceMix",
+													sectionId
+												)}
+												className={getTableWrapperClasses(
+													"commercialSpaceMix",
+													sectionId
+												)}
+											/>
 										</>
 									)}
 
 								{sectionId === "timeline" &&
 									subsectionId ===
 									"construction-lease-up-status" && (
-										<div
-											className={cn(
-												getTableWrapperClasses(
+										<DrawScheduleEditor
+											value={
+												(formData as any)
+													.drawSchedule ?? []
+											}
+											onChange={(next) =>
+												handleInputChange(
 													"drawSchedule",
-													sectionId
-												),
-												"p-4"
+													next
+												)
+											}
+											disabled={isFieldLocked(
+												"drawSchedule",
+												sectionId
 											)}
-										>
-											<div className="mb-3 flex items-center justify-between">
-												<div className="flex items-center gap-2">
-													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-														Draw Schedule
-													</h4>
-													{isFieldRequiredFromSchema(
-														"drawSchedule"
-													) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
-													<FieldHelpTooltip
-														fieldId="drawSchedule"
-														fieldMetadata={
-															fieldMetadata[
-															"drawSchedule"
-															]
-														}
-													/>
-												</div>
-												<div className="flex items-center gap-1">
-													{renderFieldLockButton(
-														"drawSchedule",
-														sectionId
-													)}
-												</div>
-											</div>
-											<div className="overflow-x-auto">
-												<table className="min-w-full divide-y divide-gray-200 text-sm">
-													<thead className="bg-gray-50">
-														<tr>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Draw #
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																% Complete
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Amount
-															</th>
-														</tr>
-													</thead>
-													<tbody className="bg-white divide-y divide-gray-100">
-														{(() => {
-															const value = (
-																formData as any
-															).drawSchedule;
-															const rows: any[] =
-																Array.isArray(
-																	value
-																)
-																	? value
-																	: [];
-															const isLocked =
-																isFieldLocked(
-																	"drawSchedule",
-																	sectionId
-																);
-
-															const handleRowChange =
-																(
-																	index: number,
-																	key:
-																		| "drawNumber"
-																		| "percentComplete"
-																		| "amount",
-																	raw: string
-																) => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	const current =
-																		next[
-																		index
-																		] || {};
-																	let v: any =
-																		raw.trim() ===
-																			""
-																			? undefined
-																			: Number(
-																				raw
-																			);
-																	if (
-																		Number.isNaN(
-																			v
-																		)
-																	) {
-																		v =
-																			undefined;
-																	}
-																	next[
-																		index
-																	] = {
-																		...current,
-																		[key]: v,
-																	};
-																	handleInputChange(
-																		"drawSchedule",
-																		next
-																	);
-																};
-
-															const handleAddRow =
-																() => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	next.push({
-																		drawNumber:
-																			(next.length ||
-																				0) +
-																			1,
-																		percentComplete:
-																			undefined,
-																		amount: undefined,
-																	});
-																	handleInputChange(
-																		"drawSchedule",
-																		next
-																	);
-																};
-
-															const handleRemoveRow =
-																(
-																	index: number
-																) => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	next.splice(
-																		index,
-																		1
-																	);
-																	handleInputChange(
-																		"drawSchedule",
-																		next
-																	);
-																};
-
-															const displayRows =
-																rows.length > 0
-																	? rows
-																	: [{}];
-
-															return (
-																<>
-																	{displayRows.map(
-																		(
-																			row,
-																			idx
-																		) => (
-																			<tr
-																				key={
-																					idx
-																				}
-																			>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="number"
-																						min={
-																							1
-																						}
-																						className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.drawNumber ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"drawNumber",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<div className="flex items-center gap-1">
-																						<input
-																							type="number"
-																							min={
-																								0
-																							}
-																							max={
-																								100
-																							}
-																							className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.percentComplete ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"percentComplete",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																						<span className="text-gray-500">
-																							%
-																						</span>
-																					</div>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<div className="flex items-center gap-1">
-																						<span className="text-gray-500">
-																							$
-																						</span>
-																						<input
-																							type="number"
-																							min={
-																								0
-																							}
-																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.amount ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"amount",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</div>
-																				</td>
-																				<td className="px-3 py-2 text-right align-middle">
-																					<Button
-																						type="button"
-																						variant="ghost"
-																						size="sm"
-																						onClick={() =>
-																							handleRemoveRow(
-																								idx
-																							)
-																						}
-																						disabled={
-																							isLocked ||
-																							rows.length <=
-																							1
-																						}
-																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																					>
-																						Remove
-																					</Button>
-																				</td>
-																			</tr>
-																		)
-																	)}
-																	<tr>
-																		<td
-																			colSpan={
-																				4
-																			}
-																			className="px-3 pt-3"
-																		>
-																			<Button
-																				type="button"
-																				variant="outline"
-																				size="sm"
-																				onClick={
-																					handleAddRow
-																				}
-																				disabled={
-																					isLocked
-																				}
-																				className="text-xs px-3 py-1"
-																			>
-																				Add
-																				Row
-																			</Button>
-																		</td>
-																	</tr>
-																</>
-															);
-														})()}
-													</tbody>
-												</table>
-											</div>
-										</div>
+											fieldId="drawSchedule"
+											sectionId={sectionId}
+											title="Draw Schedule"
+											required={isFieldRequiredFromSchema(
+												"drawSchedule"
+											)}
+											fieldMetadata={
+												fieldMetadata["drawSchedule"]
+											}
+											lockButton={renderFieldLockButton(
+												"drawSchedule",
+												sectionId
+											)}
+											className={getTableWrapperClasses(
+												"drawSchedule",
+												sectionId
+											)}
+										/>
 									)}
 
 								{sectionId === "market-context" &&
 									subsectionId === "supply-demand" && (
-										<div
-											className={cn(
-												getTableWrapperClasses(
+										<RentCompsEditor
+											value={
+												(formData as any)
+													.rentComps ?? []
+											}
+											onChange={(next) =>
+												handleInputChange(
 													"rentComps",
-													sectionId
-												),
-												"p-4"
+													next
+												)
+											}
+											disabled={isFieldLocked(
+												"rentComps",
+												sectionId
 											)}
-										>
-											<div className="mb-3 flex items-center justify-between">
-												<div className="flex items-center gap-2">
-													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-														Rent Comparables
-													</h4>
-													{isFieldRequiredFromSchema(
-														"rentComps"
-													) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
-													<FieldHelpTooltip
-														fieldId="rentComps"
-														fieldMetadata={
-															fieldMetadata[
-															"rentComps"
-															]
-														}
-													/>
-												</div>
-												<div className="flex items-center gap-1">
-													{renderFieldLockButton(
-														"rentComps",
-														sectionId
-													)}
-												</div>
-											</div>
-											<div className="overflow-x-auto">
-												<table className="min-w-full divide-y divide-gray-200 text-sm">
-													<thead className="bg-gray-50">
-														<tr>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Property Name
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Address
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Distance (mi)
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Year Built
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Units
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Occupancy %
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Avg Rent/Month
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Rent/PSF
-															</th>
-														</tr>
-													</thead>
-													<tbody className="bg-white divide-y divide-gray-100">
-														{(() => {
-															const value = (
-																formData as any
-															).rentComps;
-															const rows: any[] =
-																Array.isArray(
-																	value
-																)
-																	? value
-																	: [];
-															const isLocked =
-																isFieldLocked(
-																	"rentComps",
-																	sectionId
-																);
-
-															const handleRowChange =
-																(
-																	index: number,
-																	key:
-																		| "propertyName"
-																		| "address"
-																		| "distance"
-																		| "yearBuilt"
-																		| "totalUnits"
-																		| "occupancyPercent"
-																		| "avgRentMonth"
-																		| "rentPSF",
-																	raw: string
-																) => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	const current =
-																		next[
-																		index
-																		] || {};
-																	let v: any =
-																		raw;
-																	if (
-																		[
-																			"distance",
-																			"yearBuilt",
-																			"totalUnits",
-																			"occupancyPercent",
-																			"avgRentMonth",
-																			"rentPSF",
-																		].includes(
-																			key
-																		)
-																	) {
-																		v =
-																			raw.trim() ===
-																				""
-																				? undefined
-																				: Number(
-																					raw
-																				);
-																		if (
-																			Number.isNaN(
-																				v
-																			)
-																		) {
-																			v =
-																				undefined;
-																		}
-																	}
-																	next[
-																		index
-																	] = {
-																		...current,
-																		[key]: v,
-																	};
-																	handleInputChange(
-																		"rentComps",
-																		next
-																	);
-																};
-
-															const handleAddRow =
-																() => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	next.push({
-																		propertyName:
-																			"",
-																		address:
-																			"",
-																		distance:
-																			undefined,
-																		yearBuilt:
-																			undefined,
-																		totalUnits:
-																			undefined,
-																		occupancyPercent:
-																			undefined,
-																		avgRentMonth:
-																			undefined,
-																		rentPSF:
-																			undefined,
-																	});
-																	handleInputChange(
-																		"rentComps",
-																		next
-																	);
-																};
-
-															const handleRemoveRow =
-																(
-																	index: number
-																) => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	next.splice(
-																		index,
-																		1
-																	);
-																	handleInputChange(
-																		"rentComps",
-																		next
-																	);
-																};
-
-															const displayRows =
-																rows.length > 0
-																	? rows
-																	: [{}];
-
-															return (
-																<>
-																	{displayRows.map(
-																		(
-																			row,
-																			idx
-																		) => (
-																			<tr
-																				key={
-																					idx
-																				}
-																			>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="text"
-																						className="w-40 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.propertyName ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"propertyName",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="text"
-																						className="w-56 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.address ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"address",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="number"
-																						min={
-																							0
-																						}
-																						step="0.01"
-																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.distance ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"distance",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="number"
-																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.yearBuilt ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"yearBuilt",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="number"
-																						min={
-																							0
-																						}
-																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.totalUnits ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"totalUnits",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="number"
-																						min={
-																							0
-																						}
-																						step="0.1"
-																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.occupancyPercent ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"occupancyPercent",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="number"
-																						min={
-																							0
-																						}
-																						className="w-28 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.avgRentMonth ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"avgRentMonth",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="number"
-																						min={
-																							0
-																						}
-																						step="0.01"
-																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.rentPSF ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"rentPSF",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																				</td>
-																				<td className="px-3 py-2 text-right align-middle">
-																					<Button
-																						type="button"
-																						variant="ghost"
-																						size="sm"
-																						onClick={() =>
-																							handleRemoveRow(
-																								idx
-																							)
-																						}
-																						disabled={
-																							isLocked ||
-																							rows.length <=
-																							1
-																						}
-																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																					>
-																						Remove
-																					</Button>
-																				</td>
-																			</tr>
-																		)
-																	)}
-																	<tr>
-																		<td
-																			colSpan={
-																				9
-																			}
-																			className="px-3 pt-3"
-																		>
-																			<Button
-																				type="button"
-																				variant="outline"
-																				size="sm"
-																				onClick={
-																					handleAddRow
-																				}
-																				disabled={
-																					isLocked
-																				}
-																				className="text-xs px-3 py-1"
-																			>
-																				Add
-																				Row
-																			</Button>
-																		</td>
-																	</tr>
-																</>
-															);
-														})()}
-													</tbody>
-												</table>
-											</div>
-										</div>
+											fieldId="rentComps"
+											sectionId={sectionId}
+											title="Rent Comparables"
+											required={isFieldRequiredFromSchema(
+												"rentComps"
+											)}
+											fieldMetadata={
+												fieldMetadata["rentComps"]
+											}
+											lockButton={renderFieldLockButton(
+												"rentComps",
+												sectionId
+											)}
+											className={getTableWrapperClasses(
+												"rentComps",
+												sectionId
+											)}
+										/>
 									)}
 
 								{/* Major Employers Table */}
 								{sectionId === "market-context" &&
 									subsectionId === "demographics-economy" && (
-										<div
-											className={cn(
-												getTableWrapperClasses(
+										<MajorEmployersEditor
+											value={
+												(formData as any)
+													.majorEmployers ?? []
+											}
+											onChange={(next) =>
+												handleInputChange(
 													"majorEmployers",
-													sectionId
-												),
-												"p-4"
+													next
+												)
+											}
+											disabled={isFieldLocked(
+												"majorEmployers",
+												sectionId
 											)}
-										>
-											<div className="mb-3 flex items-center justify-between">
-												<div className="flex items-center gap-2">
-													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-														Major Employers
-													</h4>
-													{isFieldRequiredFromSchema(
-														"majorEmployers"
-													) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
-													<FieldHelpTooltip
-														fieldId="majorEmployers"
-														fieldMetadata={
-															fieldMetadata[
-															"majorEmployers"
-															]
-														}
-													/>
-												</div>
-												<div className="flex items-center gap-1">
-													{renderFieldLockButton(
-														"majorEmployers",
-														sectionId
-													)}
-												</div>
-											</div>
-											<div className="overflow-x-auto">
-												<table className="min-w-full divide-y divide-gray-200 text-sm">
-													<thead className="bg-gray-50">
-														<tr>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Name
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Employees
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Growth
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Distance
-															</th>
-														</tr>
-													</thead>
-													<tbody className="bg-white divide-y divide-gray-100">
-														{(() => {
-															const value = (
-																formData as any
-															).majorEmployers;
-															const rows: any[] =
-																Array.isArray(
-																	value
-																)
-																	? value
-																	: [];
-															const isLocked =
-																isFieldLocked(
-																	"majorEmployers",
-																	sectionId
-																);
-
-															const handleRowChange =
-																(
-																	index: number,
-																	key:
-																		| "name"
-																		| "employees"
-																		| "growth"
-																		| "distance",
-																	raw: string
-																) => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	const current =
-																		next[
-																		index
-																		] || {};
-																	let v: any =
-																		raw;
-																	if (
-																		key ===
-																		"employees"
-																	) {
-																		v =
-																			raw.trim() ===
-																				""
-																				? undefined
-																				: Number(
-																					raw
-																				);
-																		if (
-																			Number.isNaN(
-																				v
-																			)
-																		) {
-																			v =
-																				undefined;
-																		}
-																	}
-																	next[
-																		index
-																	] = {
-																		...current,
-																		[key]: v,
-																	};
-																	handleInputChange(
-																		"majorEmployers",
-																		next
-																	);
-																};
-
-															const handleAddRow =
-																() => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	next.push({
-																		name: "",
-																		employees:
-																			undefined,
-																		growth: "",
-																		distance:
-																			"",
-																	});
-																	handleInputChange(
-																		"majorEmployers",
-																		next
-																	);
-																};
-
-															const handleRemoveRow =
-																(
-																	index: number
-																) => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	next.splice(
-																		index,
-																		1
-																	);
-																	handleInputChange(
-																		"majorEmployers",
-																		next
-																	);
-																};
-
-															const displayRows =
-																rows.length > 0
-																	? rows
-																	: [
-																		{
-																			name: "",
-																			employees:
-																				undefined,
-																			growth: "",
-																			distance:
-																				"",
-																		},
-																	];
-
-															return (
-																<>
-																	{displayRows.map(
-																		(
-																			row,
-																			idx
-																		) => (
-																			<tr
-																				key={
-																					idx
-																				}
-																			>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="text"
-																						className="w-48 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.name ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"name",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																						placeholder="Company Name"
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="number"
-																						min={
-																							0
-																						}
-																						className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.employees ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"employees",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																						placeholder="0"
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="text"
-																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.growth ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"growth",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																						placeholder="+6%"
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="text"
-																						className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.distance ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"distance",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																						placeholder="0.6 miles"
-																					/>
-																				</td>
-																				<td className="px-3 py-2 text-right align-middle">
-																					<Button
-																						type="button"
-																						variant="ghost"
-																						size="sm"
-																						onClick={() =>
-																							handleRemoveRow(
-																								idx
-																							)
-																						}
-																						disabled={
-																							isLocked ||
-																							rows.length <=
-																							1
-																						}
-																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																					>
-																						Remove
-																					</Button>
-																				</td>
-																			</tr>
-																		)
-																	)}
-																	<tr>
-																		<td
-																			colSpan={
-																				5
-																			}
-																			className="px-3 pt-3"
-																		>
-																			<Button
-																				type="button"
-																				variant="outline"
-																				size="sm"
-																				onClick={
-																					handleAddRow
-																				}
-																				disabled={
-																					isLocked
-																				}
-																				className="text-xs px-3 py-1"
-																			>
-																				Add
-																				Row
-																			</Button>
-																		</td>
-																	</tr>
-																</>
-															);
-														})()}
-													</tbody>
-												</table>
-											</div>
-										</div>
+											fieldId="majorEmployers"
+											sectionId={sectionId}
+											title="Major Employers"
+											required={isFieldRequiredFromSchema(
+												"majorEmployers"
+											)}
+											fieldMetadata={
+												fieldMetadata["majorEmployers"]
+											}
+											lockButton={renderFieldLockButton(
+												"majorEmployers",
+												sectionId
+											)}
+											className={getTableWrapperClasses(
+												"majorEmployers",
+												sectionId
+											)}
+										/>
 									)}
+
+
 
 								{/* Delivery by Quarter Table */}
 								{sectionId === "market-context" &&
 									subsectionId === "supply-demand" && (
-										<div
-											className={cn(
-												getTableWrapperClasses(
+										<DeliveryByQuarterEditor
+											value={
+												(formData as any)
+													.deliveryByQuarter ?? []
+											}
+											onChange={(next) =>
+												handleInputChange(
 													"deliveryByQuarter",
-													sectionId
-												),
-												"p-4"
+													next
+												)
+											}
+											disabled={isFieldLocked(
+												"deliveryByQuarter",
+												sectionId
 											)}
-										>
-											<div className="mb-3 flex items-center justify-between">
-												<div className="flex items-center gap-2">
-													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-														Delivery by Quarter
-													</h4>
-													{isFieldRequiredFromSchema(
-														"deliveryByQuarter"
-													) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
-													<FieldHelpTooltip
-														fieldId="deliveryByQuarter"
-														fieldMetadata={
-															fieldMetadata[
-															"deliveryByQuarter"
-															]
-														}
-													/>
-												</div>
-												<div className="flex items-center gap-1">
-													{renderFieldLockButton(
-														"deliveryByQuarter",
-														sectionId
-													)}
-												</div>
-											</div>
-											<div className="overflow-x-auto">
-												<table className="min-w-full divide-y divide-gray-200 text-sm">
-													<thead className="bg-gray-50">
-														<tr>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Quarter
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Units
-															</th>
-														</tr>
-													</thead>
-													<tbody className="bg-white divide-y divide-gray-100">
-														{(() => {
-															const value = (
-																formData as any
-															).deliveryByQuarter;
-															const rows: any[] =
-																Array.isArray(
-																	value
-																)
-																	? value
-																	: [];
-															const isLocked =
-																isFieldLocked(
-																	"deliveryByQuarter",
-																	sectionId
-																);
-
-															const handleRowChange =
-																(
-																	index: number,
-																	key:
-																		| "quarter"
-																		| "units",
-																	raw: string
-																) => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	const current =
-																		next[
-																		index
-																		] || {};
-																	let v: any =
-																		raw;
-																	if (
-																		key ===
-																		"units"
-																	) {
-																		v =
-																			raw.trim() ===
-																				""
-																				? undefined
-																				: Number(
-																					raw
-																				);
-																		if (
-																			Number.isNaN(
-																				v
-																			)
-																		) {
-																			v =
-																				undefined;
-																		}
-																	}
-																	next[
-																		index
-																	] = {
-																		...current,
-																		[key]: v,
-																	};
-																	handleInputChange(
-																		"deliveryByQuarter",
-																		next
-																	);
-																};
-
-															const handleAddRow =
-																() => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	next.push({
-																		quarter:
-																			"",
-																		units: undefined,
-																	});
-																	handleInputChange(
-																		"deliveryByQuarter",
-																		next
-																	);
-																};
-
-															const handleRemoveRow =
-																(
-																	index: number
-																) => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	next.splice(
-																		index,
-																		1
-																	);
-																	handleInputChange(
-																		"deliveryByQuarter",
-																		next
-																	);
-																};
-
-															const displayRows =
-																rows.length > 0
-																	? rows
-																	: [
-																		{
-																			quarter:
-																				"",
-																			units: undefined,
-																		},
-																	];
-
-															return (
-																<>
-																	{displayRows.map(
-																		(
-																			row,
-																			idx
-																		) => (
-																			<tr
-																				key={
-																					idx
-																				}
-																			>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="text"
-																						className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.quarter ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"quarter",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																						placeholder="Q4 2024"
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="number"
-																						min={
-																							0
-																						}
-																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							row.units ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"units",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																						placeholder="0"
-																					/>
-																				</td>
-																				<td className="px-3 py-2 text-right align-middle">
-																					<Button
-																						type="button"
-																						variant="ghost"
-																						size="sm"
-																						onClick={() =>
-																							handleRemoveRow(
-																								idx
-																							)
-																						}
-																						disabled={
-																							isLocked ||
-																							rows.length <=
-																							1
-																						}
-																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																					>
-																						Remove
-																					</Button>
-																				</td>
-																			</tr>
-																		)
-																	)}
-																	<tr>
-																		<td
-																			colSpan={
-																				3
-																			}
-																			className="px-3 pt-3"
-																		>
-																			<Button
-																				type="button"
-																				variant="outline"
-																				size="sm"
-																				onClick={
-																					handleAddRow
-																				}
-																				disabled={
-																					isLocked
-																				}
-																				className="text-xs px-3 py-1"
-																			>
-																				Add
-																				Row
-																			</Button>
-																		</td>
-																	</tr>
-																</>
-															);
-														})()}
-													</tbody>
-												</table>
-											</div>
-										</div>
+											fieldId="deliveryByQuarter"
+											sectionId={sectionId}
+											title="Delivery by Quarter"
+											required={isFieldRequiredFromSchema(
+												"deliveryByQuarter"
+											)}
+											fieldMetadata={
+												fieldMetadata["deliveryByQuarter"]
+											}
+											lockButton={renderFieldLockButton(
+												"deliveryByQuarter",
+												sectionId
+											)}
+											className={getTableWrapperClasses(
+												"deliveryByQuarter",
+												sectionId
+											)}
+										/>
 									)}
+
+
 
 								{/* T12 Financials */}
 								{sectionId === "financial-details" &&
 									subsectionId === "t12-financials" && (
-										<div
-											className={cn(
-												getTableWrapperClasses(
+										<T12FinancialEditor
+											value={(formData as any).t12FinancialData ?? null}
+											onChange={(updated) =>
+												handleInputChange(
 													"t12FinancialData",
-													sectionId
-												),
-												"p-4"
+													updated
+												)
+											}
+											disabled={isFieldLocked(
+												"t12FinancialData",
+												sectionId
 											)}
-										>
-											<div className="mb-3 flex items-center justify-between">
-												<div className="flex items-center gap-2">
-													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-														T12 Financial Statement
-													</h4>
-													{isFieldRequiredFromSchema(
-														"t12FinancialData"
-													) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
-													<FieldHelpTooltip
-														fieldId="t12FinancialData"
-														fieldMetadata={
-															fieldMetadata[
-															"t12FinancialData"
-															]
-														}
-													/>
-												</div>
-												<div className="flex items-center gap-1">
-													{renderFieldLockButton(
-														"t12FinancialData",
-														sectionId
-													)}
-												</div>
-											</div>
-											<T12FinancialTable
-												data={(formData as any).t12FinancialData}
-												onChange={(updated) => handleInputChange("t12FinancialData", updated)}
-												editable={!isFieldLocked("t12FinancialData", sectionId)}
-											/>
-										</div>
+											fieldId="t12FinancialData"
+											sectionId={sectionId}
+											title="T12 Financial Statement"
+											required={isFieldRequiredFromSchema(
+												"t12FinancialData"
+											)}
+											fieldMetadata={
+												fieldMetadata["t12FinancialData"]
+											}
+											lockButton={renderFieldLockButton(
+												"t12FinancialData",
+												sectionId
+											)}
+											className={getTableWrapperClasses(
+												"t12FinancialData",
+												sectionId
+											)}
+										/>
 									)}
 
 								{/* Financial Table Fields - Investment Metrics & Exit */}
@@ -3807,3318 +1782,272 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									"investment-metrics-exit" && (
 										<>
 											{/* Five Year Cash Flow */}
-											<div
-												className={cn(
-													getTableWrapperClasses(
+											<FiveYearCashFlowEditor
+												value={
+													(formData as any)
+														.fiveYearCashFlow ?? []
+												}
+												onChange={(next) =>
+													handleInputChange(
 														"fiveYearCashFlow",
-														sectionId
-													),
-													"p-4"
+														next
+													)
+												}
+												disabled={isFieldLocked(
+													"fiveYearCashFlow",
+													sectionId
 												)}
-											>
-												<div className="mb-3 flex items-center justify-between">
-													<div className="flex items-center gap-2">
-														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-															Five Year Cash Flow
-														</h4>
-														{isFieldRequiredFromSchema(
-															"fiveYearCashFlow"
-														) && (
-																<span className="text-red-500 ml-1">
-																	*
-																</span>
-															)}
-														<FieldHelpTooltip
-															fieldId="fiveYearCashFlow"
-															fieldMetadata={
-																fieldMetadata[
-																"fiveYearCashFlow"
-																]
-															}
-														/>
-													</div>
-													<div className="flex items-center gap-1">
-														{renderFieldLockButton(
-															"fiveYearCashFlow",
-															sectionId
-														)}
-													</div>
-												</div>
-												<div className="overflow-x-auto">
-													<table className="min-w-full divide-y divide-gray-200 text-sm">
-														<thead className="bg-gray-50">
-															<tr>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Year
-																</th>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Cash Flow
-																</th>
-															</tr>
-														</thead>
-														<tbody className="bg-white divide-y divide-gray-100">
-															{(() => {
-																const value = (
-																	formData as any
-																)
-																	.fiveYearCashFlow;
-																const rows: any[] =
-																	Array.isArray(
-																		value
-																	)
-																		? value
-																		: [];
-																const isLocked =
-																	isFieldLocked(
-																		"fiveYearCashFlow",
-																		sectionId
-																	);
-
-																const handleRowChange =
-																	(
-																		index: number,
-																		raw: string
-																	) => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		const v =
-																			raw.trim() ===
-																				""
-																				? undefined
-																				: Number(
-																					raw
-																				);
-																		if (
-																			index >=
-																			next.length
-																		) {
-																			next.push(
-																				Number.isNaN(
-																					v
-																				)
-																					? undefined
-																					: v
-																			);
-																		} else {
-																			next[
-																				index
-																			] =
-																				Number.isNaN(
-																					v
-																				)
-																					? undefined
-																					: v;
-																		}
-																		handleInputChange(
-																			"fiveYearCashFlow",
-																			next
-																		);
-																	};
-
-																const handleAddRow =
-																	() => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		next.push(
-																			undefined
-																		);
-																		handleInputChange(
-																			"fiveYearCashFlow",
-																			next
-																		);
-																	};
-
-																const handleRemoveRow =
-																	(
-																		index: number
-																	) => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		next.splice(
-																			index,
-																			1
-																		);
-																		handleInputChange(
-																			"fiveYearCashFlow",
-																			next
-																		);
-																	};
-
-																const displayRows =
-																	rows.length >
-																		0
-																		? rows
-																		: [
-																			undefined,
-																		];
-
-																return (
-																	<>
-																		{displayRows.map(
-																			(
-																				row,
-																				idx
-																			) => (
-																				<tr
-																					key={
-																						idx
-																					}
-																				>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						Year{" "}
-																						{idx +
-																							1}
-																					</td>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<div className="flex items-center gap-1">
-																							<span className="text-gray-500">
-																								$
-																							</span>
-																							<input
-																								type="number"
-																								min={
-																									0
-																								}
-																								className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									row ??
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleRowChange(
-																										idx,
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLocked
-																								}
-																							/>
-																						</div>
-																					</td>
-																					<td className="px-3 py-2 text-right align-middle">
-																						<Button
-																							type="button"
-																							variant="ghost"
-																							size="sm"
-																							onClick={() =>
-																								handleRemoveRow(
-																									idx
-																								)
-																							}
-																							disabled={
-																								isLocked ||
-																								rows.length <=
-																								1
-																							}
-																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																						>
-																							Remove
-																						</Button>
-																					</td>
-																				</tr>
-																			)
-																		)}
-																		<tr>
-																			<td
-																				colSpan={
-																					3
-																				}
-																				className="px-3 pt-3"
-																			>
-																				<Button
-																					type="button"
-																					variant="outline"
-																					size="sm"
-																					onClick={
-																						handleAddRow
-																					}
-																					disabled={
-																						isLocked
-																					}
-																					className="text-xs px-3 py-1"
-																				>
-																					Add
-																					Year
-																				</Button>
-																			</td>
-																		</tr>
-																	</>
-																);
-															})()}
-														</tbody>
-													</table>
-												</div>
-											</div>
+												fieldId="fiveYearCashFlow"
+												sectionId={sectionId}
+												title="Five Year Cash Flow"
+												required={isFieldRequiredFromSchema(
+													"fiveYearCashFlow"
+												)}
+												fieldMetadata={
+													fieldMetadata["fiveYearCashFlow"]
+												}
+												lockButton={renderFieldLockButton(
+													"fiveYearCashFlow",
+													sectionId
+												)}
+												className={getTableWrapperClasses(
+													"fiveYearCashFlow",
+													sectionId
+												)}
+											/>
 
 											{/* Returns Breakdown */}
-											<div
-												className={cn(
-													getTableWrapperClasses(
+											<ReturnsBreakdownEditor
+												value={
+													(formData as any)
+														.returnsBreakdown ?? null
+												}
+												onChange={(next) =>
+													handleInputChange(
 														"returnsBreakdown",
-														sectionId
-													),
-													"p-4"
+														next
+													)
+												}
+												disabled={isFieldLocked(
+													"returnsBreakdown",
+													sectionId
 												)}
-											>
-												<div className="mb-3 flex items-center justify-between">
-													<div className="flex items-center gap-2">
-														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-															Returns Breakdown
-														</h4>
-														{isFieldRequiredFromSchema(
-															"returnsBreakdown"
-														) && (
-																<span className="text-red-500 ml-1">
-																	*
-																</span>
-															)}
-														<FieldHelpTooltip
-															fieldId="returnsBreakdown"
-															fieldMetadata={
-																fieldMetadata[
-																"returnsBreakdown"
-																]
-															}
-														/>
-													</div>
-													<div className="flex items-center gap-1">
-														{renderFieldLockButton(
-															"returnsBreakdown",
-															sectionId
-														)}
-													</div>
-												</div>
-												<div className="overflow-x-auto">
-													<table className="min-w-full divide-y divide-gray-200 text-sm">
-														<thead className="bg-gray-50">
-															<tr>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Component
-																</th>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Percentage
-																</th>
-															</tr>
-														</thead>
-														<tbody className="bg-white divide-y divide-gray-100">
-															{(() => {
-																const value = (
-																	formData as any
-																)
-																	.returnsBreakdown;
-																const data =
-																	value &&
-																		typeof value ===
-																		"object" &&
-																		!Array.isArray(
-																			value
-																		)
-																		? value
-																		: {};
-																const isLocked =
-																	isFieldLocked(
-																		"returnsBreakdown",
-																		sectionId
-																	);
-
-																const handleChange =
-																	(
-																		key: string,
-																		raw: string
-																	) => {
-																		const v =
-																			raw.trim() ===
-																				""
-																				? undefined
-																				: Number(
-																					raw
-																				);
-																		const updated =
-																		{
-																			...data,
-																			[key]: Number.isNaN(
-																				v
-																			)
-																				? undefined
-																				: v,
-																		};
-																		handleInputChange(
-																			"returnsBreakdown",
-																			updated
-																		);
-																	};
-
-																return (
-																	<>
-																		<tr>
-																			<td className="px-3 py-2 whitespace-nowrap align-middle">
-																				Cash
-																				Flow
-																			</td>
-																			<td className="px-3 py-2 whitespace-nowrap align-middle">
-																				<div className="flex items-center gap-1">
-																					<input
-																						type="number"
-																						min={
-																							0
-																						}
-																						max={
-																							100
-																						}
-																						step="0.1"
-																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							data.cashFlow ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleChange(
-																								"cashFlow",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																					<span className="text-gray-500">
-																						%
-																					</span>
-																				</div>
-																			</td>
-																		</tr>
-																		<tr>
-																			<td className="px-3 py-2 whitespace-nowrap align-middle">
-																				Asset
-																				Appreciation
-																			</td>
-																			<td className="px-3 py-2 whitespace-nowrap align-middle">
-																				<div className="flex items-center gap-1">
-																					<input
-																						type="number"
-																						min={
-																							0
-																						}
-																						max={
-																							100
-																						}
-																						step="0.1"
-																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							data.assetAppreciation ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleChange(
-																								"assetAppreciation",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																					<span className="text-gray-500">
-																						%
-																					</span>
-																				</div>
-																			</td>
-																		</tr>
-																		<tr>
-																			<td className="px-3 py-2 whitespace-nowrap align-middle">
-																				Tax
-																				Benefits
-																			</td>
-																			<td className="px-3 py-2 whitespace-nowrap align-middle">
-																				<div className="flex items-center gap-1">
-																					<input
-																						type="number"
-																						min={
-																							0
-																						}
-																						max={
-																							100
-																						}
-																						step="0.1"
-																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							data.taxBenefits ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleChange(
-																								"taxBenefits",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																					<span className="text-gray-500">
-																						%
-																					</span>
-																				</div>
-																			</td>
-																		</tr>
-																		<tr>
-																			<td className="px-3 py-2 whitespace-nowrap align-middle">
-																				Leverage
-																			</td>
-																			<td className="px-3 py-2 whitespace-nowrap align-middle">
-																				<div className="flex items-center gap-1">
-																					<input
-																						type="number"
-																						min={
-																							0
-																						}
-																						max={
-																							100
-																						}
-																						step="0.1"
-																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																						value={
-																							data.leverage ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleChange(
-																								"leverage",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					/>
-																					<span className="text-gray-500">
-																						%
-																					</span>
-																				</div>
-																			</td>
-																		</tr>
-																	</>
-																);
-															})()}
-														</tbody>
-													</table>
-												</div>
-											</div>
+												fieldId="returnsBreakdown"
+												sectionId={sectionId}
+												title="Returns Breakdown"
+												required={isFieldRequiredFromSchema(
+													"returnsBreakdown"
+												)}
+												fieldMetadata={
+													fieldMetadata["returnsBreakdown"]
+												}
+												lockButton={renderFieldLockButton(
+													"returnsBreakdown",
+													sectionId
+												)}
+												className={getTableWrapperClasses(
+													"returnsBreakdown",
+													sectionId
+												)}
+											/>
 
 											{/* Quarterly Delivery Schedule */}
-											<div
-												className={cn(
-													getTableWrapperClasses(
+											<DeliveryByQuarterEditor
+												value={
+													(formData as any)
+														.quarterlyDeliverySchedule ?? []
+												}
+												onChange={(next) =>
+													handleInputChange(
 														"quarterlyDeliverySchedule",
-														sectionId
-													),
-													"p-4"
+														next
+													)
+												}
+												disabled={isFieldLocked(
+													"quarterlyDeliverySchedule",
+													sectionId
 												)}
-											>
-												<div className="mb-3 flex items-center justify-between">
-													<div className="flex items-center gap-2">
-														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-															Quarterly Delivery
-															Schedule
-														</h4>
-														{isFieldRequiredFromSchema(
-															"quarterlyDeliverySchedule"
-														) && (
-																<span className="text-red-500 ml-1">
-																	*
-																</span>
-															)}
-														<FieldHelpTooltip
-															fieldId="quarterlyDeliverySchedule"
-															fieldMetadata={
-																fieldMetadata[
-																"quarterlyDeliverySchedule"
-																]
-															}
-														/>
-													</div>
-													<div className="flex items-center gap-1">
-														{renderFieldLockButton(
-															"quarterlyDeliverySchedule",
-															sectionId
-														)}
-													</div>
-												</div>
-												<div className="overflow-x-auto">
-													<table className="min-w-full divide-y divide-gray-200 text-sm">
-														<thead className="bg-gray-50">
-															<tr>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Quarter
-																</th>
-																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																	Units
-																</th>
-															</tr>
-														</thead>
-														<tbody className="bg-white divide-y divide-gray-100">
-															{(() => {
-																const value = (
-																	formData as any
-																)
-																	.quarterlyDeliverySchedule;
-																const rows: any[] =
-																	Array.isArray(
-																		value
-																	)
-																		? value
-																		: [];
-																const isLocked =
-																	isFieldLocked(
-																		"quarterlyDeliverySchedule",
-																		sectionId
-																	);
-
-																const handleRowChange =
-																	(
-																		index: number,
-																		key:
-																			| "quarter"
-																			| "units",
-																		raw: string
-																	) => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		const current =
-																			next[
-																			index
-																			] ||
-																			{};
-																		let v: any =
-																			raw;
-																		if (
-																			key ===
-																			"units"
-																		) {
-																			v =
-																				raw.trim() ===
-																					""
-																					? undefined
-																					: Number(
-																						raw
-																					);
-																			if (
-																				Number.isNaN(
-																					v
-																				)
-																			) {
-																				v =
-																					undefined;
-																			}
-																		}
-																		next[
-																			index
-																		] = {
-																			...current,
-																			[key]: v,
-																		};
-																		handleInputChange(
-																			"quarterlyDeliverySchedule",
-																			next
-																		);
-																	};
-
-																const handleAddRow =
-																	() => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		next.push(
-																			{
-																				quarter:
-																					"",
-																				units: undefined,
-																			}
-																		);
-																		handleInputChange(
-																			"quarterlyDeliverySchedule",
-																			next
-																		);
-																	};
-
-																const handleRemoveRow =
-																	(
-																		index: number
-																	) => {
-																		const next =
-																			[
-																				...rows,
-																			];
-																		next.splice(
-																			index,
-																			1
-																		);
-																		handleInputChange(
-																			"quarterlyDeliverySchedule",
-																			next
-																		);
-																	};
-
-																const displayRows =
-																	rows.length >
-																		0
-																		? rows
-																		: [
-																			{
-																				quarter:
-																					"",
-																				units: undefined,
-																			},
-																		];
-
-																return (
-																	<>
-																		{displayRows.map(
-																			(
-																				row,
-																				idx
-																			) => (
-																				<tr
-																					key={
-																						idx
-																					}
-																				>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="text"
-																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.quarter ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"quarter",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																							placeholder="Q1 2025"
-																						/>
-																					</td>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="number"
-																							min={
-																								0
-																							}
-																							className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.units ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"units",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</td>
-																					<td className="px-3 py-2 text-right align-middle">
-																						<Button
-																							type="button"
-																							variant="ghost"
-																							size="sm"
-																							onClick={() =>
-																								handleRemoveRow(
-																									idx
-																								)
-																							}
-																							disabled={
-																								isLocked ||
-																								rows.length <=
-																								1
-																							}
-																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																						>
-																							Remove
-																						</Button>
-																					</td>
-																				</tr>
-																			)
-																		)}
-																		<tr>
-																			<td
-																				colSpan={
-																					3
-																				}
-																				className="px-3 pt-3"
-																			>
-																				<Button
-																					type="button"
-																					variant="outline"
-																					size="sm"
-																					onClick={
-																						handleAddRow
-																					}
-																					disabled={
-																						isLocked
-																					}
-																					className="text-xs px-3 py-1"
-																				>
-																					Add
-																					Row
-																				</Button>
-																			</td>
-																		</tr>
-																	</>
-																);
-															})()}
-														</tbody>
-													</table>
-												</div>
-											</div>
+												fieldId="quarterlyDeliverySchedule"
+												sectionId={sectionId}
+												title="Quarterly Delivery Schedule"
+												required={isFieldRequiredFromSchema(
+													"quarterlyDeliverySchedule"
+												)}
+												fieldMetadata={
+													fieldMetadata["quarterlyDeliverySchedule"]
+												}
+												lockButton={renderFieldLockButton(
+													"quarterlyDeliverySchedule",
+													sectionId
+												)}
+												className={getTableWrapperClasses(
+													"quarterlyDeliverySchedule",
+													sectionId
+												)}
+												quarterPlaceholder="Q1 2025"
+											/>
 
 											{/* Sensitivity Analysis */}
-											<div
-												className={cn(
-													getTableWrapperClasses(
+											<SensitivityAnalysisEditor
+												value={
+													(formData as any)
+														.sensitivityAnalysis ?? null
+												}
+												onChange={(next) =>
+													handleInputChange(
 														"sensitivityAnalysis",
-														sectionId
-													),
-													"p-4"
+														next
+													)
+												}
+												disabled={isFieldLocked(
+													"sensitivityAnalysis",
+													sectionId
 												)}
-											>
-												<div className="mb-3 flex items-center justify-between">
-													<div className="flex items-center gap-2">
-														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-															Sensitivity Analysis
-														</h4>
-														{isFieldRequiredFromSchema(
-															"sensitivityAnalysis"
-														) && (
-																<span className="text-red-500 ml-1">
-																	*
-																</span>
-															)}
-														<FieldHelpTooltip
-															fieldId="sensitivityAnalysis"
-															fieldMetadata={
-																fieldMetadata[
-																"sensitivityAnalysis"
-																]
-															}
-														/>
-													</div>
-													<div className="flex items-center gap-1">
-														{renderFieldLockButton(
-															"sensitivityAnalysis",
-															sectionId
-														)}
-													</div>
-												</div>
-												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-													{/* Rent Growth Impact */}
-													<div>
-														<h5 className="text-xs font-medium text-gray-700 mb-2">
-															Rent Growth Impact
-														</h5>
-														<div className="overflow-x-auto">
-															<table className="min-w-full divide-y divide-gray-200 text-sm">
-																<thead className="bg-gray-50">
-																	<tr>
-																		<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																			Growth
-																		</th>
-																		<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																			IRR
-																		</th>
-																	</tr>
-																</thead>
-																<tbody className="bg-white divide-y divide-gray-100">
-																	{(() => {
-																		const value =
-																			(
-																				formData as any
-																			)
-																				.sensitivityAnalysis;
-																		const data =
-																			value &&
-																				typeof value ===
-																				"object" &&
-																				!Array.isArray(
-																					value
-																				)
-																				? value
-																				: {};
-																		const rows: any[] =
-																			Array.isArray(
-																				data.rentGrowthImpact
-																			)
-																				? data.rentGrowthImpact
-																				: [];
-																		const isLocked =
-																			isFieldLocked(
-																				"sensitivityAnalysis",
-																				sectionId
-																			);
-
-																		const handleRowChange =
-																			(
-																				index: number,
-																				key:
-																					| "growth"
-																					| "irr",
-																				raw: string
-																			) => {
-																				const next =
-																					[
-																						...rows,
-																					];
-																				const current =
-																					next[
-																					index
-																					] ||
-																					{};
-																				let v: any =
-																					raw;
-																				if (
-																					key ===
-																					"irr"
-																				) {
-																					v =
-																						raw.trim() ===
-																							""
-																							? undefined
-																							: Number(
-																								raw
-																							);
-																					if (
-																						Number.isNaN(
-																							v
-																						)
-																					) {
-																						v =
-																							undefined;
-																					}
-																				}
-																				next[
-																					index
-																				] =
-																				{
-																					...current,
-																					[key]: v,
-																				};
-																				handleInputChange(
-																					"sensitivityAnalysis",
-																					{
-																						...data,
-																						rentGrowthImpact:
-																							next,
-																					}
-																				);
-																			};
-
-																		const handleAddRow =
-																			() => {
-																				const next =
-																					[
-																						...rows,
-																					];
-																				next.push(
-																					{
-																						growth: "",
-																						irr: undefined,
-																					}
-																				);
-																				handleInputChange(
-																					"sensitivityAnalysis",
-																					{
-																						...data,
-																						rentGrowthImpact:
-																							next,
-																					}
-																				);
-																			};
-
-																		const handleRemoveRow =
-																			(
-																				index: number
-																			) => {
-																				const next =
-																					[
-																						...rows,
-																					];
-																				next.splice(
-																					index,
-																					1
-																				);
-																				handleInputChange(
-																					"sensitivityAnalysis",
-																					{
-																						...data,
-																						rentGrowthImpact:
-																							next,
-																					}
-																				);
-																			};
-
-																		const displayRows =
-																			rows.length >
-																				0
-																				? rows
-																				: [
-																					{
-																						growth: "",
-																						irr: undefined,
-																					},
-																				];
-
-																		return (
-																			<>
-																				{displayRows.map(
-																					(
-																						row,
-																						idx
-																					) => (
-																						<tr
-																							key={
-																								idx
-																							}
-																						>
-																							<td className="px-3 py-2 whitespace-nowrap align-middle">
-																								<input
-																									type="text"
-																									className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																									value={
-																										row.growth ??
-																										""
-																									}
-																									onChange={(
-																										e
-																									) =>
-																										handleRowChange(
-																											idx,
-																											"growth",
-																											e
-																												.target
-																												.value
-																										)
-																									}
-																									disabled={
-																										isLocked
-																									}
-																									placeholder="0%"
-																								/>
-																							</td>
-																							<td className="px-3 py-2 whitespace-nowrap align-middle">
-																								<div className="flex items-center gap-1">
-																									<input
-																										type="number"
-																										step="0.1"
-																										className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																										value={
-																											row.irr ??
-																											""
-																										}
-																										onChange={(
-																											e
-																										) =>
-																											handleRowChange(
-																												idx,
-																												"irr",
-																												e
-																													.target
-																													.value
-																											)
-																										}
-																										disabled={
-																											isLocked
-																										}
-																									/>
-																									<span className="text-gray-500">
-																										%
-																									</span>
-																								</div>
-																							</td>
-																							<td className="px-3 py-2 text-right align-middle">
-																								<Button
-																									type="button"
-																									variant="ghost"
-																									size="sm"
-																									onClick={() =>
-																										handleRemoveRow(
-																											idx
-																										)
-																									}
-																									disabled={
-																										isLocked ||
-																										rows.length <=
-																										1
-																									}
-																									className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																								>
-																									Remove
-																								</Button>
-																							</td>
-																						</tr>
-																					)
-																				)}
-																				<tr>
-																					<td
-																						colSpan={
-																							3
-																						}
-																						className="px-3 pt-3"
-																					>
-																						<Button
-																							type="button"
-																							variant="outline"
-																							size="sm"
-																							onClick={
-																								handleAddRow
-																							}
-																							disabled={
-																								isLocked
-																							}
-																							className="text-xs px-3 py-1"
-																						>
-																							Add
-																							Row
-																						</Button>
-																					</td>
-																				</tr>
-																			</>
-																		);
-																	})()}
-																</tbody>
-															</table>
-														</div>
-													</div>
-
-													{/* Construction Cost Impact */}
-													<div>
-														<h5 className="text-xs font-medium text-gray-700 mb-2">
-															Construction Cost
-															Impact
-														</h5>
-														<div className="overflow-x-auto">
-															<table className="min-w-full divide-y divide-gray-200 text-sm">
-																<thead className="bg-gray-50">
-																	<tr>
-																		<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																			Cost
-																			Change
-																		</th>
-																		<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																			IRR
-																		</th>
-																	</tr>
-																</thead>
-																<tbody className="bg-white divide-y divide-gray-100">
-																	{(() => {
-																		const value =
-																			(
-																				formData as any
-																			)
-																				.sensitivityAnalysis;
-																		const data =
-																			value &&
-																				typeof value ===
-																				"object" &&
-																				!Array.isArray(
-																					value
-																				)
-																				? value
-																				: {};
-																		const rows: any[] =
-																			Array.isArray(
-																				data.constructionCostImpact
-																			)
-																				? data.constructionCostImpact
-																				: [];
-																		const isLocked =
-																			isFieldLocked(
-																				"sensitivityAnalysis",
-																				sectionId
-																			);
-
-																		const handleRowChange =
-																			(
-																				index: number,
-																				key:
-																					| "cost"
-																					| "irr",
-																				raw: string
-																			) => {
-																				const next =
-																					[
-																						...rows,
-																					];
-																				const current =
-																					next[
-																					index
-																					] ||
-																					{};
-																				let v: any =
-																					raw;
-																				if (
-																					key ===
-																					"irr"
-																				) {
-																					v =
-																						raw.trim() ===
-																							""
-																							? undefined
-																							: Number(
-																								raw
-																							);
-																					if (
-																						Number.isNaN(
-																							v
-																						)
-																					) {
-																						v =
-																							undefined;
-																					}
-																				}
-																				next[
-																					index
-																				] =
-																				{
-																					...current,
-																					[key]: v,
-																				};
-																				handleInputChange(
-																					"sensitivityAnalysis",
-																					{
-																						...data,
-																						constructionCostImpact:
-																							next,
-																					}
-																				);
-																			};
-
-																		const handleAddRow =
-																			() => {
-																				const next =
-																					[
-																						...rows,
-																					];
-																				next.push(
-																					{
-																						cost: "",
-																						irr: undefined,
-																					}
-																				);
-																				handleInputChange(
-																					"sensitivityAnalysis",
-																					{
-																						...data,
-																						constructionCostImpact:
-																							next,
-																					}
-																				);
-																			};
-
-																		const handleRemoveRow =
-																			(
-																				index: number
-																			) => {
-																				const next =
-																					[
-																						...rows,
-																					];
-																				next.splice(
-																					index,
-																					1
-																				);
-																				handleInputChange(
-																					"sensitivityAnalysis",
-																					{
-																						...data,
-																						constructionCostImpact:
-																							next,
-																					}
-																				);
-																			};
-
-																		const displayRows =
-																			rows.length >
-																				0
-																				? rows
-																				: [
-																					{
-																						cost: "",
-																						irr: undefined,
-																					},
-																				];
-
-																		return (
-																			<>
-																				{displayRows.map(
-																					(
-																						row,
-																						idx
-																					) => (
-																						<tr
-																							key={
-																								idx
-																							}
-																						>
-																							<td className="px-3 py-2 whitespace-nowrap align-middle">
-																								<input
-																									type="text"
-																									className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																									value={
-																										row.cost ??
-																										""
-																									}
-																									onChange={(
-																										e
-																									) =>
-																										handleRowChange(
-																											idx,
-																											"cost",
-																											e
-																												.target
-																												.value
-																										)
-																									}
-																									disabled={
-																										isLocked
-																									}
-																									placeholder="Base"
-																								/>
-																							</td>
-																							<td className="px-3 py-2 whitespace-nowrap align-middle">
-																								<div className="flex items-center gap-1">
-																									<input
-																										type="number"
-																										step="0.1"
-																										className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																										value={
-																											row.irr ??
-																											""
-																										}
-																										onChange={(
-																											e
-																										) =>
-																											handleRowChange(
-																												idx,
-																												"irr",
-																												e
-																													.target
-																													.value
-																											)
-																										}
-																										disabled={
-																											isLocked
-																										}
-																									/>
-																									<span className="text-gray-500">
-																										%
-																									</span>
-																								</div>
-																							</td>
-																							<td className="px-3 py-2 text-right align-middle">
-																								<Button
-																									type="button"
-																									variant="ghost"
-																									size="sm"
-																									onClick={() =>
-																										handleRemoveRow(
-																											idx
-																										)
-																									}
-																									disabled={
-																										isLocked ||
-																										rows.length <=
-																										1
-																									}
-																									className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																								>
-																									Remove
-																								</Button>
-																							</td>
-																						</tr>
-																					)
-																				)}
-																				<tr>
-																					<td
-																						colSpan={
-																							3
-																						}
-																						className="px-3 pt-3"
-																					>
-																						<Button
-																							type="button"
-																							variant="outline"
-																							size="sm"
-																							onClick={
-																								handleAddRow
-																							}
-																							disabled={
-																								isLocked
-																							}
-																							className="text-xs px-3 py-1"
-																						>
-																							Add
-																							Row
-																						</Button>
-																					</td>
-																				</tr>
-																			</>
-																		);
-																	})()}
-																</tbody>
-															</table>
-														</div>
-													</div>
-												</div>
-											</div>
+												fieldId="sensitivityAnalysis"
+												sectionId={sectionId}
+												title="Sensitivity Analysis"
+												required={isFieldRequiredFromSchema(
+													"sensitivityAnalysis"
+												)}
+												fieldMetadata={
+													fieldMetadata["sensitivityAnalysis"]
+												}
+												lockButton={renderFieldLockButton(
+													"sensitivityAnalysis",
+													sectionId
+												)}
+												className={getTableWrapperClasses(
+													"sensitivityAnalysis",
+													sectionId
+												)}
+											/>
 										</>
 									)}
 
 								{/* Capital Use Timing - Uses of Funds */}
 								{sectionId === "financial-details" &&
 									subsectionId === "uses-of-funds" && (
-										<div
-											className={cn(
-												getTableWrapperClasses(
+										<CapitalUseTimingEditor
+											value={
+												(formData as any)
+													.capitalUseTiming ?? null
+											}
+											onChange={(next) =>
+												handleInputChange(
 													"capitalUseTiming",
-													sectionId
-												),
-												"p-4"
+													next
+												)
+											}
+											disabled={isFieldLocked(
+												"capitalUseTiming",
+												sectionId
 											)}
-										>
-											<div className="mb-3 flex items-center justify-between">
-												<div className="flex items-center gap-2">
-													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-														Capital Use Timing
-													</h4>
-													{isFieldRequiredFromSchema(
-														"capitalUseTiming"
-													) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
-													<FieldHelpTooltip
-														fieldId="capitalUseTiming"
-														fieldMetadata={
-															fieldMetadata[
-															"capitalUseTiming"
-															]
-														}
-													/>
-												</div>
-												<div className="flex items-center gap-1">
-													{renderFieldLockButton(
-														"capitalUseTiming",
-														sectionId
-													)}
-												</div>
-											</div>
-											<div className="overflow-x-auto">
-												<table className="min-w-full divide-y divide-gray-200 text-sm">
-													<thead className="bg-gray-50">
-														<tr>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Use Type
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Timing
-															</th>
-														</tr>
-													</thead>
-													<tbody className="bg-white divide-y divide-gray-100">
-														{(() => {
-															const value = (
-																formData as any
-															).capitalUseTiming;
-															const data =
-																value &&
-																	typeof value ===
-																	"object" &&
-																	!Array.isArray(
-																		value
-																	)
-																	? value
-																	: {};
-															const isLocked =
-																isFieldLocked(
-																	"capitalUseTiming",
-																	sectionId
-																);
-
-															const useTypes =
-																Object.keys(
-																	data
-																);
-															const allUseTypes =
-																[
-																	"landAcquisition",
-																	"baseConstruction",
-																	"contingency",
-																	"constructionFees",
-																	"aeFees",
-																	"developerFee",
-																	"interestReserve",
-																	"workingCapital",
-																	"opDeficitEscrow",
-																	"leaseUpEscrow",
-																	"ffe",
-																	"thirdPartyReports",
-																	"legalAndOrg",
-																	"titleAndRecording",
-																	"taxesDuringConstruction",
-																	"loanFees",
-																	"relocationCosts",
-																	"syndicationCosts",
-																	"enviroRemediation",
-																	"pfcStructuringFee",
-																];
-
-															const handleChange =
-																(
-																	useType: string,
-																	raw: string
-																) => {
-																	const updated =
-																	{
-																		...data,
-																		[useType]:
-																			raw.trim() ||
-																			undefined,
-																	};
-																	handleInputChange(
-																		"capitalUseTiming",
-																		updated
-																	);
-																};
-
-															const handleAddRow =
-																() => {
-																	// Find first unused use type
-																	const unusedType =
-																		allUseTypes.find(
-																			(
-																				type
-																			) =>
-																				!(
-																					type in
-																					data
-																				)
-																		);
-																	if (
-																		unusedType
-																	) {
-																		handleInputChange(
-																			"capitalUseTiming",
-																			{
-																				...data,
-																				[unusedType]:
-																					"",
-																			}
-																		);
-																	}
-																};
-
-															const handleRemoveRow =
-																(
-																	useType: string
-																) => {
-																	const updated =
-																	{
-																		...data,
-																	};
-																	delete updated[
-																		useType
-																	];
-																	handleInputChange(
-																		"capitalUseTiming",
-																		updated
-																	);
-																};
-
-															const displayRows =
-																useTypes.length >
-																	0
-																	? useTypes.map(
-																		(
-																			type
-																		) => ({
-																			useType:
-																				type,
-																			timing: data[
-																				type
-																			],
-																		})
-																	)
-																	: [
-																		{
-																			useType:
-																				"",
-																			timing: "",
-																		},
-																	];
-
-															return (
-																<>
-																	{displayRows.map(
-																		(
-																			row,
-																			idx
-																		) => {
-																			const formattedUseType =
-																				row.useType
-																					.replace(
-																						/([A-Z])/g,
-																						" $1"
-																					)
-																					.replace(
-																						/^./,
-																						(
-																							str
-																						) =>
-																							str.toUpperCase()
-																					)
-																					.trim();
-																			return (
-																				<tr
-																					key={
-																						idx
-																					}
-																				>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						{row.useType ? (
-																							<span>
-																								{
-																									formattedUseType
-																								}
-																							</span>
-																						) : (
-																							<select
-																								className="w-48 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									row.useType
-																								}
-																								onChange={(
-																									e
-																								) => {
-																									const newType =
-																										e
-																											.target
-																											.value;
-																									if (
-																										newType
-																									) {
-																										const updated =
-																										{
-																											...data,
-																										};
-																										if (
-																											row.useType
-																										) {
-																											delete updated[
-																												row
-																													.useType
-																											];
-																										}
-																										updated[
-																											newType
-																										] =
-																											row.timing ||
-																											"";
-																										handleInputChange(
-																											"capitalUseTiming",
-																											updated
-																										);
-																									}
-																								}}
-																								disabled={
-																									isLocked
-																								}
-																							>
-																								<option value="">
-																									Select
-																									Use
-																									Type
-																								</option>
-																								{allUseTypes
-																									.filter(
-																										(
-																											type
-																										) =>
-																											!(
-																												type in
-																												data
-																											) ||
-																											type ===
-																											row.useType
-																									)
-																									.map(
-																										(
-																											type
-																										) => {
-																											const label =
-																												type
-																													.replace(
-																														/([A-Z])/g,
-																														" $1"
-																													)
-																													.replace(
-																														/^./,
-																														(
-																															str
-																														) =>
-																															str.toUpperCase()
-																													)
-																													.trim();
-																											return (
-																												<option
-																													key={
-																														type
-																													}
-																													value={
-																														type
-																													}
-																												>
-																													{
-																														label
-																													}
-																												</option>
-																											);
-																										}
-																									)}
-																							</select>
-																						)}
-																					</td>
-																					<td className="px-3 py-2 whitespace-nowrap align-middle">
-																						<input
-																							type="text"
-																							className="w-40 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																							value={
-																								row.timing ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleChange(
-																									row.useType,
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked ||
-																								!row.useType
-																							}
-																							placeholder="Months 1-24"
-																						/>
-																					</td>
-																					<td className="px-3 py-2 text-right align-middle">
-																						<Button
-																							type="button"
-																							variant="ghost"
-																							size="sm"
-																							onClick={() =>
-																								handleRemoveRow(
-																									row.useType
-																								)
-																							}
-																							disabled={
-																								isLocked ||
-																								!row.useType ||
-																								useTypes.length <=
-																								1
-																							}
-																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																						>
-																							Remove
-																						</Button>
-																					</td>
-																				</tr>
-																			);
-																		}
-																	)}
-																	<tr>
-																		<td
-																			colSpan={
-																				3
-																			}
-																			className="px-3 pt-3"
-																		>
-																			<Button
-																				type="button"
-																				variant="outline"
-																				size="sm"
-																				onClick={
-																					handleAddRow
-																				}
-																				disabled={
-																					isLocked ||
-																					useTypes.length >=
-																					allUseTypes.length
-																				}
-																				className="text-xs px-3 py-1"
-																			>
-																				Add
-																				Use
-																				Type
-																			</Button>
-																		</td>
-																	</tr>
-																</>
-															);
-														})()}
-													</tbody>
-												</table>
-											</div>
-										</div>
+											fieldId="capitalUseTiming"
+											sectionId={sectionId}
+											title="Capital Use Timing"
+											required={isFieldRequiredFromSchema(
+												"capitalUseTiming"
+											)}
+											fieldMetadata={
+												fieldMetadata["capitalUseTiming"]
+											}
+											lockButton={renderFieldLockButton(
+												"capitalUseTiming",
+												sectionId
+											)}
+											className={getTableWrapperClasses(
+												"capitalUseTiming",
+												sectionId
+											)}
+										/>
 									)}
 
 								{/* Risk Analysis Fields */}
 								{sectionId === "financial-details" &&
 									subsectionId === "risk-analysis" && (
 										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-											{/* High Risk Items */}
-											<div
-												className={cn(
-													getTableWrapperClasses(
-														"riskHigh",
-														sectionId
-													),
-													"p-4"
-												)}
-											>
-												<div className="mb-3 flex items-center justify-between">
-													<div className="flex items-center gap-2">
-														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-															High Risk Items
-														</h4>
-														{isFieldRequiredFromSchema(
-															"riskHigh"
-														) && (
-																<span className="text-red-500 ml-1">
-																	*
-																</span>
-															)}
-														<FieldHelpTooltip
-															fieldId="riskHigh"
-															fieldMetadata={
-																fieldMetadata[
-																"riskHigh"
-																]
-															}
-														/>
-													</div>
-													<div className="flex items-center gap-1">
-														{renderFieldLockButton(
-															"riskHigh",
-															sectionId
-														)}
-													</div>
-												</div>
-												{(() => {
-													const value = (
-														formData as any
-													).riskHigh;
-													const items: string[] =
-														Array.isArray(value)
-															? value.map(
-																(item) => {
-																	// If item is an object, extract the 'risk' property
-																	if (
-																		item &&
-																		typeof item ===
-																		"object" &&
-																		!Array.isArray(
-																			item
-																		)
-																	) {
-																		return (
-																			item.risk ||
-																			item.text ||
-																			item.value ||
-																			JSON.stringify(
-																				item
-																			)
-																		);
-																	}
-																	return String(
-																		item
-																	);
-																}
-															)
-															: value &&
-																typeof value ===
-																"string"
-																? value
-																	.split(
-																		/[,\n]/
-																	)
-																	.map(
-																		(
-																			item
-																		) =>
-																			item.trim()
-																	)
-																	.filter(
-																		Boolean
-																	)
-																: [];
-													const isLocked =
-														isFieldLocked(
-															"riskHigh",
-															sectionId
-														);
-
-													const handleItemChange = (
-														index: number,
-														newValue: string
-													) => {
-														const next = [...items];
-														next[index] = newValue;
-														handleInputChange(
-															"riskHigh",
-															next
-														);
-													};
-
-													const handleAddItem =
-														() => {
-															const next = [
-																...items,
-																"",
-															];
-															handleInputChange(
-																"riskHigh",
-																next
-															);
-														};
-
-													const handleRemoveItem = (
-														index: number
-													) => {
-														const next = [...items];
-														next.splice(index, 1);
-														handleInputChange(
-															"riskHigh",
-															next
-														);
-													};
-
-													const displayItems =
-														items.length > 0
-															? items
-															: [""];
-
-													return (
-														<div className="space-y-2">
-															{displayItems.map(
-																(item, idx) => (
-																	<div
-																		key={
-																			idx
-																		}
-																		className="flex items-center gap-2"
-																	>
-																		<input
-																			type="text"
-																			className="flex-1 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																			value={
-																				item
-																			}
-																			onChange={(
-																				e
-																			) =>
-																				handleItemChange(
-																					idx,
-																					e
-																						.target
-																						.value
-																				)
-																			}
-																			disabled={
-																				isLocked
-																			}
-																			placeholder="Enter risk item"
-																		/>
-																		<button
-																			type="button"
-																			onClick={() =>
-																				handleRemoveItem(
-																					idx
-																				)
-																			}
-																			disabled={
-																				isLocked ||
-																				items.length <=
-																				1
-																			}
-																			className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																		>
-																			Remove
-																		</button>
-																	</div>
-																)
-															)}
-															<button
-																type="button"
-																onClick={
-																	handleAddItem
-																}
-																disabled={
-																	isLocked
-																}
-																className="text-xs px-3 py-1 border border-gray-200 rounded-md hover:bg-gray-50"
-															>
-																Add Item
-															</button>
-														</div>
-													);
-												})()}
-											</div>
-
-											{/* Medium Risk Items */}
-											<div
-												className={cn(
-													getTableWrapperClasses(
-														"riskMedium",
-														sectionId
-													),
-													"p-4"
-												)}
-											>
-												<div className="mb-3 flex items-center justify-between">
-													<div className="flex items-center gap-2">
-														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-															Medium Risk Items
-														</h4>
-														{isFieldRequiredFromSchema(
-															"riskMedium"
-														) && (
-																<span className="text-red-500 ml-1">
-																	*
-																</span>
-															)}
-														<FieldHelpTooltip
-															fieldId="riskMedium"
-															fieldMetadata={
-																fieldMetadata[
-																"riskMedium"
-																]
-															}
-														/>
-													</div>
-													<div className="flex items-center gap-1">
-														{renderFieldLockButton(
-															"riskMedium",
-															sectionId
-														)}
-													</div>
-												</div>
-												{(() => {
-													const value = (
-														formData as any
-													).riskMedium;
-													const items: string[] =
-														Array.isArray(value)
-															? value.map(
-																(item) => {
-																	// If item is an object, extract the 'risk' property
-																	if (
-																		item &&
-																		typeof item ===
-																		"object" &&
-																		!Array.isArray(
-																			item
-																		)
-																	) {
-																		return (
-																			item.risk ||
-																			item.text ||
-																			item.value ||
-																			JSON.stringify(
-																				item
-																			)
-																		);
-																	}
-																	return String(
-																		item
-																	);
-																}
-															)
-															: value &&
-																typeof value ===
-																"string"
-																? value
-																	.split(
-																		/[,\n]/
-																	)
-																	.map(
-																		(
-																			item
-																		) =>
-																			item.trim()
-																	)
-																	.filter(
-																		Boolean
-																	)
-																: [];
-													const isLocked =
-														isFieldLocked(
-															"riskMedium",
-															sectionId
-														);
-
-													const handleItemChange = (
-														index: number,
-														newValue: string
-													) => {
-														const next = [...items];
-														next[index] = newValue;
-														handleInputChange(
-															"riskMedium",
-															next
-														);
-													};
-
-													const handleAddItem =
-														() => {
-															const next = [
-																...items,
-																"",
-															];
-															handleInputChange(
-																"riskMedium",
-																next
-															);
-														};
-
-													const handleRemoveItem = (
-														index: number
-													) => {
-														const next = [...items];
-														next.splice(index, 1);
-														handleInputChange(
-															"riskMedium",
-															next
-														);
-													};
-
-													const displayItems =
-														items.length > 0
-															? items
-															: [""];
-
-													return (
-														<div className="space-y-2">
-															{displayItems.map(
-																(item, idx) => (
-																	<div
-																		key={
-																			idx
-																		}
-																		className="flex items-center gap-2"
-																	>
-																		<input
-																			type="text"
-																			className="flex-1 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																			value={
-																				item
-																			}
-																			onChange={(
-																				e
-																			) =>
-																				handleItemChange(
-																					idx,
-																					e
-																						.target
-																						.value
-																				)
-																			}
-																			disabled={
-																				isLocked
-																			}
-																			placeholder="Enter risk item"
-																		/>
-																		<button
-																			type="button"
-																			onClick={() =>
-																				handleRemoveItem(
-																					idx
-																				)
-																			}
-																			disabled={
-																				isLocked ||
-																				items.length <=
-																				1
-																			}
-																			className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																		>
-																			Remove
-																		</button>
-																	</div>
-																)
-															)}
-															<button
-																type="button"
-																onClick={
-																	handleAddItem
-																}
-																disabled={
-																	isLocked
-																}
-																className="text-xs px-3 py-1 border border-gray-200 rounded-md hover:bg-gray-50"
-															>
-																Add Item
-															</button>
-														</div>
-													);
-												})()}
-											</div>
-
-											{/* Low Risk Items */}
-											<div
-												className={cn(
-													getTableWrapperClasses(
-														"riskLow",
-														sectionId
-													),
-													"p-4"
-												)}
-											>
-												<div className="mb-3 flex items-center justify-between">
-													<div className="flex items-center gap-2">
-														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-															Low Risk Items
-														</h4>
-														{isFieldRequiredFromSchema(
-															"riskLow"
-														) && (
-																<span className="text-red-500 ml-1">
-																	*
-																</span>
-															)}
-														<FieldHelpTooltip
-															fieldId="riskLow"
-															fieldMetadata={
-																fieldMetadata[
-																"riskLow"
-																]
-															}
-														/>
-													</div>
-													<div className="flex items-center gap-1">
-														{renderFieldLockButton(
-															"riskLow",
-															sectionId
-														)}
-													</div>
-												</div>
-												{(() => {
-													const value = (
-														formData as any
-													).riskLow;
-													const items: string[] =
-														Array.isArray(value)
-															? value.map(
-																(item) => {
-																	// If item is an object, extract the 'risk' property
-																	if (
-																		item &&
-																		typeof item ===
-																		"object" &&
-																		!Array.isArray(
-																			item
-																		)
-																	) {
-																		return (
-																			item.risk ||
-																			item.text ||
-																			item.value ||
-																			JSON.stringify(
-																				item
-																			)
-																		);
-																	}
-																	return String(
-																		item
-																	);
-																}
-															)
-															: value &&
-																typeof value ===
-																"string"
-																? value
-																	.split(
-																		/[,\n]/
-																	)
-																	.map(
-																		(
-																			item
-																		) =>
-																			item.trim()
-																	)
-																	.filter(
-																		Boolean
-																	)
-																: [];
-													const isLocked =
-														isFieldLocked(
-															"riskLow",
-															sectionId
-														);
-
-													const handleItemChange = (
-														index: number,
-														newValue: string
-													) => {
-														const next = [...items];
-														next[index] = newValue;
-														handleInputChange(
-															"riskLow",
-															next
-														);
-													};
-
-													const handleAddItem =
-														() => {
-															const next = [
-																...items,
-																"",
-															];
-															handleInputChange(
-																"riskLow",
-																next
-															);
-														};
-
-													const handleRemoveItem = (
-														index: number
-													) => {
-														const next = [...items];
-														next.splice(index, 1);
-														handleInputChange(
-															"riskLow",
-															next
-														);
-													};
-
-													const displayItems =
-														items.length > 0
-															? items
-															: [""];
-
-													return (
-														<div className="space-y-2">
-															{displayItems.map(
-																(item, idx) => (
-																	<div
-																		key={
-																			idx
-																		}
-																		className="flex items-center gap-2"
-																	>
-																		<input
-																			type="text"
-																			className="flex-1 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																			value={
-																				item
-																			}
-																			onChange={(
-																				e
-																			) =>
-																				handleItemChange(
-																					idx,
-																					e
-																						.target
-																						.value
-																				)
-																			}
-																			disabled={
-																				isLocked
-																			}
-																			placeholder="Enter risk item"
-																		/>
-																		<Button
-																			type="button"
-																			variant="ghost"
-																			size="sm"
-																			onClick={() =>
-																				handleRemoveItem(
-																					idx
-																				)
-																			}
-																			disabled={
-																				isLocked ||
-																				items.length <=
-																				1
-																			}
-																			className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
-																		>
-																			Remove
-																		</Button>
-																	</div>
-																)
-															)}
-															<Button
-																type="button"
-																variant="outline"
-																size="sm"
-																onClick={
-																	handleAddItem
-																}
-																disabled={
-																	isLocked
-																}
-																className="text-xs px-3 py-1"
-															>
-																Add Item
-															</Button>
-														</div>
-													);
-												})()}
-											</div>
+											<RiskListEditor
+												value={(formData as any).riskHigh}
+												onChange={(next) =>
+													handleInputChange("riskHigh", next)
+												}
+												disabled={isFieldLocked("riskHigh", sectionId)}
+												fieldId="riskHigh"
+												sectionId={sectionId}
+												title="High Risk Items"
+												required={isFieldRequiredFromSchema("riskHigh")}
+												fieldMetadata={fieldMetadata["riskHigh"]}
+												lockButton={renderFieldLockButton("riskHigh", sectionId)}
+												className={getTableWrapperClasses("riskHigh", sectionId)}
+											/>
+											<RiskListEditor
+												value={(formData as any).riskMedium}
+												onChange={(next) =>
+													handleInputChange("riskMedium", next)
+												}
+												disabled={isFieldLocked("riskMedium", sectionId)}
+												fieldId="riskMedium"
+												sectionId={sectionId}
+												title="Medium Risk Items"
+												required={isFieldRequiredFromSchema("riskMedium")}
+												fieldMetadata={fieldMetadata["riskMedium"]}
+												lockButton={renderFieldLockButton("riskMedium", sectionId)}
+												className={getTableWrapperClasses("riskMedium", sectionId)}
+											/>
+											<RiskListEditor
+												value={(formData as any).riskLow}
+												onChange={(next) =>
+													handleInputChange("riskLow", next)
+												}
+												disabled={isFieldLocked("riskLow", sectionId)}
+												fieldId="riskLow"
+												sectionId={sectionId}
+												title="Low Risk Items"
+												required={isFieldRequiredFromSchema("riskLow")}
+												fieldMetadata={fieldMetadata["riskLow"]}
+												lockButton={renderFieldLockButton("riskLow", sectionId)}
+												className={getTableWrapperClasses("riskLow", sectionId)}
+											/>
 										</div>
 									)}
 
 								{/* Rent Roll Table */}
 								{sectionId === "financial-details" &&
 									subsectionId === "rent-roll" && (
-										<div
-											className={cn(
-												getTableWrapperClasses(
-													"rentRollUnits",
-													sectionId
-												),
-												"p-4"
-											)}
-										>
-											<div className="mb-3 flex items-center justify-between">
-												<div className="flex items-center gap-2">
-													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-														Rent Roll (Unit Level)
-													</h4>
-													{isFieldRequiredFromSchema(
-														"rentRollUnits"
-													) && (
-															<span className="text-red-500 ml-1">
-																*
-															</span>
-														)}
-													<FieldHelpTooltip
-														fieldId="rentRollUnits"
-														fieldMetadata={
-															fieldMetadata[
-															"rentRollUnits"
-															]
-														}
-													/>
-												</div>
-												<div className="flex items-center gap-1">
-													{renderFieldLockButton(
-														"rentRollUnits",
-														sectionId
-													)}
-												</div>
-											</div>
-
-											{/* Summary Metrics */}
-											{(() => {
-												const value = (formData as any).rentRollUnits;
-												const rows: any[] = Array.isArray(value) ? value : [];
-												const totalUnits = rows.length;
-												const occupied = rows.filter((u: any) => u.status === 'Occupied').length;
-												const vacant = rows.filter((u: any) => u.status === 'Vacant').length;
-												const occupancy = totalUnits > 0 ? (occupied / totalUnits) * 100 : 0;
-												const totalRent = rows.reduce((acc: number, u: any) => {
-													const rent = typeof u.monthlyRent === 'string'
-														? parseFloat(u.monthlyRent.replace(/[^0-9.]/g, ''))
-														: (u.monthlyRent || 0);
-													return acc + (isNaN(rent) ? 0 : rent);
-												}, 0);
-												const avgRent = totalUnits > 0 ? totalRent / totalUnits : 0;
-
-												return (
-													<div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">
-														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-															<div className="text-[10px] text-gray-400 uppercase font-semibold">Total Units</div>
-															<div className="text-sm font-bold text-gray-700">{totalUnits}</div>
-														</div>
-														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-															<div className="text-[10px] text-gray-400 uppercase font-semibold">Occupied</div>
-															<div className="text-sm font-bold text-gray-700">{occupied}</div>
-														</div>
-														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-															<div className="text-[10px] text-gray-400 uppercase font-semibold">Vacant</div>
-															<div className="text-sm font-bold text-gray-700">{vacant}</div>
-														</div>
-														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-															<div className="text-[10px] text-gray-400 uppercase font-semibold">Occupancy</div>
-															<div className="text-sm font-bold text-gray-700">{occupancy.toFixed(1)}%</div>
-														</div>
-														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-															<div className="text-[10px] text-gray-400 uppercase font-semibold">Total Rent</div>
-															<div className="text-sm font-bold text-gray-700">${totalRent.toLocaleString()}</div>
-														</div>
-														<div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-															<div className="text-[10px] text-gray-400 uppercase font-semibold">Avg Rent</div>
-															<div className="text-sm font-bold text-gray-700">${avgRent.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-														</div>
-													</div>
-												);
-											})()}
-											<div className="overflow-x-auto">
-												<table className="min-w-full divide-y divide-gray-200 text-sm">
-													<thead className="bg-gray-50">
-														<tr>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Unit #
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Type
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Beds / Baths
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																SF
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Status
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Tenant
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Rent
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Rent/SF
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Recurring Charges
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Term
-															</th>
-															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																Next Increase
-															</th>
-															<th className="px-3 py-2"></th>
-														</tr>
-													</thead>
-													<tbody className="bg-white divide-y divide-gray-100">
-														{(() => {
-															const value = (
-																formData as any
-															).rentRollUnits;
-															const rows: any[] =
-																Array.isArray(
-																	value
-																)
-																	? value
-																	: [];
-															const isLocked =
-																isFieldLocked(
-																	"rentRollUnits",
-																	sectionId
-																);
-
-															const handleRowChange =
-																(
-																	index: number,
-																	key: string,
-																	raw: string
-																) => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	const current =
-																		next[
-																		index
-																		] || {};
-																	let v: any =
-																		raw;
-																	if (
-																		[
-																			"beds",
-																			"baths",
-																			"sf",
-																			"monthlyRent",
-																			"recurringCharges",
-																			"nextRentIncreaseAmount",
-																		].includes(
-																			key
-																		)
-																	) {
-																		v =
-																			raw.trim() ===
-																				""
-																				? undefined
-																				: Math.max(0, Number(
-																					raw
-																				));
-																		if (
-																			Number.isNaN(
-																				v
-																			)
-																		) {
-																			v =
-																				undefined;
-																		}
-																	}
-																	next[
-																		index
-																	] = {
-																		...current,
-																		[key]: v,
-																	};
-																	handleInputChange(
-																		"rentRollUnits",
-																		next
-																	);
-																};
-
-															const handleAddRow =
-																() => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	next.push({
-																		unitNumber:
-																			"",
-																		unitType:
-																			"",
-																		beds: undefined,
-																		baths: undefined,
-																		sf: undefined,
-																		status: "",
-																		tenantName:
-																			"",
-																		monthlyRent:
-																			undefined,
-																		recurringCharges:
-																			undefined,
-																		leaseStart:
-																			"",
-																		leaseEnd:
-																			"",
-																		nextRentIncreaseDate:
-																			"",
-																		nextRentIncreaseAmount:
-																			undefined,
-																	});
-																	handleInputChange(
-																		"rentRollUnits",
-																		next
-																	);
-																};
-
-															const handleRemoveRow =
-																(
-																	index: number
-																) => {
-																	const next =
-																		[
-																			...rows,
-																		];
-																	next.splice(
-																		index,
-																		1
-																	);
-																	handleInputChange(
-																		"rentRollUnits",
-																		next
-																	);
-																};
-
-															const displayRows =
-																rows.length > 0
-																	? rows
-																	: [{}];
-
-															return (
-																<>
-																	{displayRows.map(
-																		(
-																			row,
-																			idx
-																		) => (
-																			<tr
-																				key={
-																					idx
-																				}
-																			>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="text"
-																						className="w-16 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																						value={
-																							row.unitNumber ||
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"unitNumber",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																						placeholder="101"
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="text"
-																						className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																						value={
-																							row.unitType ||
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"unitType",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																						placeholder="1B/1B"
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<div className="flex items-center gap-1">
-																						<input
-																							type="number"
-																							className="w-12 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																							value={
-																								row.beds ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"beds",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																							placeholder="Beds"
-																						/>
-																						<span className="text-gray-400">
-																							/
-																						</span>
-																						<input
-																							type="number"
-																							className="w-12 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																							value={
-																								row.baths ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"baths",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																							placeholder="Baths"
-																						/>
-																					</div>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="number"
-																						className="w-16 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																						value={
-																							row.sf ??
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"sf",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																						placeholder="SF"
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<select
-																						className="rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																						value={
-																							row.status ||
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"status",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																					>
-																						<option value="">
-																							Select
-																						</option>
-																						<option value="Occupied">
-																							Occupied
-																						</option>
-																						<option value="Vacant">
-																							Vacant
-																						</option>
-																						<option value="Model">
-																							Model
-																						</option>
-																						<option value="Down">
-																							Down
-																						</option>
-																					</select>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<input
-																						type="text"
-																						className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																						value={
-																							row.tenantName ||
-																							""
-																						}
-																						onChange={(
-																							e
-																						) =>
-																							handleRowChange(
-																								idx,
-																								"tenantName",
-																								e
-																									.target
-																									.value
-																							)
-																						}
-																						disabled={
-																							isLocked
-																						}
-																						placeholder="Tenant Name"
-																					/>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<div className="flex items-center gap-1">
-																						<span className="text-gray-500">
-																							$
-																						</span>
-																						<input
-																							type="number"
-																							className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																							value={
-																								row.monthlyRent ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"monthlyRent",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																							placeholder="Rent"
-																						/>
-																					</div>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<div className="text-sm text-gray-500 font-medium">
-																						{row.monthlyRent && row.sf ?
-																							`$${(row.monthlyRent / row.sf).toFixed(2)}` :
-																							"N/A"}
-																					</div>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<div className="flex items-center gap-1">
-																						<span className="text-gray-500">
-																							$
-																						</span>
-																						<input
-																							type="number"
-																							className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																							value={
-																								row.recurringCharges ??
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"recurringCharges",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																							placeholder="Charges"
-																						/>
-																					</div>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<div className="flex flex-col gap-1">
-																						<input
-																							type="date"
-																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																							value={
-																								row.leaseStart ||
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"leaseStart",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																						<input
-																							type="date"
-																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																							value={
-																								row.leaseEnd ||
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"leaseEnd",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																					</div>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle">
-																					<div className="flex flex-col gap-1">
-																						<input
-																							type="date"
-																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																							value={
-																								row.nextRentIncreaseDate ||
-																								""
-																							}
-																							onChange={(
-																								e
-																							) =>
-																								handleRowChange(
-																									idx,
-																									"nextRentIncreaseDate",
-																									e
-																										.target
-																										.value
-																								)
-																							}
-																							disabled={
-																								isLocked
-																							}
-																						/>
-																						<div className="flex items-center gap-1">
-																							<span className="text-[10px] text-gray-500">
-																								$
-																							</span>
-																							<input
-																								type="number"
-																								className="w-24 rounded-md border border-gray-200 px-1 py-0.5 text-[10px] focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																								value={
-																									row.nextRentIncreaseAmount ??
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleRowChange(
-																										idx,
-																										"nextRentIncreaseAmount",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLocked
-																								}
-																								placeholder="Amount"
-																							/>
-																						</div>
-																					</div>
-																				</td>
-																				<td className="px-3 py-2 whitespace-nowrap align-middle text-right">
-																					<Button
-																						type="button"
-																						variant="ghost"
-																						size="sm"
-																						onClick={() =>
-																							handleRemoveRow(
-																								idx
-																							)
-																						}
-																						disabled={
-																							isLocked ||
-																							rows.length <=
-																							1
-																						}
-																						className="text-red-500 hover:text-red-700 disabled:opacity-30 p-1 h-auto"
-																					>
-																						<X className="h-4 w-4" />
-																					</Button>
-																				</td>
-																			</tr>
-																		)
-																	)}
-																	{!isLocked && (
-																		<tr>
-																			<td
-																				colSpan={
-																					9
-																				}
-																				className="px-3 py-3"
-																			>
-																				<Button
-																					type="button"
-																					variant="ghost"
-																					size="sm"
-																					onClick={
-																						handleAddRow
-																					}
-																					className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 p-0 h-auto"
-																				>
-																					<Plus className="h-4 w-4" />
-																					Add Unit
-																				</Button>
-																			</td>
-																		</tr>
-																	)}
-																</>
-															);
-														})()}
-													</tbody>
-												</table>
-											</div>
-										</div>
+										<RentRollEditor
+											value={
+												(formData as any).rentRollUnits ?? []
+											}
+											onChange={(next) =>
+												handleInputChange("rentRollUnits", next)
+											}
+											disabled={isFieldLocked("rentRollUnits", sectionId)}
+											fieldId="rentRollUnits"
+											sectionId={sectionId}
+											title="Rent Roll (Unit Level)"
+											required={isFieldRequiredFromSchema("rentRollUnits")}
+											fieldMetadata={fieldMetadata["rentRollUnits"]}
+											lockButton={renderFieldLockButton("rentRollUnits", sectionId)}
+											className={getTableWrapperClasses("rentRollUnits", sectionId)}
+										/>
 									)}
 
 								{/* T-12 Monthly Data Table */}
 								{sectionId === "financial-details" && subsectionId === "operating-expenses" && (
-									<div
-										className={cn(
-											getTableWrapperClasses(
-												"t12MonthlyData",
-												sectionId
-											),
-											"p-4 mt-4"
-										)}
-									>
-										<div className="mb-3 flex items-center justify-between">
-											<div className="flex items-center gap-2">
-												<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-													T-12 Monthly Data
-												</h4>
-												{isFieldRequiredFromSchema(
-													"t12MonthlyData"
-												) && (
-														<span className="text-red-500 ml-1">
-															*
-														</span>
-													)}
-												<FieldHelpTooltip
-													fieldId="t12MonthlyData"
-													fieldMetadata={
-														fieldMetadata[
-														"t12MonthlyData"
-														]
-													}
-												/>
-											</div>
-											<div className="flex items-center gap-1">
-												{renderFieldLockButton(
-													"t12MonthlyData",
-													sectionId
-												)}
-											</div>
-										</div>
-
-										<div className="overflow-x-auto">
-											<table className="min-w-full divide-y divide-gray-200 text-sm">
-												<thead className="bg-gray-50">
-													<tr>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Month</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">GPR</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Other Income</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Concessions</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Bad Debt</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Utilities</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">RE Taxes</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Insurance</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Mgmt Fee</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Payroll</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">R&M</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Contract Svc</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Marketing</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">G&A</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Make Ready</th>
-														<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">CapEx</th>
-														<th className="px-3 py-2"></th>
-													</tr>
-												</thead>
-												<tbody className="bg-white divide-y divide-gray-100">
-													{(() => {
-														const value = (formData as any).t12MonthlyData;
-														const rows: any[] = Array.isArray(value) ? value : [];
-														const isLocked = isFieldLocked("t12MonthlyData", sectionId);
-
-														const handleRowChange = (
-															index: number,
-															key: string,
-															raw: string
-														) => {
-															const next = [...rows];
-															const current = next[index] || {};
-															let v: any = raw;
-
-															// Parse numeric fields
-															if ([
-																"grossPotentialRent",
-																"otherIncome",
-																"concessions",
-																"badDebt",
-																"utilities",
-																"realEstateTaxes",
-																"insurance",
-																"managementFee",
-																"payroll",
-																"repairsMaintenance",
-																"contractServices",
-																"marketing",
-																"generalAdmin",
-																"makeReady",
-																"capex"
-															].includes(key)) {
-																v = raw.trim() === "" ? undefined : Math.max(0, Number(raw));
-																if (Number.isNaN(v)) {
-																	v = undefined;
-																}
-															}
-
-															next[index] = { ...current, [key]: v };
-															handleInputChange("t12MonthlyData", next);
-														};
-
-														const handleAddRow = () => {
-															const next = [...rows];
-															next.push({
-																month: "",
-																grossPotentialRent: undefined,
-																otherIncome: undefined,
-																concessions: undefined,
-																badDebt: undefined,
-																utilities: undefined,
-																realEstateTaxes: undefined,
-																insurance: undefined,
-																managementFee: undefined,
-																payroll: undefined,
-																repairsMaintenance: undefined,
-																contractServices: undefined,
-																marketing: undefined,
-																generalAdmin: undefined,
-																makeReady: undefined,
-																capex: undefined,
-															});
-															handleInputChange("t12MonthlyData", next);
-														};
-
-														const handleRemoveRow = (index: number) => {
-															const next = [...rows];
-															next.splice(index, 1);
-															handleInputChange("t12MonthlyData", next);
-														};
-
-														const displayRows = rows.length > 0 ? rows : [{}];
-
-														return (
-															<>
-																{displayRows.map((row, idx) => (
-																	<tr key={idx}>
-																		<td className="px-3 py-2 whitespace-nowrap align-middle">
-																			<input
-																				type="text"
-																				className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																				value={row.month || ""}
-																				onChange={(e) => handleRowChange(idx, "month", e.target.value)}
-																				disabled={isLocked}
-																				placeholder="Jan-25"
-																			/>
-																		</td>
-																		{["grossPotentialRent", "otherIncome", "concessions", "badDebt", "utilities", "realEstateTaxes", "insurance", "managementFee", "payroll", "repairsMaintenance", "contractServices", "marketing", "generalAdmin", "makeReady", "capex"].map((field) => (
-																			<td key={field} className="px-3 py-2 whitespace-nowrap align-middle">
-																				<div className="flex items-center gap-1">
-																					<span className="text-gray-500">$</span>
-																					<input
-																						type="number"
-																						className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
-																						value={row[field] ?? ""}
-																						onChange={(e) => handleRowChange(idx, field, e.target.value)}
-																						disabled={isLocked}
-																						placeholder="0"
-																					/>
-																				</div>
-																			</td>
-																		))}
-																		<td className="px-3 py-2 whitespace-nowrap align-middle text-right">
-																			<Button
-																				type="button"
-																				variant="ghost"
-																				size="sm"
-																				onClick={() => handleRemoveRow(idx)}
-																				disabled={isLocked || rows.length <= 1}
-																				className="text-red-500 hover:text-red-700 disabled:opacity-30 p-1 h-auto"
-																			>
-																				<X className="h-4 w-4" />
-																			</Button>
-																		</td>
-																	</tr>
-																))}
-																{!isLocked && (
-																	<tr>
-																		<td colSpan={17} className="px-3 py-3">
-																			<Button
-																				type="button"
-																				variant="ghost"
-																				size="sm"
-																				onClick={handleAddRow}
-																				className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 p-0 h-auto"
-																			>
-																				<Plus className="h-4 w-4" />
-																				Add Month
-																			</Button>
-																		</td>
-																	</tr>
-																)}
-															</>
-														);
-													})()}
-												</tbody>
-											</table>
-										</div>
-									</div>
+									<T12MonthlyDataEditor
+										value={(formData as any).t12MonthlyData ?? []}
+										onChange={(next) => handleInputChange("t12MonthlyData", next)}
+										disabled={isFieldLocked("t12MonthlyData", sectionId)}
+										fieldId="t12MonthlyData"
+										sectionId={sectionId}
+										title="T-12 Monthly Data"
+										required={isFieldRequiredFromSchema("t12MonthlyData")}
+										fieldMetadata={fieldMetadata["t12MonthlyData"]}
+										lockButton={renderFieldLockButton("t12MonthlyData", sectionId)}
+										className={getTableWrapperClasses("t12MonthlyData", sectionId)}
+									/>
 								)}
+
 
 								{sectionId === "site-context" &&
 									subsectionId === "project-media" && (
@@ -7139,9 +2068,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											/>
 										</div>
 									)}
-							</div>
-						)}
-					</div>
+						</>
+					</ProjectResumeSubsection>
 				);
 			};
 
@@ -7371,15 +2299,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						</span>
 					</div>
 				)}
-				<FormWizard
+				<ProjectResumeWizard
 					steps={steps}
-					onComplete={handleFormSubmit}
-					showProgressBar={false}
-					showStepIndicators={false}
-					allowSkip
-					variant="tabs"
-					showBottomNav
 					initialStep={initialStepIndex}
+					onComplete={handleFormSubmit}
 					onStepChange={(stepId) => {
 						void touchWorkspace(stepId);
 					}}

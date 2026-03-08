@@ -76,5 +76,5 @@ export function sanitizeProjectProfile(profile: ProjectProfile): ProjectProfile 
 
 	next._metadata = fixedMeta;
 
-	return next as ProjectProfile;
+	return next as unknown as ProjectProfile;
 }

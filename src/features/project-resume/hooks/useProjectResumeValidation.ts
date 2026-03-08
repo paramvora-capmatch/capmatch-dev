@@ -65,7 +65,7 @@ export function useProjectResumeValidation({
 	const handleBlur = useCallback(
 		(fieldId: string, value?: unknown) => {
 			const fieldValue =
-				value !== undefined ? value : (formData as Record<string, unknown>)[fieldId];
+				value !== undefined ? value : (formData as unknown as Record<string, unknown>)[fieldId];
 			if (fieldValue === undefined || fieldValue === null) return;
 
 			const currentMeta = (fieldMetadata[fieldId] as Record<string, unknown>) || {
@@ -74,7 +74,7 @@ export function useProjectResumeValidation({
 				warnings: [],
 				other_values: [],
 			};
-			const context = { ...formData, [fieldId]: fieldValue } as Record<string, unknown>;
+			const context = { ...formData, [fieldId]: fieldValue } as unknown as Record<string, unknown>;
 
 			sanityCheckerRef.current?.scheduleCheck(
 				fieldId,
@@ -114,54 +114,54 @@ export function useProjectResumeValidation({
 				...Object.values(FIELD_DEPENDENCIES).flat(),
 			]);
 
-			const changedFields = new Set<string>();
-			allRelevantFields.forEach((fieldId) => {
-				const currentValue = (currentFormData as Record<string, unknown>)[fieldId];
-				const prevValue = (prevFormData as Record<string, unknown>)[fieldId];
-				if (
-					JSON.stringify(currentValue) !== JSON.stringify(prevValue)
-				) {
-					changedFields.add(fieldId);
-				}
-			});
-
-			if (changedFields.size === 0) {
-				prevFormDataRef.current = currentFormData;
-				return;
+		const changedFields = new Set<string>();
+		allRelevantFields.forEach((fieldId) => {
+			const currentValue = (currentFormData as unknown as Record<string, unknown>)[fieldId];
+			const prevValue = (prevFormData as unknown as Record<string, unknown>)[fieldId];
+			if (
+				JSON.stringify(currentValue) !== JSON.stringify(prevValue)
+			) {
+				changedFields.add(fieldId);
 			}
+		});
 
-			const fieldsToRevalidate = new Set<string>();
-			changedFields.forEach((fieldId) => {
-				const dependentFields = FIELD_DEPENDENCIES[fieldId];
-				if (dependentFields) {
-					dependentFields.forEach((depFieldId) => {
-						const depValue = (currentFormData as Record<string, unknown>)[depFieldId];
-						if (
-							depValue !== undefined &&
-							depValue !== null &&
-							depValue !== ""
-						) {
-							fieldsToRevalidate.add(depFieldId);
-						}
-					});
-				}
-			});
+		if (changedFields.size === 0) {
+			prevFormDataRef.current = currentFormData;
+			return;
+		}
 
-			if (fieldsToRevalidate.size > 0 && sanityCheckerRef.current) {
-				const fieldsToCheck = Array.from(fieldsToRevalidate)
-					.map((fieldId) => {
-						const fieldValue = (currentFormData as Record<string, unknown>)[fieldId];
-						const currentMeta = (fieldMetadata[fieldId] as Record<string, unknown>) || {
-							value: fieldValue,
-							source: null,
-							warnings: [],
-							other_values: [],
-						};
-						return {
-							fieldId,
-							value: fieldValue,
-							context: currentFormData as Record<string, unknown>,
-							existingFieldData: currentMeta,
+		const fieldsToRevalidate = new Set<string>();
+		changedFields.forEach((fieldId) => {
+			const dependentFields = FIELD_DEPENDENCIES[fieldId];
+			if (dependentFields) {
+				dependentFields.forEach((depFieldId) => {
+					const depValue = (currentFormData as unknown as Record<string, unknown>)[depFieldId];
+					if (
+						depValue !== undefined &&
+						depValue !== null &&
+						depValue !== ""
+					) {
+						fieldsToRevalidate.add(depFieldId);
+					}
+				});
+			}
+		});
+
+		if (fieldsToRevalidate.size > 0 && sanityCheckerRef.current) {
+			const fieldsToCheck = Array.from(fieldsToRevalidate)
+				.map((fieldId) => {
+					const fieldValue = (currentFormData as unknown as Record<string, unknown>)[fieldId];
+					const currentMeta = (fieldMetadata[fieldId] as Record<string, unknown>) || {
+						value: fieldValue,
+						source: null,
+						warnings: [],
+						other_values: [],
+					};
+					return {
+						fieldId,
+						value: fieldValue,
+						context: currentFormData as unknown as Record<string, unknown>,
+						existingFieldData: currentMeta,
 						};
 					})
 					.filter(

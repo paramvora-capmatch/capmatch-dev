@@ -3,6 +3,7 @@
 import React from "react";
 import { FieldHelpTooltip } from "@/components/ui/FieldHelpTooltip";
 import { FieldWarningsTooltip } from "@/components/ui/FieldWarningsTooltip";
+import type { SourceMetadata } from "@/types/source-metadata";
 
 export interface ProjectFieldLabelRowProps {
 	fieldId: string;
@@ -11,7 +12,13 @@ export interface ProjectFieldLabelRowProps {
 	hasWarnings: boolean;
 	warningMessages?: string[] | null;
 	fieldWrapperRef?: React.RefObject<HTMLDivElement>;
-	fieldMetadataItem?: Record<string, unknown> | null;
+	fieldMetadataItem?: {
+		source?: SourceMetadata;
+		sources?: SourceMetadata[];
+		warnings?: string[];
+		value?: any;
+		other_values?: { value: any; source: SourceMetadata }[];
+	} | null;
 	onAskAI?: (fieldId: string) => void;
 	lockButton: React.ReactNode;
 }
@@ -42,7 +49,7 @@ export function ProjectFieldLabelRow({
 				</span>
 				<FieldHelpTooltip
 					fieldId={fieldId}
-					fieldMetadata={fieldMetadataItem}
+					fieldMetadata={fieldMetadataItem ?? undefined}
 				/>
 				{hasWarnings && fieldWrapperRef && (
 					<FieldWarningsTooltip

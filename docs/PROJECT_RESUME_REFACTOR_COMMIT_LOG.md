@@ -14,8 +14,8 @@ Use this log to roll back to a previous state: `git checkout <commit-hash>`.
 | 5 | refactor(project-resume): extract validation hook | useProjectResumeValidation (sanity checker, handleBlur, fieldDependencies, batch revalidation). |
 | 6 | refactor(project-resume): extract derived-field engine | derivedFieldCalculators.ts + useProjectResumeDerivedFields (incentiveStacking, targetLtv/Ltc, totalCommercialGRSF, unit counts). |
 | 7 | refactor(project-resume): extract generic field UI primitives | ProjectFieldLockButton, ProjectFieldLabelRow; form uses them for lock button and label/help/warnings/Ask AI row. |
-| 8 | (pending) | Extract subsection and wizard view layer. |
+| 8 | refactor(project-resume): extract subsection and wizard view layer | ProjectResumeSubsection (accordion row + badges + lock); ProjectResumeWizard (wraps FormWizard with tabs + bottom nav). Form uses both; subsection list key fix. |
 | 9 | refactor(project-resume): extract ProjectMediaUpload | editors/ProjectMediaUpload.tsx; form imports from feature. |
-| 10 | (pending) | Extract high-volume custom editors. |
+| 10 | (in progress) | Extract high-volume custom editors: ResidentialUnitMix, CommercialSpaceMix, DrawSchedule, RentComps, MajorEmployers, DeliveryByQuarter, T12Financial, FiveYearCashFlow, ReturnsBreakdown, QuarterlyDeliverySchedule (via DeliveryByQuarterEditor), SensitivityAnalysis, CapitalUseTiming, Risk (RiskListEditor×3) done; RentRoll, T12MonthlyData optional remaining. |
 | 11 | (done in prior commits) | Form is thin shell; composes hooks and components; public API unchanged. |
 | 12 | (manual) | Run full regression checklist (see Validation Matrix in plan) before merge. |

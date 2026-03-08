@@ -24,12 +24,12 @@ export function computeDerivedFieldsPatch(
 	// 1) incentiveStacking
 	if (!lockedFields.has("incentiveStacking")) {
 		const activeLabels = INCENTIVE_LABELS.filter(({ key }) => {
-			const flag = (prev as Record<string, unknown>)[key];
+			const flag = (prev as unknown as Record<string, unknown>)[key];
 			return flag === true;
 		}).map((item) => item.label);
 		const derived =
 			activeLabels.length > 0 ? activeLabels.join(", ") : null;
-		const current = (prev as Record<string, unknown>).incentiveStacking;
+		const current = (prev as unknown as Record<string, unknown>).incentiveStacking;
 		const currentStr =
 			Array.isArray(current) && current.length > 0
 				? current.join(", ")
@@ -168,7 +168,7 @@ export function computeDerivedFieldsPatch(
 	countFields.forEach((fieldId, i) => {
 		if (lockedFields.has(fieldId)) return;
 		const derived = derivedCounts[i];
-		const current = normalizeNumber((prev as Record<string, unknown>)[fieldId]);
+		const current = normalizeNumber((prev as unknown as Record<string, unknown>)[fieldId]);
 		if (
 			(current === null && derived !== null) ||
 			(current !== null && derived === null) ||
@@ -176,7 +176,7 @@ export function computeDerivedFieldsPatch(
 				derived !== null &&
 				current !== derived)
 		) {
-			(next as Record<string, unknown>)[fieldId] =
+			(next as unknown as Record<string, unknown>)[fieldId] =
 				derived === null ? undefined : derived;
 			changed = true;
 		}
