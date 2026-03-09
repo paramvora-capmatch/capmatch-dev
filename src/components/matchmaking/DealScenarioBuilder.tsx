@@ -651,7 +651,7 @@ function LenderCard({ lender }: { lender: MockLender }) {
           <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
             <div className="flex items-center gap-1.5 mb-2">
               <Zap size={16} className="text-blue-600" />
-              <span className="text-base font-semibold text-gray-800">Why it's a match</span>
+              <span className="text-base font-semibold text-gray-800">Why it&apos;s a match</span>
             </div>
             <p className="text-sm text-gray-600 leading-relaxed">{lender.aiReport.summary}</p>
           </div>
