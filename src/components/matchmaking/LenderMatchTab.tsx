@@ -1,0 +1,734 @@
+"use client";
+
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Save,
+  RotateCcw,
+  Trophy,
+  BarChart3,
+  Building2,
+  Landmark,
+  Tag,
+  History,
+  Star,
+  Loader2,
+  Target,
+  AlertCircle,
+  RefreshCw,
+  Pencil,
+  Check,
+  X,
+} from "lucide-react";
+import { useMatchmaking, type MatchScore, type VariableVizData } from "@/hooks/useMatchmaking";
+import { useProjectStore } from "@/stores/useProjectStore";
+import { supabase } from "@/lib/supabaseClient";
+import { getBackendUrl } from "@/lib/apiConfig";
+import type { ProjectProfile } from "@/types/enhanced-types";
+import { LenderAIReport } from "./LenderAIReport";
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+interface VersionRow {
+  id: string;
+  version_number: number | null;
+  label: string | null;
+  created_at: string;
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function getFieldValue(project: ProjectProfile | null | undefined, fieldId: string): unknown {
+  if (!project) return undefined;
+  const p = project as unknown as Record<string, unknown>;
+  if (p[fieldId] !== undefined) return p[fieldId];
+  const content = p.content as Record<string, unknown> | undefined;
+  if (content && content[fieldId] !== undefined) {
+    const item = content[fieldId];
+    if (item && typeof item === "object" && item !== null && "value" in item) {
+      return (item as { value: unknown }).value;
+    }
+    return item;
+  }
+  if (project._metadata && project._metadata[fieldId]) {
+    return project._metadata[fieldId].value;
+  }
+  return undefined;
+}
+
+function formatDealValue(value: unknown, key: string): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "number") {
+    const currencyKeys = ["loanAmountRequested", "stabilizedValue", "purchasePrice", "baseConstruction", "loanFees", "propertyNoiT12", "noiYear1"];
+    const percentKeys = ["targetLtvPercent", "ltv", "dscr", "interestRate", "originationFee"];
+    if (currencyKeys.includes(key)) return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+    if (percentKeys.includes(key)) return `${value}%`;
+    return value.toLocaleString();
+  }
+  return String(value);
+}
+
+function formatDate(iso: string | null): string | null {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch { return null; }
+}
+
+// 9 Key Deal Terms grouped by matchmaking dimension
+const KEY_DEAL_TERMS_SECTIONS: { label: string; keys: { key: string; label: string }[] }[] = [
+  { label: "Geography", keys: [
+    { key: "propertyAddressState", label: "State" },
+    { key: "propertyAddressCounty", label: "County" },
+    { key: "propertyAddressCity", label: "City" },
+    { key: "propertyAddressZip", label: "Zip" },
+    { key: "msaName", label: "MSA" },
+  ]},
+  { label: "Loan amount", keys: [{ key: "loanAmountRequested", label: "Loan amount requested" }] },
+  { label: "Value / scale", keys: [
+    { key: "stabilizedValue", label: "Stabilized value" },
+    { key: "purchasePrice", label: "Purchase price" },
+    { key: "totalResidentialUnits", label: "Total units" },
+  ]},
+  { label: "Leverage", keys: [{ key: "targetLtvPercent", label: "Target LTV %" }] },
+  { label: "Coverage", keys: [
+    { key: "dscr", label: "DSCR" },
+    { key: "propertyNoiT12", label: "NOI T12" },
+  ]},
+  { label: "Affordability", keys: [
+    { key: "affordableHousing", label: "Affordable housing" },
+    { key: "affordableUnitsNumber", label: "Affordable units" },
+  ]},
+  { label: "Loan purpose", keys: [
+    { key: "projectPhase", label: "Project phase" },
+    { key: "useOfProceeds", label: "Use of proceeds" },
+    { key: "baseConstruction", label: "Base construction" },
+  ]},
+  { label: "Term structure", keys: [
+    { key: "requestedTerm", label: "Requested term" },
+    { key: "interestOnlyPeriodMonths", label: "Interest-only (months)" },
+  ]},
+  { label: "Pricing", keys: [
+    { key: "interestRate", label: "Interest rate" },
+    { key: "originationFee", label: "Origination fee" },
+    { key: "loanFees", label: "Loan fees" },
+  ]},
+];
+
+const EDITABLE_KEYS = new Set([
+  "loanAmountRequested", "targetLtvPercent", "dscr", "propertyNoiT12", "noiYear1",
+  "affordableHousing", "affordableUnitsNumber", "requestedTerm", "interestOnlyPeriodMonths",
+  "interestRate", "originationFee", "loanFees", "baseConstruction", "stabilizedValue",
+  "purchasePrice", "totalResidentialUnits",
+]);
+
+const NUMERIC_KEYS = new Set([
+  "loanAmountRequested", "targetLtvPercent", "dscr", "propertyNoiT12", "noiYear1",
+  "affordableUnitsNumber", "requestedTerm", "interestOnlyPeriodMonths", "interestRate",
+  "originationFee", "loanFees", "baseConstruction", "stabilizedValue", "purchasePrice",
+  "totalResidentialUnits",
+]);
+
+function normalizeContentUpdates(overrides: Record<string, string>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, raw] of Object.entries(overrides)) {
+    if (!EDITABLE_KEYS.has(key)) continue;
+    if (key === "affordableHousing") {
+      out[key] = /^(1|true|yes)$/i.test(raw.trim());
+      continue;
+    }
+    if (NUMERIC_KEYS.has(key)) {
+      const n = parseFloat(raw.replace(/[,$%]/g, "").trim());
+      out[key] = Number.isFinite(n) ? n : raw;
+      continue;
+    }
+    out[key] = raw.trim() || raw;
+  }
+  return out;
+}
+
+function ScoreBadge({ score }: { score: number }) {
+  const cls = score >= 70
+    ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+    : score >= 45
+      ? "text-amber-700 bg-amber-50 border-amber-200"
+      : "text-red-700 bg-red-50 border-red-200";
+  return <span className={`text-base font-bold px-3 py-1 rounded-full border ${cls}`}>{score.toFixed(1)}</span>;
+}
+
+function ScoreBar({ score, color }: { score: number; color: string }) {
+  return (
+    <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${score}%`, backgroundColor: color }} />
+    </div>
+  );
+}
+
+function PillarRow({ label, score }: { label: string; score: number }) {
+  const color = score >= 80 ? "#059669" : score >= 60 ? "#d97706" : "#dc2626";
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-gray-500 w-14 shrink-0">{label}</span>
+      <div className="flex-1"><ScoreBar score={score} color={color} /></div>
+      <span className="text-xs font-medium text-gray-600 w-8 text-right">{score.toFixed(0)}</span>
+    </div>
+  );
+}
+
+// ─── Match card with Tier 1 (pillar bars + narrative) and Tier 2 (quick view + AI) ──
+
+function MatchCard({
+  score,
+  expanded,
+  onToggle,
+}: {
+  score: MatchScore;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const displayName = score.lender_name || score.lender_lei || "Unknown";
+  const pillar = score.pillar_scores || {};
+  const marketFit = pillar.market_fit ?? pillar.Market ?? 0;
+  const capitalFit = pillar.capital_fit ?? pillar.Capital ?? 0;
+  const productFit = pillar.product_fit ?? pillar.Product ?? 0;
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm transition-shadow hover:shadow-md">
+      {/* Tier 1: Always visible — rank, name, pillar bars, narrative */}
+      <div
+        onClick={onToggle}
+        className="px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-bold text-gray-400 w-5 text-right shrink-0">
+            #{score.rank}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <Building2 size={16} className="text-gray-400 shrink-0" />
+              <span className="text-base font-semibold text-gray-900 truncate">{displayName}</span>
+            </div>
+            <div className="mt-1.5 space-y-1">
+              <PillarRow label="Market" score={marketFit} />
+              <PillarRow label="Capital" score={capitalFit} />
+              <PillarRow label="Product" score={productFit} />
+            </div>
+          </div>
+          <div className="shrink-0 flex flex-col items-center gap-1">
+            <ScoreBadge score={score.total_score} />
+            {expanded ? <ChevronUp size={14} className="text-gray-300" /> : <ChevronDown size={14} className="text-gray-300" />}
+          </div>
+        </div>
+        {score.overall_narrative && (
+          <p className="text-sm text-gray-500 italic leading-relaxed mt-2 ml-8">
+            {score.overall_narrative}
+          </p>
+        )}
+      </div>
+
+      {/* Tier 2: Expanded — variable breakdown + AI report trigger */}
+      {expanded && (
+        <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-4">
+          {score.variable_scores && score.variable_scores.length > 0 && (
+            <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Zap size={16} className="text-blue-600" />
+                <span className="text-base font-semibold text-gray-800">Score breakdown</span>
+              </div>
+              <ul className="space-y-2">
+                {score.variable_scores.map((v: VariableVizData, i: number) => (
+                  <li key={i} className="text-sm">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="font-medium text-gray-700">{v.name}</span>
+                      <span className="text-xs font-semibold text-gray-500">{(v.score * 100).toFixed(0)}</span>
+                    </div>
+                    <ScoreBar score={v.score * 100} color={v.score >= 0.7 ? "#059669" : v.score >= 0.4 ? "#d97706" : "#dc2626"} />
+                    {v.explanation && (
+                      <p className="text-xs text-gray-500 mt-0.5">{v.explanation}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Tier 3: AI Report */}
+          <LenderAIReport matchScoreId={score.id} lenderName={displayName} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main component ─────────────────────────────────────────────────────────
+
+interface LenderMatchTabProps {
+  projectId: string;
+}
+
+export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => {
+  const [versionDropdownOpen, setVersionDropdownOpen] = useState(false);
+  const [expandedScoreId, setExpandedScoreId] = useState<string | null>(null);
+
+  // Real version data from Supabase
+  const [versions, setVersions] = useState<VersionRow[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [versionsLoading, setVersionsLoading] = useState(true);
+
+  // Inline label editing
+  const [editingLabel, setEditingLabel] = useState(false);
+  const [labelDraft, setLabelDraft] = useState("");
+  const [isSavingLabel, setIsSavingLabel] = useState(false);
+
+  // Editable field overrides
+  const [fieldOverrides, setFieldOverrides] = useState<Record<string, string>>({});
+  const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null);
+  const [isSavingVersion, setIsSavingVersion] = useState(false);
+
+  const activeProject = useProjectStore((s) => s.activeProject);
+  const project = activeProject?.id === projectId ? activeProject : null;
+
+  console.log(`[LenderMatchTab] render: projectId=${projectId}, selectedVersionId=${selectedVersionId}`);
+
+  const {
+    isRunning: matchRunning,
+    isLoading: matchLoading,
+    matchScores,
+    totalLenders: matchedLenderCount,
+    topMatchName,
+    topMatchScore,
+    lastRunAt,
+    error: matchError,
+    runMatchmaking,
+    visualizationData,
+  } = useMatchmaking(projectId, selectedVersionId ?? null);
+
+  const hasResults = matchScores.length > 0 || !!visualizationData;
+  const hasOverrides = Object.keys(fieldOverrides).length > 0;
+
+  console.log(`[LenderMatchTab] matchScores.length=${matchScores.length}, hasResults=${hasResults}, matchLoading=${matchLoading}, visualizationData=${!!visualizationData}`);
+
+  // Fetch real version data. If selectLatest is true, auto-select the newest version.
+  const fetchVersions = useCallback(async (selectLatest = false) => {
+    if (!projectId) {
+      setVersions([]);
+      setVersionsLoading(false);
+      return;
+    }
+    setVersionsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("project_resumes")
+        .select("id, version_number, label, created_at")
+        .eq("project_id", projectId)
+        .order("version_number", { ascending: false });
+      if (error) throw error;
+      console.log(`[LenderMatchTab] fetchVersions: got ${data?.length ?? 0} versions, selectLatest=${selectLatest}, current selectedVersionId=${selectedVersionId}`);
+      setVersions(data || []);
+      if (data && data.length > 0 && (!selectedVersionId || selectLatest)) {
+        console.log(`[LenderMatchTab] fetchVersions: setting selectedVersionId to latest: ${data[0].id}`);
+        setSelectedVersionId(data[0].id);
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof (err as { message?: string })?.message === "string"
+            ? (err as { message: string }).message
+            : String(err);
+      const code = (err as { code?: string })?.code;
+      console.error("[LenderMatchTab] Failed to fetch versions:", message, code ? `(${code})` : "");
+      setVersions([]);
+    } finally {
+      setVersionsLoading(false);
+    }
+  }, [projectId, selectedVersionId]);
+
+  useEffect(() => { fetchVersions(); }, [fetchVersions]);
+
+  const currentVersion = useMemo(
+    () => versions.find((v) => v.id === selectedVersionId) ?? versions[0] ?? null,
+    [versions, selectedVersionId]
+  );
+
+  const versionDisplayLabel = useMemo(() => {
+    if (!currentVersion) return "No versions";
+    const base = `v${currentVersion.version_number ?? "—"}`;
+    return currentVersion.label ? `${base} — ${currentVersion.label}` : base;
+  }, [currentVersion]);
+
+  // Save label
+  const handleSaveLabel = useCallback(async () => {
+    if (!currentVersion) return;
+    const trimmed = labelDraft.trim();
+    setIsSavingLabel(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = getBackendUrl();
+      const res = await fetch(
+        `${base}/api/v1/project-resume/${encodeURIComponent(currentVersion.id)}/label`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+          body: JSON.stringify({ label: trimmed }),
+        }
+      );
+      if (!res.ok) throw new Error("Failed to update label");
+      setVersions((prev) =>
+        prev.map((v) => (v.id === currentVersion.id ? { ...v, label: trimmed || null } : v))
+      );
+    } catch (err) {
+      console.error("[LenderMatchTab] label save failed:", err);
+    } finally {
+      setIsSavingLabel(false);
+      setEditingLabel(false);
+    }
+  }, [currentVersion, labelDraft]);
+
+  // Save version snapshot via backend (with optional content_updates from Lender Matching edits).
+  // Prompts the advisor for a version label, saves, then selects the new version.
+  const handleSaveVersion = useCallback(async () => {
+    const labelInput = window.prompt("Name this version (e.g. 'Conservative 65% LTV', 'Bridge Aggressive'):");
+    if (labelInput === null) return; // user pressed Cancel
+
+    setIsSavingVersion(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = getBackendUrl();
+      const content_updates = hasOverrides ? normalizeContentUpdates(fieldOverrides) : undefined;
+      const res = await fetch(`${base}/api/v1/project-resume/save-version`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ projectId, ...(content_updates && Object.keys(content_updates).length > 0 && { content_updates }) }),
+      });
+      if (!res.ok) throw new Error("Failed to save version");
+      const result = await res.json();
+      setFieldOverrides({});
+
+      // Assign label to the newly created version
+      const newVersionId: string | undefined = result.versionId;
+      const trimmedLabel = labelInput.trim();
+      if (newVersionId && trimmedLabel) {
+        try {
+          await fetch(
+            `${base}/api/v1/project-resume/${encodeURIComponent(newVersionId)}/label`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+              body: JSON.stringify({ label: trimmedLabel }),
+            }
+          );
+        } catch {
+          // label save is best-effort; version was already created
+        }
+      }
+
+      // Refetch versions and auto-select the latest (newly created) one
+      await fetchVersions(true);
+    } catch (err) {
+      console.error("[LenderMatchTab] save version failed:", err);
+    } finally {
+      setIsSavingVersion(false);
+    }
+  }, [projectId, fetchVersions, fieldOverrides, hasOverrides]);
+
+  return (
+    <div className="flex gap-6 items-start max-w-[1600px] mx-auto">
+      {/* ──────── LEFT PANEL: Version + Key Deal Terms ──────── */}
+      <div className="flex-1 min-w-0 space-y-4">
+        {/* Version card */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* Version selector dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setVersionDropdownOpen(!versionDropdownOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <History size={16} className="text-gray-500" />
+                  <span className="text-base font-medium text-gray-700">
+                    {currentVersion ? `v${currentVersion.version_number ?? "—"}` : "—"}
+                  </span>
+                  <ChevronDown size={14} className="text-gray-400" />
+                </button>
+
+                {versionDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-80 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                    <div className="p-3 border-b border-gray-100">
+                      <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Version History</p>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {versionsLoading ? (
+                        <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-blue-600" /></div>
+                      ) : versions.length === 0 ? (
+                        <p className="p-3 text-sm text-gray-500">No versions found</p>
+                      ) : (
+                        versions.map((v) => (
+                          <button
+                            key={v.id}
+                            type="button"
+                            className={`w-full text-left px-3 py-2.5 hover:bg-gray-50 transition-colors flex items-center justify-between ${
+                              v.id === selectedVersionId ? "bg-blue-50" : ""
+                            }`}
+                            onClick={() => {
+                              setSelectedVersionId(v.id);
+                              setVersionDropdownOpen(false);
+                              setFieldOverrides({});
+                            }}
+                          >
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-base font-medium text-gray-800">v{v.version_number ?? "—"}</span>
+                                {v.id === versions[0]?.id && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">LATEST</span>
+                                )}
+                              </div>
+                              {v.label && <p className="text-sm text-blue-600 mt-0.5">{v.label}</p>}
+                              <p className="text-xs text-gray-400">{formatDate(v.created_at)}</p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Label display / inline edit */}
+              <div className="flex items-center gap-1.5">
+                <Tag size={14} className="text-gray-400" />
+                {editingLabel ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      className="text-sm border border-blue-300 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
+                      value={labelDraft}
+                      onChange={(e) => setLabelDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveLabel();
+                        else if (e.key === "Escape") setEditingLabel(false);
+                      }}
+                      autoFocus
+                      placeholder="e.g. Conservative 65% LTV"
+                      disabled={isSavingLabel}
+                    />
+                    <button onClick={handleSaveLabel} disabled={isSavingLabel} className="p-1 text-green-600 hover:text-green-700">
+                      {isSavingLabel ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                    </button>
+                    <button onClick={() => setEditingLabel(false)} className="p-1 text-gray-400 hover:text-gray-600">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingLabel(true);
+                      setLabelDraft(currentVersion?.label || "");
+                    }}
+                    className="flex items-center gap-1 group"
+                  >
+                    <span className="text-base text-gray-600 italic">
+                      {currentVersion?.label ? `\u201C${currentVersion.label}\u201D` : "Add label\u2026"}
+                    </span>
+                    <Pencil size={12} className="text-gray-300 group-hover:text-blue-500 transition-colors" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {hasOverrides && (
+                <button
+                  type="button"
+                  onClick={() => setFieldOverrides({})}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <RotateCcw size={14} />
+                  Discard
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleSaveVersion}
+                disabled={isSavingVersion}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {isSavingVersion ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Save Version
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Key Deal Terms (9 backend matchmaking dimensions) — editable */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Star size={16} className="text-blue-600" />
+            <h3 className="text-base font-semibold text-gray-800">Key Deal Terms</h3>
+            {hasOverrides && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+                {Object.keys(fieldOverrides).length} changed
+              </span>
+            )}
+          </div>
+          {!project ? (
+            <p className="text-sm text-gray-500">No project data. Open a project to see deal terms.</p>
+          ) : (
+            <div className="space-y-4">
+              {KEY_DEAL_TERMS_SECTIONS.map((section) => (
+                <div key={section.label}>
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    {section.label}
+                  </div>
+                  <div className="space-y-1">
+                    {section.keys.map(({ key, label }) => {
+                      const rawValue = getFieldValue(project, key);
+                      const overrideValue = fieldOverrides[key];
+                      const displayValue = overrideValue !== undefined ? overrideValue : formatDealValue(rawValue, key);
+                      const isEditable = EDITABLE_KEYS.has(key);
+                      const isModified = overrideValue !== undefined;
+                      const isCurrentlyEditing = editingFieldKey === key;
+
+                      return (
+                        <div
+                          key={key}
+                          className={`flex justify-between items-baseline gap-2 text-sm rounded px-1 py-0.5 ${
+                            isModified ? "bg-amber-50" : ""
+                          }`}
+                        >
+                          <span className="text-gray-600">{label}</span>
+                          {isCurrentlyEditing ? (
+                            <input
+                              type="text"
+                              className="text-sm font-medium text-gray-900 bg-white border border-blue-300 rounded px-2 py-0.5 text-right w-[55%] focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              defaultValue={overrideValue ?? String(rawValue ?? "")}
+                              autoFocus
+                              onBlur={(e) => {
+                                const val = e.target.value.trim();
+                                if (val && val !== String(rawValue ?? "")) {
+                                  setFieldOverrides((prev) => ({ ...prev, [key]: val }));
+                                }
+                                setEditingFieldKey(null);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                else if (e.key === "Escape") setEditingFieldKey(null);
+                              }}
+                            />
+                          ) : (
+                            <span
+                              className={`font-medium truncate max-w-[60%] text-right ${
+                                isEditable
+                                  ? "text-gray-900 cursor-pointer hover:text-blue-600 hover:underline decoration-dotted underline-offset-2"
+                                  : "text-gray-900"
+                              } ${isModified ? "text-amber-700" : ""}`}
+                              onClick={isEditable ? () => setEditingFieldKey(key) : undefined}
+                              title={isEditable ? "Click to edit" : undefined}
+                            >
+                              {displayValue}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ──────── RIGHT PANEL: Lender Matches (backend) ──────── */}
+      <div className="w-[420px] shrink-0 space-y-4 sticky top-6">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                <Landmark size={16} className="text-blue-600" />
+                Lender Matches
+              </h3>
+              {hasResults && lastRunAt && (
+                <p className="text-xs text-gray-400 mt-0.5">Last run: {formatDate(lastRunAt)}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => runMatchmaking()}
+              disabled={matchRunning}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
+            >
+              {matchRunning ? (
+                <><Loader2 size={16} className="animate-spin" />Running...</>
+              ) : hasResults ? (
+                <><RefreshCw size={16} />Re-run Matchmaking</>
+              ) : (
+                <><Zap size={16} />Run Matchmaking</>
+              )}
+            </button>
+          </div>
+
+          {matchError && (
+            <div className="flex items-start gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Matchmaking failed</p>
+                <p className="text-red-600 mt-0.5">{matchError}</p>
+              </div>
+            </div>
+          )}
+
+          {hasResults && !matchRunning && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg text-sm font-medium text-gray-600">
+                <BarChart3 size={14} />
+                {matchedLenderCount} lenders scored
+              </div>
+              {topMatchName != null && topMatchScore != null && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 rounded-lg text-sm font-medium text-emerald-700">
+                  <Trophy size={14} />
+                  Top: {topMatchName} ({topMatchScore.toFixed(1)}/100)
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-3 max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
+          {matchRunning || matchLoading ? (
+            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl border border-gray-200 shadow-sm">
+              <Loader2 size={32} className="text-blue-500 animate-spin mb-4" />
+              <h4 className="text-base font-semibold text-gray-800">Analyzing Lenders...</h4>
+              <p className="text-sm text-gray-500 text-center mt-2">
+                Matching your project parameters against the backend matchmaking engine.
+              </p>
+            </div>
+          ) : !hasResults ? (
+            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl border border-gray-200 shadow-sm opacity-80">
+              <Target size={48} className="text-gray-300 mb-4" />
+              <h4 className="text-base font-semibold text-gray-800">Ready to Match</h4>
+              <p className="text-sm text-gray-500 text-center mt-2">
+                Run matchmaking to see compatible lenders scored against your key deal terms.
+              </p>
+            </div>
+          ) : (
+            matchScores.map((score) => (
+              <MatchCard
+                key={score.id}
+                score={score}
+                expanded={expandedScoreId === score.id}
+                onToggle={() => setExpandedScoreId((id) => (id === score.id ? null : score.id))}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

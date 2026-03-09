@@ -11,7 +11,11 @@ import {
 	GitCompare,
 	Loader2,
 	Lock,
+	Pencil,
+	Check,
+	X,
 } from "lucide-react";
+import { getBackendUrl } from "@/lib/apiConfig";
 import {
 	formatDate,
 	getFieldLabel,
@@ -38,6 +42,7 @@ interface ResumeVersionHistoryProps {
 interface ResumeVersionRow {
 	id: string;
 	version_number: number | null;
+	label: string | null;
 	created_at: string;
 	created_by: string | null;
 	creatorDisplayName: string;
@@ -69,6 +74,9 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 	const [comparePair, setComparePair] = useState<[string, string] | null>(
 		null
 	);
+	const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+	const [editingLabelValue, setEditingLabelValue] = useState("");
+	const [isSavingLabel, setIsSavingLabel] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 	const prevIsOpenRef = useRef(false);
 
@@ -123,7 +131,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 
 			const { data: versionRows, error: versionsError } = await supabase
 				.from("project_resumes")
-				.select("id, version_number, created_at, created_by")
+				.select("id, version_number, label, created_at, created_by")
 				.eq("project_id", projectId)
 				.order("version_number", { ascending: false });
 
@@ -265,13 +273,51 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 		[resource?.id, fetchVersions, onRollbackSuccess]
 	);
 
-	const currentVersionLabel = useMemo(
-		() =>
-			currentVersion?.version_number
-				? `v${currentVersion.version_number}`
-				: "Current version",
-		[currentVersion]
+	const handleSaveLabel = useCallback(
+		async (versionId: string, newLabel: string) => {
+			const trimmed = newLabel.trim();
+			setIsSavingLabel(true);
+			try {
+				const { data: { session } } = await supabase.auth.getSession();
+				const token = session?.access_token;
+				const base = getBackendUrl();
+				const res = await fetch(
+					`${base}/api/v1/project-resume/${encodeURIComponent(versionId)}/label`,
+					{
+						method: "PATCH",
+						headers: {
+							"Content-Type": "application/json",
+							...(token && { Authorization: `Bearer ${token}` }),
+						},
+						body: JSON.stringify({ label: trimmed }),
+					}
+				);
+				if (!res.ok) {
+					const errData = await res.json().catch(() => ({}));
+					throw new Error(errData.detail || "Failed to update label");
+				}
+				setVersions((prev) =>
+					prev.map((v) =>
+						v.id === versionId ? { ...v, label: trimmed || null } : v
+					)
+				);
+			} catch (err) {
+				setError(
+					err instanceof Error ? err.message : "Failed to save label"
+				);
+			} finally {
+				setIsSavingLabel(false);
+				setEditingLabelId(null);
+			}
+		},
+		[]
 	);
+
+	const currentVersionLabel = useMemo(() => {
+		if (!currentVersion?.version_number) return "Current version";
+		const base = `v${currentVersion.version_number}`;
+		return currentVersion.label ? `${base} — ${currentVersion.label}` : base;
+	}, [currentVersion]);
 
 	return (
 		<div className="relative" ref={dropdownRef}>
@@ -422,6 +468,70 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 																	<AlertCircle className="h-4 w-4 text-amber-600" />
 																)}
 															</div>
+															{/* Inline label editing */}
+															{editingLabelId === version.id ? (
+																<div className="flex items-center gap-1 mt-1">
+																	<input
+																		type="text"
+																		className="text-xs border border-blue-300 rounded px-1.5 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
+																		value={editingLabelValue}
+																		onChange={(e) => setEditingLabelValue(e.target.value)}
+																		onKeyDown={(e) => {
+																			if (e.key === "Enter") {
+																				handleSaveLabel(version.id, editingLabelValue);
+																			} else if (e.key === "Escape") {
+																				setEditingLabelId(null);
+																			}
+																		}}
+																		autoFocus
+																		placeholder="e.g. Conservative 65% LTV"
+																		disabled={isSavingLabel}
+																		onClick={(e) => e.stopPropagation()}
+																	/>
+																	<button
+																		onClick={(e) => {
+																			e.stopPropagation();
+																			handleSaveLabel(version.id, editingLabelValue);
+																		}}
+																		disabled={isSavingLabel}
+																		className="p-0.5 text-green-600 hover:text-green-700"
+																	>
+																		{isSavingLabel ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+																	</button>
+																	<button
+																		onClick={(e) => {
+																			e.stopPropagation();
+																			setEditingLabelId(null);
+																		}}
+																		className="p-0.5 text-gray-400 hover:text-gray-600"
+																	>
+																		<X className="h-3 w-3" />
+																	</button>
+																</div>
+															) : (
+																<div className="flex items-center gap-1 mt-0.5 group/label">
+																	{version.label ? (
+																		<span className="text-xs text-blue-600 font-medium truncate">
+																			{version.label}
+																		</span>
+																	) : (
+																		<span className="text-xs text-gray-400 italic">
+																			No label
+																		</span>
+																	)}
+																	<button
+																		onClick={(e) => {
+																			e.stopPropagation();
+																			setEditingLabelId(version.id);
+																			setEditingLabelValue(version.label || "");
+																		}}
+																		className="p-0.5 text-gray-300 hover:text-blue-500 opacity-0 group-hover/label:opacity-100 transition-opacity"
+																		title="Rename version"
+																	>
+																		<Pencil className="h-3 w-3" />
+																	</button>
+																</div>
+															)}
 															<p className="text-xs text-gray-600 mt-1">
 																{formatDate(
 																	version.created_at
@@ -435,7 +545,6 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 														</div>
 
 														<div className="flex gap-1">
-															{/* Restore button: show on all versions except current */}
 															{shouldShowButtons && (
 																<Button
 																	size="sm"
@@ -456,7 +565,6 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 																	Restore
 																</Button>
 															)}
-															{/* Compare button: show on all versions except current (only if we have a current version to compare against) */}
 															{shouldShowButtons &&
 																currentVersionId && (
 																	<Button
