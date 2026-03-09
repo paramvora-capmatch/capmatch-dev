@@ -1,18 +1,29 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight, CheckCircle, Circle, ExternalLink, Download, Play, Loader2, Lock, Unlock, FileText } from "lucide-react";
+import React, { useState, useMemo, useCallback } from "react";
+import { ChevronDown, ChevronRight, CheckCircle, Circle, ExternalLink, Download, Play, Loader2, Lock, Unlock, FileText, Send, Building2, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/utils/cn";
 import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
 import { apiClient } from "@/lib/apiClient";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
+import { getBackendUrl } from "@/lib/apiConfig";
 
 import { AddFromResumeModal } from "@/components/lender/AddFromResumeModal";
 import { useUnderwritingStore } from "@/stores/useUnderwritingStore";
 import { supabase } from "@/lib/supabaseClient";
 import { useEffect } from "react";
 import { ValidationErrorsModal } from "./ValidationErrorsModal";
+
+const MAX_LENDERS_SHOWN = 5;
+
+export interface MatchedLender {
+    match_score_id: string;
+    lender_lei: string;
+    lender_name: string | null;
+    rank: number;
+    total_score: number;
+}
 
 interface DocItem {
     name: string;
@@ -372,6 +383,12 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
     const [resources, setResources] = useState<any[]>([]);
 
+    // Matched lenders from current version's match run (top 5, per-lender vault)
+    const [matchedLenders, setMatchedLenders] = useState<MatchedLender[]>([]);
+    const [matchedLendersLoading, setMatchedLendersLoading] = useState(false);
+    const [sendingToLenderId, setSendingToLenderId] = useState<string | null>(null);
+    const [selectedLenderLei, setSelectedLenderLei] = useState<string | null>(null);
+
     // New validation state
     const [validationData, setValidationData] = useState<Record<string, { status: string, errors: any }>>({});
     const [validationModal, setValidationModal] = useState<{ isOpen: boolean, docName: string, errors: any }>({ isOpen: false, docName: "", errors: null });
@@ -417,6 +434,60 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             supabase.removeChannel(channel);
         };
     }, [projectId]);
+
+    // Fetch matched lenders for current version (from matchmaking run)
+    const fetchMatchedLenders = useCallback(async () => {
+        if (!projectId) return;
+        setMatchedLendersLoading(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            const base = getBackendUrl();
+            const res = await fetch(
+                `${base}/api/v1/matchmaking/projects/${encodeURIComponent(projectId)}/matched-lenders`,
+                { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+            );
+            if (!res.ok) {
+                setMatchedLenders([]);
+                return;
+            }
+            const data = await res.json();
+            const top = (data.lenders ?? []).slice(0, MAX_LENDERS_SHOWN);
+            setMatchedLenders(top);
+            if (top.length > 0 && !selectedLenderLei) {
+                setSelectedLenderLei(top[0].lender_lei);
+            }
+        } catch {
+            setMatchedLenders([]);
+        } finally {
+            setMatchedLendersLoading(false);
+        }
+    }, [projectId, selectedLenderLei]);
+
+    useEffect(() => {
+        fetchMatchedLenders();
+    }, [fetchMatchedLenders]);
+
+    const selectedLender = useMemo(
+        () => matchedLenders.find((l) => l.lender_lei === selectedLenderLei) ?? matchedLenders[0] ?? null,
+        [matchedLenders, selectedLenderLei]
+    );
+    const selectedLenderDisplayName = selectedLender
+        ? (selectedLender.lender_name || selectedLender.lender_lei)
+        : null;
+
+    const handleSendPackage = useCallback(async (lender: MatchedLender) => {
+        setSendingToLenderId(lender.match_score_id);
+        try {
+            // Option A: one pipeline; send package = grant access when LEI→org mapping exists.
+            // For now we don't have LEI→lender_org_id mapping; show toast. Advisor can grant access via Access Control tab.
+            toast.info(
+                `Send package to ${lender.lender_name || lender.lender_lei}: Grant lender access from the Access Control tab, or link LEI to an organization to enable one-click send.`
+            );
+        } finally {
+            setSendingToLenderId(null);
+        }
+    }, []);
 
     // Fetch validation status from underwriting_documents
     useEffect(() => {
@@ -771,39 +842,158 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         }));
     }, [files, threads, projectId, validationData]);
 
+    const hasMatchedLenders = matchedLenders.length > 0;
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="mb-6 flex items-center justify-between">
                 <div>
                     <h2 className="text-xl font-bold text-gray-900">Underwriting Vault</h2>
-                    <p className="text-gray-500 mt-1">Manage, generate, and review underwriting documents.</p>
+                    <p className="text-gray-500 mt-1">
+                        {hasMatchedLenders
+                            ? `Top ${matchedLenders.length} matched lenders — select a lender to manage their package.`
+                            : "Manage, generate, and review underwriting documents."
+                        }
+                    </p>
                 </div>
             </div>
 
-            <div className="space-y-4">
-                {stages.map((stage) => (
-                    <StageAccordion
-                        key={stage.id}
-                        title={stage.title}
-                        description={stage.description}
-                        isExpanded={expandedStage === stage.id}
-                        onToggle={() => toggleStage(stage.id)}
-                        docs={stage.docs as DocItem[]}
-                        onDownload={handleDownload}
-                        onClickFile={handleClickFile}
-                        onSelectFromResume={handleSelectFromResume}
-                        onGenerate={(docName) => handleGenerateDoc(docName)}
-                        isGenerating={(name) => generatingDocs.has(name)}
+            {/* ── Matched lender selector (top 5 as tabs) ── */}
+            {projectId && (
+                <div className="mb-6">
+                    {matchedLendersLoading ? (
+                        <div className="flex items-center gap-2 text-gray-500 text-sm p-4 bg-gray-50 rounded-xl border border-gray-200">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading matched lenders…
+                        </div>
+                    ) : !hasMatchedLenders ? (
+                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                            <p className="text-sm text-gray-500">No match run for the current resume version. Run matchmaking in the Lender Matching tab first.</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-wrap gap-2">
+                            {matchedLenders.map((lender) => {
+                                const isSelected = lender.lender_lei === selectedLenderLei;
+                                const displayName = lender.lender_name || lender.lender_lei;
+                                return (
+                                    <button
+                                        key={lender.match_score_id}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedLenderLei(lender.lender_lei);
+                                            setExpandedStage("stage-1");
+                                        }}
+                                        className={cn(
+                                            "flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all",
+                                            isSelected
+                                                ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                                                : "bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50"
+                                        )}
+                                    >
+                                        <Building2 size={14} className={isSelected ? "text-blue-200" : "text-gray-400"} />
+                                        <span className="truncate max-w-[140px]">{displayName}</span>
+                                        <span className={cn(
+                                            "text-xs tabular-nums px-1.5 py-0.5 rounded-full font-semibold",
+                                            isSelected ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600"
+                                        )}>
+                                            #{lender.rank}
+                                        </span>
+                                        <span className={cn(
+                                            "text-xs tabular-nums",
+                                            isSelected ? "text-blue-200" : "text-gray-400"
+                                        )}>
+                                            {(lender.total_score ?? 0).toFixed(1)}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
 
-                        onGenerateStage={(docs) => handleGenerateStage(stage.id, docs)}
-                        onActionRequired={handleActionRequired}
-                        progress={stageProgress[stage.id]}
-                        viewerOnly={viewerOnly}
-                    />
-                ))}
-            </div>
+            {/* ── Per-lender vault content ── */}
+            {hasMatchedLenders && selectedLender ? (
+                <div>
+                    {/* Lender header bar with Send package */}
+                    <div className="flex items-center justify-between mb-4 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-lg text-sm font-bold">
+                                #{selectedLender.rank}
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-gray-900">{selectedLenderDisplayName}</h3>
+                                <p className="text-xs text-gray-500">
+                                    Match score: {(selectedLender.total_score ?? 0).toFixed(1)}/100 &middot; LEI: {selectedLender.lender_lei}
+                                </p>
+                            </div>
+                        </div>
+                        {!viewerOnly && (
+                            <button
+                                type="button"
+                                onClick={() => handleSendPackage(selectedLender)}
+                                disabled={sendingToLenderId === selectedLender.match_score_id}
+                                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 shadow-sm transition-colors"
+                            >
+                                {sendingToLenderId === selectedLender.match_score_id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Send className="h-4 w-4" />
+                                )}
+                                Send package
+                            </button>
+                        )}
+                    </div>
 
-            {/* Modals ... */}
+                    {/* Document stages — scoped to this lender */}
+                    <div className="space-y-4">
+                        {stages.map((stage) => (
+                            <StageAccordion
+                                key={`${selectedLender.lender_lei}-${stage.id}`}
+                                title={stage.title}
+                                description={stage.description}
+                                isExpanded={expandedStage === stage.id}
+                                onToggle={() => toggleStage(stage.id)}
+                                docs={stage.docs as DocItem[]}
+                                onDownload={handleDownload}
+                                onClickFile={handleClickFile}
+                                onSelectFromResume={handleSelectFromResume}
+                                onGenerate={(docName) => handleGenerateDoc(docName)}
+                                isGenerating={(name) => generatingDocs.has(name)}
+                                onGenerateStage={(docs) => handleGenerateStage(stage.id, docs)}
+                                onActionRequired={handleActionRequired}
+                                progress={stageProgress[stage.id]}
+                                viewerOnly={viewerOnly}
+                            />
+                        ))}
+                    </div>
+                </div>
+            ) : !hasMatchedLenders ? (
+                /* Fallback: no matched lenders — show full vault as before */
+                <div className="space-y-4">
+                    {stages.map((stage) => (
+                        <StageAccordion
+                            key={stage.id}
+                            title={stage.title}
+                            description={stage.description}
+                            isExpanded={expandedStage === stage.id}
+                            onToggle={() => toggleStage(stage.id)}
+                            docs={stage.docs as DocItem[]}
+                            onDownload={handleDownload}
+                            onClickFile={handleClickFile}
+                            onSelectFromResume={handleSelectFromResume}
+                            onGenerate={(docName) => handleGenerateDoc(docName)}
+                            isGenerating={(name) => generatingDocs.has(name)}
+                            onGenerateStage={(docs) => handleGenerateStage(stage.id, docs)}
+                            onActionRequired={handleActionRequired}
+                            progress={stageProgress[stage.id]}
+                            viewerOnly={viewerOnly}
+                        />
+                    ))}
+                </div>
+            ) : null}
+
+            {/* Modals */}
             {selectedFileId && (
                 <DocumentPreviewModal
                     resourceId={selectedFileId}
