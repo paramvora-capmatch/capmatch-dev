@@ -241,7 +241,7 @@ export function useMatchmaking(projectId: string, resumeId: string | null = null
       return;
     }
     refreshAll();
-  }, [refreshAll, resumeIdReady]);
+  }, [refreshAll, resumeIdReady, projectId, resumeId]);
 
   return {
     ...state,
