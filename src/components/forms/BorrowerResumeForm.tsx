@@ -7,7 +7,6 @@ import React, {
 	useRef,
 	useCallback,
 } from "react";
-import { FormWizard, Step } from "../ui/FormWizard";
 import { FormGroup } from "../ui/Form";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
@@ -31,18 +30,12 @@ import {
 	Calculator,
 	AlertTriangle,
 	Info,
-	Lock,
-	Unlock,
 	Sparkles,
 	Loader2,
 	BarChart,
-	ChevronDown,
-	ChevronRight,
 	Copy,
 	Briefcase,
 	Award,
-	Plus,
-	Trash2,
 } from "lucide-react";
 import { BorrowerResumeContent } from "@/lib/project-queries";
 import { saveProjectBorrowerResume } from "@/lib/project-queries";
@@ -62,6 +55,46 @@ import { BorrowerResumeView } from "./BorrowerResumeView";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
 import { useAuth } from "@/hooks/useAuth";
 import { isFieldVisibleForDealType, type DealType } from "@/lib/deal-type-field-config";
+import { buildWorkspaceStepId } from "./enhanced-project-form-constants";
+import {
+	entityStructureOptions,
+	experienceRangeOptions,
+	dealValueRangeOptions,
+	creditScoreRangeOptions,
+	netWorthRangeOptions,
+	liquidityRangeOptions,
+	principalRoleOptions,
+	assetClassOptions,
+	geographicMarketsOptions,
+} from "@/features/borrower-resume/constants";
+import { isBorrowerValueProvided } from "@/features/borrower-resume/domain/isBorrowerValueProvided";
+import { hasCompletePrincipals } from "@/features/borrower-resume/domain/hasCompletePrincipals";
+import { sanitizeBorrowerProfile } from "@/features/borrower-resume/domain/sanitizeBorrowerProfile";
+import {
+	isFieldLocked as isFieldLockedSelector,
+	isSubsectionFullyLocked as isSubsectionFullyLockedSelector,
+} from "@/features/borrower-resume/domain/lockSelectors";
+import {
+	isFieldBlue as isFieldBlueSelector,
+	isFieldGreen as isFieldGreenSelector,
+	isFieldWhite as isFieldWhiteSelector,
+	isFieldRed as isFieldRedSelector,
+} from "@/features/borrower-resume/domain/fieldStateSelectors";
+import { getSubsectionBadgeState } from "@/features/borrower-resume/domain/subsectionBadgeState";
+import {
+	buildFieldLabelMap,
+	mapWarningsToLabels as mapWarningsToLabelsSelector,
+} from "@/features/borrower-resume/domain/schemaSelectors";
+import { useBorrowerResumePersistence } from "@/features/borrower-resume/hooks/useBorrowerResumePersistence";
+import { useBorrowerResumeDraft } from "@/features/borrower-resume/hooks/useBorrowerResumeDraft";
+import { useBorrowerResumeValidation } from "@/features/borrower-resume/hooks/useBorrowerResumeValidation";
+import { BorrowerFieldLockButton } from "@/features/borrower-resume/components/BorrowerFieldLockButton";
+import { BorrowerFieldLabelRow } from "@/features/borrower-resume/components/BorrowerFieldLabelRow";
+import { BorrowerResumeSubsection } from "@/features/borrower-resume/components/BorrowerResumeSubsection";
+import { BorrowerResumeWizard } from "@/features/borrower-resume/components/BorrowerResumeWizard";
+import { PrincipalsEditor } from "@/features/borrower-resume/editors/PrincipalsEditor";
+import { TrackRecordEditor } from "@/features/borrower-resume/editors/TrackRecordEditor";
+import { ReferencesEditor } from "@/features/borrower-resume/editors/ReferencesEditor";
 
 interface BorrowerResumeFormProps {
 	projectId: string;
@@ -83,182 +116,6 @@ interface BorrowerResumeFormProps {
 	onRegisterSave?: (saveFn: () => Promise<void>) => void;
 	dealType?: 'ground_up' | 'refinance'; // Deal type for field filtering
 }
-
-const buildWorkspaceStepId = (stepId: string) => `borrower:${stepId}`;
-
-// Options Arrays
-const entityStructureOptions = [
-	"LLC",
-	"LP",
-	"S-Corp",
-	"C-Corp",
-	"Sole Proprietorship",
-	"Trust",
-	"Other",
-];
-const experienceRangeOptions = ["0-2", "3-5", "6-10", "11-15", "16+"];
-const dealValueRangeOptions = [
-	"N/A",
-	"<$10M",
-	"$10M-$50M",
-	"$50M-$100M",
-	"$100M-$250M",
-	"$250M-$500M",
-	"$500M+",
-];
-const creditScoreRangeOptions = [
-	"N/A",
-	"<600",
-	"600-649",
-	"650-699",
-	"700-749",
-	"750-799",
-	"800+",
-];
-const netWorthRangeOptions = [
-	"<$1M",
-	"$1M-$5M",
-	"$5M-$10M",
-	"$10M-$25M",
-	"$25M-$50M",
-	"$50M-$100M",
-	"$100M+",
-];
-const liquidityRangeOptions = [
-	"<$100k",
-	"$100k-$500k",
-	"$500k-$1M",
-	"$1M-$5M",
-	"$5M-$10M",
-	"$10M+",
-];
-const principalRoleOptions: PrincipalRole[] = [
-	"Managing Member",
-	"General Partner",
-	"Developer",
-	"Sponsor",
-	"Key Principal",
-	"Guarantor",
-	"Limited Partner",
-	"Other",
-];
-const assetClassOptions = [
-	"Multifamily",
-	"Office",
-	"Retail",
-	"Industrial",
-	"Hospitality",
-	"Land",
-	"Mixed-Use",
-	"Self-Storage",
-	"Data Center",
-	"Medical Office",
-	"Senior Housing",
-	"Student Housing",
-	"Other",
-];
-const geographicMarketsOptions = [
-	"Northeast",
-	"Mid-Atlantic",
-	"Southeast",
-	"Midwest",
-	"Southwest",
-	"Mountain West",
-	"West Coast",
-	"Pacific Northwest",
-	"Hawaii",
-	"Alaska",
-	"National",
-];
-
-const isValueProvided = (value: unknown): boolean => {
-	if (value === null || value === undefined) return false;
-	if (typeof value === "string") return value.trim().length > 0;
-	if (Array.isArray(value)) return value.length > 0;
-	if (typeof value === "number") return !Number.isNaN(value);
-	if (typeof value === "boolean") return true;
-	return false;
-};
-
-// Helper to determine if all principal rows are sufficiently filled in
-const hasCompletePrincipals = (principals: unknown): boolean => {
-	if (!Array.isArray(principals) || principals.length === 0) return false;
-	return principals.every((p: any) => {
-		const name = (p?.principalLegalName || "").trim();
-		const role = (p?.principalRoleDefault || "").trim();
-		return name.length > 0 && role.length > 0;
-	});
-};
-
-// Sanitize incoming BorrowerContent
-const sanitizeBorrowerProfile = (
-	profile: Partial<BorrowerResumeContent>
-): Partial<BorrowerResumeContent> => {
-	const next: any = { ...profile };
-
-	for (const [fieldId, meta] of Object.entries(borrowerResumeFieldMetadata)) {
-		const dataType = (meta as any).dataType;
-		if (!dataType || dataType === "Boolean") continue;
-
-		const current = (next as any)[fieldId];
-		if (typeof current === "boolean") {
-			(next as any)[fieldId] = null;
-		}
-	}
-
-	const fixedMeta: Record<string, any> =
-		next._metadata && typeof next._metadata === "object"
-			? { ...next._metadata }
-			: {};
-
-	for (const [fieldId, meta] of Object.entries(fixedMeta)) {
-		const fieldConfig = borrowerResumeFieldMetadata[fieldId];
-		const dataType = (fieldConfig as any)?.dataType;
-		if (!dataType || dataType === "Boolean") continue;
-
-		if (meta && typeof meta === "object") {
-			if (typeof (meta as any).value === "boolean") {
-				(meta as any).value = null;
-			}
-			// Remove original_value (deprecated)
-			if ("original_value" in (meta as any)) {
-				delete (meta as any).original_value;
-			}
-			// Convert sources array to single source (backward compatibility)
-			if (
-				(meta as any).sources &&
-				Array.isArray((meta as any).sources) &&
-				(meta as any).sources.length > 0 &&
-				!(meta as any).source
-			) {
-				(meta as any).source = (meta as any).sources[0];
-				delete (meta as any).sources;
-			}
-		}
-	}
-
-	// Ensure every configured field has default user_input metadata when backend
-	// didn't provide any, mirroring the mock API behavior.
-	for (const fieldId of Object.keys(borrowerResumeFieldMetadata)) {
-		const existingMeta = fixedMeta[fieldId];
-		const currentValue = (next as any)[fieldId];
-
-		if (!existingMeta) {
-			fixedMeta[fieldId] = {
-				value: currentValue ?? null,
-				source: { type: "user_input" },
-				warnings: [],
-				other_values: [],
-			};
-		} else if (!existingMeta.source) {
-			existingMeta.source = { type: "user_input" };
-		}
-	}
-
-	next._metadata = fixedMeta;
-
-	return next as Partial<BorrowerResumeContent>;
-};
 
 export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	projectId,
@@ -296,31 +153,14 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	const [formData, setFormData] =
 		useState<Partial<BorrowerResumeContent>>(sanitizedBorrower);
 
-	// Map field IDs to human-readable labels from the borrower form schema
-	const fieldLabelMap = useMemo(() => {
-		const cfg = (formSchema as any)?.fields || {};
-		const map: Record<string, string> = {};
-		for (const [fid, def] of Object.entries<any>(cfg)) {
-			if (def?.label) {
-				map[fid] = String(def.label);
-			}
-		}
-		return map;
-	}, []);
+	const fieldLabelMap = useMemo(
+		() => buildFieldLabelMap(formSchema as { fields?: Record<string, { label?: string }> }),
+		[]
+	);
 
-	// Replace raw field IDs in warning messages with user-friendly labels
 	const mapWarningsToLabels = useCallback(
-		(warnings?: string[] | null): string[] | undefined => {
-			if (!warnings || warnings.length === 0) return undefined;
-			return warnings.map((w) => {
-				let result = w;
-				for (const [fid, label] of Object.entries(fieldLabelMap)) {
-					const pattern = new RegExp(`\\b${fid}\\b`, "g");
-					result = result.replace(pattern, label);
-				}
-				return result;
-			});
-		},
+		(warnings?: string[] | null): string[] | undefined =>
+			mapWarningsToLabelsSelector(warnings ?? null, fieldLabelMap),
 		[fieldLabelMap]
 	);
 	const [fieldMetadata, setFieldMetadata] = useState<Record<string, any>>(
@@ -339,7 +179,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	const [showAutofillNotification, setShowAutofillNotification] =
 		useState(false);
 	const [formSaved, setFormSaved] = useState(false);
-	const [isRestoring, setIsRestoring] = useState(false);
 	const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 	const [refreshKey, setRefreshKey] = useState(0);
 
@@ -374,7 +213,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 			if (existing) {
 				await supabase
-				await supabase
 					.from("project_workspace_activity")
 					.update(updatePayload)
 					.eq("id", existing.id);
@@ -391,24 +229,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	const fieldWrapperRefs = useRef<
 		Map<string, React.RefObject<HTMLDivElement>>
 	>(new Map());
-
-	// Refs for autosave and dirty check
-	const initialSnapshotRef = useRef<{
-		formData: Partial<BorrowerResumeContent>;
-		fieldMetadata: Record<string, any>;
-		lockedFields: Set<string>;
-	} | null>(null);
-	const lastSavedSnapshotRef = useRef<{
-		formData: Partial<BorrowerResumeContent>;
-		fieldMetadata: Record<string, any>;
-		lockedFields: Set<string>;
-	} | null>(null);
-	const stateRef = useRef({
-		formData,
-		fieldMetadata,
-		lockedFields,
-	});
-	const isSavingRef = useRef(false);
 
 	// Debounced field activity tracking
 	const fieldActivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -448,13 +268,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		[projectId, user]
 	);
 
-	// Keep state refs in sync for use in async effects and registered callbacks
-	useEffect(() => {
-		stateRef.current.formData = formData;
-		stateRef.current.fieldMetadata = fieldMetadata;
-		stateRef.current.lockedFields = lockedFields;
-	}, [formData, fieldMetadata, lockedFields]);
-
 	const {
 		isAutofilling,
 		showSparkles,
@@ -465,6 +278,41 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 	// Ref to store the last borrowerResume content hash to prevent unnecessary updates
 	const lastBorrowerResumeHashRef = useRef<string | null>(null);
+
+	// Autosave Key (needed before draft and persistence hooks)
+	const storageKey = useMemo(
+		() => `capmatch_borrower_resume_draft_${projectId}`,
+		[projectId]
+	);
+
+	const clearDraft = useCallback(() => {
+		if (typeof window !== "undefined") localStorage.removeItem(storageKey);
+		setLastSavedAt(null);
+	}, [storageKey]);
+
+	const { isRestoring } = useBorrowerResumeDraft({
+		projectId,
+		storageKey,
+		formData,
+		fieldMetadata: fieldMetadata as Record<string, unknown>,
+		lockedFields,
+		setFormData,
+		setFieldMetadata: setFieldMetadata as React.Dispatch<React.SetStateAction<Record<string, unknown>>>,
+		setLockedFields,
+		setLastSavedAt,
+	});
+
+	const persistence = useBorrowerResumePersistence({
+		projectId,
+		formData,
+		fieldMetadata,
+		lockedFields,
+		storageKey,
+		clearDraft,
+		saveBorrowerResume: save,
+		setFormSaved,
+		reloadBorrowerResume,
+	});
 
 	// Effect to handle updates from parent/hook (e.g. after Autofill or Initial Load)
 	useEffect(() => {
@@ -504,45 +352,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			fieldMetadata: metadata,
 			lockedFields: newLockedFields,
 		};
-		initialSnapshotRef.current = snapshot;
-		lastSavedSnapshotRef.current = snapshot;
+		persistence.setBaselineSnapshot(snapshot);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- only run when data/restore state changes
 	}, [borrowerResume, isRestoring]);
 
-	// Autosave Key
-	const storageKey = useMemo(
-		() => `capmatch_borrower_resume_draft_${projectId}`,
-		[projectId]
-	);
-
-	// Restore from Local Storage
+	// Notify parent and report progress
 	useEffect(() => {
-		if (typeof window === "undefined") return;
-		try {
-			const saved = localStorage.getItem(storageKey);
-			if (saved) {
-				const draft = JSON.parse(saved);
-				if (draft.projectId === projectId) {
-					console.log(
-						"[BorrowerResumeForm] Restoring draft from local storage"
-					);
-					setIsRestoring(true);
-					setFormData(draft.formData);
-					setFieldMetadata(draft.fieldMetadata || {});
-					if (draft.lockedFields) {
-						setLockedFields(new Set(draft.lockedFields));
-					}
-					setLastSavedAt(draft.updatedAt);
-					setTimeout(() => setIsRestoring(false), 100);
-				}
-			}
-		} catch (err) {
-			console.warn("[BorrowerResumeForm] Failed to restore draft:", err);
-		}
-	}, [projectId, storageKey]);
-
-	// Update refs
-	useEffect(() => {
-		stateRef.current = { formData, fieldMetadata, lockedFields };
 		onFormDataChange?.(formData);
 
 		// Convert Set to Record for the utility function
@@ -558,35 +373,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		lockedFields,
 		onFormDataChange,
 		onProgressChange,
-	]);
-
-	// Save to Local Storage (Debounced)
-	useEffect(() => {
-		if (isRestoring) return;
-		const handler = setTimeout(() => {
-			if (typeof window === "undefined") return;
-			try {
-				const draft = {
-					projectId,
-					formData,
-					fieldMetadata,
-					lockedFields: Array.from(lockedFields),
-					updatedAt: Date.now(),
-				};
-				localStorage.setItem(storageKey, JSON.stringify(draft));
-				setLastSavedAt(Date.now());
-			} catch (err) {
-				console.warn("[BorrowerResumeForm] Failed to save draft:", err);
-			}
-		}, 1000);
-		return () => clearTimeout(handler);
-	}, [
-		formData,
-		fieldMetadata,
-		lockedFields,
-		projectId,
-		storageKey,
-		isRestoring,
 	]);
 
 	// Autosave notification handler
@@ -674,51 +460,20 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		[fieldMetadata, trackFieldActivity]
 	);
 
-	// Calculated dirty state
-	const isDirty = useMemo(() => {
-		if (!initialSnapshotRef.current) return false;
-
-		// Helper to stringify with sorted keys to ensure consistency
-		const stableStringify = (obj: any): string => {
-			if (obj === null || typeof obj !== "object") {
-				return JSON.stringify(obj);
-			}
-			if (Array.isArray(obj)) {
-				return JSON.stringify(obj.map(stableStringify));
-			}
-			const sortedKeys = Object.keys(obj).sort();
-			const result: Record<string, any> = {};
-			sortedKeys.forEach(key => {
-				result[key] = stableStringify(obj[key]);
-			});
-			return JSON.stringify(result);
-		};
-
-		const current = stableStringify(formData);
-		const initial = stableStringify(initialSnapshotRef.current.formData);
-		return current !== initial;
-	}, [formData]);
+	const isDirty = useMemo(
+		() => persistence.hasUnsavedChanges(),
+		[
+			formData,
+			fieldMetadata,
+			lockedFields,
+			persistence.hasUnsavedChanges,
+		]
+	);
 
 	// Notify parent of dirty state changes
 	useEffect(() => {
 		onDirtyChange?.(isDirty);
 	}, [isDirty, onDirtyChange]);
-
-	// Warn on page unload if dirty
-	useEffect(() => {
-		if (!isDirty) return;
-
-		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-			e.preventDefault();
-			// Chrome requires returnValue to be set
-			e.returnValue = "";
-		};
-
-		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => {
-			window.removeEventListener("beforeunload", handleBeforeUnload);
-		};
-	}, [isDirty]);
 
 	// Register save function with parent on mount
 	useEffect(() => {
@@ -730,410 +485,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [onRegisterSave]);
 
-	// Create debounced sanity checker instance
-	const sanityCheckerRef = useRef<
-		import("@/lib/debouncedSanityCheck").DebouncedSanityChecker | null
-	>(null);
-
-	useEffect(() => {
-		import("@/lib/debouncedSanityCheck").then(
-			({ DebouncedSanityChecker }) => {
-				sanityCheckerRef.current = new DebouncedSanityChecker({
-					resumeType: "borrower",
-					debounceMs: 1500, // 1.5 seconds debounce for individual field checks
-					batchDebounceMs: 2500, // 2.5 seconds debounce for batch/dependency validations
-				});
-			}
-		);
-
-		return () => {
-			sanityCheckerRef.current?.cancelAll();
-		};
-	}, []);
-
-	// Helper function to perform realtime sanity check on blur
-	const handleBlur = useCallback(
-		(fieldId: string, value?: any) => {
-			// Only perform realtime checks when editing
-			if (!isEditing) {
-				return;
-			}
-
-			// Use provided value or read from formData
-			const fieldValue =
-				value !== undefined ? value : (formData as any)[fieldId];
-			if (fieldValue === undefined || fieldValue === null) {
-				return;
-			}
-
-			// Get existing field metadata for realtime sanity check
-			const currentMeta = fieldMetadata[fieldId] || {
-				value: fieldValue,
-				source: null,
-				warnings: [],
-				other_values: [],
-			};
-
-			// Use current formData and override with the field value
-			const context = { ...formData, [fieldId]: fieldValue };
-
-			// Get current session token asynchronously
-			supabase.auth.getSession().then(({ data: { session } }) => {
-				const authToken = session?.access_token;
-
-				// Schedule debounced sanity check
-				sanityCheckerRef.current?.scheduleCheck(
-					fieldId,
-					fieldValue,
-					context,
-					currentMeta,
-					(fieldId, warnings) => {
-						// Update metadata with warnings from sanity check
-						setFieldMetadata((prev) => ({
-							...prev,
-							[fieldId]: {
-								...prev[fieldId],
-								warnings: warnings,
-							},
-						}));
-					},
-					(fieldId, error) => {
-						console.error(
-							`Realtime sanity check failed for ${fieldId}:`,
-							error
-						);
-						// Don't fail if sanity check fails
-					},
-					authToken // Pass the token here
-				);
-			});
-		},
-		[formData, fieldMetadata, isEditing]
-	);
-
-	// Map of field dependencies for borrower resume
-	const fieldDependencies = useMemo(() => {
-		const deps: Record<string, string[]> = {};
-
-		// Fields that depend on primaryEntityStructure
-		deps["primaryEntityStructure"] = ["primaryEntityName"];
-		deps["primaryEntityName"] = ["primaryEntityStructure"];
-
-		// Fields that depend on netWorthRange
-		deps["netWorthRange"] = ["liquidityRange"];
-
-		// Fields that depend on liquidityRange
-		deps["liquidityRange"] = ["netWorthRange"];
-
-		// Fields that depend on principals (for ownership percentage sum)
-		deps["principals"] = ["ownershipPercentage"];
-
-		return deps;
-	}, []);
-
-	// Track previous formData to detect actual changes (for dependency revalidation)
-	const prevFormDataRef = useRef<any>(formData);
-	const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-	// Re-validate dependent fields when relevant fields change (batched, only when editing)
-	useEffect(() => {
-		// Skip if not in edit mode - realtime checks should only happen when editing
-		if (!isEditing) {
-			prevFormDataRef.current = formData;
-			return;
-		}
-
-		// Skip if formData is empty or not yet initialized
-		if (!formData || Object.keys(formData).length === 0) {
-			prevFormDataRef.current = formData;
-			return;
-		}
-
-		// Clear any existing timeout
-		if (validationTimeoutRef.current) {
-			clearTimeout(validationTimeoutRef.current);
-		}
-
-		// Debounce to avoid excessive API calls
-		validationTimeoutRef.current = setTimeout(async () => {
-			const currentFormData = formData;
-			const prevFormData = prevFormDataRef.current;
-
-			// Find fields that actually changed (only check fields in dependencies map)
-			const changedFields = new Set<string>();
-			const dependencyFieldIds = new Set(Object.keys(fieldDependencies));
-
-			// Only check fields that are in the dependency map or are dependencies themselves
-			const allRelevantFields = new Set([
-				...Object.keys(fieldDependencies),
-				...Object.values(fieldDependencies).flat(),
-			]);
-
-			allRelevantFields.forEach((fieldId) => {
-				const currentValue = (currentFormData as any)[fieldId];
-				const prevValue = (prevFormData as any)[fieldId];
-				// Use JSON.stringify for deep comparison of objects/arrays
-				if (
-					JSON.stringify(currentValue) !== JSON.stringify(prevValue)
-				) {
-					changedFields.add(fieldId);
-				}
-			});
-
-			// Only proceed if there are actual changes to relevant fields
-			if (changedFields.size === 0) {
-				prevFormDataRef.current = currentFormData;
-				return;
-			}
-
-			// Check all fields that might have dependencies
-			const fieldsToRevalidate = new Set<string>();
-
-			// For each changed field, check if it has dependencies
-			changedFields.forEach((fieldId) => {
-				const dependentFields = fieldDependencies[fieldId];
-				if (dependentFields) {
-					dependentFields.forEach((depFieldId) => {
-						// Only re-validate if the dependent field has a value
-						const depValue = (currentFormData as any)[depFieldId];
-						if (
-							depValue !== undefined &&
-							depValue !== null &&
-							depValue !== ""
-						) {
-							fieldsToRevalidate.add(depFieldId);
-						}
-					});
-				}
-			});
-
-			// Batch validate all dependent fields in parallel
-			if (fieldsToRevalidate.size > 0 && sanityCheckerRef.current) {
-				const fieldsToCheck = Array.from(fieldsToRevalidate)
-					.map((fieldId) => {
-						const fieldValue = (currentFormData as any)[fieldId];
-						const currentMeta = fieldMetadata[fieldId] || {
-							value: fieldValue,
-							source: null,
-							warnings: [],
-							other_values: [],
-						};
-						return {
-							fieldId,
-							value: fieldValue,
-							context: currentFormData,
-							existingFieldData: currentMeta,
-						};
-					})
-					.filter(
-						(field) =>
-							field.value !== undefined &&
-							field.value !== null &&
-							field.value !== ""
-					);
-
-				if (fieldsToCheck.length > 0) {
-					// Get session token for batch check
-					const { data: { session } } = await supabase.auth.getSession();
-					const authToken = session?.access_token;
-
-					if (authToken) {
-						console.log(`[BorrowerResumeForm] Batch validating ${fieldsToCheck.length} fields with token`);
-					} else {
-						console.warn(`[BorrowerResumeForm] Batch validating fields but NO TOKEN found`);
-					}
-
-					// Update fields with token
-					const fieldsWithToken = fieldsToCheck.map(f => ({ ...f, authToken }));
-
-					// Batch check all fields in parallel
-					await sanityCheckerRef.current.batchCheck(
-						fieldsWithToken,
-						(fieldId, warnings) => {
-							// Update metadata with warnings from sanity check
-							setFieldMetadata((prev) => ({
-								...prev,
-								[fieldId]: {
-									...prev[fieldId],
-									warnings: warnings,
-								},
-							}));
-						},
-						(fieldId, error) => {
-							console.error(
-								`Batch sanity check failed for ${fieldId}:`,
-								error
-							);
-						}
-					);
-				}
-			}
-
-			// Update ref after processing
-			prevFormDataRef.current = currentFormData;
-		}, 1000); // 1000ms debounce to reduce API calls and re-renders
-
-		return () => {
-			if (validationTimeoutRef.current) {
-				clearTimeout(validationTimeoutRef.current);
-			}
-		};
-	}, [formData, fieldDependencies, fieldMetadata, isEditing]);
-
-	// Principals Management (table-style, similar to residential unit mix)
-	const handleRemovePrincipal = useCallback(
-		(index: number) => {
-			const currentPrincipals = Array.isArray(formData.principals)
-				? (formData.principals as Principal[])
-				: [];
-			const updatedPrincipals = [...currentPrincipals];
-			updatedPrincipals.splice(index, 1);
-			handleInputChange("principals", updatedPrincipals);
-		},
-		[formData.principals, handleInputChange]
-	);
-
-	// Track Record Management (table-style)
-	const handleRemoveTrackRecord = useCallback(
-		(index: number) => {
-			const currentTrackRecord = Array.isArray(formData.trackRecord)
-				? (formData.trackRecord as import("@/lib/project-queries").TrackRecordItem[])
-				: [];
-			const updatedTrackRecord = [...currentTrackRecord];
-			updatedTrackRecord.splice(index, 1);
-			handleInputChange("trackRecord", updatedTrackRecord);
-		},
-		[formData.trackRecord, handleInputChange]
-	);
-
-	// References Management (table-style)
-	const handleRemoveReference = useCallback(
-		(index: number) => {
-			const currentReferences = Array.isArray(formData.references)
-				? (formData.references as ReferenceItem[])
-				: [];
-			const updatedReferences = [...currentReferences];
-			updatedReferences.splice(index, 1);
-			handleInputChange("references", updatedReferences);
-		},
-		[formData.references, handleInputChange]
-	);
-
-	const hasUnsavedChanges = useCallback((): boolean => {
-		const baseline =
-			lastSavedSnapshotRef.current || initialSnapshotRef.current;
-		if (!baseline) return true;
-		const current = stateRef.current;
-		const lockedToArray = (s: Set<string>) => Array.from(s).sort();
-
-		try {
-			const formEqual =
-				JSON.stringify(current.formData) ===
-				JSON.stringify(baseline.formData);
-			const metaEqual =
-				JSON.stringify(current.fieldMetadata) ===
-				JSON.stringify(baseline.fieldMetadata);
-			const locksEqual =
-				JSON.stringify(lockedToArray(current.lockedFields)) ===
-				JSON.stringify(lockedToArray(baseline.lockedFields));
-			return !(formEqual && metaEqual && locksEqual);
-		} catch {
-			return true;
-		}
-	}, []);
-
-	const saveToDatabase = useCallback(
-		async (
-			finalData: Partial<BorrowerResumeContent>,
-			createNewVersion: boolean
-		) => {
-			const hasChanges = hasUnsavedChanges();
-			console.log('[BorrowerResumeForm] saveToDatabase called, hasUnsavedChanges:', hasChanges);
-
-			// If called with NO data (e.g. from handleFormSubmit wrapper)
-			// we should use the ref data anyway to ensure we don't save empty
-			const dataToProcess = Object.keys(finalData).length > 3 ? finalData : stateRef.current.formData;
-
-			if (!hasChanges) {
-				console.log('[BorrowerResumeForm] No unsaved changes detected, skipping save');
-				if (typeof window !== "undefined") {
-					localStorage.removeItem(storageKey);
-					setLastSavedAt(null);
-				}
-				return;
-			}
-
-			console.log('[BorrowerResumeForm] Proceeding with save with keys:', Object.keys(dataToProcess));
-			setFormSaved(true);
-			isSavingRef.current = true;
-
-			// Signal to realtime hooks that this is a local save
-			if (typeof window !== "undefined") {
-				window.dispatchEvent(
-					new CustomEvent("local-save-started", {
-						detail: { projectId, context: "borrower" },
-					})
-				);
-			}
-
-			try {
-				const lockedFieldsObj: Record<string, boolean> = {};
-				stateRef.current.lockedFields.forEach((id) => (lockedFieldsObj[id] = true));
-
-				// Calculate completeness before saving
-				const completenessPercent =
-					computeBorrowerCompletion(dataToProcess, lockedFieldsObj);
-
-				const dataToSave = {
-					...dataToProcess,
-					_metadata: stateRef.current.fieldMetadata,
-					_lockedFields: lockedFieldsObj,
-					completenessPercent,
-				};
-
-				console.log('[BorrowerResumeForm] Calling save() with createNewVersion:', createNewVersion);
-				await save(
-					dataToSave,
-					lockedFieldsObj,
-					undefined,
-					createNewVersion
-				);
-				console.log('[BorrowerResumeForm] save() completed successfully');
-
-				// Reload to get updated content
-				console.log('[BorrowerResumeForm] Reloading borrower resume...');
-				await reloadBorrowerResume();
-				console.log('[BorrowerResumeForm] Reload completed');
-
-				const snapshot = {
-					formData: finalData,
-					fieldMetadata,
-					lockedFields: new Set(lockedFields),
-				};
-				lastSavedSnapshotRef.current = snapshot;
-				stateRef.current = snapshot;
-
-				if (typeof window !== "undefined") {
-					localStorage.removeItem(storageKey);
-					setLastSavedAt(null);
-				}
-			} catch (err) {
-				console.error("Save failed:", err);
-			} finally {
-				isSavingRef.current = false;
-				setTimeout(() => setFormSaved(false), 1500);
-			}
-		},
-		[
-			hasUnsavedChanges,
-			lockedFields,
-			fieldMetadata,
-			save,
-			storageKey,
-			reloadBorrowerResume,
-			projectId,
-		]
-	);
+	const { handleBlur } = useBorrowerResumeValidation({
+		formData,
+		fieldMetadata: fieldMetadata as Record<string, unknown>,
+		isEditing,
+		setFieldMetadata: setFieldMetadata as React.Dispatch<React.SetStateAction<Record<string, unknown>>>,
+	});
 
 	// Cleanup field activity timeout on unmount
 	useEffect(() => {
@@ -1146,47 +503,34 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 	const handleFormSubmit = useCallback(
 		async (finalData?: Partial<BorrowerResumeContent>) => {
-			console.log('[BorrowerResumeForm] handleFormSubmit called');
-			// Use the ref for the most recent state if no finalData is provided (prevents stale closure)
-			const dataToSave = finalData || stateRef.current.formData;
-			console.log('[BorrowerResumeForm] About to call saveToDatabase with keys:', Object.keys(dataToSave));
-			await saveToDatabase(dataToSave, true);
-			console.log('[BorrowerResumeForm] saveToDatabase completed');
+			const dataToSave =
+				finalData ?? persistence.stateRef.current.formData;
+			await persistence.saveToDatabase(dataToSave, true);
 			setIsEditing(false);
 			onComplete?.(dataToSave as BorrowerResumeContent);
 			reloadBorrowerResume();
 		},
-		[saveToDatabase, onComplete, reloadBorrowerResume]
+		[persistence, onComplete, reloadBorrowerResume]
 	);
 
-	// Warn on close
-	useEffect(() => {
-		if (typeof window === "undefined") return;
-		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-			if (!hasUnsavedChanges()) return;
-			event.preventDefault();
-			event.returnValue = "";
-		};
-		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => {
-			window.removeEventListener("beforeunload", handleBeforeUnload);
-		};
-	}, [hasUnsavedChanges]);
-
-	// Helpers for UI
-	const isFieldLocked = useCallback(
-		(fieldId: string, _sectionId?: string): boolean => {
-			const meta = fieldMetadata[fieldId];
-			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
-
-			// Fields with warnings must remain editable/red, never locked.
-			if (hasWarnings) return false;
-
-			if (unlockedFields.has(fieldId)) return false;
-			if (lockedFields.has(fieldId)) return true;
-			return false;
-		},
+	// Lock/field-state context for domain selectors
+	const lockContext = useMemo(
+		() => ({
+			lockedFields,
+			unlockedFields,
+			fieldMetadata,
+		}),
 		[lockedFields, unlockedFields, fieldMetadata]
+	);
+	const fieldStateContext = useMemo(
+		() => ({ ...lockContext, formData: formData as Record<string, unknown> }),
+		[lockContext, formData]
+	);
+
+	const isFieldLocked = useCallback(
+		(fieldId: string, _sectionId?: string): boolean =>
+			isFieldLockedSelector(lockContext, fieldId),
+		[lockContext]
 	);
 
 	const toggleFieldLock = useCallback(
@@ -1225,13 +569,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	);
 
 	const isSubsectionFullyLocked = useCallback(
-		(fieldIds: string[]) => {
-			if (fieldIds.length === 0) return false;
-			return fieldIds.every(
-				(id) => !unlockedFields.has(id) && lockedFields.has(id)
-			);
-		},
-		[lockedFields, unlockedFields]
+		(fieldIds: string[]) =>
+			isSubsectionFullyLockedSelector(lockContext, fieldIds),
+		[lockContext]
 	);
 
 	const toggleSubsectionLock = useCallback(
@@ -1241,7 +581,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				const next = new Set(prev);
 				fieldIds.forEach((id) => {
 					const value = (formData as any)[id];
-					let hasValue = isValueProvided(value);
+					let hasValue = isBorrowerValueProvided(value);
 
 					// Principals: require all rows to be complete before locking
 					if (id === "principals") {
@@ -1267,7 +607,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	const getFieldStylingClasses = useCallback(
 		(fieldId: string, sectionId?: string) => {
 			const value = (formData as any)[fieldId];
-			const hasValue = isValueProvided(value);
+			const hasValue = isBorrowerValueProvided(value);
 			const locked = isFieldLocked(fieldId, sectionId);
 			const meta = fieldMetadata[fieldId];
 			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
@@ -1320,73 +660,27 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	);
 
 	const isFieldRed = useCallback(
-		(fieldId: string, sectionId?: string): boolean => {
-			const locked = isFieldLocked(fieldId, sectionId);
-			const meta = fieldMetadata[fieldId];
-			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
-			return hasWarnings && !locked;
-		},
-		[fieldMetadata, isFieldLocked]
+		(fieldId: string, _sectionId?: string): boolean =>
+			isFieldRedSelector(fieldStateContext, fieldId),
+		[fieldStateContext]
 	);
 
 	const isFieldBlue = useCallback(
-		(fieldId: string, sectionId?: string): boolean => {
-			const value = (formData as any)[fieldId];
-			const hasValue = isValueProvided(value);
-			const locked = isFieldLocked(fieldId, sectionId);
-			const meta = fieldMetadata[fieldId];
-			// Check single source (new format) or sources array (backward compatibility)
-			const hasSource =
-				meta?.source ||
-				(meta?.sources &&
-					Array.isArray(meta.sources) &&
-					meta.sources.length > 0);
-			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
-
-			// Don't show as blue if locked (should be green)
-			if (locked) {
-				return false;
-			}
-
-			// Don't show as blue if there are warnings (should be red instead)
-			if (hasWarnings) {
-				return false;
-			}
-
-			if (!hasValue) {
-				// Blue: has source but no value, not locked, no warnings
-				return hasSource;
-			}
-
-			// Blue: has value, not locked, no warnings (matches visual styling - regardless of source type)
-			return true;
-		},
-		[formData, fieldMetadata, isFieldLocked]
+		(fieldId: string, _sectionId?: string): boolean =>
+			isFieldBlueSelector(fieldStateContext, fieldId),
+		[fieldStateContext]
 	);
 
 	const isFieldGreen = useCallback(
-		(fieldId: string, sectionId?: string): boolean => {
-			const locked = isFieldLocked(fieldId, sectionId);
-			// Green: locked (regardless of warnings)
-			return locked;
-		},
-		[isFieldLocked]
+		(fieldId: string, _sectionId?: string): boolean =>
+			isFieldGreenSelector(fieldStateContext, fieldId),
+		[fieldStateContext]
 	);
 
 	const isFieldWhite = useCallback(
-		(fieldId: string, sectionId?: string): boolean => {
-			const value = (formData as any)[fieldId];
-			const hasValue = isValueProvided(value);
-			const meta = fieldMetadata[fieldId];
-			// Check single source (new format) or sources array (backward compatibility)
-			const hasSource =
-				meta?.source ||
-				(meta?.sources &&
-					Array.isArray(meta.sources) &&
-					meta.sources.length > 0);
-			return !hasValue && !hasSource;
-		},
-		[formData, fieldMetadata]
+		(fieldId: string, _sectionId?: string): boolean =>
+			isFieldWhiteSelector(fieldStateContext, fieldId),
+		[fieldStateContext]
 	);
 
 	const renderFieldLockButton = useCallback(
@@ -1394,53 +688,22 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			const locked = isFieldLocked(fieldId, sectionId);
 			const value = (formData as any)[fieldId];
 			const meta = fieldMetadata[fieldId];
-			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+			const hasWarnings = !!(meta?.warnings && meta.warnings.length > 0);
 
-			let hasValue = isValueProvided(value);
-			// For principals table, require each row to be complete
+			let hasValue = isBorrowerValueProvided(value);
 			if (fieldId === "principals") {
 				hasValue = hasCompletePrincipals((formData as any).principals);
 			}
 
-			// Disable if empty (and not already locked) OR if has warnings
-			const isDisabled = (!hasValue && !locked) || hasWarnings;
-
-			const tooltipTitle = isDisabled
-				? hasWarnings
-					? "Cannot lock a field with warnings. Please resolve warnings first."
-					: "Cannot lock an empty field. Please fill in a value first."
-				: locked
-					? "Unlock field"
-					: "Lock field";
-
 			return (
-				<div className="flex items-center" title={tooltipTitle}>
-					<button
-						type="button"
-						onClick={(e) => {
-							e.stopPropagation();
-							e.preventDefault();
-							if (isDisabled) return;
-							toggleFieldLock(fieldId);
-						}}
-						disabled={isDisabled}
-						className={cn(
-							"flex items-center justify-center p-1 rounded transition-colors z-10",
-							isDisabled
-								? "cursor-not-allowed text-gray-300"
-								: "cursor-pointer",
-							locked
-								? "text-emerald-600 hover:text-emerald-700"
-								: "text-gray-400 hover:text-blue-600"
-						)}
-					>
-						{locked ? (
-							<Lock className="h-4 w-4" />
-						) : (
-							<Unlock className="h-4 w-4" />
-						)}
-					</button>
-				</div>
+				<BorrowerFieldLockButton
+					fieldId={fieldId}
+					sectionId={sectionId}
+					locked={locked}
+					hasValue={hasValue}
+					hasWarnings={hasWarnings}
+					onClick={toggleFieldLock}
+				/>
 			);
 		},
 		[isFieldLocked, formData, toggleFieldLock, fieldMetadata]
@@ -1463,44 +726,21 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			required: boolean = false,
 			fieldWrapperRef?: React.RefObject<HTMLDivElement>
 		) => {
-			const hasWarnings =
-				fieldMetadata[fieldId]?.warnings &&
-				fieldMetadata[fieldId].warnings.length > 0;
+			const meta = fieldMetadata[fieldId];
+			const hasWarnings = !!(meta?.warnings && meta.warnings.length > 0);
 
 			return (
-				<div className="mb-1">
-					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field w-full">
-						<span>
-							{labelText}{" "}
-							{required && (
-								<span className="text-red-500 ml-1">*</span>
-							)}
-						</span>
-						<FieldHelpTooltip
-							fieldId={fieldId}
-							fieldMetadata={fieldMetadata[fieldId]}
-						/>
-						{hasWarnings && fieldWrapperRef && (
-							<FieldWarningsTooltip
-								warnings={mapWarningsToLabels(
-									fieldMetadata[fieldId]?.warnings
-								)}
-								triggerRef={fieldWrapperRef}
-								showIcon={true}
-							/>
-						)}
-						<div className="ml-auto flex items-center gap-1">
-							<button
-								type="button"
-								onClick={() => onAskAI?.(fieldId)}
-								className="px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md text-xs font-medium text-blue-600 opacity-0 group-hover/field:opacity-100 transition-opacity"
-							>
-								Ask AI
-							</button>
-							{renderFieldLockButton(fieldId, sectionId)}
-						</div>
-					</label>
-				</div>
+				<BorrowerFieldLabelRow
+					fieldId={fieldId}
+					labelText={labelText}
+					required={required}
+					hasWarnings={hasWarnings}
+					warningMessages={mapWarningsToLabels(meta?.warnings)}
+					fieldWrapperRef={fieldWrapperRef}
+					fieldMetadataItem={meta ?? null}
+					onAskAI={onAskAI}
+					lockButton={renderFieldLockButton(fieldId, sectionId)}
+				/>
 			);
 		},
 		[fieldMetadata, onAskAI, renderFieldLockButton, mapWarningsToLabels]
@@ -1556,7 +796,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				metaFromState &&
 				Array.isArray(metaFromState.sources) &&
 				metaFromState.sources.length > 0;
-			const hasValue = isValueProvided(value);
+			const hasValue = isBorrowerValueProvided(value);
 
 			let controlType = fieldControlOverrides[fieldId];
 			// If no override, determine control type from dataType
@@ -1570,14 +810,14 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			}
 
 			const optionsRegistry: Record<string, any[]> = {
-				primaryEntityStructure: entityStructureOptions,
-				yearsCREExperienceRange: experienceRangeOptions,
-				totalDealValueClosedRange: dealValueRangeOptions,
-				creditScoreRange: creditScoreRangeOptions,
-				netWorthRange: netWorthRangeOptions,
-				liquidityRange: liquidityRangeOptions,
-				assetClassesExperience: assetClassOptions,
-				geographicMarketsExperience: geographicMarketsOptions,
+				primaryEntityStructure: [...entityStructureOptions],
+				yearsCREExperienceRange: [...experienceRangeOptions],
+				totalDealValueClosedRange: [...dealValueRangeOptions],
+				creditScoreRange: [...creditScoreRangeOptions],
+				netWorthRange: [...netWorthRangeOptions],
+				liquidityRange: [...liquidityRangeOptions],
+				assetClassesExperience: [...assetClassOptions],
+				geographicMarketsExperience: [...geographicMarketsOptions],
 				principalRoleDefault: principalRoleOptions.map((r) => ({
 					label: r,
 					value: r,
@@ -1824,7 +1064,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 						isBlue: isFieldBlue(fieldId, sectionId),
 						isGreen: isFieldGreen(fieldId, sectionId),
 						isWhite: isFieldWhite(fieldId, sectionId),
-						hasValue: isValueProvided((formData as any)[fieldId]),
+						hasValue: isBorrowerValueProvided((formData as any)[fieldId]),
 						isLocked: isFieldLocked(fieldId, sectionId),
 						hasWarnings: hasWarnings,
 					};
@@ -2022,210 +1262,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 											? ["references"]
 											: (sub.fields as string[]);
 
-							const isLocked =
-								isSubsectionFullyLocked(subsectionFields);
-
-							const fieldStates =
-								sub.id === "principal-details"
-									? [
-										{
-											isBlue:
-												Array.isArray(
-													formData.principals
-												) &&
-												(
-													formData.principals as any[]
-												).length > 0 &&
-												!isFieldLocked(
-													"principals",
-													sectionId
-												),
-											isGreen:
-												Array.isArray(
-													formData.principals
-												) &&
-												(
-													formData.principals as any[]
-												).length > 0 &&
-												isFieldLocked(
-													"principals",
-													sectionId
-												),
-											isWhite: isFieldWhite(
-												"principals",
-												sectionId
-											),
-											hasValue: hasCompletePrincipals(
-												formData.principals
-											),
-											isLocked: isFieldLocked(
-												"principals",
-												sectionId
-											),
-											hasWarnings: false,
-										},
-									]
-									: sub.id === "track-record"
-										? [
-											{
-												isBlue:
-													Array.isArray(
-														formData.trackRecord
-													) &&
-													(
-														formData.trackRecord as any[]
-													).length > 0 &&
-													!isFieldLocked(
-														"trackRecord",
-														sectionId
-													),
-												isGreen:
-													Array.isArray(
-														formData.trackRecord
-													) &&
-													(
-														formData.trackRecord as any[]
-													).length > 0 &&
-													isFieldLocked(
-														"trackRecord",
-														sectionId
-													),
-												isWhite: isFieldWhite(
-													"trackRecord",
-													sectionId
-												),
-												hasValue:
-													Array.isArray(
-														formData.trackRecord
-													) &&
-													(
-														formData.trackRecord as any[]
-													).length > 0,
-												isLocked: isFieldLocked(
-													"trackRecord",
-													sectionId
-												),
-												hasWarnings: false,
-											},
-										]
-										: sub.id === "lender-references"
-											? [
-												{
-													isBlue:
-														Array.isArray(
-															formData.references
-														) &&
-														(
-															formData.references as any[]
-														).length > 0 &&
-														!isFieldLocked(
-															"references",
-															sectionId
-														),
-													isGreen:
-														Array.isArray(
-															formData.references
-														) &&
-														(
-															formData.references as any[]
-														).length > 0 &&
-														isFieldLocked(
-															"references",
-															sectionId
-														),
-													isWhite: isFieldWhite(
-														"references",
-														sectionId
-													),
-													hasValue:
-														Array.isArray(
-															formData.references
-														) &&
-														(
-															formData.references as any[]
-														).length > 0,
-													isLocked: isFieldLocked(
-														"references",
-														sectionId
-													),
-													hasWarnings: false,
-												},
-											]
-											: subsectionFields.length > 0
-												? subsectionFields.map((fieldId) => {
-													const meta = fieldMetadata[fieldId];
-													const hasWarnings =
-														meta?.warnings &&
-														meta.warnings.length > 0;
-													return {
-														isBlue: isFieldBlue(
-															fieldId,
-															sectionId
-														),
-														isGreen: isFieldGreen(
-															fieldId,
-															sectionId
-														),
-														isWhite: isFieldWhite(
-															fieldId,
-															sectionId
-														),
-														hasValue: isValueProvided(
-															(formData as any)[fieldId]
-														),
-														isLocked: isFieldLocked(
-															fieldId,
-															sectionId
-														),
-														hasWarnings: hasWarnings,
-													};
-												})
-												: [];
-
-							const allGreen =
-								fieldStates.length > 0 &&
-								fieldStates.every(
-									(s) =>
-										s.isGreen &&
-										!s.isBlue &&
-										!s.isWhite &&
-										s.isLocked
-								);
-							const allWhite =
-								fieldStates.length > 0 &&
-								fieldStates.every(
-									(s) => s.isWhite && !s.isBlue && !s.isGreen
-								);
-							const hasBlue = fieldStates.some((s) => s.isBlue);
-							const hasWarnings = fieldStates.some(
-								(s) => s.hasWarnings
+							const badgeState = getSubsectionBadgeState(
+								fieldStateContext,
+								subsectionFields
 							);
-
-							// Determine badge state
-							// Multiple badges can show simultaneously:
-							// - Error badge: shows if any field has warnings (can coexist with Needs Input)
-							// - Needs Input badge: shows if any field is blue (can coexist with Error)
-							// - Complete badge: exclusive, only shows when all green AND no errors AND no needs input
-							const showError = hasWarnings;
-							const showNeedsInput = hasBlue;
-							const showComplete =
-								subsectionFields.length > 0 &&
-								allGreen &&
-								!hasBlue &&
-								!hasWarnings;
-
-							const hasEmptyField = fieldStates.some(
-								(s) => !s.hasValue
-							);
-							const subsectionLockDisabled =
-								!isLocked && hasEmptyField;
 
 							// Custom Table Wrapper Styling
 							const getTableWrapperClasses = (
 								fieldId: string
 							) => {
 								const value = (formData as any)[fieldId];
-								const hasValue = isValueProvided(value);
+								const hasValue = isBorrowerValueProvided(value);
 								const locked = isFieldLocked(
 									fieldId,
 									sectionId
@@ -2250,1100 +1297,78 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 							};
 
 							return (
-								<div
-									key={sub.id}
-									className="rounded-md border border-gray-200 bg-gray-50 overflow-hidden shadow-md"
+								<BorrowerResumeSubsection
+									key={subKey}
+									subsection={sub}
+									sectionId={sectionId}
+									isExpanded={isExpanded}
+									onToggle={() => toggleSubsection(subKey)}
+									badgeState={badgeState}
+									onLockClick={() => toggleSubsectionLock(subsectionFields)}
 								>
-									<button
-										type="button"
-										onClick={() => toggleSubsection(subKey)}
-										className="w-full flex items-center justify-between p-3 hover:bg-gray-100 transition-colors"
-									>
-										<div className="flex items-center gap-2">
-											{isExpanded ? (
-												<ChevronDown className="h-4 w-4 text-gray-500" />
-											) : (
-												<ChevronRight className="h-4 w-4 text-gray-500" />
-											)}
-											<h3 className="text-sm font-semibold text-gray-800">
-												{sub.title.replace(
-													/^\d+\.\d+\s*/,
-													""
-												)}
-											</h3>
-										</div>
-										<div className="flex items-center gap-2">
-											<div
-												onClick={(e) => {
-													e.stopPropagation();
-													if (subsectionLockDisabled)
-														return;
-													toggleSubsectionLock(
-														subsectionFields
-													);
-												}}
-												className={cn(
-													"flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all border",
-													subsectionLockDisabled
-														? "cursor-not-allowed bg-gray-50 text-gray-400 border-gray-200"
-														: "cursor-pointer",
-													!subsectionLockDisabled &&
-													(isLocked
-														? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-														: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100")
-												)}
-												title={
-													subsectionLockDisabled
-														? "Cannot lock subsection because one or more fields are empty. Please fill in all fields first."
-														: isLocked
-															? "Unlock subsection"
-															: "Lock subsection"
-												}
-											>
-												{isLocked ? (
-													<>
-														<Lock className="h-3 w-3" />
-														<span>Unlock</span>
-													</>
-												) : (
-													<>
-														<Unlock className="h-3 w-3" />
-														<span>Lock</span>
-													</>
-												)}
-											</div>
-											{showError && (
-												<span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700 font-medium">
-													Error
-												</span>
-											)}
-											{showNeedsInput && (
-												<span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
-													Needs Input
-												</span>
-											)}
-											{showComplete && (
-												<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
-													Complete
-												</span>
-											)}
-										</div>
-									</button>
-
-									{isExpanded && (
-										<div className="p-3 pt-0 space-y-4">
-											{sub.id === "principal-details" ? (
-												<div
-													className={cn(
-														getTableWrapperClasses(
-															"principals"
-														),
-														"p-4"
+									{sub.id === "principal-details" ? (
+												<PrincipalsEditor
+													value={
+														Array.isArray(formData.principals)
+															? (formData.principals as Principal[])
+															: []
+													}
+													onChange={(val) =>
+														handleInputChange("principals", val)
+													}
+													disabled={isFieldLocked("principals", sectionId)}
+													fieldId="principals"
+													sectionId={sectionId}
+													title="Key Principals"
+													fieldMetadata={fieldMetadata["principals"]}
+													lockButton={renderFieldLockButton(
+														"principals",
+														sectionId
 													)}
-												>
-													<div className="mb-3 flex items-center justify-between">
-														<div className="flex items-center gap-2">
-															<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-																Key Principals
-															</h4>
-															<FieldHelpTooltip
-																fieldId="principals"
-																fieldMetadata={
-																	fieldMetadata[
-																	"principals"
-																	]
-																}
-															/>
-														</div>
-														<div className="flex items-center gap-1">
-															{renderFieldLockButton(
-																"principals",
-																sectionId
-															)}
-														</div>
-													</div>
-													<div className="overflow-x-auto">
-														<table className="min-w-full divide-y divide-gray-200 text-sm">
-															<thead className="bg-gray-50">
-																<tr>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Name
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Role
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Email
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Ownership
-																		%
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Bio
-																	</th>
-																	<th className="px-3 py-2" />
-																</tr>
-															</thead>
-															<tbody className="bg-white divide-y divide-gray-100">
-																{(() => {
-																	const principals: Principal[] =
-																		Array.isArray(
-																			formData.principals
-																		)
-																			? (formData.principals as Principal[])
-																			: [];
-																	const isLockedPrincipals =
-																		isFieldLocked(
-																			"principals",
-																			sectionId
-																		);
-
-																	const handlePrincipalRowChange =
-																		(
-																			index: number,
-																			key: keyof Principal,
-																			raw: any
-																		) => {
-																			const next: Principal[] =
-																				[
-																					...principals,
-																				];
-																			const current =
-																				next[
-																				index
-																				] ||
-																				({} as Principal);
-																			let value: any =
-																				raw;
-																			if (
-																				key ===
-																				"ownershipPercentage" &&
-																				typeof raw ===
-																				"string"
-																			) {
-																				const num =
-																					raw.trim() ===
-																						""
-																						? undefined
-																						: Number(
-																							raw
-																						);
-																				value =
-																					Number.isNaN(
-																						num
-																					)
-																						? undefined
-																						: num;
-																			}
-																			next[
-																				index
-																			] =
-																			{
-																				...current,
-																				[key]: value,
-																			};
-																			handleInputChange(
-																				"principals",
-																				next
-																			);
-																		};
-
-																	const handleAddPrincipalRow =
-																		() => {
-																			const next: Principal[] =
-																				[
-																					...principals,
-																				];
-																			next.push(
-																				{
-																					id: Math.random()
-																						.toString(
-																							36
-																						)
-																						.slice(
-																							2
-																						),
-																					principalLegalName:
-																						"",
-																					principalRoleDefault:
-																						"Key Principal",
-																					principalEmail:
-																						"",
-																					ownershipPercentage:
-																						undefined as any,
-																					principalBio:
-																						"",
-																				} as Principal
-																			);
-																			handleInputChange(
-																				"principals",
-																				next
-																			);
-																		};
-
-																	const rowsToRender =
-																		principals.length >
-																			0
-																			? principals
-																			: ([] as Principal[]);
-
-																	return (
-																		<>
-																			{rowsToRender.map(
-																				(
-																					p,
-																					idx
-																				) => (
-																					<tr
-																						key={
-																							p.id ||
-																							idx
-																						}
-																					>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="text"
-																								className="w-40 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									p.principalLegalName ||
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handlePrincipalRowChange(
-																										idx,
-																										"principalLegalName",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedPrincipals
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<Select
-																								value={
-																									p.principalRoleDefault ||
-																									"Key Principal"
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handlePrincipalRowChange(
-																										idx,
-																										"principalRoleDefault",
-																										e
-																											.target
-																											.value as PrincipalRole
-																									)
-																								}
-																								options={principalRoleOptions.map(
-																									(
-																										o
-																									) => ({
-																										label: o,
-																										value: o,
-																									})
-																								)}
-																								disabled={
-																									isLockedPrincipals
-																								}
-																								className="w-40"
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="email"
-																								className="w-48 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									p.principalEmail ||
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handlePrincipalRowChange(
-																										idx,
-																										"principalEmail",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedPrincipals
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="number"
-																								min={
-																									0
-																								}
-																								className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									p.ownershipPercentage ??
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handlePrincipalRowChange(
-																										idx,
-																										"ownershipPercentage",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedPrincipals
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<textarea
-																								className="w-64 rounded-md border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								rows={
-																									2
-																								}
-																								value={
-																									p.principalBio ||
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handlePrincipalRowChange(
-																										idx,
-																										"principalBio",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedPrincipals
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle text-right">
-																							<Button
-																								size="sm"
-																								variant="ghost"
-																								onClick={() =>
-																									handleRemovePrincipal(
-																										idx
-																									)
-																								}
-																								disabled={
-																									isLockedPrincipals
-																								}
-																								className="text-red-500 hover:bg-red-50"
-																							>
-																								<Trash2
-																									size={
-																										16
-																									}
-																								/>
-																							</Button>
-																						</td>
-																					</tr>
-																				)
-																			)}
-																			<tr>
-																				<td
-																					colSpan={
-																						6
-																					}
-																					className="px-3 py-3 text-right"
-																				>
-																					<Button
-																						type="button"
-																						variant="secondary"
-																						size="sm"
-																						onClick={
-																							handleAddPrincipalRow
-																						}
-																						disabled={
-																							isLockedPrincipals
-																						}
-																					>
-																						<Plus className="h-4 w-4 mr-1" />
-																						Add
-																						Principal
-																					</Button>
-																				</td>
-																			</tr>
-																		</>
-																	);
-																})()}
-															</tbody>
-														</table>
-													</div>
-												</div>
+													className={getTableWrapperClasses("principals")}
+												/>
 											) : sub.id === "track-record" ? (
-												<div
-													className={cn(
-														getTableWrapperClasses(
-															"trackRecord"
-														),
-														"p-4"
+												<TrackRecordEditor
+													value={
+														Array.isArray(formData.trackRecord)
+															? (formData.trackRecord as TrackRecordItem[])
+															: []
+													}
+													onChange={(val) =>
+														handleInputChange("trackRecord", val)
+													}
+													disabled={isFieldLocked("trackRecord", sectionId)}
+													fieldId="trackRecord"
+													sectionId={sectionId}
+													title="Track Record"
+													fieldMetadata={fieldMetadata["trackRecord"]}
+													lockButton={renderFieldLockButton(
+														"trackRecord",
+														sectionId
 													)}
-												>
-													<div className="mb-3 flex items-center justify-between">
-														<div className="flex items-center gap-2">
-															<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-																Track Record
-															</h4>
-															<FieldHelpTooltip
-																fieldId="trackRecord"
-																fieldMetadata={
-																	fieldMetadata[
-																	"trackRecord"
-																	]
-																}
-															/>
-														</div>
-														<div className="flex items-center gap-1">
-															{renderFieldLockButton(
-																"trackRecord",
-																sectionId
-															)}
-														</div>
-													</div>
-													<div className="overflow-x-auto">
-														<table className="min-w-full divide-y divide-gray-200 text-sm">
-															<thead className="bg-gray-50">
-																<tr>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Project
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Year
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Units
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		IRR
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Market
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Type
-																	</th>
-																	<th className="px-3 py-2" />
-																</tr>
-															</thead>
-															<tbody className="bg-white divide-y divide-gray-100">
-																{(() => {
-																	const trackRecord: TrackRecordItem[] =
-																		Array.isArray(
-																			formData.trackRecord
-																		)
-																			? (formData.trackRecord as TrackRecordItem[])
-																			: [];
-																	const isLockedTrackRecord =
-																		isFieldLocked(
-																			"trackRecord",
-																			sectionId
-																		);
-
-																	const handleTrackRecordRowChange =
-																		(
-																			index: number,
-																			key: keyof TrackRecordItem,
-																			raw: any
-																		) => {
-																			const next: TrackRecordItem[] =
-																				[
-																					...trackRecord,
-																				];
-																			const current =
-																				next[
-																				index
-																				] ||
-																				({} as TrackRecordItem);
-																			let value: any =
-																				raw;
-																			if (
-																				(key === "year" ||
-																					key === "units") &&
-																				typeof raw ===
-																				"string"
-																			) {
-																				const num =
-																					raw.trim() ===
-																						""
-																						? undefined
-																						: Number(
-																							raw
-																						);
-																				value =
-																					Number.isNaN(
-																						num
-																					)
-																						? undefined
-																						: num;
-																			}
-																			if (
-																				key === "irr" &&
-																				typeof raw ===
-																				"string"
-																			) {
-																				const num =
-																					raw.trim() ===
-																						""
-																						? undefined
-																						: Number(
-																							raw
-																						);
-																				value =
-																					Number.isNaN(
-																						num
-																					)
-																						? undefined
-																						: num;
-																			}
-																			next[
-																				index
-																			] = {
-																				...current,
-																				[key]: value,
-																			};
-																			handleInputChange(
-																				"trackRecord",
-																				next
-																			);
-																		};
-
-																	const handleAddTrackRecordRow =
-																		() => {
-																			const next: TrackRecordItem[] =
-																				[
-																					...trackRecord,
-																				];
-																			next.push(
-																				{
-																					project: "",
-																					year: undefined,
-																					units: undefined,
-																					irr: undefined,
-																					market: "",
-																					type: "",
-																				} as TrackRecordItem
-																			);
-																			handleInputChange(
-																				"trackRecord",
-																				next
-																			);
-																		};
-
-																	const rowsToRender =
-																		trackRecord.length >
-																			0
-																			? trackRecord
-																			: ([] as TrackRecordItem[]);
-
-																	return (
-																		<>
-																			{rowsToRender.map(
-																				(
-																					item,
-																					idx
-																				) => (
-																					<tr
-																						key={
-																							idx
-																						}
-																					>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="text"
-																								className="w-40 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									item.project ||
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleTrackRecordRowChange(
-																										idx,
-																										"project",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedTrackRecord
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="number"
-																								className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									item.year ??
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleTrackRecordRowChange(
-																										idx,
-																										"year",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedTrackRecord
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="number"
-																								className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									item.units ??
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleTrackRecordRowChange(
-																										idx,
-																										"units",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedTrackRecord
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="number"
-																								step="0.1"
-																								className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									item.irr ??
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleTrackRecordRowChange(
-																										idx,
-																										"irr",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedTrackRecord
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="text"
-																								className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									item.market ||
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleTrackRecordRowChange(
-																										idx,
-																										"market",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedTrackRecord
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="text"
-																								className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									item.type ||
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleTrackRecordRowChange(
-																										idx,
-																										"type",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedTrackRecord
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle text-right">
-																							<Button
-																								size="sm"
-																								variant="ghost"
-																								onClick={() =>
-																									handleRemoveTrackRecord(
-																										idx
-																									)
-																								}
-																								disabled={
-																									isLockedTrackRecord
-																								}
-																								className="text-red-500 hover:bg-red-50"
-																							>
-																								<Trash2
-																									size={
-																										16
-																									}
-																								/>
-																							</Button>
-																						</td>
-																					</tr>
-																				)
-																			)}
-																			<tr>
-																				<td
-																					colSpan={
-																						7
-																					}
-																					className="px-3 py-3 text-right"
-																				>
-																					<Button
-																						type="button"
-																						variant="secondary"
-																						size="sm"
-																						onClick={
-																							handleAddTrackRecordRow
-																						}
-																						disabled={
-																							isLockedTrackRecord
-																						}
-																					>
-																						<Plus className="h-4 w-4 mr-1" />
-																						Add
-																						Project
-																					</Button>
-																				</td>
-																			</tr>
-																		</>
-																	);
-																})()}
-															</tbody>
-														</table>
-													</div>
-												</div>
+													className={getTableWrapperClasses("trackRecord")}
+												/>
 											) : sub.id === "lender-references" ? (
-												<div
-													className={cn(
-														getTableWrapperClasses(
-															"references"
-														),
-														"p-4"
+												<ReferencesEditor
+													value={
+														Array.isArray(formData.references)
+															? (formData.references as ReferenceItem[])
+															: []
+													}
+													onChange={(val) =>
+														handleInputChange("references", val)
+													}
+													disabled={isFieldLocked("references", sectionId)}
+													fieldId="references"
+													sectionId={sectionId}
+													title="Lender References"
+													fieldMetadata={fieldMetadata["references"]}
+													lockButton={renderFieldLockButton(
+														"references",
+														sectionId
 													)}
-												>
-													<div className="mb-3 flex items-center justify-between">
-														<div className="flex items-center gap-2">
-															<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-																Lender References
-															</h4>
-															<FieldHelpTooltip
-																fieldId="references"
-																fieldMetadata={
-																	fieldMetadata[
-																	"references"
-																	]
-																}
-															/>
-														</div>
-														<div className="flex items-center gap-1">
-															{renderFieldLockButton(
-																"references",
-																sectionId
-															)}
-														</div>
-													</div>
-													<div className="overflow-x-auto">
-														<table className="min-w-full divide-y divide-gray-200 text-sm">
-															<thead className="bg-gray-50">
-																<tr>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Firm
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Relationship
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Years
-																	</th>
-																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Contact
-																	</th>
-																	<th className="px-3 py-2" />
-																</tr>
-															</thead>
-															<tbody className="bg-white divide-y divide-gray-100">
-																{(() => {
-																	const references: ReferenceItem[] =
-																		Array.isArray(
-																			formData.references
-																		)
-																			? (formData.references as ReferenceItem[])
-																			: [];
-																	const isLockedReferences =
-																		isFieldLocked(
-																			"references",
-																			sectionId
-																		);
-
-																	const handleReferenceRowChange =
-																		(
-																			index: number,
-																			key: keyof ReferenceItem,
-																			raw: any
-																		) => {
-																			const next: ReferenceItem[] =
-																				[
-																					...references,
-																				];
-																			const current =
-																				next[
-																				index
-																				] ||
-																				({} as ReferenceItem);
-																			next[
-																				index
-																			] = {
-																				...current,
-																				[key]: raw,
-																			};
-																			handleInputChange(
-																				"references",
-																				next
-																			);
-																		};
-
-																	const handleAddReferenceRow =
-																		() => {
-																			const next: ReferenceItem[] =
-																				[
-																					...references,
-																				];
-																			next.push(
-																				{
-																					firm: "",
-																					relationship: "",
-																					years: "",
-																					contact: "",
-																				} as ReferenceItem
-																			);
-																			handleInputChange(
-																				"references",
-																				next
-																			);
-																		};
-
-																	const rowsToRender =
-																		references.length >
-																			0
-																			? references
-																			: ([] as ReferenceItem[]);
-
-																	return (
-																		<>
-																			{rowsToRender.map(
-																				(
-																					item,
-																					idx
-																				) => (
-																					<tr
-																						key={
-																							idx
-																						}
-																					>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="text"
-																								className="w-48 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									item.firm ||
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleReferenceRowChange(
-																										idx,
-																										"firm",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedReferences
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="text"
-																								className="w-48 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									item.relationship ||
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleReferenceRowChange(
-																										idx,
-																										"relationship",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedReferences
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="text"
-																								className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									item.years ||
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleReferenceRowChange(
-																										idx,
-																										"years",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedReferences
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle">
-																							<input
-																								type="text"
-																								className="w-64 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-																								value={
-																									item.contact ||
-																									""
-																								}
-																								onChange={(
-																									e
-																								) =>
-																									handleReferenceRowChange(
-																										idx,
-																										"contact",
-																										e
-																											.target
-																											.value
-																									)
-																								}
-																								disabled={
-																									isLockedReferences
-																								}
-																							/>
-																						</td>
-																						<td className="px-3 py-2 align-middle text-right">
-																							<Button
-																								size="sm"
-																								variant="ghost"
-																								onClick={() =>
-																									handleRemoveReference(
-																										idx
-																									)
-																								}
-																								disabled={
-																									isLockedReferences
-																								}
-																								className="text-red-500 hover:bg-red-50"
-																							>
-																								<Trash2
-																									size={
-																										16
-																									}
-																								/>
-																							</Button>
-																						</td>
-																					</tr>
-																				)
-																			)}
-																			<tr>
-																				<td
-																					colSpan={
-																						5
-																					}
-																					className="px-3 py-3 text-right"
-																				>
-																					<Button
-																						type="button"
-																						variant="secondary"
-																						size="sm"
-																						onClick={
-																							handleAddReferenceRow
-																						}
-																						disabled={
-																							isLockedReferences
-																						}
-																					>
-																						<Plus className="h-4 w-4 mr-1" />
-																						Add
-																						Reference
-																					</Button>
-																				</td>
-																			</tr>
-																		</>
-																	);
-																})()}
-															</tbody>
-														</table>
-													</div>
-												</div>
+													className={getTableWrapperClasses("references")}
+												/>
 											) : (
 												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 													{subsectionFields.map(
@@ -3355,9 +1380,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 													)}
 												</div>
 											)}
-										</div>
-									)}
-								</div>
+								</BorrowerResumeSubsection>
 							);
 						})}
 					</div>
@@ -3372,9 +1395,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		renderDynamicField,
 		formData,
 		handleInputChange,
-		handleRemovePrincipal,
-		handleRemoveTrackRecord,
-		handleRemoveReference,
 		fieldMetadata,
 		renderFieldLockButton,
 		isFieldLocked,
@@ -3498,16 +1518,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					</div>
 				)}
 
-				<FormWizard
+				<BorrowerResumeWizard
 					steps={steps}
-					onComplete={() => handleFormSubmit()}
-					showProgressBar={false}
-					showStepIndicators={false}
-					allowSkip
-					variant="tabs"
-					showBottomNav
-					nextButtonLabel="Next"
 					initialStep={initialStepIndex}
+					onComplete={() => handleFormSubmit()}
 					onStepChange={(stepId) => {
 						void touchWorkspace(stepId);
 					}}
