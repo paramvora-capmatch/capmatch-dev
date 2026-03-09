@@ -56,6 +56,7 @@ import { toast } from "sonner";
 import { apiClient } from "@/lib/apiClient";
 import { UnderwritingVault } from "../lender/UnderwritingVault";
 import { AccessControlTab } from "./AccessControlTab";
+import { LenderMatchTab } from "../matchmaking/LenderMatchTab";
 import { FileText, ShieldCheck, Users } from "lucide-react";
 import { cn } from "@/utils/cn";
 
@@ -1310,20 +1311,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 										</button>
 										<button
 											onClick={() =>
-												handleViewChange("underwriting")
-											}
-											className={cn(
-												"flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
-												viewMode === "underwriting"
-													? "bg-white text-blue-600 shadow-sm"
-													: "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
-											)}
-										>
-											<ShieldCheck className="h-4 w-4" />
-											Underwriting Mode
-										</button>
-										<button
-											onClick={() =>
 												handleViewChange("access")
 											}
 											className={cn(
@@ -1336,13 +1323,27 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 											<Users className="h-4 w-4" />
 											Lender Matching
 										</button>
+										<button
+											onClick={() =>
+												handleViewChange("underwriting")
+											}
+											className={cn(
+												"flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
+												viewMode === "underwriting"
+													? "bg-white text-blue-600 shadow-sm"
+													: "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+											)}
+										>
+											<ShieldCheck className="h-4 w-4" />
+											Underwriting Mode
+										</button>
 									</div>
 								</div>
 							)}
 
 							{viewMode === "access" && showAdvisorOnlySections ? (
 								<div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-									<AccessControlTab projectId={projectId} />
+									<LenderMatchTab projectId={projectId} />
 								</div>
 							) : viewMode === "underwriting" && showAdvisorOnlySections ? (
 								<div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
