@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Select } from "@/components/ui/Select";
+import { Loader2 } from "lucide-react";
 import {
   ChevronDown,
   ChevronRight,
@@ -572,7 +573,7 @@ function CapitalStackRow({ layer }: { layer: CapitalLayer }) {
         <tr>
           <td colSpan={7} className="bg-gray-50 border-t border-gray-100">
             <div className="px-6 py-3 grid grid-cols-3 gap-x-6 gap-y-2">
-              
+
               {layer.interestRate != null && <FieldRow label="All-In Rate" value={`${layer.interestRate}%`} />}
               {layer.rateType && <FieldRow label="Rate Type" value={layer.rateType} />}
               {layer.spread != null && <FieldRow label="Spread" value={`${layer.spread} bps`} />}
@@ -630,29 +631,29 @@ function LenderCard({ lender }: { lender: MockLender }) {
       {expanded && (
         <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-             <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
-                <p className="text-sm text-gray-500 mb-1">Target LTV</p>
-                <p className="text-base font-bold text-gray-900">Up to 75% LTC</p>
-             </div>
-             <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
-                <p className="text-sm text-gray-500 mb-1">Sweet Spot</p>
-                <p className="text-base font-bold text-gray-900">$10M - $25M</p>
-             </div>
-             <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
-                <p className="text-sm text-gray-500 mb-1">Pricing Guide</p>
-                <p className="text-base font-bold text-gray-900">SOFR + 350</p>
-             </div>
-             <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
-                <p className="text-sm text-gray-500 mb-1">Recourse</p>
-                <p className="text-base font-bold text-gray-900">Non-Recourse</p>
-             </div>
+            <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
+              <p className="text-sm text-gray-500 mb-1">Target LTV</p>
+              <p className="text-base font-bold text-gray-900">Up to 75% LTC</p>
+            </div>
+            <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
+              <p className="text-sm text-gray-500 mb-1">Sweet Spot</p>
+              <p className="text-base font-bold text-gray-900">$10M - $25M</p>
+            </div>
+            <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
+              <p className="text-sm text-gray-500 mb-1">Pricing Guide</p>
+              <p className="text-base font-bold text-gray-900">SOFR + 350</p>
+            </div>
+            <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-sm">
+              <p className="text-sm text-gray-500 mb-1">Recourse</p>
+              <p className="text-base font-bold text-gray-900">Non-Recourse</p>
+            </div>
           </div>
           <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-             <div className="flex items-center gap-1.5 mb-2">
-                <Zap size={16} className="text-blue-600" />
-                <span className="text-base font-semibold text-gray-800">Why it's a match</span>
-             </div>
-             <p className="text-sm text-gray-600 leading-relaxed">{lender.aiReport.summary}</p>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Zap size={16} className="text-blue-600" />
+              <span className="text-base font-semibold text-gray-800">Why it's a match</span>
+            </div>
+            <p className="text-sm text-gray-600 leading-relaxed">{lender.aiReport.summary}</p>
           </div>
         </div>
       )}
@@ -668,8 +669,32 @@ interface DealScenarioBuilderProps {
 
 export const DealScenarioBuilder: React.FC<DealScenarioBuilderProps> = ({ projectId: _projectId }) => {
   const [versionDropdownOpen, setVersionDropdownOpen] = useState(false);
+  const [capitalStack, setCapitalStack] = useState(MOCK_CAPITAL_STACK);
+  const [hasRunMatchmaking, setHasRunMatchmaking] = useState(false);
+  const [isMatchmakingLoading, setIsMatchmakingLoading] = useState(false);
 
-  const totalCap = MOCK_CAPITAL_STACK.reduce((s, l) => s + l.amount, 0);
+  const handleRunMatchmaking = () => {
+    setIsMatchmakingLoading(true);
+    setTimeout(() => {
+      setIsMatchmakingLoading(false);
+      setHasRunMatchmaking(true);
+    }, 1200);
+  };
+
+  const handleAddLayer = () => {
+    const newLayer: CapitalLayer = {
+      id: Math.random().toString(),
+      position: capitalStack.length + 1,
+      layerType: "Mezzanine",
+      name: "New Tranche",
+      amount: 1000000,
+      percentOfStack: 0,
+      committed: false,
+    };
+    setCapitalStack([...capitalStack, newLayer]);
+  };
+
+  const totalCap = capitalStack.reduce((s, l) => s + l.amount, 0);
 
   return (
     <div className="flex gap-6 items-start max-w-[1600px] mx-auto">
@@ -790,9 +815,9 @@ export const DealScenarioBuilder: React.FC<DealScenarioBuilderProps> = ({ projec
             <div className="flex items-center gap-2">
               <Layers size={16} className="text-blue-600" />
               <h3 className="text-base font-semibold text-gray-800">Capital Stack</h3>
-              <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{MOCK_CAPITAL_STACK.length} layers</span>
+              <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{capitalStack.length} layers</span>
             </div>
-            <button className="flex items-center gap-1.5 px-2.5 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+            <button onClick={handleAddLayer} className="flex items-center gap-1.5 px-2.5 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
               <Plus size={14} />
               Add Layer
             </button>
@@ -801,7 +826,7 @@ export const DealScenarioBuilder: React.FC<DealScenarioBuilderProps> = ({ projec
           {/* Stack Visualization Bar */}
           <div className="px-4 pt-3 pb-1">
             <div className="flex h-3 rounded-full overflow-hidden border border-gray-200">
-              {MOCK_CAPITAL_STACK.map((layer) => {
+              {capitalStack.map((layer) => {
                 const colors: Record<string, string> = {
                   "Senior Debt": "#3b82f6",
                   "Mezzanine": "#8b5cf6",
@@ -820,7 +845,7 @@ export const DealScenarioBuilder: React.FC<DealScenarioBuilderProps> = ({ projec
             </div>
             <div className="flex items-center justify-between mt-1.5 mb-2">
               <div className="flex gap-3">
-                {MOCK_CAPITAL_STACK.map((layer) => {
+                {capitalStack.map((layer) => {
                   const colors: Record<string, string> = {
                     "Senior Debt": "bg-blue-500",
                     "Mezzanine": "bg-purple-500",
@@ -853,7 +878,7 @@ export const DealScenarioBuilder: React.FC<DealScenarioBuilderProps> = ({ projec
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {MOCK_CAPITAL_STACK.map((layer) => (
+              {capitalStack.map((layer) => (
                 <CapitalStackRow key={layer.id} layer={layer} />
               ))}
             </tbody>
@@ -928,22 +953,22 @@ export const DealScenarioBuilder: React.FC<DealScenarioBuilderProps> = ({ projec
                 <Landmark size={16} className="text-blue-600" />
                 Lender Matches
               </h3>
-              <p className="text-xs text-gray-400 mt-0.5">Last run: Mar 6, 2:30pm (v4 results)</p>
+              {hasRunMatchmaking && <p className="text-xs text-gray-400 mt-0.5">Last run: Mar 6, 2:30pm (v4 results)</p>}
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
-              <Zap size={16} />
-              Run Matchmaking
+            <button onClick={handleRunMatchmaking} disabled={isMatchmakingLoading} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50">
+              {isMatchmakingLoading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+              {hasRunMatchmaking ? "Re-run Matchmaking" : "Run Matchmaking"}
             </button>
           </div>
 
           {/* Changed Fields Indicator */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+          {hasRunMatchmaking && <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
             <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
             <span className="text-sm text-amber-700">3 fields changed since last run — results may be stale</span>
-          </div>
+          </div>}
 
           {/* Summary Stats */}
-          <div className="flex flex-wrap gap-2 mt-3">
+          {hasRunMatchmaking && <div className="flex flex-wrap gap-2 mt-3">
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg text-sm font-medium text-gray-600">
               <BarChart3 size={14} />
               258 lenders scored
@@ -952,18 +977,28 @@ export const DealScenarioBuilder: React.FC<DealScenarioBuilderProps> = ({ projec
               <Trophy size={14} />
               Top: 91/100
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg text-sm font-medium text-gray-500">
-              <Clock size={14} />
-              3.2s runtime
-            </div>
-          </div>
+          </div>}
         </div>
 
         {/* Lender List */}
         <div className="space-y-3 max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
-          {MOCK_LENDERS.map((lender) => (
-            <LenderCard key={lender.rank} lender={lender} />
-          ))}
+          {isMatchmakingLoading ? (
+            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl border border-gray-200 shadow-sm">
+              <Loader2 size={32} className="text-blue-500 animate-spin mb-4" />
+              <h4 className="text-base font-semibold text-gray-800">Analyzing Lenders...</h4>
+              <p className="text-sm text-gray-500 text-center mt-2">Matching your project parameters against thousands of active capital providers.</p>
+            </div>
+          ) : !hasRunMatchmaking ? (
+            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl border border-gray-200 shadow-sm opacity-80">
+              <Target size={48} className="text-gray-300 mb-4" />
+              <h4 className="text-base font-semibold text-gray-800">Ready to Match</h4>
+              <p className="text-sm text-gray-500 text-center mt-2">Finalize your deal scenario on the left, then run matchmaking to find compatible lenders.</p>
+            </div>
+          ) : (
+            MOCK_LENDERS.map((lender) => (
+              <LenderCard key={lender.rank} lender={lender} />
+            ))
+          )}
         </div>
       </div>
     </div>
