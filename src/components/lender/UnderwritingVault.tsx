@@ -477,17 +477,56 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         : null;
 
     const handleSendPackage = useCallback(async (lender: MatchedLender) => {
+        if (!projectId) return;
         setSendingToLenderId(lender.match_score_id);
         try {
-            // Option A: one pipeline; send package = grant access when LEI→org mapping exists.
-            // For now we don't have LEI→lender_org_id mapping; show toast. Advisor can grant access via Access Control tab.
-            toast.info(
-                `Send package to ${lender.lender_name || lender.lender_lei}: Grant lender access from the Access Control tab, or link LEI to an organization to enable one-click send.`
+            // Look up the default lender org (entity_type = 'lender')
+            const { data: lenderOrg, error: orgError } = await supabase
+                .from("orgs")
+                .select("id, name")
+                .eq("entity_type", "lender")
+                .limit(1)
+                .maybeSingle();
+
+            if (orgError || !lenderOrg) {
+                toast.error("No lender organization found. Please ensure a lender account exists.");
+                return;
+            }
+
+            // Check if access is already granted
+            const { data: existingAccess } = await supabase
+                .from("lender_project_access")
+                .select("id")
+                .eq("project_id", projectId)
+                .eq("lender_org_id", lenderOrg.id)
+                .maybeSingle();
+
+            if (existingAccess) {
+                toast.info(`Package already sent to ${lenderOrg.name || "lender"}.`);
+                return;
+            }
+
+            // Grant access via the same RPC the Access Control tab uses
+            const { error: rpcError } = await supabase.rpc(
+                "grant_lender_project_access_by_advisor",
+                {
+                    p_project_id: projectId,
+                    p_lender_org_id: lenderOrg.id,
+                }
             );
+
+            if (rpcError) throw rpcError;
+
+            toast.success(
+                `Package sent to ${lenderOrg.name || "lender"} for ${lender.lender_name || lender.lender_lei}!`
+            );
+        } catch (e) {
+            console.error("Send package failed:", e);
+            toast.error("Failed to send package. Please try again.");
         } finally {
             setSendingToLenderId(null);
         }
-    }, []);
+    }, [projectId]);
 
     // Fetch validation status from underwriting_documents
     useEffect(() => {
