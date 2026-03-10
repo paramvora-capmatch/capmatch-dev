@@ -9,7 +9,7 @@ node_modules
 out
 build
 
-# Environment files (built via ARGs, .env.production stays on VM)
+# Environment files (built via ARGs, .env stays on VM)
 .env
 .env.*
 !.env.template
