@@ -11,8 +11,15 @@
  * Normalizes the URL to remove trailing slashes to prevent double slashes in paths
  */
 export const getBackendUrl = (): string => {
+  // If we are in the browser, return an empty string.
+  // This makes the frontend use relative URLs (e.g., /api/v1/...) 
+  // Caddy will intercept /api/* and proxy it to the backend VM directly!
+  if (typeof window !== 'undefined') {
+    return '';
+  }
+
+  // If we are on the server (SSR/RSC), use the internal backend URL.
   const url = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
-  // Remove trailing slash to prevent double slashes when constructing paths
   return url.replace(/\/+$/, '');
 };
 

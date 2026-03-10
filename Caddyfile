@@ -1,6 +1,16 @@
 capmatch.com {
-    # Reverse proxy to the Next.js container
-    reverse_proxy frontend:3000
+    # Route API and Static requests directly to the Backend VM (Internal IP)
+    @backend {
+        path /api/* /static/*
+    }
+    handle @backend {
+        reverse_proxy {$BACKEND_URL}
+    }
+
+    # Route everything else to the Next.js Frontend
+    handle {
+        reverse_proxy frontend:3000
+    }
 
     # Security headers
     header {
