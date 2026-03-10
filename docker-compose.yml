@@ -29,7 +29,7 @@ services:
   caddy:
     image: caddy:2-alpine
     environment:
-      - BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
+      - BACKEND_UPSTREAM=${BACKEND_UPSTREAM:-10.0.0.5:8000}
     ports:
       - "80:80"
       - "443:443"

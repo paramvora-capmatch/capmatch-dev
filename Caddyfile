@@ -4,7 +4,7 @@ capmatch.com {
         path /api/* /static/*
     }
     handle @backend {
-        reverse_proxy {$BACKEND_URL}
+        reverse_proxy {$BACKEND_UPSTREAM}
     }
 
     # Route everything else to the Next.js Frontend
