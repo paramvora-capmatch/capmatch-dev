@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -29,6 +29,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getBackendUrl } from "@/lib/apiConfig";
 import type { ProjectProfile } from "@/types/enhanced-types";
 import { LenderAIReport } from "./LenderAIReport";
+import { FIELD_DEPENDENCIES } from "@/features/project-resume/domain/validationDependencies";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -151,6 +152,22 @@ function normalizeContentUpdates(overrides: Record<string, string>): Record<stri
   return out;
 }
 
+/** Build flat context for sanity checks: base values from project + overrides. */
+function getMergedContext(
+  project: ProjectProfile | null,
+  overrides: Record<string, string>
+): Record<string, unknown> {
+  const base: Record<string, unknown> = {};
+  if (project) {
+    for (const key of EDITABLE_KEYS) {
+      const v = getFieldValue(project, key);
+      if (v !== undefined && v !== null) base[key] = v;
+    }
+  }
+  const normalized = normalizeContentUpdates(overrides);
+  return { ...base, ...normalized };
+}
+
 // ─── Deal parameter control (editable vs read-only) ─────────────────────────
 
 function DealParameterControl({
@@ -164,6 +181,7 @@ function DealParameterControl({
   onStartEdit,
   onBlur,
   onKeyDown,
+  warnings,
 }: {
   label: string;
   displayValue: string;
@@ -175,6 +193,7 @@ function DealParameterControl({
   onStartEdit: () => void;
   onBlur: (value: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  warnings?: string[];
 }) {
   return (
     <div className="space-y-1">
@@ -231,6 +250,15 @@ function DealParameterControl({
           {displayValue}
         </div>
       )}
+      {warnings && warnings.length > 0 && (
+        <div className="flex flex-col gap-0.5 mt-1">
+          {warnings.map((w, i) => (
+            <p key={i} className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+              {w}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -266,19 +294,24 @@ function PillarRow({ label, score }: { label: string; score: number }) {
 // ─── Match card with Tier 1 (pillar bars + narrative) and Tier 2 (quick view + AI) ──
 
 function MatchCard({
+  projectId,
+  matchRunId,
   score,
   expanded,
   onToggle,
 }: {
+  projectId: string;
+  matchRunId: string | null;
   score: MatchScore;
   expanded: boolean;
   onToggle: () => void;
 }) {
   const displayName = score.lender_name || score.lender_lei || "Unknown";
   const pillar = score.pillar_scores || {};
-  const marketFit = pillar.market_fit ?? pillar.Market ?? 0;
-  const capitalFit = pillar.capital_fit ?? pillar.Capital ?? 0;
-  const productFit = pillar.product_fit ?? pillar.Product ?? 0;
+  // Backend sends pillar scores in 0-1; PillarRow/ScoreBar expect 0-100
+  const marketFit = (pillar.market_fit ?? pillar.Market ?? 0) * 100;
+  const capitalFit = (pillar.capital_fit ?? pillar.Capital ?? 0) * 100;
+  const productFit = (pillar.product_fit ?? pillar.Product ?? 0) * 100;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm transition-shadow hover:shadow-md">
@@ -341,7 +374,12 @@ function MatchCard({
           )}
 
           {/* Tier 3: AI Report */}
-          <LenderAIReport matchScoreId={score.id} lenderName={displayName} />
+          <LenderAIReport
+            projectId={projectId}
+            matchRunId={matchRunId}
+            score={score}
+            lenderName={displayName}
+          />
         </div>
       )}
     </div>
@@ -372,12 +410,31 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   const [fieldOverrides, setFieldOverrides] = useState<Record<string, string>>({});
   const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null);
   const [isSavingVersion, setIsSavingVersion] = useState(false);
+  const [fieldWarnings, setFieldWarnings] = useState<Record<string, string[]>>({});
+  const sanityCheckerRef = useRef<InstanceType<typeof import("@/lib/debouncedSanityCheck").DebouncedSanityChecker> | null>(null);
+
+  useEffect(() => {
+    import("@/lib/debouncedSanityCheck").then(({ DebouncedSanityChecker }) => {
+      sanityCheckerRef.current = new DebouncedSanityChecker({
+        resumeType: "project",
+        debounceMs: 800,
+        batchDebounceMs: 1500,
+      });
+    });
+    return () => {
+      sanityCheckerRef.current?.cancelAll();
+    };
+  }, []);
 
   const activeProject = useProjectStore((s) => s.activeProject);
   const project = activeProject?.id === projectId ? activeProject : null;
 
   console.log(`[LenderMatchTab] render: projectId=${projectId}, selectedVersionId=${selectedVersionId}`);
 
+  const contentOverridesForRun = useMemo(
+    () => (Object.keys(fieldOverrides).length > 0 ? normalizeContentUpdates(fieldOverrides) : undefined),
+    [fieldOverrides]
+  );
   const {
     isRunning: matchRunning,
     isLoading: matchLoading,
@@ -389,10 +446,61 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     error: matchError,
     runMatchmaking,
     visualizationData,
-  } = useMatchmaking(projectId, selectedVersionId ?? null);
+    draftPayload,
+    lastMatchRunId,
+  } = useMatchmaking(projectId, selectedVersionId ?? null, contentOverridesForRun);
 
   const hasResults = matchScores.length > 0 || !!visualizationData;
   const hasOverrides = Object.keys(fieldOverrides).length > 0;
+  const hasSanityWarnings = Object.values(fieldWarnings).some((w) => w.length > 0);
+
+  const handleBlurWithSanity = useCallback(
+    (key: string, val: string) => {
+      const rawBase = getFieldValue(project, key);
+      if (val === String(rawBase ?? "")) {
+        setEditingFieldKey(null);
+        return;
+      }
+      const nextOverrides = { ...fieldOverrides, [key]: val };
+      setFieldOverrides(nextOverrides);
+      setEditingFieldKey(null);
+      const merged = getMergedContext(project, nextOverrides);
+      const parsedValue =
+        key === "affordableHousing"
+          ? /^(1|true|yes)$/i.test(val.trim())
+          : NUMERIC_KEYS.has(key)
+            ? parseFloat(val.replace(/[,$%]/g, "").trim())
+            : val.trim();
+      sanityCheckerRef.current?.scheduleCheck(
+        key,
+        parsedValue,
+        merged,
+        {},
+        (fieldId, warnings) => setFieldWarnings((w) => ({ ...w, [fieldId]: warnings })),
+        (fieldId, err) => console.error(`[LenderMatchTab] sanity check failed for ${fieldId}:`, err)
+      );
+      const deps = FIELD_DEPENDENCIES[key];
+      if (deps?.length && sanityCheckerRef.current) {
+        const toCheck = deps
+          .filter((dep) => EDITABLE_KEYS.has(dep))
+          .map((depId) => ({
+            fieldId: depId,
+            value: merged[depId],
+            context: merged,
+            existingFieldData: {},
+          }))
+          .filter((f) => f.value !== undefined && f.value !== null && f.value !== "");
+        if (toCheck.length > 0) {
+          sanityCheckerRef.current.batchCheck(
+            toCheck,
+            (fid, warnings) => setFieldWarnings((w) => ({ ...w, [fid]: warnings })),
+            (fid, err) => console.error(`[LenderMatchTab] batch sanity failed for ${fid}:`, err)
+          );
+        }
+      }
+    },
+    [project, fieldOverrides]
+  );
 
   console.log(`[LenderMatchTab] matchScores.length=${matchScores.length}, hasResults=${hasResults}, matchLoading=${matchLoading}, visualizationData=${!!visualizationData}`);
 
@@ -475,8 +583,12 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   }, [currentVersion, labelDraft]);
 
   // Save version snapshot via backend (with optional content_updates from Lender Matching edits).
-  // Prompts the advisor for a version label, saves, then selects the new version.
+  // Then, if there is a draft match run, persist it for this version via save-run.
   const handleSaveVersion = useCallback(async () => {
+    if (hasSanityWarnings) {
+      window.alert("Please fix the validation warnings on the deal parameters before saving a new version.");
+      return;
+    }
     const labelInput = window.prompt("Name this version (e.g. 'Conservative 65% LTV', 'Bridge Aggressive'):");
     if (labelInput === null) return; // user pressed Cancel
 
@@ -495,7 +607,6 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
       const result = await res.json();
       setFieldOverrides({});
 
-      // Assign label to the newly created version
       const newVersionId: string | undefined = result.versionId;
       const trimmedLabel = labelInput.trim();
       if (newVersionId && trimmedLabel) {
@@ -513,14 +624,34 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
         }
       }
 
-      // Refetch versions and auto-select the latest (newly created) one
+      // Persist current draft match run for this new version (one run per resume version)
+      if (draftPayload && newVersionId) {
+        try {
+          await fetch(`${base}/api/v1/matchmaking/save-run`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+            body: JSON.stringify({
+              project_id: projectId,
+              project_resume_id: newVersionId,
+              run_id: draftPayload.run_id,
+              config: draftPayload.config,
+              hmda_source: draftPayload.hmda_source,
+              total_lenders: draftPayload.total_lenders,
+              visualization_data: draftPayload.visualization_data,
+            }),
+          });
+        } catch (saveRunErr) {
+          console.error("[LenderMatchTab] save-run failed:", saveRunErr);
+        }
+      }
+
       await fetchVersions(true);
     } catch (err) {
       console.error("[LenderMatchTab] save version failed:", err);
     } finally {
       setIsSavingVersion(false);
     }
-  }, [projectId, fetchVersions, fieldOverrides, hasOverrides]);
+  }, [projectId, fetchVersions, fieldOverrides, hasOverrides, draftPayload, hasSanityWarnings]);
 
   return (
     <div className="flex gap-6 items-start max-w-[1600px] mx-auto">
@@ -705,16 +836,12 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                           isEditing={isCurrentlyEditing}
                           inputDefaultValue={inputDefault}
                           onStartEdit={() => setEditingFieldKey(key)}
-                          onBlur={(val) => {
-                            if (val !== String(rawValue ?? "")) {
-                              setFieldOverrides((prev) => ({ ...prev, [key]: val }));
-                            }
-                            setEditingFieldKey(null);
-                          }}
+                          onBlur={(val) => handleBlurWithSanity(key, val)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") (e.target as HTMLInputElement | HTMLSelectElement).blur();
                             if (e.key === "Escape") setEditingFieldKey(null);
                           }}
+                          warnings={fieldWarnings[key]}
                         />
                       );
                     })}
@@ -742,7 +869,8 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
             <button
               type="button"
               onClick={() => runMatchmaking()}
-              disabled={matchRunning}
+              disabled={matchRunning || hasSanityWarnings}
+              title={hasSanityWarnings ? "Fix validation warnings on deal parameters before running." : undefined}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
             >
               {matchRunning ? (
@@ -754,6 +882,9 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
               )}
             </button>
           </div>
+          {hasSanityWarnings && (
+            <p className="text-xs text-amber-600 mt-1">Fix validation warnings on deal parameters above before running or saving.</p>
+          )}
 
           {matchError && (
             <div className="flex items-start gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -802,6 +933,8 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
             matchScores.map((score) => (
               <MatchCard
                 key={score.id}
+                projectId={projectId}
+                matchRunId={lastMatchRunId}
                 score={score}
                 expanded={expandedScoreId === score.id}
                 onToggle={() => setExpandedScoreId((id) => (id === score.id ? null : score.id))}

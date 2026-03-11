@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import {
   Loader2,
   Sparkles,
@@ -10,39 +10,29 @@ import {
   FileText,
 } from "lucide-react";
 import { useLenderAIReport } from "@/hooks/useLenderAIReport";
+import type { MatchScore } from "@/hooks/useMatchmaking";
 
 interface LenderAIReportProps {
-  matchScoreId: string;
+  projectId: string;
+  matchRunId: string | null;
+  score: MatchScore;
   lenderName: string;
 }
 
 export const LenderAIReport: React.FC<LenderAIReportProps> = ({
-  matchScoreId,
+  projectId,
+  matchRunId,
+  score,
   lenderName,
 }) => {
   const {
     report,
-    isLoading,
     isGenerating,
     error,
-    fetchCachedReport,
     generateReport,
-  } = useLenderAIReport(matchScoreId);
-
-  useEffect(() => {
-    fetchCachedReport();
-  }, [fetchCachedReport]);
+  } = useLenderAIReport(projectId, matchRunId, score);
 
   const content = report?.report_content;
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 p-3 text-sm text-gray-500">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Checking for cached report...
-      </div>
-    );
-  }
 
   if (!content) {
     return (
@@ -89,7 +79,6 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Executive Summary */}
         {content.executive_summary && (
           <div>
             <h4 className="text-sm font-semibold text-gray-800 mb-1.5">
@@ -101,7 +90,6 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
           </div>
         )}
 
-        {/* Strengths */}
         {content.strengths && content.strengths.length > 0 && (
           <div>
             <h4 className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5 mb-1.5">
@@ -122,7 +110,6 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
           </div>
         )}
 
-        {/* Gaps / Risks */}
         {content.gaps && content.gaps.length > 0 && (
           <div>
             <h4 className="text-sm font-semibold text-amber-700 flex items-center gap-1.5 mb-1.5">
@@ -143,7 +130,6 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
           </div>
         )}
 
-        {/* Recommendations */}
         {content.recommendations && content.recommendations.length > 0 && (
           <div>
             <h4 className="text-sm font-semibold text-blue-700 flex items-center gap-1.5 mb-1.5">

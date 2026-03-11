@@ -8,6 +8,7 @@ import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManageme
 import { apiClient } from "@/lib/apiClient";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { getBackendUrl } from "@/lib/apiConfig";
+import { getMatchmakingDraft } from "@/hooks/useMatchmaking";
 
 import { AddFromResumeModal } from "@/components/lender/AddFromResumeModal";
 import { useUnderwritingStore } from "@/stores/useUnderwritingStore";
@@ -435,38 +436,37 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         };
     }, [projectId]);
 
-    // Fetch matched lenders for current version (from matchmaking run)
-    const fetchMatchedLenders = useCallback(async () => {
+    // Matched lenders come from the draft run in sessionStorage (no backend call)
+    const refreshMatchedLendersFromDraft = useCallback(() => {
         if (!projectId) return;
         setMatchedLendersLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            const base = getBackendUrl();
-            const res = await fetch(
-                `${base}/api/v1/matchmaking/projects/${encodeURIComponent(projectId)}/matched-lenders`,
-                { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-            );
-            if (!res.ok) {
+            const draft = getMatchmakingDraft(projectId);
+            if (!draft?.visualization_data?.lenders?.length) {
                 setMatchedLenders([]);
                 return;
             }
-            const data = await res.json();
-            const top = (data.lenders ?? []).slice(0, MAX_LENDERS_SHOWN);
+            const top = draft.visualization_data.lenders
+                .slice(0, MAX_LENDERS_SHOWN)
+                .map((l: { lei: string; name?: string; rank: number; total_score: number }) => ({
+                    match_score_id: `draft_${l.lei}`,
+                    lender_lei: l.lei,
+                    lender_name: l.name ?? null,
+                    rank: l.rank,
+                    total_score: l.total_score,
+                }));
             setMatchedLenders(top);
             if (top.length > 0 && !selectedLenderLei) {
                 setSelectedLenderLei(top[0].lender_lei);
             }
-        } catch {
-            setMatchedLenders([]);
         } finally {
             setMatchedLendersLoading(false);
         }
     }, [projectId, selectedLenderLei]);
 
     useEffect(() => {
-        fetchMatchedLenders();
-    }, [fetchMatchedLenders]);
+        refreshMatchedLendersFromDraft();
+    }, [refreshMatchedLendersFromDraft]);
 
     const selectedLender = useMemo(
         () => matchedLenders.find((l) => l.lender_lei === selectedLenderLei) ?? matchedLenders[0] ?? null,
