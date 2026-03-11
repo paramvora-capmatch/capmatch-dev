@@ -10,6 +10,19 @@ export interface VisualizationData {
   sceneScale: number;
 }
 
+/** Lender medians from HMDA (for AI report "lender typical"). */
+export interface LenderTypical {
+  ltv_median?: number | null;
+  loan_amount_median?: number | null;
+  property_value_median?: number | null;
+  total_units_median?: number | null;
+  interest_rate_median?: number | null;
+  loan_term_median?: number | null;
+  origination_charges_median?: number | null;
+  affordable_ratio?: number;
+  total_loans?: number;
+}
+
 export interface LenderVizData {
   lei: string;
   name: string;
@@ -24,6 +37,7 @@ export interface LenderVizData {
   narrative: string;
   pillar_scores: Record<string, number>;
   variables: VariableVizData[];
+  lender_typical?: LenderTypical | null;
 }
 
 export interface VariableVizData {
@@ -44,6 +58,7 @@ export interface MatchScore {
   overall_narrative: string | null;
   pillar_scores: Record<string, number>;
   variable_scores: VariableVizData[];
+  lender_typical?: LenderTypical | null;
 }
 
 /** Draft run payload for sessionStorage and save-run. */
@@ -55,6 +70,8 @@ export interface MatchmakingDraftPayload {
   visualization_data: VisualizationData;
   lastRunAt: string;
   scores?: MatchScore[];
+  /** Override parameters used for this run; rehydrated when returning to the tab. */
+  field_overrides?: Record<string, string>;
 }
 
 const DRAFT_STORAGE_KEY_PREFIX = "matchmaking_draft_";
@@ -122,6 +139,7 @@ export function vizLendersToMatchScores(
     overall_narrative: l.narrative ?? null,
     pillar_scores: l.pillar_scores || {},
     variable_scores: l.variables || [],
+    lender_typical: l.lender_typical ?? null,
   }));
 }
 
@@ -259,7 +277,7 @@ export function useMatchmaking(
     await fetchRunByResume();
   }, [fetchRunByResume]);
 
-  const runMatchmaking = useCallback(async () => {
+  const runMatchmaking = useCallback(async (overridesToPersist?: Record<string, string>) => {
     setState((s) => ({ ...s, isRunning: true, error: null }));
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -302,6 +320,7 @@ export function useMatchmaking(
         visualization_data: viz,
         lastRunAt: new Date().toISOString(),
         scores,
+        field_overrides: overridesToPersist && Object.keys(overridesToPersist).length > 0 ? overridesToPersist : undefined,
       };
       setMatchmakingDraft(projectId, draftPayload);
       setState((s) => ({
@@ -327,6 +346,11 @@ export function useMatchmaking(
 
   useEffect(() => {
     if (!resumeIdReady || !projectId) {
+      setState((s) => ({ ...s, isLoading: false }));
+      return;
+    }
+    // Prefer draft (latest run, possibly with overrides) over saved run when returning to the tab.
+    if (getMatchmakingDraft(projectId)) {
       setState((s) => ({ ...s, isLoading: false }));
       return;
     }

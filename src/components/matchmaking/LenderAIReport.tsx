@@ -8,14 +8,16 @@ import {
   AlertTriangle,
   Lightbulb,
   FileText,
+  Target,
 } from "lucide-react";
-import { useLenderAIReport } from "@/hooks/useLenderAIReport";
+import { useLenderAIReport, type DealSummaryForAI } from "@/hooks/useLenderAIReport";
 import type { MatchScore } from "@/hooks/useMatchmaking";
 
 interface LenderAIReportProps {
   projectId: string;
   matchRunId: string | null;
   score: MatchScore;
+  dealSummary: DealSummaryForAI;
   lenderName: string;
 }
 
@@ -23,6 +25,7 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
   projectId,
   matchRunId,
   score,
+  dealSummary,
   lenderName,
 }) => {
   const {
@@ -30,7 +33,7 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
     isGenerating,
     error,
     generateReport,
-  } = useLenderAIReport(projectId, matchRunId, score);
+  } = useLenderAIReport(projectId, matchRunId, score, dealSummary);
 
   const content = report?.report_content;
 
@@ -79,6 +82,26 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
       </div>
 
       <div className="p-4 space-y-4">
+        {content.numerical_recommendations && content.numerical_recommendations.length > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-indigo-700 flex items-center gap-1.5 mb-1.5">
+              <Target size={14} />
+              Numerical recommendations to improve fit
+            </h4>
+            <ul className="space-y-1.5">
+              {content.numerical_recommendations.map((rec, i) => (
+                <li
+                  key={i}
+                  className="text-sm text-gray-700 flex items-start gap-2 font-medium"
+                >
+                  <span className="text-indigo-500 mt-0.5 shrink-0">•</span>
+                  <span>{rec}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {content.executive_summary && (
           <div>
             <h4 className="text-sm font-semibold text-gray-800 mb-1.5">

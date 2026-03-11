@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import type { MatchScore } from "@/hooks/useMatchmaking";
 
 export interface AIReportContent {
+  numerical_recommendations?: string[];
   executive_summary: string;
   strengths: string[];
   gaps: string[];
@@ -50,10 +51,14 @@ function scoreToLenderPayload(score: MatchScore): {
   };
 }
 
+/** Optional deal summary (resume + overrides) for AI report context. */
+export type DealSummaryForAI = Record<string, unknown> | null;
+
 export function useLenderAIReport(
   projectId: string,
   matchRunId: string | null,
-  score: MatchScore | null
+  score: MatchScore | null,
+  dealSummary: DealSummaryForAI = null
 ) {
   const [state, setState] = useState<UseLenderAIReportState>({
     report: null,
@@ -77,14 +82,21 @@ export function useLenderAIReport(
     try {
       const headers = await getAuthHeaders();
       const base = getBackendUrl();
+      const body: Record<string, unknown> = {
+        project_id: projectId,
+        match_run_id: matchRunId || null,
+        lender: scoreToLenderPayload(score),
+      };
+      if (dealSummary && Object.keys(dealSummary).length > 0) {
+        body.deal_summary = dealSummary;
+      }
+      if (score.lender_typical && Object.keys(score.lender_typical).length > 0) {
+        body.lender_typical = score.lender_typical;
+      }
       const res = await fetch(`${base}/api/v1/matchmaking/ai-report/generate`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          project_id: projectId,
-          match_run_id: matchRunId || null,
-          lender: scoreToLenderPayload(score),
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -110,7 +122,7 @@ export function useLenderAIReport(
         error: err instanceof Error ? err.message : "AI report generation failed",
       }));
     }
-  }, [projectId, matchRunId, score, getAuthHeaders]);
+  }, [projectId, matchRunId, score, dealSummary, getAuthHeaders]);
 
   return {
     ...state,

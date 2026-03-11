@@ -23,7 +23,7 @@ import {
   X,
   Lock,
 } from "lucide-react";
-import { useMatchmaking, type MatchScore, type VariableVizData } from "@/hooks/useMatchmaking";
+import { useMatchmaking, getMatchmakingDraft, type MatchScore, type VariableVizData } from "@/hooks/useMatchmaking";
 import { useProjectStore } from "@/stores/useProjectStore";
 import { supabase } from "@/lib/supabaseClient";
 import { getBackendUrl } from "@/lib/apiConfig";
@@ -168,6 +168,33 @@ function getMergedContext(
   return { ...base, ...normalized };
 }
 
+/** Keys and labels for AI report deal summary (subset of merged context). */
+const DEAL_SUMMARY_KEYS: { key: string; label: string }[] = [
+  { key: "loanAmountRequested", label: "Loan amount requested" },
+  { key: "targetLtvPercent", label: "Target LTV %" },
+  { key: "dscr", label: "DSCR" },
+  { key: "stabilizedValue", label: "Stabilized value" },
+  { key: "purchasePrice", label: "Purchase price" },
+  { key: "totalResidentialUnits", label: "Total residential units" },
+  { key: "projectPhase", label: "Project phase" },
+  { key: "interestRate", label: "Interest rate" },
+  { key: "requestedTerm", label: "Requested term" },
+  { key: "affordableHousing", label: "Affordable housing" },
+  { key: "affordableUnitsNumber", label: "Affordable units number" },
+  { key: "propertyNoiT12", label: "Property NOI T12" },
+  { key: "noiYear1", label: "NOI Year 1" },
+];
+
+function buildDealSummaryForAIReport(merged: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const { key, label } of DEAL_SUMMARY_KEYS) {
+    const v = merged[key];
+    if (v === undefined || v === null) continue;
+    out[label] = typeof v === "boolean" ? (v ? "Yes" : "No") : v;
+  }
+  return out;
+}
+
 // ─── Deal parameter control (editable vs read-only) ─────────────────────────
 
 function DealParameterControl({
@@ -297,12 +324,14 @@ function MatchCard({
   projectId,
   matchRunId,
   score,
+  dealSummary,
   expanded,
   onToggle,
 }: {
   projectId: string;
   matchRunId: string | null;
   score: MatchScore;
+  dealSummary: Record<string, unknown> | null;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -378,6 +407,7 @@ function MatchCard({
             projectId={projectId}
             matchRunId={matchRunId}
             score={score}
+            dealSummary={dealSummary}
             lenderName={displayName}
           />
         </div>
@@ -425,6 +455,15 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
       sanityCheckerRef.current?.cancelAll();
     };
   }, []);
+
+  // Rehydrate field overrides from draft when returning to the tab (e.g. after switching to Underwriting).
+  useEffect(() => {
+    if (!projectId) return;
+    const draft = getMatchmakingDraft(projectId);
+    if (draft?.field_overrides && Object.keys(draft.field_overrides).length > 0) {
+      setFieldOverrides(draft.field_overrides);
+    }
+  }, [projectId]);
 
   const activeProject = useProjectStore((s) => s.activeProject);
   const project = activeProject?.id === projectId ? activeProject : null;
@@ -501,6 +540,11 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     },
     [project, fieldOverrides]
   );
+
+  const dealSummaryForAI = useMemo(() => {
+    const merged = getMergedContext(project, fieldOverrides);
+    return buildDealSummaryForAIReport(merged);
+  }, [project, fieldOverrides]);
 
   console.log(`[LenderMatchTab] matchScores.length=${matchScores.length}, hasResults=${hasResults}, matchLoading=${matchLoading}, visualizationData=${!!visualizationData}`);
 
@@ -868,7 +912,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
             </div>
             <button
               type="button"
-              onClick={() => runMatchmaking()}
+              onClick={() => runMatchmaking(fieldOverrides)}
               disabled={matchRunning || hasSanityWarnings}
               title={hasSanityWarnings ? "Fix validation warnings on deal parameters before running." : undefined}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
@@ -936,6 +980,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                 projectId={projectId}
                 matchRunId={lastMatchRunId}
                 score={score}
+                dealSummary={dealSummaryForAI}
                 expanded={expandedScoreId === score.id}
                 onToggle={() => setExpandedScoreId((id) => (id === score.id ? null : score.id))}
               />
