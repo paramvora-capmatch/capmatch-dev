@@ -100,11 +100,11 @@ async function fetchBorrowerData(
     }
   });
 
-  // Create a map from org_id -> borrower info
+  // Create a map from project_id -> borrower info (per-project, from each project's borrower resume)
   const borrowerMap: BorrowerData = {};
 
   projects.forEach((project) => {
-    if (!project.owner_org_id || !project.id) return;
+    if (!project.id) return;
 
     const resumeContent = projectToResume.get(project.id);
     if (!resumeContent) {
@@ -121,17 +121,14 @@ async function fetchBorrowerData(
       return;
     }
 
-    // Only add if not already in map (first project for this org wins)
-    if (!borrowerMap[project.owner_org_id]) {
-      const contactEmail = extractFieldValue(
-        resumeContent.contactEmail as string | RichFieldValue | undefined
-      );
+    const contactEmail = extractFieldValue(
+      resumeContent.contactEmail as string | RichFieldValue | undefined
+    );
 
-      borrowerMap[project.owner_org_id] = {
-        name: fullLegalName,
-        email: contactEmail,
-      };
-    }
+    borrowerMap[project.id] = {
+      name: fullLegalName,
+      email: contactEmail,
+    };
   });
 
   console.log("[AdvisorDashboard] Borrower data map (from resumes):", borrowerMap);
@@ -312,7 +309,7 @@ export default function AdvisorDashboardPage() {
                               primaryCtaLabel="View Project"
                               showDeleteButton={false}
                               unreadCount={unreadByProject[project.id] || 0}
-                              borrowerName={borrowerData[project.owner_org_id]?.name}
+                              borrowerName={borrowerData[project.id]?.name}
                               showMembers={true}
                               members={membersByProjectId[project.id]}
                               isMembersLoading={membersLoading}

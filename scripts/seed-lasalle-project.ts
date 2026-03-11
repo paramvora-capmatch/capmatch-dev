@@ -89,7 +89,8 @@ const LENDER_NAME = "Capital Lending Group";
 
 const POSSIBLE_DOC_PATHS = [
 	...(process.env.LASALLE_DOCS_PATH ? [process.env.LASALLE_DOCS_PATH] : []),
-	resolve(process.cwd(), "Deals", "LaSalle", "300 E, Lasalle", "300 E, Lasalle", "final-set"),
+	"D:\\Documents\\cyber\\work\\context\\LaSalle\\final-set",
+	resolve(process.cwd(), "Deals", "LaSalle", "final-set"),
 	resolve(process.cwd(), "..", "Deals", "LaSalle", "300 E, Lasalle", "300 E, Lasalle", "final-set"),
 	"D:\\Career\\Technology\\Job\\CapMatch\\Deals\\LaSalle\\300 E, Lasalle\\300 E, Lasalle\\final-set",
 ];
