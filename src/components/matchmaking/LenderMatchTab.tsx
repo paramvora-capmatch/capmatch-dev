@@ -21,6 +21,7 @@ import {
   Pencil,
   Check,
   X,
+  Lock,
 } from "lucide-react";
 import { useMatchmaking, type MatchScore, type VariableVizData } from "@/hooks/useMatchmaking";
 import { useProjectStore } from "@/stores/useProjectStore";
@@ -148,6 +149,90 @@ function normalizeContentUpdates(overrides: Record<string, string>): Record<stri
     out[key] = raw.trim() || raw;
   }
   return out;
+}
+
+// ─── Deal parameter control (editable vs read-only) ─────────────────────────
+
+function DealParameterControl({
+  label,
+  displayValue,
+  editable,
+  modified,
+  isBoolean,
+  isEditing,
+  inputDefaultValue,
+  onStartEdit,
+  onBlur,
+  onKeyDown,
+}: {
+  label: string;
+  displayValue: string;
+  editable: boolean;
+  modified: boolean;
+  isBoolean?: boolean;
+  isEditing: boolean;
+  inputDefaultValue: string;
+  onStartEdit: () => void;
+  onBlur: (value: string) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5">
+        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+          {label}
+        </label>
+        {editable ? (
+          <Pencil size={10} className="text-blue-500 shrink-0" title="Editable — change and re-run matchmaking" />
+        ) : (
+          <Lock size={10} className="text-gray-400 shrink-0" title="Read-only" />
+        )}
+      </div>
+      {editable && isEditing ? (
+        isBoolean ? (
+          <select
+            className="w-full px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-blue-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            defaultValue={inputDefaultValue}
+            onBlur={(e) => onBlur(e.target.value)}
+            onKeyDown={onKeyDown}
+            autoFocus
+          >
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        ) : (
+          <input
+            type="text"
+            className="w-full px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-blue-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            defaultValue={inputDefaultValue}
+            onBlur={(e) => onBlur(e.target.value.trim())}
+            onKeyDown={onKeyDown}
+            autoFocus
+          />
+        )
+      ) : editable ? (
+        <button
+          type="button"
+          onClick={onStartEdit}
+          className={`w-full px-3 py-2 text-sm font-medium text-left rounded-lg border transition-colors cursor-text hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            modified
+              ? "bg-amber-50 border-amber-300 text-amber-800"
+              : "bg-white border-gray-300 text-gray-900"
+          }`}
+          title="Click to edit — then re-run matchmaking"
+        >
+          {displayValue}
+        </button>
+      ) : (
+        <div
+          className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg border border-gray-200"
+          title="From resume — not used for matchmaking inputs"
+        >
+          {displayValue}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ScoreBadge({ score }: { score: number }) {
@@ -566,75 +651,71 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
           </div>
         </div>
 
-        {/* Key Deal Terms (9 backend matchmaking dimensions) — editable */}
+        {/* Matchmaking parameters — controls-style UI (editable vs read-only) */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-2">
             <Star size={16} className="text-blue-600" />
-            <h3 className="text-base font-semibold text-gray-800">Key Deal Terms</h3>
+            <h3 className="text-base font-semibold text-gray-800">Matchmaking parameters</h3>
             {hasOverrides && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
                 {Object.keys(fieldOverrides).length} changed
               </span>
             )}
           </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Adjust these deal parameters to explore scenarios. Re-run matchmaking to see how lender matches change.
+          </p>
           {!project ? (
             <p className="text-sm text-gray-500">No project data. Open a project to see deal terms.</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {KEY_DEAL_TERMS_SECTIONS.map((section) => (
                 <div key={section.label}>
-                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                     {section.label}
                   </div>
-                  <div className="space-y-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {section.keys.map(({ key, label }) => {
                       const rawValue = getFieldValue(project, key);
                       const overrideValue = fieldOverrides[key];
-                      const displayValue = overrideValue !== undefined ? overrideValue : formatDealValue(rawValue, key);
+                      const displayValue =
+                        overrideValue !== undefined
+                          ? key === "affordableHousing"
+                            ? /^(1|true|yes)$/i.test(overrideValue) ? "Yes" : "No"
+                            : overrideValue
+                          : formatDealValue(rawValue, key);
                       const isEditable = EDITABLE_KEYS.has(key);
                       const isModified = overrideValue !== undefined;
                       const isCurrentlyEditing = editingFieldKey === key;
+                      const isBoolean = key === "affordableHousing";
+                      const inputDefault = overrideValue !== undefined
+                        ? overrideValue
+                        : isBoolean
+                          ? (rawValue === true || rawValue === "true" || rawValue === "1" ? "yes" : "no")
+                          : String(rawValue ?? "");
 
                       return (
-                        <div
+                        <DealParameterControl
                           key={key}
-                          className={`flex justify-between items-baseline gap-2 text-sm rounded px-1 py-0.5 ${
-                            isModified ? "bg-amber-50" : ""
-                          }`}
-                        >
-                          <span className="text-gray-600">{label}</span>
-                          {isCurrentlyEditing ? (
-                            <input
-                              type="text"
-                              className="text-sm font-medium text-gray-900 bg-white border border-blue-300 rounded px-2 py-0.5 text-right w-[55%] focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              defaultValue={overrideValue ?? String(rawValue ?? "")}
-                              autoFocus
-                              onBlur={(e) => {
-                                const val = e.target.value.trim();
-                                if (val && val !== String(rawValue ?? "")) {
-                                  setFieldOverrides((prev) => ({ ...prev, [key]: val }));
-                                }
-                                setEditingFieldKey(null);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                                else if (e.key === "Escape") setEditingFieldKey(null);
-                              }}
-                            />
-                          ) : (
-                            <span
-                              className={`font-medium truncate max-w-[60%] text-right ${
-                                isEditable
-                                  ? "text-gray-900 cursor-pointer hover:text-blue-600 hover:underline decoration-dotted underline-offset-2"
-                                  : "text-gray-900"
-                              } ${isModified ? "text-amber-700" : ""}`}
-                              onClick={isEditable ? () => setEditingFieldKey(key) : undefined}
-                              title={isEditable ? "Click to edit" : undefined}
-                            >
-                              {displayValue}
-                            </span>
-                          )}
-                        </div>
+                          label={label}
+                          displayValue={displayValue}
+                          editable={isEditable}
+                          modified={isModified}
+                          isBoolean={isBoolean}
+                          isEditing={isCurrentlyEditing}
+                          inputDefaultValue={inputDefault}
+                          onStartEdit={() => setEditingFieldKey(key)}
+                          onBlur={(val) => {
+                            if (val !== String(rawValue ?? "")) {
+                              setFieldOverrides((prev) => ({ ...prev, [key]: val }));
+                            }
+                            setEditingFieldKey(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") (e.target as HTMLInputElement | HTMLSelectElement).blur();
+                            if (e.key === "Escape") setEditingFieldKey(null);
+                          }}
+                        />
                       );
                     })}
                   </div>

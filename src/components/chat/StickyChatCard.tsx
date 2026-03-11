@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { MessageSquare, Brain, Users } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "@/utils/cn";
@@ -33,6 +33,8 @@ interface StickyChatCardProps {
   mode?: "ask-ai" | "underwriter";
   clientContext?: any; // Context for AI Underwriter Live Edit
   defaultTopic?: string; // Default thread topic to open
+  /** When true, collapse the chat when this prop becomes true (e.g. when entering lender matching or underwriting mode). User can still expand afterward. */
+  collapseWhenActive?: boolean;
 }
 
 export const StickyChatCard: React.FC<StickyChatCardProps> = ({
@@ -53,22 +55,16 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   mode = "ask-ai",
   clientContext,
   defaultTopic,
+  collapseWhenActive,
 }) => {
   const isUnderwritingMode = mode === "underwriter";
   const [rightTab, setRightTab] = useState<"team" | "ai" | "meet">(
     hideTeamTab ? "ai" : isUnderwritingMode ? "ai" : "team"
   );
-  const [isChatCollapsed, setIsChatCollapsed] = useState<boolean>(() => {
-    try {
-      return JSON.parse(
-        typeof window !== "undefined"
-          ? localStorage.getItem(`chatCollapsed:${projectId}`) || "false"
-          : "false"
-      );
-    } catch {
-      return false;
-    }
-  });
+  // Resume view: expanded by default. Lender matching/underwriting: collapsed by default. User can still toggle.
+  const [isChatCollapsed, setIsChatCollapsed] = useState<boolean>(
+    () => collapseWhenActive === true
+  );
   const [isChatHovered, setIsChatHovered] = useState(false);
 
   useEffect(() => {
@@ -93,6 +89,18 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
       setIsChatCollapsed(false);
     }
   }, [externalShouldExpand, isChatCollapsed]);
+
+  // When entering lender matching or underwriting: collapse. When switching back to resume: expand.
+  const prevCollapseWhenActive = useRef(collapseWhenActive ?? false);
+  useEffect(() => {
+    const active = collapseWhenActive ?? false;
+    if (active && !prevCollapseWhenActive.current) {
+      setIsChatCollapsed(true);
+    } else if (!active && prevCollapseWhenActive.current) {
+      setIsChatCollapsed(false);
+    }
+    prevCollapseWhenActive.current = active;
+  }, [collapseWhenActive]);
 
   // Thread and unread counts (WhatsApp-style) – use selectors to avoid re-renders from unrelated store changes
   const chatSlice = useChatStore(
