@@ -22,8 +22,9 @@ import {
   Check,
   X,
   Lock,
+  BookmarkPlus,
 } from "lucide-react";
-import { useMatchmaking, getMatchmakingDraft, type MatchScore, type VariableVizData } from "@/hooks/useMatchmaking";
+import { useMatchmaking, getMatchmakingDraft, setMatchmakingDraft, type MatchScore, type VariableVizData } from "@/hooks/useMatchmaking";
 import { useProjectStore } from "@/stores/useProjectStore";
 import { supabase } from "@/lib/supabaseClient";
 import { getBackendUrl } from "@/lib/apiConfig";
@@ -327,6 +328,11 @@ function MatchCard({
   dealSummary,
   expanded,
   onToggle,
+  canAddToWishlist,
+  projectResumeId,
+  onAddToWishlist,
+  wishlistAdded,
+  wishlistLoading,
 }: {
   projectId: string;
   matchRunId: string | null;
@@ -334,6 +340,11 @@ function MatchCard({
   dealSummary: Record<string, unknown> | null;
   expanded: boolean;
   onToggle: () => void;
+  canAddToWishlist: boolean;
+  projectResumeId: string | null;
+  onAddToWishlist: (score: MatchScore) => void;
+  wishlistAdded: Set<string>;
+  wishlistLoading: string | null;
 }) {
   const displayName = score.lender_name || score.lender_lei || "Unknown";
   const pillar = score.pillar_scores || {};
@@ -402,6 +413,27 @@ function MatchCard({
             </div>
           )}
 
+          {/* Add to wishlist (only when run is saved) */}
+          {canAddToWishlist && projectResumeId && matchRunId && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAddToWishlist(score); }}
+                disabled={wishlistAdded.has(score.lender_lei) || wishlistLoading === score.lender_lei}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {wishlistLoading === score.lender_lei ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : wishlistAdded.has(score.lender_lei) ? (
+                  <Check size={14} className="text-green-600" />
+                ) : (
+                  <BookmarkPlus size={14} className="text-blue-600" />
+                )}
+                {wishlistAdded.has(score.lender_lei) ? "In wishlist" : "Add to wishlist"}
+              </button>
+            </div>
+          )}
+
           {/* Tier 3: AI Report */}
           <LenderAIReport
             projectId={projectId}
@@ -442,6 +474,10 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   const [isSavingVersion, setIsSavingVersion] = useState(false);
   const [fieldWarnings, setFieldWarnings] = useState<Record<string, string[]>>({});
   const sanityCheckerRef = useRef<InstanceType<typeof import("@/lib/debouncedSanityCheck").DebouncedSanityChecker> | null>(null);
+
+  // Wishlist: lenders already in wishlist (LEI set), and loading state per LEI
+  const [wishlistLeis, setWishlistLeis] = useState<Set<string>>(new Set());
+  const [wishlistLoading, setWishlistLoading] = useState<string | null>(null);
 
   useEffect(() => {
     import("@/lib/debouncedSanityCheck").then(({ DebouncedSanityChecker }) => {
@@ -492,6 +528,61 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   const hasResults = matchScores.length > 0 || !!visualizationData;
   const hasOverrides = Object.keys(fieldOverrides).length > 0;
   const hasSanityWarnings = Object.values(fieldWarnings).some((w) => w.length > 0);
+
+  // Resolve saved run ids for wishlist (run must be saved to add to wishlist)
+  const draft = getMatchmakingDraft(projectId);
+  const savedMatchRunId = lastMatchRunId ?? draft?.match_run_id ?? null;
+  const savedProjectResumeId = selectedVersionId ?? draft?.project_resume_id ?? null;
+  const canAddToWishlist = Boolean(savedMatchRunId && savedProjectResumeId && hasResults);
+
+  // Load existing wishlist to show "In wishlist" for already-added lenders
+  useEffect(() => {
+    if (!projectId) return;
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = getBackendUrl();
+      const res = await fetch(`${base}/api/v1/projects/${encodeURIComponent(projectId)}/wishlist`, {
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+      });
+      const list = res.ok ? await res.json() : [];
+      if (!cancelled && Array.isArray(list)) {
+        setWishlistLeis(new Set(list.map((e: { lender_lei?: string }) => e.lender_lei).filter(Boolean) as string[]));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  const handleAddToWishlist = useCallback(
+    async (score: MatchScore) => {
+      if (!savedMatchRunId || !savedProjectResumeId) return;
+      setWishlistLoading(score.lender_lei);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        const base = getBackendUrl();
+        const res = await fetch(`${base}/api/v1/projects/${encodeURIComponent(projectId)}/wishlist`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+          body: JSON.stringify({
+            lender_lei: score.lender_lei,
+            lender_name: score.lender_name ?? null,
+            match_run_id: savedMatchRunId,
+            project_resume_id: savedProjectResumeId,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to add to wishlist");
+        setWishlistLeis((prev) => new Set(prev).add(score.lender_lei));
+      } catch (e) {
+        console.error("[LenderMatchTab] add to wishlist failed:", e);
+        window.alert("Failed to add lender to wishlist. Save the matchmaking run first.");
+      } finally {
+        setWishlistLoading(null);
+      }
+    },
+    [projectId, savedMatchRunId, savedProjectResumeId]
+  );
 
   const handleBlurWithSanity = useCallback(
     (key: string, val: string) => {
@@ -671,7 +762,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
       // Persist current draft match run for this new version (one run per resume version)
       if (draftPayload && newVersionId) {
         try {
-          await fetch(`${base}/api/v1/matchmaking/save-run`, {
+          const saveRunRes = await fetch(`${base}/api/v1/matchmaking/save-run`, {
             method: "POST",
             headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
             body: JSON.stringify({
@@ -684,6 +775,17 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
               visualization_data: draftPayload.visualization_data,
             }),
           });
+          if (saveRunRes.ok) {
+            const saveRunData = await saveRunRes.json();
+            const matchRunId = saveRunData?.id;
+            if (matchRunId && draftPayload) {
+              setMatchmakingDraft(projectId, {
+                ...draftPayload,
+                match_run_id: matchRunId,
+                project_resume_id: newVersionId,
+              });
+            }
+          }
         } catch (saveRunErr) {
           console.error("[LenderMatchTab] save-run failed:", saveRunErr);
         }
@@ -978,11 +1080,16 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
               <MatchCard
                 key={score.id}
                 projectId={projectId}
-                matchRunId={lastMatchRunId}
+                matchRunId={savedMatchRunId ?? lastMatchRunId}
                 score={score}
                 dealSummary={dealSummaryForAI}
                 expanded={expandedScoreId === score.id}
                 onToggle={() => setExpandedScoreId((id) => (id === score.id ? null : score.id))}
+                canAddToWishlist={canAddToWishlist}
+                projectResumeId={savedProjectResumeId}
+                onAddToWishlist={handleAddToWishlist}
+                wishlistAdded={wishlistLeis}
+                wishlistLoading={wishlistLoading}
               />
             ))
           )}

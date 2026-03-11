@@ -8,7 +8,6 @@ import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManageme
 import { apiClient } from "@/lib/apiClient";
 import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import { getBackendUrl } from "@/lib/apiConfig";
-import { getMatchmakingDraft } from "@/hooks/useMatchmaking";
 
 import { AddFromResumeModal } from "@/components/lender/AddFromResumeModal";
 import { useUnderwritingStore } from "@/stores/useUnderwritingStore";
@@ -23,7 +22,11 @@ export interface MatchedLender {
     lender_lei: string;
     lender_name: string | null;
     rank: number;
+    /** From wishlist; used for generate-single when generating for this lender's vault. */
+    project_resume_id?: string | null;
     total_score: number;
+    /** Label of the resume version (match run) this lender was added from. */
+    run_label?: string | null;
 }
 
 interface DocItem {
@@ -406,58 +409,81 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
 
 
-    // Fetch resources
-    useEffect(() => {
+    // Fetch resources: vault-scoped when a wishlist lender is selected, else project-level (legacy)
+    const refreshResources = useCallback(async () => {
         if (!projectId) return;
-
-        const fetchResources = async () => {
+        if (selectedLenderLei) {
+            const { data: vaultDocs } = await supabase
+                .from('underwriting_documents')
+                .select('resource_id')
+                .eq('lender_lei', selectedLenderLei);
+            const resourceIds = (vaultDocs ?? []).map((d) => d.resource_id).filter(Boolean);
+            if (resourceIds.length === 0) {
+                setResources([]);
+                return;
+            }
+            const { data: vaultResources, error } = await supabase
+                .from('resources')
+                .select('id, name')
+                .eq('project_id', projectId)
+                .in('id', resourceIds);
+            if (!error && vaultResources) setResources(vaultResources);
+            else setResources([]);
+        } else {
             const { data, error } = await supabase
                 .from('resources')
                 .select('id, name')
                 .eq('project_id', projectId);
+            if (!error && data) setResources(data);
+        }
+    }, [projectId, selectedLenderLei]);
 
-            if (!error && data) {
-                setResources(data);
-            }
-        };
+    useEffect(() => {
+        refreshResources();
+    }, [refreshResources]);
 
-        fetchResources();
-
-        // Subscribe to resource changes
+    useEffect(() => {
+        if (!projectId) return;
         const channel = supabase
             .channel('vault-resources')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'resources', filter: `project_id=eq.${projectId}` },
-                () => fetchResources()
+                () => refreshResources()
+            )
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'underwriting_documents' },
+                () => refreshResources()
             )
             .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [projectId, refreshResources]);
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [projectId]);
-
-    // Matched lenders come from the draft run in sessionStorage (no backend call)
-    const refreshMatchedLendersFromDraft = useCallback(() => {
+    // Matched lenders from wishlist API (required for vault per lender)
+    const refreshMatchedLendersFromWishlist = useCallback(async () => {
         if (!projectId) return;
         setMatchedLendersLoading(true);
         try {
-            const draft = getMatchmakingDraft(projectId);
-            if (!draft?.visualization_data?.lenders?.length) {
-                setMatchedLenders([]);
-                return;
-            }
-            const top = draft.visualization_data.lenders
-                .slice(0, MAX_LENDERS_SHOWN)
-                .map((l: { lei: string; name?: string; rank: number; total_score: number }) => ({
-                    match_score_id: `draft_${l.lei}`,
-                    lender_lei: l.lei,
-                    lender_name: l.name ?? null,
-                    rank: l.rank,
-                    total_score: l.total_score,
-                }));
-            setMatchedLenders(top);
-            if (top.length > 0 && !selectedLenderLei) {
-                setSelectedLenderLei(top[0].lender_lei);
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            const base = getBackendUrl();
+            const res = await fetch(`${base}/api/v1/projects/${encodeURIComponent(projectId)}/wishlist`, {
+                headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+            });
+            const list = res.ok ? await res.json() : [];
+            const lenders: MatchedLender[] = Array.isArray(list)
+                ? list.map((e: { lender_lei: string; lender_name?: string | null; project_resume_id?: string; total_score?: number; rank?: number; run_label?: string | null }, i: number) => ({
+                    match_score_id: `wishlist_${e.lender_lei}`,
+                    lender_lei: e.lender_lei,
+                    lender_name: e.lender_name ?? null,
+                    rank: e.rank ?? i + 1,
+                    total_score: typeof e.total_score === "number" ? e.total_score : 0,
+                    project_resume_id: e.project_resume_id ?? null,
+                    run_label: e.run_label ?? null,
+                  }))
+                : [];
+            setMatchedLenders(lenders);
+            if (lenders.length === 0) {
+                setSelectedLenderLei(null);
+            } else if (!selectedLenderLei || !lenders.some((l) => l.lender_lei === selectedLenderLei)) {
+                setSelectedLenderLei(lenders[0].lender_lei);
             }
         } finally {
             setMatchedLendersLoading(false);
@@ -465,8 +491,8 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     }, [projectId, selectedLenderLei]);
 
     useEffect(() => {
-        refreshMatchedLendersFromDraft();
-    }, [refreshMatchedLendersFromDraft]);
+        refreshMatchedLendersFromWishlist();
+    }, [refreshMatchedLendersFromWishlist]);
 
     const selectedLender = useMemo(
         () => matchedLenders.find((l) => l.lender_lei === selectedLenderLei) ?? matchedLenders[0] ?? null,
@@ -720,10 +746,15 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         const toastId = !options?.isBatch ? toast.loading(`Generating ${docName}...`) : undefined;
 
         try {
-            const res = await apiClient.post(`/api/v1/underwriting/generate-single`, {
+            const body: { project_id: string; document_name: string; lender_lei?: string; project_resume_id?: string } = {
                 project_id: projectId,
-                document_name: docName
-            });
+                document_name: docName,
+            };
+            if (selectedLenderLei && selectedLender?.project_resume_id) {
+                body.lender_lei = selectedLenderLei;
+                body.project_resume_id = selectedLender.project_resume_id;
+            }
+            const res = await apiClient.post(`/api/v1/underwriting/generate-single`, body);
 
             if (res.error) {
                 throw res.error;
@@ -735,6 +766,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 const result = await subscribeToJobUntilDone(jobId);
 
                 if (result.status === "completed") {
+                    await refreshResources();
                     await refresh();
                     if (!options?.isBatch) {
                         toast.success(`${docName} generated successfully!`, { id: toastId });
@@ -756,6 +788,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             }
 
             // No job_id (legacy): refresh once and assume success
+            await refreshResources();
             await refresh();
             if (!options?.isBatch) {
                 toast.success(`${docName} generation started.`, { id: toastId });
@@ -818,17 +851,16 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         }, 3000);
     };
 
-    // Merge fetched files into stages
+    // Merge fetched files into stages (when a lender is selected, only show files for that vault's resources)
+    const resourceIdSet = useMemo(() => new Set(resources.map((r) => r.id)), [resources]);
     const stages = useMemo(() => {
-        console.log("UnderwritingVault: received files:", files);
-
-
-        // Create a lookup map by name for O(1) access
+        const vaultFiles = selectedLenderLei
+            ? files.filter((f) => resourceIdSet.has(f.resource_id))
+            : files;
         const fileMap = new Map<string, DocumentFile>();
-        if (files) {
-            files.forEach(f => {
+        if (vaultFiles) {
+            vaultFiles.forEach(f => {
                 fileMap.set(f.name, f);
-                // Also map the name without extension to handle "Current Rent Roll.xlsx" matching "Current Rent Roll"
                 const nameWithoutExt = f.name.replace(/\.[^/.]+$/, "");
                 if (nameWithoutExt !== f.name) {
                     fileMap.set(nameWithoutExt, f);
@@ -879,7 +911,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 return doc;
             })
         }));
-    }, [files, threads, projectId, validationData]);
+    }, [files, threads, projectId, validationData, resourceIdSet, selectedLenderLei]);
 
     const hasMatchedLenders = matchedLenders.length > 0;
 
@@ -890,7 +922,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     <h2 className="text-xl font-bold text-gray-900">Underwriting Vault</h2>
                     <p className="text-gray-500 mt-1">
                         {hasMatchedLenders
-                            ? `Top ${matchedLenders.length} matched lenders — select a lender to manage their package.`
+                            ? `${matchedLenders.length} wishlist lender${matchedLenders.length !== 1 ? "s" : ""} — select one to manage their deal package.`
                             : "Manage, generate, and review underwriting documents."
                         }
                     </p>
@@ -903,11 +935,11 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     {matchedLendersLoading ? (
                         <div className="flex items-center gap-2 text-gray-500 text-sm p-4 bg-gray-50 rounded-xl border border-gray-200">
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            Loading matched lenders…
+                            Loading wishlist…
                         </div>
                     ) : !hasMatchedLenders ? (
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                            <p className="text-sm text-gray-500">No match run for the current resume version. Run matchmaking in the Lender Matching tab first.</p>
+                            <p className="text-sm text-gray-500">No lenders in your wishlist. In the Lender Matching tab, save a match run and add lenders to your wishlist to manage their deal packages here.</p>
                         </div>
                     ) : (
                         <div className="flex flex-wrap gap-2">
@@ -963,7 +995,9 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                             <div>
                                 <h3 className="text-base font-semibold text-gray-900">{selectedLenderDisplayName}</h3>
                                 <p className="text-xs text-gray-500">
-                                    Match score: {(selectedLender.total_score ?? 0).toFixed(1)}/100 &middot; LEI: {selectedLender.lender_lei}
+                                    Match score: {(selectedLender.total_score ?? 0).toFixed(1)}/100
+                                    {selectedLender.run_label ? ` from "${selectedLender.run_label}"` : ""}
+                                    {" · "}LEI: {selectedLender.lender_lei}
                                 </p>
                             </div>
                         </div>

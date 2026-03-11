@@ -72,6 +72,9 @@ export interface MatchmakingDraftPayload {
   scores?: MatchScore[];
   /** Override parameters used for this run; rehydrated when returning to the tab. */
   field_overrides?: Record<string, string>;
+  /** Set after save-run; required to add lenders to wishlist. */
+  match_run_id?: string;
+  project_resume_id?: string;
 }
 
 const DRAFT_STORAGE_KEY_PREFIX = "matchmaking_draft_";
