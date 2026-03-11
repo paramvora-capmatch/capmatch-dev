@@ -1,0 +1,59 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.*
+.yarn/*
+
+# Build output
+.next
+out
+build
+
+# Environment files (built via ARGs, .env stays on VM)
+.env
+.env.*
+!.env.template
+
+# Version control
+.git
+.gitignore
+
+# IDE / Editor
+.vscode
+.cursor
+.cursorignore
+
+# Logs
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Tests
+tests/
+coverage/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Misc
+.vercel
+.vercelignore
+.gptignore
+.mcp.json
+CLAUDE.md
+GEMINI.md
+.tsprunerc
+supabase/
+data/
+scripts/
+seed_output.txt
+tsc_output.txt
+delete_later
+*.xlsx
+video-conferencing-app
+__pycache__/
+.venv/
+venv/

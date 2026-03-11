@@ -1,0 +1,239 @@
+name: Deploy Frontend to VM
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**"
+      - "docker-compose.yml"
+      - "Dockerfile"
+      - "Caddyfile"
+      - ".github/workflows/deploy-frontend.yml"
+
+jobs:
+  deploy:
+    name: Deploy Frontend to VM
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------------------------------------------------------
+      # Notify Slack: Deployment Started
+      # -------------------------------------------------------
+      - name: Notify Slack — Deployment Started
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d '{
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": { "type": "plain_text", "text": "🚀 Frontend Deployment Started", "emoji": true }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Branch:*\n`'"$GITHUB_REF_NAME"'`" },
+                    { "type": "mrkdwn", "text": "*Triggered by:*\n'"$GITHUB_ACTOR"'" }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Commit:*\n<'"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"'|'"${GITHUB_SHA:0:7}"'>" },
+                    { "type": "mrkdwn", "text": "*Workflow:*\n<'"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"'|View Run>" }
+                  ]
+                },
+                { "type": "divider" },
+                {
+                  "type": "context",
+                  "elements": [
+                    { "type": "mrkdwn", "text": "⏳ Deployment in progress..." }
+                  ]
+                }
+              ]
+            }'
+
+      # -------------------------------------------------------
+      # Deploy over SSH
+      # -------------------------------------------------------
+      - name: Deploy over SSH
+        id: deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/${{ secrets.VM_USER }}/frontend
+
+            echo "=== Starting zero-downtime deployment ==="
+
+            # -------------------------------------------------------
+            # 1. Save current image as rollback target
+            # -------------------------------------------------------
+            CURRENT_IMAGE=$(docker compose images frontend -q 2>/dev/null || true)
+            if [ -n "$CURRENT_IMAGE" ]; then
+              echo "Tagging current image ($CURRENT_IMAGE) as rollback..."
+              docker tag "$CURRENT_IMAGE" frontend-rollback:latest
+              HAS_ROLLBACK=true
+            else
+              echo "No existing frontend image found — fresh deploy, rollback disabled."
+              HAS_ROLLBACK=false
+            fi
+
+            # -------------------------------------------------------
+            # 2. Pull latest code
+            # -------------------------------------------------------
+            echo "Pulling latest code from GitHub..."
+            git checkout main
+            git pull origin main
+
+            # -------------------------------------------------------
+            # 3. Build new image (old containers keep running)
+            # -------------------------------------------------------
+            echo "Building new Docker image..."
+            if ! docker compose build; then
+              echo "ERROR: Build failed! Old containers are still running — no downtime."
+              exit 1
+            fi
+
+            # -------------------------------------------------------
+            # 4. Deploy new containers
+            # -------------------------------------------------------
+            echo "Deploying new containers..."
+            docker compose up -d
+
+            # -------------------------------------------------------
+            # 5. Health check after 60s
+            # -------------------------------------------------------
+            echo "Waiting 60 seconds for containers to stabilize..."
+            sleep 60
+
+            echo "Running health check..."
+            HEALTH_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" https://capmatch.com || echo "000")
+
+            if [ "$HEALTH_STATUS" = "200" ]; then
+              echo "Health check passed! (HTTP $HEALTH_STATUS)"
+              echo "Cleaning up old Docker images..."
+              docker image prune -f
+              echo "=== Deployment successful! ==="
+            else
+              echo "ERROR: Health check failed! (HTTP $HEALTH_STATUS)"
+
+              if [ "$HAS_ROLLBACK" = true ]; then
+                echo "Rolling back to previous image..."
+
+                # Get the image name used by docker compose
+                IMAGE_NAME=$(docker compose config --images | grep -v caddy | head -1)
+
+                # Tag the rollback image back to the expected name
+                docker tag frontend-rollback:latest "$IMAGE_NAME"
+
+                # Restart with the rollback image
+                docker compose up -d
+                sleep 10
+
+                echo "Rollback complete. Verifying..."
+                ROLLBACK_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" https://capmatch.com || echo "000")
+                if [ "$ROLLBACK_STATUS" = "200" ]; then
+                  echo "Rollback verified — previous version is running."
+                else
+                  echo "WARNING: Rollback health check also failed. Manual intervention required."
+                fi
+              else
+                echo "No rollback image available. Manual intervention required."
+              fi
+
+              exit 1
+            fi
+
+      # -------------------------------------------------------
+      # Notify Slack: Deployment Succeeded ✅
+      # -------------------------------------------------------
+      - name: Notify Slack — Deployment Succeeded
+        if: success()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d '{
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": { "type": "plain_text", "text": "✅ Frontend Deployment Succeeded", "emoji": true }
+                },
+                {
+                  "type": "section",
+                  "text": { "type": "mrkdwn", "text": "The frontend has been successfully deployed and the health check passed." }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Branch:*\n`'"$GITHUB_REF_NAME"'`" },
+                    { "type": "mrkdwn", "text": "*Triggered by:*\n'"$GITHUB_ACTOR"'" }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Commit:*\n<'"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"'|'"${GITHUB_SHA:0:7}"'>" },
+                    { "type": "mrkdwn", "text": "*Workflow:*\n<'"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"'|View Run>" }
+                  ]
+                },
+                { "type": "divider" },
+                {
+                  "type": "context",
+                  "elements": [
+                    { "type": "mrkdwn", "text": "🎉 Production is live and healthy at https://capmatch.com" }
+                  ]
+                }
+              ]
+            }'
+
+      # -------------------------------------------------------
+      # Notify Slack: Deployment Failed ❌
+      # -------------------------------------------------------
+      - name: Notify Slack — Deployment Failed
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-type: application/json' \
+            -d '{
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": { "type": "plain_text", "text": "❌ Frontend Deployment Failed", "emoji": true }
+                },
+                {
+                  "type": "section",
+                  "text": { "type": "mrkdwn", "text": "The deployment failed — this could be a *build failure*, *health check failure*, or a *rollback*. Check the workflow logs for details." }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Branch:*\n`'"$GITHUB_REF_NAME"'`" },
+                    { "type": "mrkdwn", "text": "*Triggered by:*\n'"$GITHUB_ACTOR"'" }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Commit:*\n<'"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"'|'"${GITHUB_SHA:0:7}"'>" },
+                    { "type": "mrkdwn", "text": "*Workflow:*\n<'"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"'|View Logs>" }
+                  ]
+                },
+                { "type": "divider" },
+                {
+                  "type": "context",
+                  "elements": [
+                    { "type": "mrkdwn", "text": "🔥 Immediate attention required — check the logs above" }
+                  ]
+                }
+              ]
+            }'

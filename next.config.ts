@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+  logging: {
+    fetches: {
+      fullUrl: true,
+    },
+  },
   experimental: {
     optimizePackageImports: ["@radix-ui/react-icons", "lucide-react", "recharts", "framer-motion"],
     middlewareClientMaxBodySize: "100mb",
