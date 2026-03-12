@@ -22,7 +22,11 @@ export interface MatchedLender {
     lender_lei: string;
     lender_name: string | null;
     rank: number;
+    /** From wishlist; used for generate-single when generating for this lender's vault. */
+    project_resume_id?: string | null;
     total_score: number;
+    /** Label of the resume version (match run) this lender was added from. */
+    run_label?: string | null;
 }
 
 interface DocItem {
@@ -388,6 +392,8 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     const [matchedLendersLoading, setMatchedLendersLoading] = useState(false);
     const [sendingToLenderId, setSendingToLenderId] = useState<string | null>(null);
     const [selectedLenderLei, setSelectedLenderLei] = useState<string | null>(null);
+    /** When a lender is selected, id of the FOLDER "Lender: {lei}" under UNDERWRITING_DOCS_ROOT (so file list is vault-scoped). */
+    const [lenderFolderId, setLenderFolderId] = useState<string | null>(null);
 
     // New validation state
     const [validationData, setValidationData] = useState<Record<string, { status: string, errors: any }>>({});
@@ -402,71 +408,123 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         }
     }, [projectId, loadThreads]);
 
-
-
-
-    // Fetch resources
+    // Resolve lender vault folder id when a lender is selected (backend uses "Lender: {lender_lei}" under UNDERWRITING_DOCS_ROOT)
     useEffect(() => {
-        if (!projectId) return;
+        if (!projectId || !selectedLenderLei) {
+            setLenderFolderId(null);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            const { data: root, error: rootErr } = await supabase
+                .from("resources")
+                .select("id")
+                .eq("project_id", projectId)
+                .eq("resource_type", "UNDERWRITING_DOCS_ROOT")
+                .maybeSingle();
+            if (rootErr || !root?.id) {
+                setLenderFolderId(null);
+                return;
+            }
+            const folderName = `Lender: ${selectedLenderLei}`;
+            const { data: folder, error: folderErr } = await supabase
+                .from("resources")
+                .select("id")
+                .eq("parent_id", root.id)
+                .eq("resource_type", "FOLDER")
+                .eq("name", folderName)
+                .maybeSingle();
+            if (!cancelled) {
+                setLenderFolderId(folderErr || !folder?.id ? null : folder.id);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [projectId, selectedLenderLei]);
 
-        const fetchResources = async () => {
+    // Fetch resources: vault-scoped when a wishlist lender is selected, else project-level (legacy)
+    const refreshResources = useCallback(async () => {
+        if (!projectId) return;
+        if (selectedLenderLei) {
+            const { data: vaultDocs } = await supabase
+                .from('underwriting_documents')
+                .select('resource_id')
+                .eq('lender_lei', selectedLenderLei);
+            const resourceIds = (vaultDocs ?? []).map((d) => d.resource_id).filter(Boolean);
+            if (resourceIds.length === 0) {
+                setResources([]);
+                return;
+            }
+            const { data: vaultResources, error } = await supabase
+                .from('resources')
+                .select('id, name')
+                .eq('project_id', projectId)
+                .in('id', resourceIds);
+            if (!error && vaultResources) setResources(vaultResources);
+            else setResources([]);
+        } else {
             const { data, error } = await supabase
                 .from('resources')
                 .select('id, name')
                 .eq('project_id', projectId);
+            if (!error && data) setResources(data);
+        }
+    }, [projectId, selectedLenderLei]);
 
-            if (!error && data) {
-                setResources(data);
-            }
-        };
+    useEffect(() => {
+        refreshResources();
+    }, [refreshResources]);
 
-        fetchResources();
-
-        // Subscribe to resource changes
+    useEffect(() => {
+        if (!projectId) return;
         const channel = supabase
             .channel('vault-resources')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'resources', filter: `project_id=eq.${projectId}` },
-                () => fetchResources()
+                () => refreshResources()
+            )
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'underwriting_documents' },
+                () => refreshResources()
             )
             .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [projectId, refreshResources]);
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [projectId]);
-
-    // Fetch matched lenders for current version (from matchmaking run)
-    const fetchMatchedLenders = useCallback(async () => {
+    // Matched lenders from wishlist API (required for vault per lender)
+    const refreshMatchedLendersFromWishlist = useCallback(async () => {
         if (!projectId) return;
         setMatchedLendersLoading(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
             const base = getBackendUrl();
-            const res = await fetch(
-                `${base}/api/v1/matchmaking/projects/${encodeURIComponent(projectId)}/matched-lenders`,
-                { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-            );
-            if (!res.ok) {
-                setMatchedLenders([]);
-                return;
+            const res = await fetch(`${base}/api/v1/projects/${encodeURIComponent(projectId)}/wishlist`, {
+                headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+            });
+            const list = res.ok ? await res.json() : [];
+            const lenders: MatchedLender[] = Array.isArray(list)
+                ? list.map((e: { lender_lei: string; lender_name?: string | null; project_resume_id?: string; total_score?: number; rank?: number; run_label?: string | null }, i: number) => ({
+                    match_score_id: `wishlist_${e.lender_lei}`,
+                    lender_lei: e.lender_lei,
+                    lender_name: e.lender_name ?? null,
+                    rank: e.rank ?? i + 1,
+                    total_score: typeof e.total_score === "number" ? e.total_score : 0,
+                    project_resume_id: e.project_resume_id ?? null,
+                    run_label: e.run_label ?? null,
+                  }))
+                : [];
+            setMatchedLenders(lenders);
+            if (lenders.length === 0) {
+                setSelectedLenderLei(null);
+            } else if (!selectedLenderLei || !lenders.some((l) => l.lender_lei === selectedLenderLei)) {
+                setSelectedLenderLei(lenders[0].lender_lei);
             }
-            const data = await res.json();
-            const top = (data.lenders ?? []).slice(0, MAX_LENDERS_SHOWN);
-            setMatchedLenders(top);
-            if (top.length > 0 && !selectedLenderLei) {
-                setSelectedLenderLei(top[0].lender_lei);
-            }
-        } catch {
-            setMatchedLenders([]);
         } finally {
             setMatchedLendersLoading(false);
         }
     }, [projectId, selectedLenderLei]);
 
     useEffect(() => {
-        fetchMatchedLenders();
-    }, [fetchMatchedLenders]);
+        refreshMatchedLendersFromWishlist();
+    }, [refreshMatchedLendersFromWishlist]);
 
     const selectedLender = useMemo(
         () => matchedLenders.find((l) => l.lender_lei === selectedLenderLei) ?? matchedLenders[0] ?? null,
@@ -640,12 +698,13 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     };
 
 
-    // Leverage the existing document management hook for logic, signing, and downloads
+    // Leverage the existing document management hook for logic, signing, and downloads.
+    // When a lender is selected, list that lender's vault folder so we see their generated docs (SREO, etc.).
     const { files, downloadFile, refresh } = useDocumentManagement({
         projectId: projectId || null,
         orgId: orgId || null,
         context: 'underwriting',
-        folderId: null // Fetch from root
+        folderId: selectedLenderLei ? lenderFolderId : null,
     });
 
     const toggleStage = (stageId: string) => {
@@ -720,10 +779,15 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         const toastId = !options?.isBatch ? toast.loading(`Generating ${docName}...`) : undefined;
 
         try {
-            const res = await apiClient.post(`/api/v1/underwriting/generate-single`, {
+            const body: { project_id: string; document_name: string; lender_lei?: string; project_resume_id?: string } = {
                 project_id: projectId,
-                document_name: docName
-            });
+                document_name: docName,
+            };
+            if (selectedLenderLei && selectedLender?.project_resume_id) {
+                body.lender_lei = selectedLenderLei;
+                body.project_resume_id = selectedLender.project_resume_id;
+            }
+            const res = await apiClient.post(`/api/v1/underwriting/generate-single`, body);
 
             if (res.error) {
                 throw res.error;
@@ -735,6 +799,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 const result = await subscribeToJobUntilDone(jobId);
 
                 if (result.status === "completed") {
+                    await refreshResources();
                     await refresh();
                     if (!options?.isBatch) {
                         toast.success(`${docName} generated successfully!`, { id: toastId });
@@ -756,16 +821,26 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             }
 
             // No job_id (legacy): refresh once and assume success
+            await refreshResources();
             await refresh();
             if (!options?.isBatch) {
                 toast.success(`${docName} generation started.`, { id: toastId });
             }
             return true;
 
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Generate failed:", error);
+            const err = error as { status?: number; statusCode?: number; message?: string; detail?: string };
+            const is409 = err?.status === 409 || err?.statusCode === 409;
+            const msg = typeof err?.detail === "string" ? err.detail : err?.message;
+            const alreadyInProgress = is409 || (typeof msg === "string" && msg.toLowerCase().includes("already in progress"));
             if (!options?.isBatch) {
-                toast.error(`Failed to generate ${docName}`, { id: toastId });
+                toast.error(
+                    alreadyInProgress
+                        ? "A generation is already in progress. Please wait for it to complete."
+                        : `Failed to generate ${docName}`,
+                    { id: toastId }
+                );
             }
             return false;
         } finally {
@@ -792,8 +867,8 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
         const toastId = toast.loading(`Batch generating ${toGenerate.length} documents...`);
 
-        // Run all generations in parallel
-        await Promise.all(toGenerate.map(async (doc) => {
+        // Run one doc at a time (backend allows only one underwriting_generate job per project)
+        for (const doc of toGenerate) {
             await handleGenerateDoc(doc.name, { isBatch: true });
 
             // Update progress
@@ -804,7 +879,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     [stageId]: { ...current, completed: current.completed + 1 }
                 };
             });
-        }));
+        }
 
         toast.success("Batch generation complete!", { id: toastId });
 
@@ -818,17 +893,16 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         }, 3000);
     };
 
-    // Merge fetched files into stages
+    // Merge fetched files into stages (when a lender is selected, only show files for that vault's resources)
+    const resourceIdSet = useMemo(() => new Set(resources.map((r) => r.id)), [resources]);
     const stages = useMemo(() => {
-        console.log("UnderwritingVault: received files:", files);
-
-
-        // Create a lookup map by name for O(1) access
+        const vaultFiles = selectedLenderLei
+            ? files.filter((f) => resourceIdSet.has(f.resource_id))
+            : files;
         const fileMap = new Map<string, DocumentFile>();
-        if (files) {
-            files.forEach(f => {
+        if (vaultFiles) {
+            vaultFiles.forEach(f => {
                 fileMap.set(f.name, f);
-                // Also map the name without extension to handle "Current Rent Roll.xlsx" matching "Current Rent Roll"
                 const nameWithoutExt = f.name.replace(/\.[^/.]+$/, "");
                 if (nameWithoutExt !== f.name) {
                     fileMap.set(nameWithoutExt, f);
@@ -879,7 +953,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 return doc;
             })
         }));
-    }, [files, threads, projectId, validationData]);
+    }, [files, threads, projectId, validationData, resourceIdSet, selectedLenderLei]);
 
     const hasMatchedLenders = matchedLenders.length > 0;
 
@@ -890,7 +964,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     <h2 className="text-xl font-bold text-gray-900">Underwriting Vault</h2>
                     <p className="text-gray-500 mt-1">
                         {hasMatchedLenders
-                            ? `Top ${matchedLenders.length} matched lenders — select a lender to manage their package.`
+                            ? `${matchedLenders.length} wishlist lender${matchedLenders.length !== 1 ? "s" : ""} — select one to manage their deal package.`
                             : "Manage, generate, and review underwriting documents."
                         }
                     </p>
@@ -903,11 +977,11 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     {matchedLendersLoading ? (
                         <div className="flex items-center gap-2 text-gray-500 text-sm p-4 bg-gray-50 rounded-xl border border-gray-200">
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            Loading matched lenders…
+                            Loading wishlist…
                         </div>
                     ) : !hasMatchedLenders ? (
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                            <p className="text-sm text-gray-500">No match run for the current resume version. Run matchmaking in the Lender Matching tab first.</p>
+                            <p className="text-sm text-gray-500">No lenders in your wishlist. In the Lender Matching tab, save a match run and add lenders to your wishlist to manage their deal packages here.</p>
                         </div>
                     ) : (
                         <div className="flex flex-wrap gap-2">
@@ -963,7 +1037,9 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                             <div>
                                 <h3 className="text-base font-semibold text-gray-900">{selectedLenderDisplayName}</h3>
                                 <p className="text-xs text-gray-500">
-                                    Match score: {(selectedLender.total_score ?? 0).toFixed(1)}/100 &middot; LEI: {selectedLender.lender_lei}
+                                    Match score: {(selectedLender.total_score ?? 0).toFixed(1)}/100
+                                    {selectedLender.run_label ? ` from "${selectedLender.run_label}"` : ""}
+                                    {" · "}LEI: {selectedLender.lender_lei}
                                 </p>
                             </div>
                         </div>

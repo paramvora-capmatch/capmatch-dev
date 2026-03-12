@@ -1826,6 +1826,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 							}}
 							mode={viewMode === "underwriting" ? "underwriter" : "ask-ai"}
 							defaultTopic="AI Underwriter"
+							collapseWhenActive={viewMode === "access" || viewMode === "underwriting"}
 						/>
 					</ErrorBoundary>
 				</AskAIProvider>

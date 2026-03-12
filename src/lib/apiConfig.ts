@@ -11,15 +11,19 @@
  * Normalizes the URL to remove trailing slashes to prevent double slashes in paths
  */
 export const getBackendUrl = (): string => {
-  // If we are in the browser, return an empty string.
-  // This makes the frontend use relative URLs (e.g., /api/v1/...) 
-  // Caddy will intercept /api/* and proxy it to the backend VM directly!
+  const url = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
+  const base = url.replace(/\/+$/, '');
+
+  // In the browser: production uses relative URLs (Caddy proxies /api/* to backend).
+  // In development, point directly at the backend so requests don't hit Next.js and 404.
   if (typeof window !== 'undefined') {
-    return '';
+    if (process.env.NODE_ENV === 'production') {
+      return '';
+    }
+    return base;
   }
 
-  // If we are on the server (SSR/RSC), use the internal backend URL.
-  const url = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
-  return url.replace(/\/+$/, '');
+  // Server (SSR/RSC): use backend URL.
+  return base;
 };
 

@@ -83,6 +83,15 @@ const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
 	},
 });
 
+// Local Supabase (CLI 2.71+) uses ES256; old .env keys (HS256) cause "signing method HS256 is invalid"
+const isLocalSupabase =
+	/supabase\.local|127\.0\.0\.1|localhost/i.test(supabaseUrl || "");
+if (isLocalSupabase && !isProduction) {
+	console.log(
+		"💡 Using local Supabase. If you see JWT/signing errors, run: npx supabase status -o env and set SUPABASE_SERVICE_ROLE_KEY in .env.local\n"
+	);
+}
+
 // ============================================================================
 // HOQUE PROJECT DATA
 // ============================================================================
@@ -1432,6 +1441,17 @@ async function onboardUserDirectly(
 				// Actually, we can search auth users by email if needed, but let's see
 			}
 			console.error(`[seed] Auth creation failed: ${authError.message}`);
+			if (
+				authError.message.includes("HS256") ||
+				authError.message.includes("signing method") ||
+				authError.message.includes("invalid JWT")
+			) {
+				console.error("");
+				console.error("  💡 Fix: Supabase now uses ES256 JWT by default. Use the keys from your running Supabase instance:");
+				console.error("     npx supabase status -o env");
+				console.error("  Then copy SUPABASE_SERVICE_ROLE_KEY (and optionally anon key) into .env.local");
+				console.error("");
+			}
 			return { error: authError.message };
 		} else {
 			userId = authData.user.id;

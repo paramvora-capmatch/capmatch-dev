@@ -14,6 +14,7 @@ import { useProjectProgressStore } from "./useProjectProgressStore";
 import { useProjectResumeStore } from "./useProjectResumeStore";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { getBackendUrl } from "@/lib/apiConfig";
+import { clearAllMatchmakingDrafts } from "@/hooks/useMatchmaking";
 
 const parsePercentage = (value: unknown): number => {
 	if (typeof value === "number" && Number.isFinite(value)) {
@@ -579,6 +580,7 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 
 	// Reset project state on logout
 	if (!currentUser && prevUser) {
+		clearAllMatchmakingDrafts();
 		useProjectStore.getState().resetProjectState();
 		return;
 	}
