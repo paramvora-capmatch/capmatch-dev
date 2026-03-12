@@ -392,6 +392,8 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     const [matchedLendersLoading, setMatchedLendersLoading] = useState(false);
     const [sendingToLenderId, setSendingToLenderId] = useState<string | null>(null);
     const [selectedLenderLei, setSelectedLenderLei] = useState<string | null>(null);
+    /** When a lender is selected, id of the FOLDER "Lender: {lei}" under UNDERWRITING_DOCS_ROOT (so file list is vault-scoped). */
+    const [lenderFolderId, setLenderFolderId] = useState<string | null>(null);
 
     // New validation state
     const [validationData, setValidationData] = useState<Record<string, { status: string, errors: any }>>({});
@@ -406,8 +408,38 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         }
     }, [projectId, loadThreads]);
 
-
-
+    // Resolve lender vault folder id when a lender is selected (backend uses "Lender: {lender_lei}" under UNDERWRITING_DOCS_ROOT)
+    useEffect(() => {
+        if (!projectId || !selectedLenderLei) {
+            setLenderFolderId(null);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            const { data: root, error: rootErr } = await supabase
+                .from("resources")
+                .select("id")
+                .eq("project_id", projectId)
+                .eq("resource_type", "UNDERWRITING_DOCS_ROOT")
+                .maybeSingle();
+            if (rootErr || !root?.id) {
+                setLenderFolderId(null);
+                return;
+            }
+            const folderName = `Lender: ${selectedLenderLei}`;
+            const { data: folder, error: folderErr } = await supabase
+                .from("resources")
+                .select("id")
+                .eq("parent_id", root.id)
+                .eq("resource_type", "FOLDER")
+                .eq("name", folderName)
+                .maybeSingle();
+            if (!cancelled) {
+                setLenderFolderId(folderErr || !folder?.id ? null : folder.id);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [projectId, selectedLenderLei]);
 
     // Fetch resources: vault-scoped when a wishlist lender is selected, else project-level (legacy)
     const refreshResources = useCallback(async () => {
@@ -666,12 +698,13 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     };
 
 
-    // Leverage the existing document management hook for logic, signing, and downloads
+    // Leverage the existing document management hook for logic, signing, and downloads.
+    // When a lender is selected, list that lender's vault folder so we see their generated docs (SREO, etc.).
     const { files, downloadFile, refresh } = useDocumentManagement({
         projectId: projectId || null,
         orgId: orgId || null,
         context: 'underwriting',
-        folderId: null // Fetch from root
+        folderId: selectedLenderLei ? lenderFolderId : null,
     });
 
     const toggleStage = (stageId: string) => {
@@ -795,10 +828,19 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             }
             return true;
 
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Generate failed:", error);
+            const err = error as { status?: number; statusCode?: number; message?: string; detail?: string };
+            const is409 = err?.status === 409 || err?.statusCode === 409;
+            const msg = typeof err?.detail === "string" ? err.detail : err?.message;
+            const alreadyInProgress = is409 || (typeof msg === "string" && msg.toLowerCase().includes("already in progress"));
             if (!options?.isBatch) {
-                toast.error(`Failed to generate ${docName}`, { id: toastId });
+                toast.error(
+                    alreadyInProgress
+                        ? "A generation is already in progress. Please wait for it to complete."
+                        : `Failed to generate ${docName}`,
+                    { id: toastId }
+                );
             }
             return false;
         } finally {
@@ -825,8 +867,8 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
         const toastId = toast.loading(`Batch generating ${toGenerate.length} documents...`);
 
-        // Run all generations in parallel
-        await Promise.all(toGenerate.map(async (doc) => {
+        // Run one doc at a time (backend allows only one underwriting_generate job per project)
+        for (const doc of toGenerate) {
             await handleGenerateDoc(doc.name, { isBatch: true });
 
             // Update progress
@@ -837,7 +879,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     [stageId]: { ...current, completed: current.completed + 1 }
                 };
             });
-        }));
+        }
 
         toast.success("Batch generation complete!", { id: toastId });
 

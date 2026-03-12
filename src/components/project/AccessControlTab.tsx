@@ -836,7 +836,7 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
           </div>
         )}
 
-        {/* Scored lender list from match_scores - collapsed by default, first 5 visible */}
+        {/* Scored lender list from match run / visualization data - collapsed by default, first 5 visible */}
         {matchScores.length > 0 && !matchRunning && (
           <div className="space-y-2 mb-4">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Scored Matches</p>
