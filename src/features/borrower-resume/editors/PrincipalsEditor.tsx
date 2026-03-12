@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -53,7 +53,7 @@ export function PrincipalsEditor({
 	lockButton,
 	className,
 }: PrincipalsEditorProps): React.ReactElement {
-	const principals = Array.isArray(value) ? value : [];
+	const principals = useMemo(() => (Array.isArray(value) ? value : []), [value]);
 	const rowsToRender = principals.length > 0 ? principals : [];
 
 	const handleRowChange = useCallback(

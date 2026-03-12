@@ -147,7 +147,7 @@ export function useProjectResumePersistence({
 				setTimeout(() => setFormSaved?.(false), 1500);
 			}
 		},
-		[hasUnsavedChanges, clearDraft, saveProjectResume, projectId, setFormSaved]
+		[hasUnsavedChanges, clearDraft, saveProjectResume, setFormSaved]
 	);
 
 	// Save on unmount when dirty

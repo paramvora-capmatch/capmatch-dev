@@ -2102,6 +2102,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				),
 			};
 		});
+		// Steps render uses isFieldBlue, isFieldGreen, isFieldWhite, isSubsectionFullyLocked
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
 		expandedSubsections,
 		renderDynamicField,
@@ -2121,6 +2123,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		isFieldRequiredFromSchema,
 		fieldMetadata,
 		toggleFieldLock,
+		fieldStateContext,
 	]);
 
 	const initialStepIndex = useMemo(() => {

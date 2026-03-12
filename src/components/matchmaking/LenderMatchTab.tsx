@@ -230,9 +230,13 @@ function DealParameterControl({
           {label}
         </label>
         {editable ? (
-          <Pencil size={10} className="text-blue-500 shrink-0" title="Editable — change and re-run matchmaking" />
+          <span title="Editable — change and re-run matchmaking">
+            <Pencil size={10} className="text-blue-500 shrink-0" />
+          </span>
         ) : (
-          <Lock size={10} className="text-gray-400 shrink-0" title="Read-only" />
+          <span title="Read-only">
+            <Lock size={10} className="text-gray-400 shrink-0" />
+          </span>
         )}
       </div>
       {editable && isEditing ? (

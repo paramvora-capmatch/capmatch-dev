@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FieldHelpTooltip } from "@/components/ui/FieldHelpTooltip";
@@ -41,7 +41,7 @@ export function ReferencesEditor({
 	lockButton,
 	className,
 }: ReferencesEditorProps): React.ReactElement {
-	const items = Array.isArray(value) ? value : [];
+	const items = useMemo(() => (Array.isArray(value) ? value : []), [value]);
 	const rowsToRender = items.length > 0 ? items : [];
 
 	const handleRowChange = useCallback(

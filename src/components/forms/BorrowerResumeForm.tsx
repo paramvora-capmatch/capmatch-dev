@@ -462,11 +462,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 	const isDirty = useMemo(
 		() => persistence.hasUnsavedChanges(),
+		// formData, fieldMetadata, lockedFields drive persistence.hasUnsavedChanges() result
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[
 			formData,
 			fieldMetadata,
 			lockedFields,
-			persistence.hasUnsavedChanges,
+			persistence,
 		]
 	);
 
@@ -1387,6 +1389,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				),
 			};
 		});
+		// Steps render uses isFieldBlue, isFieldGreen, isFieldWhite, isSubsectionFullyLocked
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
 		expandedSubsections,
 		toggleSubsection,
@@ -1401,6 +1405,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		isFieldBlue,
 		isFieldGreen,
 		isFieldWhite,
+		fieldStateContext,
 	]);
 
 	const initialStepIndex = useMemo(() => {

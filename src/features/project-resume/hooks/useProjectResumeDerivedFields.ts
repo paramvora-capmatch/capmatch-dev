@@ -25,6 +25,8 @@ export function useProjectResumeDerivedFields({
 		if (patch) {
 			setFormData((prev) => ({ ...prev, ...patch }));
 		}
+		// Intentionally depend on specific formData fields to avoid loops; formData identity changes on every setFormData.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
 		lockedFields,
 		formData.loanAmountRequested,
