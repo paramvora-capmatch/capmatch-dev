@@ -1,8 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { fetchJob } from "@/lib/apiClient";
+import { useState, useCallback, useEffect } from "react";
 import { getBackendUrl } from "@/lib/apiConfig";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -129,17 +127,6 @@ export function clearAllMatchmakingDrafts(): void {
   }
 }
 
-const MAX_MATCHMAKING_JOB_WAIT_MS = 300000; // 5 min
-const POLL_JOBS_INTERVAL_MS = 2000; // poll every 2s as fallback when Realtime doesn't deliver
-
-/** Realtime payload.new row shape for jobs table */
-interface JobRow {
-	id: string;
-	status: string;
-	error_message?: string | null;
-	metadata?: Record<string, unknown> | null;
-}
-
 /** Derive MatchScore[] from visualization_data.lenders (saved run or draft). */
 export function vizLendersToMatchScores(
   lenders: LenderVizData[] | null | undefined,
@@ -181,10 +168,6 @@ export function useMatchmaking(
   contentOverrides?: Record<string, unknown>
 ) {
   const resumeIdReady = resumeId !== null;
-  const jobChannelRef = useRef<RealtimeChannel | null>(null);
-  const jobTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const jobPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
   const [state, setState] = useState<MatchmakingState>(() => {
     const draft = projectId ? getMatchmakingDraft(projectId) : null;
     if (draft) {
@@ -296,171 +279,6 @@ export function useMatchmaking(
     await fetchRunByResume();
   }, [fetchRunByResume]);
 
-  const subscribeToMatchmakingJob = useCallback(
-    (jobId: string, overridesToPersist?: Record<string, string>) => {
-      if (jobChannelRef.current) {
-        supabase.removeChannel(jobChannelRef.current);
-        jobChannelRef.current = null;
-      }
-      if (jobTimeoutRef.current) {
-        clearTimeout(jobTimeoutRef.current);
-        jobTimeoutRef.current = null;
-      }
-      if (jobPollRef.current) {
-        clearInterval(jobPollRef.current);
-        jobPollRef.current = null;
-      }
-
-      let terminalHandled = false;
-      const handleTerminal = (
-        status: "completed" | "failed",
-        runData?: {
-          visualization_data?: VisualizationData;
-          scores?: MatchScore[];
-          run_id?: string;
-          config?: Record<string, unknown>;
-          hmda_source?: string;
-          total_lenders?: number;
-          top_match_name?: string | null;
-          top_match_score?: number | null;
-        },
-        errorMessage?: string | null
-      ) => {
-        if (terminalHandled) return;
-        terminalHandled = true;
-        if (jobChannelRef.current) {
-          supabase.removeChannel(jobChannelRef.current);
-          jobChannelRef.current = null;
-        }
-        if (jobTimeoutRef.current) {
-          clearTimeout(jobTimeoutRef.current);
-          jobTimeoutRef.current = null;
-        }
-        if (jobPollRef.current) {
-          clearInterval(jobPollRef.current);
-          jobPollRef.current = null;
-        }
-        setState((s) => ({ ...s, isRunning: false }));
-
-        if (status === "completed" && runData) {
-          const viz = runData.visualization_data;
-          const scores =
-            Array.isArray(runData.scores) && runData.scores.length > 0
-              ? runData.scores
-              : vizLendersToMatchScores(viz?.lenders, null);
-          const top = viz?.lenders?.[0];
-          const draftPayload: MatchmakingDraftPayload = {
-            run_id: runData.run_id ?? "",
-            config: runData.config ?? {},
-            hmda_source: runData.hmda_source ?? "",
-            total_lenders: runData.total_lenders ?? 0,
-            visualization_data: viz!,
-            lastRunAt: new Date().toISOString(),
-            scores,
-            field_overrides:
-              overridesToPersist && Object.keys(overridesToPersist).length > 0
-                ? overridesToPersist
-                : undefined,
-          };
-          setMatchmakingDraft(projectId, draftPayload);
-          setState((s) => ({
-            ...s,
-            visualizationData: viz ?? null,
-            matchScores: scores,
-            totalLenders: runData.total_lenders ?? 0,
-            topMatchName: top?.name ?? runData.top_match_name ?? null,
-            topMatchScore: top?.total_score ?? runData.top_match_score ?? null,
-            lastRunAt: draftPayload.lastRunAt,
-            draftPayload,
-            lastMatchRunId: null,
-            error: null,
-          }));
-        } else if (status === "failed") {
-          setState((s) => ({
-            ...s,
-            error: errorMessage || "Matchmaking failed",
-          }));
-        }
-      };
-
-      const applyMetadata = (meta: Record<string, unknown> | null) => {
-        if (!meta) return;
-        handleTerminal("completed", {
-          visualization_data: meta.visualization_data as VisualizationData,
-          scores: meta.scores as MatchScore[] | undefined,
-          run_id: meta.run_id as string,
-          config: meta.config as Record<string, unknown>,
-          hmda_source: meta.hmda_source as string,
-          total_lenders: meta.total_lenders as number,
-          top_match_name: meta.top_match_name as string | null,
-          top_match_score: meta.top_match_score as number | null,
-        });
-      };
-
-      // Poll as fallback (Realtime may not deliver if backend uses different DB or RLS filters payload)
-      jobPollRef.current = setInterval(async () => {
-        const { data: job, error } = await fetchJob(jobId);
-        if (error || !job) return;
-        if (job.status === "completed" && job.metadata) {
-          applyMetadata(job.metadata as Record<string, unknown>);
-          return;
-        }
-        if (job.status === "failed") {
-          handleTerminal("failed", undefined, job.error_message ?? undefined);
-        }
-      }, POLL_JOBS_INTERVAL_MS);
-
-      const channel = supabase
-        .channel(`matchmaking-job-${jobId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "jobs",
-            filter: `id=eq.${jobId}`,
-          },
-          (payload) => {
-            const row = payload.new as JobRow;
-            if (row?.status === "completed") {
-              const meta = (row.metadata ?? {}) as Record<string, unknown>;
-              if (Object.keys(meta).length > 0) applyMetadata(meta);
-              else {
-                // Realtime sometimes sends empty new when RLS filters; rely on poll
-                void fetchJob(jobId).then(({ data: job }) => {
-                  if (job?.status === "completed" && job.metadata) applyMetadata(job.metadata as Record<string, unknown>);
-                });
-              }
-              return;
-            }
-            if (row?.status === "failed") {
-              handleTerminal("failed", undefined, row.error_message ?? undefined);
-            }
-          }
-        )
-        .subscribe();
-
-      jobChannelRef.current = channel;
-      jobTimeoutRef.current = setTimeout(() => {
-        jobTimeoutRef.current = null;
-        if (jobPollRef.current) {
-          clearInterval(jobPollRef.current);
-          jobPollRef.current = null;
-        }
-        if (jobChannelRef.current) {
-          supabase.removeChannel(jobChannelRef.current);
-          jobChannelRef.current = null;
-        }
-        setState((s) => ({
-          ...s,
-          isRunning: false,
-          error: "Matchmaking is taking longer than expected. Please check back later or refresh.",
-        }));
-      }, MAX_MATCHMAKING_JOB_WAIT_MS);
-    },
-    [projectId]
-  );
-
   const runMatchmaking = useCallback(
     async (overridesToPersist?: Record<string, string>) => {
       setState((s) => ({ ...s, isRunning: true, error: null }));
@@ -486,21 +304,52 @@ export function useMatchmaking(
             body: JSON.stringify(body),
           }
         );
+        const data = await res.json().catch(() => ({}));
+
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data?.message || "Matchmaking failed");
+          const message =
+            typeof data?.detail === "string"
+              ? data.detail
+              : Array.isArray(data?.detail)
+                ? data.detail.map((e: { msg?: string }) => e?.msg).filter(Boolean).join(", ") || "Matchmaking failed"
+                : data?.message || "Matchmaking failed";
+          setState((s) => ({ ...s, isRunning: false, error: message }));
+          return;
         }
-        const data = await res.json();
-        const jobId = data?.job_id;
-        if (jobId) {
-          subscribeToMatchmakingJob(jobId, overridesToPersist);
-        } else {
-          setState((s) => ({
-            ...s,
-            isRunning: false,
-            error: "Matchmaking started but status tracking is unavailable. Refresh the page to see updates.",
-          }));
-        }
+
+        const viz = data.visualization_data as VisualizationData | null | undefined;
+        const scores =
+          Array.isArray(data.scores) && data.scores.length > 0
+            ? (data.scores as MatchScore[])
+            : vizLendersToMatchScores(viz?.lenders, null);
+        const top = viz?.lenders?.[0];
+        const draftPayload: MatchmakingDraftPayload = {
+          run_id: data.run_id ?? "",
+          config: (data.config as Record<string, unknown>) ?? {},
+          hmda_source: data.hmda_source ?? "",
+          total_lenders: data.total_lenders ?? 0,
+          visualization_data: viz!,
+          lastRunAt: new Date().toISOString(),
+          scores,
+          field_overrides:
+            overridesToPersist && Object.keys(overridesToPersist).length > 0
+              ? overridesToPersist
+              : undefined,
+        };
+        setMatchmakingDraft(projectId, draftPayload);
+        setState((s) => ({
+          ...s,
+          isRunning: false,
+          visualizationData: viz ?? null,
+          matchScores: scores,
+          totalLenders: data.total_lenders ?? 0,
+          topMatchName: top?.name ?? data.top_match_name ?? null,
+          topMatchScore: top?.total_score ?? data.top_match_score ?? null,
+          lastRunAt: draftPayload.lastRunAt,
+          draftPayload,
+          lastMatchRunId: null,
+          error: null,
+        }));
       } catch (err) {
         setState((s) => ({
           ...s,
@@ -509,7 +358,7 @@ export function useMatchmaking(
         }));
       }
     },
-    [projectId, resumeId, contentOverrides, subscribeToMatchmakingJob]
+    [projectId, resumeId, contentOverrides]
   );
 
   useEffect(() => {
@@ -524,23 +373,6 @@ export function useMatchmaking(
     }
     fetchRunByResume();
   }, [fetchRunByResume, resumeIdReady, projectId, resumeId]);
-
-  useEffect(() => {
-    return () => {
-      if (jobChannelRef.current) {
-        supabase.removeChannel(jobChannelRef.current);
-        jobChannelRef.current = null;
-      }
-      if (jobTimeoutRef.current) {
-        clearTimeout(jobTimeoutRef.current);
-        jobTimeoutRef.current = null;
-      }
-      if (jobPollRef.current) {
-        clearInterval(jobPollRef.current);
-        jobPollRef.current = null;
-      }
-    };
-  }, []);
 
   return {
     ...state,
