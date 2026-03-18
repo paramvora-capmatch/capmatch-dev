@@ -295,13 +295,13 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	evChargingStations: 8,
 	leedGreenRating: "Certified",
 	residentialUnitMix: [
-		{ unitType: "S1", unitCount: 48, avgSqFt: 374, totalMonthlyRent: 1550, avgRentPerSqFt: 4.14 },
-		{ unitType: "S2", unitCount: 28, avgSqFt: 380, totalMonthlyRent: 1600, avgRentPerSqFt: 4.21 },
-		{ unitType: "S3", unitCount: 8, avgSqFt: 470, totalMonthlyRent: 1750, avgRentPerSqFt: 3.72 },
-		{ unitType: "A1", unitCount: 8, avgSqFt: 720, totalMonthlyRent: 2100, avgRentPerSqFt: 2.92 },
-		{ unitType: "A2", unitCount: 8, avgSqFt: 736, totalMonthlyRent: 2150, avgRentPerSqFt: 2.92 },
-		{ unitType: "A3", unitCount: 8, avgSqFt: 820, totalMonthlyRent: 2300, avgRentPerSqFt: 2.80 },
-		{ unitType: "B1", unitCount: 8, avgSqFt: 1120, totalMonthlyRent: 2800, avgRentPerSqFt: 2.50 }
+		{ unitType: "S1", unitCount: 48, avgSF: 374, monthlyRent: 1550, totalSF: 17952 },
+		{ unitType: "S2", unitCount: 28, avgSF: 380, monthlyRent: 1600, totalSF: 10640 },
+		{ unitType: "S3", unitCount: 8, avgSF: 470, monthlyRent: 1750, totalSF: 3760 },
+		{ unitType: "A1", unitCount: 8, avgSF: 720, monthlyRent: 2100, totalSF: 5760 },
+		{ unitType: "A2", unitCount: 8, avgSF: 736, monthlyRent: 2150, totalSF: 5888 },
+		{ unitType: "A3", unitCount: 8, avgSF: 820, monthlyRent: 2300, totalSF: 6560 },
+		{ unitType: "B1", unitCount: 8, avgSF: 1120, monthlyRent: 2800, totalSF: 8960 }
 	],
 	commercialSpaceMix: [
 		{ spaceType: "Innovation Center", squareFootage: 30000, tenant: "GSV Holdings LLC", leaseTerm: "15-year", annualRent: 900000 },
@@ -716,7 +716,6 @@ const hoqueProjectResumeBase: Record<string, any> = {
 			"May 2024", "June 2024", "July 2024", "August 2024",
 			"September 2024", "October 2024", "November 2024", "December 2024",
 		];
-		// Base monthly values (hypothetical stabilized property)
 		const baseGPR = 185000;
 		const baseOther = 12500;
 		const baseTaxes = 2850;
@@ -728,63 +727,39 @@ const hoqueProjectResumeBase: Record<string, any> = {
 		const baseMarketing = 1200;
 		const baseAdmin = 2100;
 		const baseContract = 1800;
+		const vary = (base: number, i: number) => Math.round(base * (0.96 + (i % 10) * 0.004));
 
 		return months.map((month, i) => {
-			// Add slight monthly variation (+/- 5%)
-			const vary = (base: number) => Math.round(base * (0.95 + Math.random() * 0.1));
-			const gpr = vary(baseGPR);
-			const vacancyLoss = -Math.round(gpr * 0.05);
-			const otherIncome = vary(baseOther);
+			const gpr = vary(baseGPR, i);
+			const otherIncome = vary(baseOther, i);
 			const concessions = i % 3 === 0 ? -Math.round(gpr * 0.01) : 0;
-
+			const capex = i === 5 || i === 11 ? 25000 : 5000;
 			return {
 				month,
-				categories: [
-					{
-						name: "Income",
-						category_type: "income",
-						items: [
-							{ name: "Gross Potential Rent", amount: gpr },
-							{ name: "Vacancy Loss", amount: vacancyLoss },
-							{ name: "Other Income", amount: otherIncome },
-							...(concessions !== 0 ? [{ name: "Concessions", amount: concessions }] : []),
-						],
-					},
-					{
-						name: "Operating Expenses",
-						category_type: "expense",
-						items: [
-							{ name: "Real Estate Taxes", amount: vary(baseTaxes) },
-							{ name: "Insurance", amount: vary(baseInsurance) },
-							{ name: "Utilities", amount: vary(baseUtilities) },
-							{ name: "Repairs & Maintenance", amount: vary(baseRepairs) },
-							{ name: "Payroll", amount: vary(basePayroll) },
-							{ name: "Management Fee", amount: vary(baseMgmtFee) },
-							{ name: "Marketing", amount: vary(baseMarketing) },
-							{ name: "General & Admin", amount: vary(baseAdmin) },
-							{ name: "Contract Services", amount: vary(baseContract) },
-						],
-					},
-					{
-						name: "Capital Expenditures",
-						category_type: "below_line",
-						items: [
-							{ name: "CapEx Reserves", amount: i === 5 || i === 11 ? 25000 : 5000 },
-						],
-					},
-				],
+				grossPotentialRent: gpr,
+				otherIncome,
+				concessions: concessions || undefined,
+				badDebt: 0,
+				utilities: vary(baseUtilities, i),
+				realEstateTaxes: vary(baseTaxes, i),
+				insurance: vary(baseInsurance, i),
+				managementFee: vary(baseMgmtFee, i),
+				payroll: vary(basePayroll, i),
+				repairsMaintenance: vary(baseRepairs, i),
+				contractServices: vary(baseContract, i),
+				marketing: vary(baseMarketing, i),
+				generalAdmin: vary(baseAdmin, i),
+				makeReady: 0,
+				capex,
 			};
 		});
 	})(),
-	fiveYearCashFlow: [
-		{ year: 2026, egi: 0, expenses: 0, noi: 0 },
-		{ year: 2027, egi: 1200000, expenses: 300000, noi: 900000 }
-	],
+	fiveYearCashFlow: [0, 900000, 950000, 1000000, 1050000],
 	returnsBreakdown: {
-		exitProceeds: 44500000,
-		totalDebtPayoff: 18000000,
-		netEquityProceeds: 26500000,
-		totalProfit: 14700000
+		cashFlow: 40,
+		assetAppreciation: 35,
+		taxBenefits: 15,
+		leverage: 10,
 	},
 	quarterlyDeliverySchedule: [
 		{ quarter: "Q1 2027", units: 30 }
