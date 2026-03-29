@@ -1129,7 +1129,9 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																				field.fieldId ===
 																				"capexItems" ||
 																				field.fieldId ===
-																				"t12FinancialData"
+																				"t12FinancialData" ||
+																				field.fieldId ===
+																				"t12MonthlyData"
 																			) {
 																				return false;
 																			}
