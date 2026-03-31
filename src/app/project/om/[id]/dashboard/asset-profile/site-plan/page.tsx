@@ -12,10 +12,11 @@ const InteractiveSiteMap = dynamic(() => import("@/components/om/InteractiveSite
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { formatFixed, formatLocale, parseNumeric } from "@/lib/om-utils";
-import { OMEmptyState } from "@/components/om/OMEmptyState";
+import { useOMProject } from "@/hooks/useOMProject";
 
 export default function SitePlanPage() {
-	const { content, insights } = useOmContent();
+	const { content } = useOmContent();
+	const { isGroundUp } = useOMProject();
 
 	// Access flat fields directly
 	const totalSiteAcreage = content?.totalSiteAcreage ?? null;
@@ -75,6 +76,12 @@ export default function SitePlanPage() {
 					(parkingSpaces / ((totalSiteAcreage * 43560) / 1000)) * 100
 			  ) / 100
 			: parkingRatioValue;
+	const zoningCompliant = content?.zoningCompliant ?? null;
+	const showDevelopmentPotential =
+		isGroundUp ||
+		farRemaining != null ||
+		heightRemaining != null ||
+		zoningCompliant != null;
 
 	// Extract site context fields
 	const currentSiteStatus = content?.currentSiteStatus ?? null;
@@ -115,7 +122,7 @@ export default function SitePlanPage() {
 						</div>
 					</CardHeader>
 					<CardContent>
-						<p className="text-2xl font-bold text-blue-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{lotSize ?? null}
 						</p>
 						<p className="text-sm text-gray-500 mt-1">
@@ -127,14 +134,14 @@ export default function SitePlanPage() {
 				<Card className="hover:shadow-lg transition-shadow">
 					<CardHeader className="pb-2">
 						<div className="flex items-center">
-							<Building2 className="h-5 w-5 text-green-500 mr-2" />
+							<Building2 className="h-5 w-5 text-blue-500 mr-2" />
 							<h3 className="text-lg font-semibold text-gray-800">
 								Building
 							</h3>
 						</div>
 					</CardHeader>
 					<CardContent>
-						<p className="text-2xl font-bold text-green-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{buildingFootprint ?? null}
 						</p>
 						<p className="text-sm text-gray-500 mt-1">
@@ -156,7 +163,7 @@ export default function SitePlanPage() {
 						</div>
 					</CardHeader>
 					<CardContent>
-						<p className="text-2xl font-bold text-blue-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{parkingSpaces ?? null}
 						</p>
 						<p className="text-sm text-gray-500 mt-1">
@@ -168,14 +175,14 @@ export default function SitePlanPage() {
 				<Card className="hover:shadow-lg transition-shadow">
 					<CardHeader className="pb-2">
 						<div className="flex items-center">
-							<TreePine className="h-5 w-5 text-green-500 mr-2" />
+							<TreePine className="h-5 w-5 text-blue-500 mr-2" />
 							<h3 className="text-lg font-semibold text-gray-800">
 								Green Space
 							</h3>
 						</div>
 					</CardHeader>
 					<CardContent>
-						<p className="text-2xl font-bold text-green-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{greenSpace ?? null}
 						</p>
 						<p className="text-sm text-gray-500 mt-1">
@@ -334,52 +341,66 @@ export default function SitePlanPage() {
 					</CardContent>
 				</Card>
 
-				<Card className="hover:shadow-lg transition-shadow">
-					<CardHeader>
-						<h3 className="text-xl font-semibold text-gray-800">
-							Development Potential
-						</h3>
-					</CardHeader>
-					<CardContent>
-						<div className="space-y-4">
-							<div className="flex justify-between items-center">
-								<span className="text-gray-600">
-									FAR Remaining
-								</span>
-								<Badge
-									variant="outline"
-									className="border-gray-200"
-								>
-									{formatFixed(farRemaining, 1) ?? null}
-								</Badge>
+				{showDevelopmentPotential && (
+					<Card className="hover:shadow-lg transition-shadow">
+						<CardHeader>
+							<h3 className="text-xl font-semibold text-gray-800">
+								Development Potential
+							</h3>
+						</CardHeader>
+						<CardContent>
+							<div className="space-y-4">
+								{(isGroundUp || farRemaining != null) && (
+									<div className="flex justify-between items-center">
+										<span className="text-gray-600">
+											FAR Remaining
+										</span>
+										<Badge
+											variant="outline"
+											className="border-blue-200 text-blue-700"
+										>
+											{formatFixed(farRemaining, 1) ?? null}
+										</Badge>
+									</div>
+								)}
+								{(isGroundUp || heightRemaining != null) && (
+									<div className="flex justify-between items-center">
+										<span className="text-gray-600">
+											Height Remaining
+										</span>
+										<Badge
+											variant="outline"
+											className="border-blue-200 text-blue-700"
+										>
+											{formatFixed(heightRemaining, 1) != null
+												? `${formatFixed(
+														heightRemaining,
+														1
+												  )} feet`
+												: null}
+										</Badge>
+									</div>
+								)}
+								{zoningCompliant != null && (
+									<div className="flex justify-between items-center">
+										<span className="text-gray-600">
+											Zoning Compliance
+										</span>
+										<Badge
+											className={
+												String(zoningCompliant).toLowerCase() === "no"
+													? "bg-red-100 text-red-800"
+													: "bg-blue-100 text-blue-800"
+											}
+										>
+											{zoningCompliant}
+										</Badge>
+									</div>
+								)}
 							</div>
-							<div className="flex justify-between items-center">
-								<span className="text-gray-600">
-									Height Remaining
-								</span>
-								<Badge
-									variant="outline"
-									className="border-gray-200"
-								>
-									{formatFixed(heightRemaining, 1) != null
-										? `${formatFixed(
-												heightRemaining,
-												1
-										  )} feet`
-										: null}
-								</Badge>
-							</div>
-							<div className="flex justify-between items-center">
-								<span className="text-gray-600">
-									Zoning Compliance
-								</span>
-								<Badge className="bg-green-100 text-green-800">
-									{content?.zoningCompliant ?? null}
-								</Badge>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
+						</CardContent>
+					</Card>
+				)}
 			</div>
 
 			{/* Site Context */}

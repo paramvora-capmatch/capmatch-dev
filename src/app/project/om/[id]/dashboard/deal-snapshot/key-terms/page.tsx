@@ -13,8 +13,10 @@ import {
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { parseNumeric } from "@/lib/om-utils";
+import { useOMProject } from "@/hooks/useOMProject";
 
 export default function KeyTermsPage() {
+	const { dealType } = useOMProject();
 	const { content, insights } = useOmContent();
 
 	// Extract additional loan term fields
@@ -25,7 +27,6 @@ export default function KeyTermsPage() {
 	const targetLtcPercent = parseNumeric(content?.targetLtcPercent) ?? null;
 	const useOfProceeds = content?.useOfProceeds ?? null;
 	const permTakeoutPlanned = content?.permTakeoutPlanned ?? null;
-	console.log("permTakeoutPlanned", permTakeoutPlanned);
 
 	// Build key terms from flat fields
 	const keyTerms = {
@@ -142,15 +143,15 @@ export default function KeyTermsPage() {
 								{keyTerms?.loanType ?? null}
 							</p>
 						</div>
-						<div className="space-y-2 p-4 bg-white rounded-lg border-2 border-green-200 hover:border-green-400 transition-colors">
-							<p className="text-xs font-medium text-green-600">
+						<div className="space-y-2 rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
+							<p className="text-xs font-medium text-blue-600">
 								Interest Rate
 							</p>
-							<p className="font-bold text-xl text-gray-900">
+							<p className="text-lg font-semibold text-gray-900">
 								{keyTerms?.rate ?? null}
 							</p>
 						</div>
-						<div className="space-y-2 p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
+						<div className="space-y-2 rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
 							<p className="text-xs font-medium text-blue-600">
 								Floor Rate
 							</p>
@@ -158,15 +159,15 @@ export default function KeyTermsPage() {
 								{keyTerms?.floor ?? null}
 							</p>
 						</div>
-						<div className="space-y-2 p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
-							<p className="text-xs font-medium text-red-600">
+						<div className="space-y-2 rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
+							<p className="text-xs font-medium text-blue-600">
 								Term
 							</p>
-							<p className="font-bold text-xl text-gray-900">
+							<p className="text-lg font-semibold text-gray-900">
 								{keyTerms?.term ?? null}
 							</p>
 						</div>
-						<div className="space-y-2 p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
+						<div className="space-y-2 rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
 							<p className="text-xs font-medium text-blue-600">
 								Extensions
 							</p>
@@ -174,50 +175,50 @@ export default function KeyTermsPage() {
 								{keyTerms?.extension ?? null}
 							</p>
 						</div>
-						<div className="space-y-2 p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
-							<p className="text-xs font-medium text-red-600">
+						<div className="space-y-2 rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
+							<p className="text-xs font-medium text-blue-600">
 								Recourse
 							</p>
-							<p className="font-bold text-xl text-gray-900">
+							<p className="text-lg font-semibold text-gray-900">
 								{keyTerms?.recourse ?? null}
 							</p>
 						</div>
 						{interestRateType && (
-							<div className="space-y-2 p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
+							<div className="space-y-2 rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
 								<p className="text-xs font-medium text-blue-600">
 									Interest Rate Type
 								</p>
-								<p className="font-bold text-xl text-gray-900">
+								<p className="text-lg font-semibold text-gray-900">
 									{interestRateType}
 								</p>
 							</div>
 						)}
 						{interestOnlyPeriodMonths != null && (
-							<div className="space-y-2 p-4 bg-white rounded-lg border-2 border-green-200 hover:border-green-400 transition-colors">
-								<p className="text-xs font-medium text-green-600">
+							<div className="space-y-2 rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
+								<p className="text-xs font-medium text-blue-600">
 									Interest-Only Period
 								</p>
-								<p className="font-bold text-xl text-gray-900">
+								<p className="text-lg font-semibold text-gray-900">
 									{interestOnlyPeriodMonths} months
 								</p>
 							</div>
 						)}
 						{targetLtvPercent != null && (
-							<div className="space-y-2 p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
+							<div className="space-y-2 rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
 								<p className="text-xs font-medium text-blue-600">
 									Target LTV
 								</p>
-								<p className="font-bold text-xl text-gray-900">
+								<p className="text-lg font-semibold text-gray-900">
 									{targetLtvPercent}%
 								</p>
 							</div>
 						)}
-						{targetLtcPercent != null && (
-							<div className="space-y-2 p-4 bg-white rounded-lg border-2 border-green-200 hover:border-green-400 transition-colors">
-								<p className="text-xs font-medium text-green-600">
+						{dealType === "ground_up" && targetLtcPercent != null && (
+							<div className="space-y-2 rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
+								<p className="text-xs font-medium text-blue-600">
 									Target LTC
 								</p>
-								<p className="font-bold text-xl text-gray-900">
+								<p className="text-lg font-semibold text-gray-900">
 									{targetLtcPercent}%
 								</p>
 							</div>
@@ -229,7 +230,10 @@ export default function KeyTermsPage() {
 			{/* Additional Loan Details */}
 			{(useOfProceeds || permTakeoutPlanned) && (
 				<Card className="hover:shadow-lg transition-shadow mb-8 border-blue-200 bg-white">
-					<CardHeader className="pb-3">
+					<CardHeader
+						className="pb-3"
+						dataSourceFields={["use of proceeds", "perm takeout planned"]}
+					>
 						<div className="flex items-center space-x-2">
 							<FileText className="h-6 w-6 text-blue-600" />
 							<h3 className="text-xl font-semibold text-gray-800">
@@ -250,8 +254,8 @@ export default function KeyTermsPage() {
 								</div>
 							)}
 							{permTakeoutPlanned && (
-								<div className="p-4 bg-white rounded-lg border-2 border-green-200">
-									<p className="text-xs font-medium text-green-600 mb-2">
+								<div className="rounded-lg border border-blue-200 bg-white p-4">
+									<p className="text-xs font-medium text-blue-600 mb-2">
 										Perm Takeout Planned
 									</p>
 									<p className="text-sm text-gray-800">
@@ -266,7 +270,7 @@ export default function KeyTermsPage() {
 
 			{/* Fees and Reserves */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-				<Card className="hover:shadow-lg transition-shadow border-red-200 bg-white">
+				<Card className="hover:shadow-lg transition-shadow border-blue-200 bg-white">
 					<CardHeader
 						className="pb-3"
 						dataSourceFields={[
@@ -276,7 +280,7 @@ export default function KeyTermsPage() {
 						]}
 					>
 						<div className="flex items-center space-x-2">
-							<Percent className="h-6 w-6 text-red-600" />
+							<Percent className="h-6 w-6 text-blue-600" />
 							<h3 className="text-xl font-semibold text-gray-800">
 								Fees
 							</h3>
@@ -284,11 +288,11 @@ export default function KeyTermsPage() {
 					</CardHeader>
 					<CardContent className="pt-0">
 						<div className="space-y-4">
-							<div className="flex justify-between items-center p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
+							<div className="flex justify-between items-center rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
 								<span className="text-sm text-gray-700 font-medium">
 									Origination Fee
 								</span>
-								<Badge className="bg-red-100 text-red-800 border-2 border-red-300 font-semibold text-sm px-3 py-1">
+								<Badge className="bg-blue-100 text-blue-800 border border-blue-200 font-semibold text-sm px-3 py-1">
 									{(() => {
 										if (content?.originationFee) {
 											return typeof content.originationFee ===
@@ -306,11 +310,11 @@ export default function KeyTermsPage() {
 									})()}
 								</Badge>
 							</div>
-							<div className="flex justify-between items-center p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
+							<div className="flex justify-between items-center rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
 								<span className="text-sm text-gray-700 font-medium">
 									Exit Fee
 								</span>
-								<Badge className="bg-red-100 text-red-800 border-2 border-red-300 font-semibold text-sm px-3 py-1">
+								<Badge className="bg-blue-100 text-blue-800 border border-blue-200 font-semibold text-sm px-3 py-1">
 									{keyTerms?.exitFee ?? null}
 								</Badge>
 							</div>
@@ -348,11 +352,11 @@ export default function KeyTermsPage() {
 									{lenderReserves?.taxInsurance ?? null}
 								</Badge>
 							</div>
-							<div className="flex justify-between items-center p-4 bg-white rounded-lg border-2 border-green-200 hover:border-green-400 transition-colors">
+							<div className="flex justify-between items-center rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
 								<span className="text-sm text-gray-700 font-medium">
 									CapEx Reserve
 								</span>
-								<Badge className="bg-green-100 text-green-800 border-2 border-green-300 font-semibold text-sm px-3 py-1">
+								<Badge className="bg-blue-100 text-blue-800 border border-blue-200 font-semibold text-sm px-3 py-1">
 									{lenderReserves?.capEx ?? null}
 								</Badge>
 							</div>
@@ -400,11 +404,11 @@ export default function KeyTermsPage() {
 								{covenants?.minLiquidity ?? null}
 							</p>
 						</div>
-						<div className="space-y-2 p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
-							<p className="text-xs font-medium text-red-600">
+						<div className="space-y-2 rounded-lg border border-blue-200 bg-white p-4 transition-colors hover:border-blue-300">
+							<p className="text-xs font-medium text-blue-600">
 								Completion Guaranty
 							</p>
-							<p className="font-bold text-xl text-gray-900">
+							<p className="text-lg font-semibold text-gray-900">
 								{covenants?.completionGuaranty ?? null}
 							</p>
 						</div>
@@ -412,7 +416,7 @@ export default function KeyTermsPage() {
 				</CardContent>
 			</Card>
 
-			<Card className="hover:shadow-lg transition-shadow mt-8 border-green-200 bg-white">
+			<Card className="hover:shadow-lg transition-shadow mt-8 border-blue-200 bg-white">
 				<CardHeader
 					className="pb-3"
 					dataSourceFields={[
@@ -422,7 +426,7 @@ export default function KeyTermsPage() {
 					]}
 				>
 					<div className="flex items-center space-x-2">
-						<Sparkles className="h-6 w-6 text-green-600" />
+						<Sparkles className="h-6 w-6 text-blue-600" />
 						<h3 className="text-xl font-semibold text-gray-800">
 							Special Programs & Incentives
 						</h3>
@@ -445,20 +449,20 @@ export default function KeyTermsPage() {
 									key={`program-${index}`}
 									className={`flex items-start justify-between rounded-lg p-5 bg-white border-2 transition-all hover:shadow-md ${
 										index === 0
-											? "border-green-300"
+											? "border-blue-300"
 											: index === 1
 											? "border-blue-300"
-											: "border-red-300"
+											: "border-sky-300"
 									}`}
 								>
 									<div className="pr-4">
 										<h4
 											className={`font-bold text-xl mb-1 ${
 												index === 0
-													? "text-green-900"
+													? "text-blue-900"
 													: index === 1
 													? "text-blue-900"
-													: "text-red-900"
+													: "text-sky-900"
 											}`}
 										>
 											{program?.name ?? null}
@@ -466,10 +470,10 @@ export default function KeyTermsPage() {
 										<p
 											className={`text-sm mt-1 ${
 												index === 0
-													? "text-green-700"
+													? "text-blue-700"
 													: index === 1
 													? "text-blue-700"
-													: "text-red-700"
+													: "text-sky-700"
 											}`}
 										>
 											{program?.description ?? null}
@@ -478,10 +482,10 @@ export default function KeyTermsPage() {
 									<Badge
 										className={`whitespace-nowrap border-2 font-semibold text-sm px-3 py-1 ${
 											index === 0
-												? "bg-green-100 text-green-800 border-green-300"
+												? "bg-blue-100 text-blue-800 border-blue-300"
 												: index === 1
 												? "bg-blue-100 text-blue-800 border-blue-300"
-												: "bg-red-100 text-red-800 border-red-300"
+												: "bg-sky-100 text-sky-800 border-sky-300"
 										}`}
 									>
 										{index === 0

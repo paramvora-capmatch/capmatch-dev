@@ -5,49 +5,36 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, Building2, DollarSign, BarChart3 } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { parseNumeric, calculateAverage, formatFixed } from "@/lib/om-utils";
+import { parseNumeric, formatFixed } from "@/lib/om-utils";
+import {
+  getComparableAverageCapRate,
+  getComparableAverageDistance,
+  getComparableAverageRentPSF,
+  getComparableEntries,
+} from "@/lib/om-display";
 
 export default function ComparablesPage() {
 	const { content, insights } = useOmContent();
 
-	// Access flat rentComps array directly
-	const rentComps = Array.isArray(content?.rentComps)
-		? content.rentComps
-		: [];
-
-	// Transform flat rentComps to comparableDetails structure for UI
-	const comparableDetails = rentComps.map((comp: any) => ({
-		name: comp.propertyName || comp.name || "Unknown Property",
-		address: comp.address || comp.location || null,
-		distance: comp.distance ? `${comp.distance} mi` : null,
-		yearBuilt: comp.yearBuilt || comp.year || null,
-		units: comp.totalUnits || comp.units || 0,
-		occupancy: comp.occupancy ? `${comp.occupancy}%` : null,
-		avgRent: comp.rentPerSF
-			? `$${comp.rentPerSF}/SF`
-			: comp.rentPSF || null,
+	const comparables = getComparableEntries(content);
+	const comparableDetails = comparables.map((comp) => ({
+		name: comp.name,
+		address: comp.address,
+		distance: comp.distanceLabel,
+		yearBuilt: comp.yearBuilt,
+		units: comp.units,
+		occupancy: comp.occupancyLabel,
+		avgRent: comp.rentPSFLabel ?? comp.avgRentMonthlyLabel,
 		lastSale: {
-			date: comp.saleDate || comp.lastSaleDate || null,
-			price: comp.salePrice
-				? `$${comp.salePrice.toLocaleString()}`
-				: null,
-			capRate: comp.capRate ? `${comp.capRate}%` : null,
+			date: comp.saleDate,
+			price: comp.salePriceLabel,
+			capRate: comp.capRateLabel,
 		},
 	}));
 
-	const avgRentPSF = calculateAverage(
-		comparableDetails,
-		(comp: (typeof comparableDetails)[0]) => parseNumeric(comp.avgRent)
-	);
-	const avgCapRate = calculateAverage(
-		comparableDetails,
-		(comp: (typeof comparableDetails)[0]) =>
-			parseNumeric(comp.lastSale?.capRate)
-	);
-	const avgDistance = calculateAverage(
-		comparableDetails,
-		(comp: (typeof comparableDetails)[0]) => parseNumeric(comp.distance)
-	);
+	const avgRentPSF = getComparableAverageRentPSF(content, comparables);
+	const avgCapRate = getComparableAverageCapRate(content, comparables);
+	const avgDistance = getComparableAverageDistance(comparables);
 	const comparablesCount = comparableDetails.length;
 
 	const getDistanceColor = (distance: string | null | undefined) => {
@@ -108,14 +95,14 @@ export default function ComparablesPage() {
 				<Card className="hover:shadow-lg transition-shadow">
 					<CardHeader className="pb-2">
 						<div className="flex items-center">
-							<DollarSign className="h-5 w-5 text-green-500 mr-2" />
+							<DollarSign className="h-5 w-5 text-blue-500 mr-2" />
 							<h3 className="text-lg font-semibold text-gray-800">
 								Avg Rent PSF
 							</h3>
 						</div>
 					</CardHeader>
 					<CardContent>
-						<p className="text-3xl font-bold text-green-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{formatFixed(avgRentPSF, 2) != null
 								? `$${formatFixed(avgRentPSF, 2)}`
 								: null}
@@ -154,7 +141,7 @@ export default function ComparablesPage() {
 						</h3>
 					</CardHeader>
 					<CardContent>
-						<p className="text-3xl font-bold text-red-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{formatFixed(avgDistance, 1) != null
 								? `${formatFixed(avgDistance, 1)} mi`
 								: null}
@@ -246,29 +233,35 @@ export default function ComparablesPage() {
 														comp.occupancy
 													)}
 												>
-													{comp.occupancy}
+													{comp.occupancy ?? "N/A"}
 												</Badge>
 											</td>
 											<td className="py-4 px-4 text-gray-800">
-												{comp.avgRent}
+												{comp.avgRent ?? "N/A"}
 											</td>
 											<td className="py-4 px-4">
 												<div>
 													<p className="text-sm text-gray-800">
-														{comp.lastSale.date}
+														{comp.lastSale.date ?? "N/A"}
 													</p>
 													<p className="text-xs text-gray-500">
-														{comp.lastSale.price}
+														{comp.lastSale.price ?? "N/A"}
 													</p>
 												</div>
 											</td>
 											<td className="py-4 px-4">
 												<Badge
 													className={getCapRateColor(
-														comp.lastSale.capRate
+														comp.lastSale.capRate ??
+															(avgCapRate != null
+																? `${formatFixed(avgCapRate, 1)}%`
+																: null)
 													)}
 												>
-													{comp.lastSale.capRate}
+													{comp.lastSale.capRate ??
+														(avgCapRate != null
+															? `${formatFixed(avgCapRate, 1)}%`
+															: "N/A")}
 												</Badge>
 											</td>
 										</tr>

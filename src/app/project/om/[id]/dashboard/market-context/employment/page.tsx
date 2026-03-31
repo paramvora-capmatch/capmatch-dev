@@ -12,6 +12,7 @@ const EmploymentMap = dynamic(() => import('@/components/om/EmploymentMap'), {
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { parseNumeric, calculateAverage, formatLocale, formatFixed } from '@/lib/om-utils';
+import { getInsightList } from '@/lib/om-display';
 
 export default function EmploymentPage() {
   const { content, insights } = useOmContent();
@@ -58,6 +59,21 @@ export default function EmploymentPage() {
   });
 
   const avgDistance = calculateAverage(majorEmployers, (employer: typeof majorEmployers[0]) => parseNumeric(employer.distance));
+  const employmentStrengths = getInsightList(
+    ['employmentStrength1', 'employmentStrength2', 'employmentStrength3'],
+    insights,
+    content
+  );
+  const marketOpportunities = getInsightList(
+    ['employmentOpportunity1', 'employmentOpportunity2', 'employmentOpportunity3'],
+    insights,
+    content
+  );
+  const targetMarketInsights = getInsightList(
+    ['targetMarket1', 'targetMarket2', 'targetMarket3'],
+    insights,
+    content
+  );
 
   useOMPageHeader({
     subtitle: "Job base composition, employer proximity, and growth trends.",
@@ -84,12 +100,12 @@ export default function EmploymentPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <Users className="h-5 w-5 text-green-500 mr-2" />
+              <Users className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Total Jobs</h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">{formatLocale(totalEmployees) ?? 0}</p>
+            <p className="text-3xl font-semibold text-blue-700">{formatLocale(totalEmployees) ?? 0}</p>
             <p className="text-sm text-gray-500 mt-1">Direct employment</p>
           </CardContent>
         </Card>
@@ -114,7 +130,7 @@ export default function EmploymentPage() {
             <h3 className="text-lg font-semibold text-gray-800">Avg Distance</h3>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-red-600">
+            <p className="text-3xl font-semibold text-blue-700">
               {avgDistance != null ? `${formatFixed(avgDistance, 1)} mi` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">From project site</p>
@@ -262,45 +278,36 @@ export default function EmploymentPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Employment Strengths</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['employmentStrength1', 'employmentStrength2', 'employmentStrength3'].map((field) => {
-                  const insight = insights?.[field];
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {employmentStrengths.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['employmentOpportunity1', 'employmentOpportunity2', 'employmentOpportunity3'].map((field) => {
-                  const insight = insights?.[field];
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-blue-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {marketOpportunities.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Target Market</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['targetMarket1', 'targetMarket2', 'targetMarket3'].map((field) => {
-                  const insight = insights?.[field];
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-blue-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {targetMarketInsights.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>

@@ -1,6 +1,7 @@
 // src/hooks/useOMData.ts
 import { useState, useEffect } from "react";
 import { getLatestOM, getOMValue } from "@/lib/om-queries";
+import { syncOMContent } from "@/lib/om-sync";
 
 export function useOMData(projectId: string) {
 	const [omData, setOmData] = useState<any>(null);
@@ -14,8 +15,7 @@ export function useOMData(projectId: string) {
 			try {
 				setIsLoading(true);
 
-				// Just fetch existing OM data - no auto-generation
-				// Insights are generated when user clicks "View OM" button
+				await syncOMContent(projectId);
 				const data = await getLatestOM(projectId);
 
 				if (mounted) {

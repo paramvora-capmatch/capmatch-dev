@@ -12,7 +12,10 @@ const SupplyDemandMap = dynamic(() => import("@/components/om/SupplyDemandMap"),
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
-import { OMEmptyState } from "@/components/om/OMEmptyState";
+import {
+  getInsightList,
+  getQuarterlyDeliverySchedule,
+} from "@/lib/om-display";
 
 export default function SupplyDemandPage() {
   const { content, insights } = useOmContent();
@@ -22,7 +25,22 @@ export default function SupplyDemandPage() {
   const underConstruction = parseNumeric(content?.underConstruction) ?? 0;
   const planned24Months = parseNumeric(content?.planned24Months) ?? 0;
   const averageOccupancy = content?.averageOccupancy ?? null;
-  const deliveryByQuarter = Array.isArray(content?.deliveryByQuarter) ? content.deliveryByQuarter : [];
+  const deliveryByQuarter = getQuarterlyDeliverySchedule(content);
+  const supplyStrengths = getInsightList(
+    ['supplyStrength1', 'supplyStrength2', 'supplyStrength3'],
+    insights,
+    content
+  );
+  const marketOpportunities = getInsightList(
+    ['marketOpportunity1', 'marketOpportunity2', 'marketOpportunity3'],
+    insights,
+    content
+  );
+  const riskFactors = getInsightList(
+    ['riskFactor1', 'riskFactor2', 'riskFactor3'],
+    insights,
+    content
+  );
 
   const getOccupancyColor = (occupancy?: string | null) => {
     const occ = parseFloat(occupancy ?? "");
@@ -77,14 +95,14 @@ export default function SupplyDemandPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <Clock className="h-5 w-5 text-red-500 mr-2" />
+              <Clock className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">
                 Under Construction
               </h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-red-600">
+            <p className="text-3xl font-semibold text-blue-700">
               {formatLocale(underConstruction) ?? 0}
             </p>
             <p className="text-sm text-gray-500 mt-1">Units in progress</p>
@@ -163,14 +181,14 @@ export default function SupplyDemandPage() {
                   {formatLocale(underConstruction) ?? 0}{" "}
                   units
                 </span>
-                <Badge className="bg-red-100 text-red-800">
+                <Badge className="bg-blue-100 text-blue-800">
                   In Progress
                 </Badge>
               </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-4">
               <div
-                className="h-4 rounded-full bg-red-500"
+                className="h-4 rounded-full bg-blue-500"
                 style={{
                   width: `${
                     (underConstruction / totalSupply) *
@@ -389,15 +407,12 @@ export default function SupplyDemandPage() {
                 Supply Strengths
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['supplyStrength1', 'supplyStrength2', 'supplyStrength3'].map((field) => {
-                  const insight = insights?.[field];
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {supplyStrengths.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
 
@@ -406,30 +421,24 @@ export default function SupplyDemandPage() {
                 Market Opportunities
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['marketOpportunity1', 'marketOpportunity2', 'marketOpportunity3'].map((field) => {
-                  const insight = insights?.[field];
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-blue-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {marketOpportunities.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['riskFactor1', 'riskFactor2', 'riskFactor3'].map((field) => {
-                  const insight = insights?.[field];
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-gray-800 mr-2">•</span>
-                      <span className="text-gray-800">{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {riskFactors.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-red-500 mr-2">•</span>
+                    <span className="text-gray-800">{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>

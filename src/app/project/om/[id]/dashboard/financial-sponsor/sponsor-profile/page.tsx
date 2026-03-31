@@ -17,6 +17,7 @@ import PlaceholderImage from "@/components/ui/PlaceholderImage";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { formatLocale, parseNumeric } from "@/lib/om-utils";
+import { getInsightList } from "@/lib/om-display";
 
 export default function SponsorProfilePage() {
   const { content, insights } = useOmContent();
@@ -40,6 +41,10 @@ export default function SponsorProfilePage() {
     portfolioLTV: content?.portfolioLTV ?? null,
     sponsorExpScore,
   };
+  const yearsInBusiness =
+    parseNumeric(sponsorProfile.yearFounded) != null
+      ? new Date().getFullYear() - (parseNumeric(sponsorProfile.yearFounded) ?? 0)
+      : null;
   
   // Transform principals from borrower resume format to display format
   // Principals come from borrower resume and are included in OM content
@@ -147,6 +152,28 @@ export default function SponsorProfilePage() {
         : parseFloat(typeof irr === "string" ? irr : String(irr ?? ""));
     return Number.isNaN(irrNum) ? null : irrNum;
   };
+  const developmentStrengths = getInsightList(
+    ['sponsorStrength1'],
+    insights,
+    content,
+    [
+      `${formatLocale(sponsorProfile?.totalUnits) ?? 'N/A'} units delivered.`,
+      `${yearsInBusiness != null ? yearsInBusiness : 'N/A'} years in business.`,
+    ]
+  );
+  const financialStrengths = getInsightList(
+    ['sponsorStrength2', 'sponsorStrength3'],
+    insights,
+    content,
+    [
+      `${sponsorProfile?.totalDeveloped ?? 'N/A'} total development value.`,
+    ]
+  );
+  const marketStrengths = getInsightList(
+    ['sponsorStrength4', 'sponsorStrength5', 'sponsorStrength6'],
+    insights,
+    content
+  );
 
   useOMPageHeader({
     subtitle: "Sponsor team overview, track record, and lender references.",
@@ -165,7 +192,7 @@ export default function SponsorProfilePage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">
+            <p className="text-3xl font-semibold text-blue-700">
               {sponsorProfile?.yearFounded ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Years in business</p>
@@ -175,14 +202,14 @@ export default function SponsorProfilePage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <DollarSign className="h-5 w-5 text-green-500 mr-2" />
+              <DollarSign className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">
                 Total Developed
               </h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">
+            <p className="text-3xl font-semibold text-blue-700">
               {sponsorProfile?.totalDeveloped ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Cumulative value</p>
@@ -209,14 +236,14 @@ export default function SponsorProfilePage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <TrendingUp className="h-5 w-5 text-red-500 mr-2" />
+              <TrendingUp className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">
                 Active Projects
               </h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-red-600">
+            <p className="text-3xl font-semibold text-blue-700">
               {sponsorProfile?.activeProjects ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Current developments</p>
@@ -562,28 +589,18 @@ export default function SponsorProfilePage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-br from-green-50 to-white rounded-xl p-6 border border-green-100">
+            <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl p-6 border border-blue-100">
               <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
-                <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
                 Development Expertise
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  {formatLocale(sponsorProfile?.totalUnits) ?? null}{" "}
-                  units delivered
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  {sponsorProfile?.yearFounded ?? null} years of
-                  experience
-                </li>
-                {insights?.sponsorStrength1 && (
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">•</span>
-                    {insights.sponsorStrength1}
+                {developmentStrengths.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    {insight}
                   </li>
-                )}
+                ))}
               </ul>
             </div>
 
@@ -593,23 +610,12 @@ export default function SponsorProfilePage() {
                 Financial Performance
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
-                {insights?.sponsorStrength2 && (
-                  <li className="flex items-center">
+                {financialStrengths.map((insight) => (
+                  <li key={insight} className="flex items-center">
                     <span className="text-blue-500 mr-2">•</span>
-                    {insights.sponsorStrength2}
+                    {insight}
                   </li>
-                )}
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  {sponsorProfile?.totalDeveloped ?? null} total
-                  development value
-                </li>
-                {insights?.sponsorStrength3 && (
-                  <li className="flex items-center">
-                    <span className="text-blue-500 mr-2">•</span>
-                    {insights.sponsorStrength3}
-                  </li>
-                )}
+                ))}
               </ul>
             </div>
 
@@ -619,15 +625,12 @@ export default function SponsorProfilePage() {
                 Market Position
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
-                {['sponsorStrength4', 'sponsorStrength5', 'sponsorStrength6'].map((field) => {
-                  const insight = insights?.[field] ?? null;
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-blue-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {marketStrengths.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>

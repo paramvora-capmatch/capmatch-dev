@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Shield, Info } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
+import { getInsightList } from "@/lib/om-display";
 
 export default function RiskAnalysisPage() {
   const { content, insights } = useOmContent();
@@ -24,13 +25,23 @@ export default function RiskAnalysisPage() {
   const highRisks = riskHigh;
   const mediumRisks = riskMedium;
   const lowRisks = riskLow;
+  const mitigationInsights = getInsightList(
+    ['riskMitigation1', 'riskMitigation2', 'riskMitigation3'],
+    insights,
+    content
+  );
+  const monitoringInsights = getInsightList(
+    ['riskMonitoring1', 'riskMonitoring2', 'riskMonitoring3'],
+    insights,
+    content
+  );
 
   const getRiskColor = (severity: string) => {
     switch (severity) {
       case "high":
         return "border-red-200 bg-red-50";
       case "medium":
-        return "border-red-200 bg-red-50";
+        return "border-amber-200 bg-amber-50";
       case "low":
         return "border-green-200 bg-green-50";
       default:
@@ -41,7 +52,7 @@ export default function RiskAnalysisPage() {
   const getProbabilityColor = (probability?: string | null) => {
     const prob = parseInt(probability ?? "");
     if (prob >= 50) return "bg-red-100 text-red-800";
-    if (prob >= 25) return "bg-red-100 text-red-800";
+    if (prob >= 25) return "bg-amber-100 text-amber-800";
     return "bg-green-100 text-green-800";
   };
 
@@ -153,7 +164,7 @@ export default function RiskAnalysisPage() {
             {/* Medium Risk */}
             {mediumRisks.length > 0 && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-red-800 flex items-center">
+                <h3 className="text-lg font-semibold text-amber-800 flex items-center">
                   <Info className="h-5 w-5 mr-2" />
                   Medium Risk Items
                 </h3>
@@ -167,10 +178,10 @@ export default function RiskAnalysisPage() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h4 className="font-semibold text-red-900 mb-2">
+                          <h4 className="font-semibold text-amber-900 mb-2">
                             {asString(risk.risk)}
                           </h4>
-                          <p className="text-red-800 text-sm mb-3">
+                          <p className="text-amber-800 text-sm mb-3">
                             {asString(risk.mitigation)}
                           </p>
                           <Badge className={getProbabilityColor(asString(risk.probability))}>
@@ -231,15 +242,12 @@ export default function RiskAnalysisPage() {
                 Key Mitigation Strategies
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['riskMitigation1', 'riskMitigation2', 'riskMitigation3'].map((field) => {
-                  const insight = insights?.[field] ?? content?.[field] ?? null;
-                  return insight ? (
-                    <li key={field} className="flex items-start">
-                      <span className="text-green-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {mitigationInsights.map((insight) => (
+                  <li key={insight} className="flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>
@@ -247,15 +255,12 @@ export default function RiskAnalysisPage() {
                 Risk Monitoring
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['riskMonitoring1', 'riskMonitoring2', 'riskMonitoring3'].map((field) => {
-                  const insight = insights?.[field] ?? content?.[field] ?? null;
-                  return insight ? (
-                    <li key={field} className="flex items-start">
-                      <span className="text-blue-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {monitoringInsights.map((insight) => (
+                  <li key={insight} className="flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>

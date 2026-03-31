@@ -12,6 +12,7 @@ const PopulationHeatmap = dynamic(() => import('@/components/om/PopulationHeatma
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { formatLocale, formatCurrency, parseNumeric } from '@/lib/om-utils';
+import { getInsightList } from '@/lib/om-display';
 
 export default function DemographicsPage() {
   const { content, insights } = useOmContent();
@@ -90,6 +91,25 @@ export default function DemographicsPage() {
   const infrastructureCatalyst = content?.infrastructureCatalyst ?? null;
   const broadbandSpeed = content?.broadbandSpeed ?? null;
   const crimeRiskLevel = content?.crimeRiskLevel ?? null;
+  const demographicStrengths = getInsightList(
+    ['demographicStrength1', 'demographicStrength2', 'demographicStrength3'],
+    insights,
+    content,
+    [
+      `Strong population growth (${populationGrowth5yr != null ? `${populationGrowth5yr}%` : "N/A"} over five years).`,
+      `High median income (${formatCurrency(medianIncome1Mi) ?? "N/A"} within the 1-mile radius).`,
+    ]
+  );
+  const marketOpportunities = getInsightList(
+    ['demographicOpportunity1', 'demographicOpportunity2', 'demographicOpportunity3'],
+    insights,
+    content
+  );
+  const targetDemographics = getInsightList(
+    ['targetDemographic1', 'targetDemographic2', 'targetDemographic3'],
+    insights,
+    content
+  );
 
   useOMPageHeader({
     subtitle: "Population make-up, income bands, and growth across key radii.",
@@ -129,7 +149,7 @@ export default function DemographicsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">
+            <p className="text-3xl font-semibold text-blue-700">
               {formatLocale(threeMile?.population) ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Population</p>
@@ -313,50 +333,36 @@ export default function DemographicsPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Demographic Strengths</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  Strong population growth ({populationGrowth5yr != null ? `${populationGrowth5yr}%` : null} 5-year)
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  High median income ({formatCurrency(medianIncome1Mi) ?? null} within 1-mile)
-                </li>
-                {insights?.demographicStrength1 && (
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">•</span>
-                    {insights.demographicStrength1}
+                {demographicStrengths.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    {insight}
                   </li>
-                )}
+                ))}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['demographicOpportunity1', 'demographicOpportunity2', 'demographicOpportunity3'].map((field) => {
-                  const insight = insights?.[field];
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-blue-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {marketOpportunities.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Target Demographics</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['targetDemographic1', 'targetDemographic2', 'targetDemographic3'].map((field) => {
-                  const insight = insights?.[field];
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-blue-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {targetDemographics.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
@@ -379,19 +385,19 @@ export default function DemographicsPage() {
                 </div>
               )}
               {infrastructureCatalyst && (
-                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Infrastructure Catalyst</p>
                   <p className="text-sm font-semibold text-gray-800">{infrastructureCatalyst}</p>
                 </div>
               )}
               {broadbandSpeed && (
-                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="p-4 bg-sky-50 rounded-lg border border-sky-200">
                   <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Broadband Speed</p>
                   <p className="text-sm font-semibold text-gray-800">{broadbandSpeed}</p>
                 </div>
               )}
               {crimeRiskLevel && (
-                <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Crime Risk Level</p>
                   <p className="text-sm font-semibold text-gray-800">{crimeRiskLevel}</p>
                 </div>

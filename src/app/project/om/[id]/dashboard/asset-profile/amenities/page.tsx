@@ -7,9 +7,11 @@ import { LucideIcon } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { formatLocale, parseNumeric } from "@/lib/om-utils";
+import { getAmenitySummary } from "@/lib/om-display";
 
 export default function AmenitiesPage() {
 	const { content, insights } = useOmContent();
+	const amenitySummary = getAmenitySummary(content);
 
 	// Access amenityList - handle both array and comma-separated string
 	const amenityListRaw = content?.amenityList;
@@ -92,24 +94,8 @@ export default function AmenitiesPage() {
 			} => space !== null
 		); // Remove null entries with type guard
 
-	const totalAmenitySF =
-		amenityDetails.length > 0
-			? amenityDetails.reduce(
-					(sum: number, amenity: { size?: string | null }) => {
-						const numeric = parseInt(
-							(amenity.size ?? "").replace(/[^\d]/g, ""),
-							10
-						);
-						return sum + (Number.isNaN(numeric) ? 0 : numeric);
-					},
-					0
-			  )
-			: null;
-
-	const avgAmenitySize =
-		totalAmenitySF != null && amenityDetails.length > 0
-			? Math.round(totalAmenitySF / amenityDetails.length)
-			: null;
+	const totalAmenitySF = amenitySummary.totalSF;
+	const avgAmenitySize = amenitySummary.avgSizeSF;
 
 	const getAmenityIcon = (name: string): LucideIcon => {
 		const iconMap: { [key: string]: LucideIcon } = {
@@ -126,11 +112,11 @@ export default function AmenitiesPage() {
 	const getAmenityColor = (index: number) => {
 		const colors = [
 			"border-blue-200 bg-blue-50",
-			"border-green-200 bg-green-50",
-			"border-red-200 bg-red-50",
+			"border-sky-200 bg-sky-50",
+			"border-cyan-200 bg-cyan-50",
 			"border-blue-200 bg-blue-50",
-			"border-green-200 bg-green-50",
-			"border-red-200 bg-red-50",
+			"border-sky-200 bg-sky-50",
+			"border-cyan-200 bg-cyan-50",
 		];
 		return colors[index % colors.length];
 	};
@@ -145,8 +131,6 @@ export default function AmenitiesPage() {
 		parseNumeric(content?.evChargingStations) ?? null;
 	const leedGreenRating = content?.leedGreenRating ?? null;
 	const amenitySF = parseNumeric(content?.amenitySF) ?? null;
-
-	console.log(insights.commercialInnovationProgram);
 
 	useOMPageHeader({
 		subtitle: "Inventory of onsite amenities and experiential highlights.",
@@ -166,7 +150,7 @@ export default function AmenitiesPage() {
 						</h3>
 					</CardHeader>
 					<CardContent>
-						<p className="text-3xl font-bold text-blue-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{amenityDetails.length > 0
 								? amenityDetails.length
 								: null}
@@ -187,7 +171,7 @@ export default function AmenitiesPage() {
 						</h3>
 					</CardHeader>
 					<CardContent>
-						<p className="text-3xl font-bold text-green-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{amenitySF != null
 								? `${formatLocale(amenitySF)} SF`
 								: formatLocale(totalAmenitySF) != null
@@ -201,13 +185,16 @@ export default function AmenitiesPage() {
 				</Card>
 
 				<Card className="hover:shadow-lg transition-shadow">
-					<CardHeader className="pb-2">
+					<CardHeader
+						className="pb-2"
+						dataSourceFields={["amenity sf", "amenity list"]}
+					>
 						<h3 className="text-lg font-semibold text-gray-800">
 							Avg Size
 						</h3>
 					</CardHeader>
 					<CardContent>
-						<p className="text-3xl font-bold text-blue-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{formatLocale(avgAmenitySize) != null
 								? `${formatLocale(avgAmenitySize)} SF`
 								: null}
