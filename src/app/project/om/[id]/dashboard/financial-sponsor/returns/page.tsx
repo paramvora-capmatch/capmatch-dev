@@ -12,6 +12,7 @@ const ReturnsCharts = dynamic(() => import("@/components/om/ReturnsCharts"), {
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
+import { getInsightList } from "@/lib/om-display";
 
 export default function ReturnsPage() {
   const { content, insights } = useOmContent();
@@ -59,6 +60,21 @@ export default function ReturnsPage() {
     multiple: content?.downsideEquityMultiple ?? null,
     profitMargin: content?.downsideProfitMargin ?? null,
   };
+  const returnDrivers = getInsightList(
+    ['returnDriver1', 'returnDriver2', 'returnDriver3'],
+    insights,
+    content
+  );
+  const returnRisks = getInsightList(
+    ['returnRisk1', 'returnRisk2', 'returnRisk3'],
+    insights,
+    content
+  );
+  const returnMitigations = getInsightList(
+    ['returnMitigation1', 'returnMitigation2', 'returnMitigation3'],
+    insights,
+    content
+  );
 
   const getIRRColor = (irr?: number | null) => {
     if (irr == null || Number.isNaN(irr)) return "bg-red-100 text-red-800";
@@ -452,30 +468,24 @@ export default function ReturnsPage() {
                 Key Success Factors
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['returnDriver1', 'returnDriver2', 'returnDriver3'].map((field) => {
-                  const insight = insights?.[field] ?? null;
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {returnDrivers.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['returnRisk1', 'returnRisk2', 'returnRisk3'].map((field) => {
-                  const insight = insights?.[field] ?? null;
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-green-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {returnRisks.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-red-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
 
@@ -484,15 +494,12 @@ export default function ReturnsPage() {
                 Mitigation Strategies
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['returnMitigation1', 'returnMitigation2', 'returnMitigation3'].map((field) => {
-                  const insight = insights?.[field] ?? null;
-                  return insight ? (
-                    <li key={field} className="flex items-center">
-                      <span className="text-blue-500 mr-2">•</span>
-                      <span>{insight}</span>
-                    </li>
-                  ) : null;
-                })}
+                {returnMitigations.map((insight) => (
+                  <li key={insight} className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>

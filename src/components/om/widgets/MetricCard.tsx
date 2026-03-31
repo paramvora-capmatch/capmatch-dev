@@ -48,9 +48,9 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     };
     
     return (
-        <div className={cn("bg-gray-50 rounded-lg p-4 relative", className)}>
+        <div className={cn("rounded-lg border border-blue-100 bg-blue-50/60 p-4 relative", className)}>
             <div className="flex items-start justify-between mb-2">
-                <p className="text-xs text-gray-500 uppercase tracking-wider">{label}</p>
+                <p className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</p>
                 {dataSourceFields && (
                     <div className="ml-2 flex-shrink-0">
                         <DataSourceTooltip
@@ -63,10 +63,10 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             </div>
             <div className="flex items-end justify-between">
                 <p className={cn(
-                    "font-semibold",
-                    size === 'sm' && "text-xl",
+                    "font-semibold text-gray-900",
+                    size === 'sm' && "text-lg",
                     size === 'md' && "text-2xl",
-                    size === 'lg' && "text-2xl"
+                    size === 'lg' && "text-3xl"
                 )}>
                     {formattedValue()}
                 </p>

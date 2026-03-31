@@ -1,4 +1,6 @@
 // src/lib/om-queries.ts
+import { normalizeOMRichValue } from "@/lib/om-display";
+
 import { supabase } from "../lib/supabaseClient";
 
 /**
@@ -31,20 +33,7 @@ function normalizeOMContent(
 
 		const item = rawContent[key];
 
-		// Check if this is a rich format object: { value, source, warnings, other_values }
-		if (
-			item &&
-			typeof item === "object" &&
-			!Array.isArray(item) &&
-			"value" in item &&
-			("source" in item || "sources" in item)
-		) {
-			// Extract the value from rich format
-			normalized[key] = item.value;
-		} else {
-			// Keep as-is (already a primitive or array)
-			normalized[key] = item;
-		}
+		normalized[key] = normalizeOMRichValue(item);
 	}
 
 	return normalized;
@@ -198,8 +187,5 @@ export function getOMValue(
 	// Otherwise, check content
 	if (!content) return null;
 	const field = content[fieldId];
-	if (field && typeof field === "object" && "value" in field) {
-		return field.value;
-	}
-	return field;
+	return normalizeOMRichValue(field);
 }

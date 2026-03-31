@@ -181,7 +181,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	assetType: "Mixed-Use",
 	dealStatus: "Underwriting",
 	exitStrategy: "Refinance or Sale",
-	ownershipType: "Fee Simple",
+	ownershipType: "Leased Fee Interest (Ground Lease)",
 	propertyAddressStreet: "2300 Hickory St",
 	propertyAddressCity: "Dallas",
 	propertyAddressState: "TX",
@@ -197,7 +197,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	groundbreakingDate: "2025-08-01",
 	completionDate: "2027-09-30",
 	totalDevelopmentCost: 29800000,
-	requestedTerm: "2 Years",
+	requestedTerm: 2,
 	projectDescription:
 		"Ground-up development of Building B within the SoGood master plan, delivering 116 units over activated ground-floor innovation space between the Dallas Farmers Market and Deep Ellum.",
 	projectPhase: "Construction",
@@ -218,10 +218,10 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	substantialDestructionThreshold_Area: 50,
 	substantialDestructionThreshold_Parking: 50,
 	landValueDefinition_Legal: "Fee simple interest in site excluding improvements",
-	groundLeaseTerm: 0,
-	groundLeaseRent: 0,
-	groundLessor: "N/A",
-	groundLeaseExpiration: "N/A",
+	groundLeaseTerm: 99,
+	groundLeaseRent: 1,
+	groundLessor: "Commerce Center Development, LLC",
+	groundLeaseExpiration: "99 years from Completion Date",
 	groundLeaseNewLeaseOption: false,
 	groundLeaseCurePeriod_Monetary: 10,
 	groundLeaseCurePeriod_NonMonetary: 30,
@@ -291,13 +291,13 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	evChargingStations: 8,
 	leedGreenRating: "Certified",
 	residentialUnitMix: [
-		{ unitType: "S1", unitCount: 48, avgSqFt: 374, totalMonthlyRent: 1550, avgRentPerSqFt: 4.14 },
-		{ unitType: "S2", unitCount: 28, avgSqFt: 380, totalMonthlyRent: 1600, avgRentPerSqFt: 4.21 },
-		{ unitType: "S3", unitCount: 8, avgSqFt: 470, totalMonthlyRent: 1750, avgRentPerSqFt: 3.72 },
-		{ unitType: "A1", unitCount: 8, avgSqFt: 720, totalMonthlyRent: 2100, avgRentPerSqFt: 2.92 },
-		{ unitType: "A2", unitCount: 8, avgSqFt: 736, totalMonthlyRent: 2150, avgRentPerSqFt: 2.92 },
-		{ unitType: "A3", unitCount: 8, avgSqFt: 820, totalMonthlyRent: 2300, avgRentPerSqFt: 2.80 },
-		{ unitType: "B1", unitCount: 8, avgSqFt: 1120, totalMonthlyRent: 2800, avgRentPerSqFt: 2.50 }
+		{ unitType: "S1", unitCount: 48, avgSF: 374, monthlyRent: 1550, totalSF: 17952 },
+		{ unitType: "S2", unitCount: 28, avgSF: 380, monthlyRent: 1600, totalSF: 10640 },
+		{ unitType: "S3", unitCount: 8, avgSF: 470, monthlyRent: 1750, totalSF: 3760 },
+		{ unitType: "A1", unitCount: 8, avgSF: 720, monthlyRent: 2100, totalSF: 5760 },
+		{ unitType: "A2", unitCount: 8, avgSF: 736, monthlyRent: 2150, totalSF: 5888 },
+		{ unitType: "A3", unitCount: 8, avgSF: 820, monthlyRent: 2300, totalSF: 6560 },
+		{ unitType: "B1", unitCount: 8, avgSF: 1120, monthlyRent: 2800, totalSF: 8960 }
 	],
 	commercialSpaceMix: [
 		{ spaceType: "Innovation Center", squareFootage: 30000, tenant: "GSV Holdings LLC", leaseTerm: "15-year", annualRent: 900000 },
@@ -307,68 +307,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	],
 
 
-	rentRollUnits: [
-		{
-			unitNumber: "101",
-			unitType: "1B/1B",
-			beds: 1,
-			baths: 1,
-			sf: 750,
-			status: "Occupied",
-			tenantName: "John Smith",
-			leaseStart: "2024-01-15",
-			leaseEnd: "2025-01-14",
-			monthlyRent: 2100,
-		},
-		{
-			unitNumber: "102",
-			unitType: "2B/2B",
-			beds: 2,
-			baths: 2,
-			sf: 1100,
-			status: "Occupied",
-			tenantName: "Jane Doe",
-			leaseStart: "2024-03-01",
-			leaseEnd: "2025-02-28",
-			monthlyRent: 3400,
-		},
-		{
-			unitNumber: "103",
-			unitType: "1B/1B",
-			beds: 1,
-			baths: 1,
-			sf: 750,
-			status: "Occupied",
-			tenantName: "Bob Johnson",
-			leaseStart: "2024-06-01",
-			leaseEnd: "2025-05-31",
-			monthlyRent: 2150,
-		},
-		{
-			unitNumber: "104",
-			unitType: "2B/1B",
-			beds: 2,
-			baths: 1,
-			sf: 950,
-			status: "Vacant",
-			tenantName: "",
-			leaseStart: "",
-			leaseEnd: "",
-			monthlyRent: 0,
-		},
-		{
-			unitNumber: "105",
-			unitType: "Studio",
-			beds: 0,
-			baths: 1,
-			sf: 500,
-			status: "Occupied",
-			tenantName: "Alice Brown",
-			leaseStart: "2024-02-01",
-			leaseEnd: "2025-01-31",
-			monthlyRent: 1650,
-		},
-	],
+	rentRollUnits: [],
 	// Financial Details - Development Budget
 	landAcquisition: 6000000,
 	baseConstruction: 16950000,
@@ -397,12 +336,12 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	equityCommittedPercent: 39.6,
 	equityContribution: 39.6,
 	grantFundingAmount: 0,
-	grantFundingSource: "N/A",
+	grantFundingSource: "",
 	privateInvestmentCommitment: 0,
 	mezzanineDebtAmount: 0,
 	preferredEquityAmount: 0,
 	partnerEquityBreakdown: "Hoque Global 60%, ACARA 40%",
-	designBuilderFee: 850000,
+	designBuilderFee: 5.0,
 	designBuilderContingency: 425000,
 	guaranteedMaximumPrice: 16950000,
 	constructionRetainage: 10.0,
@@ -420,6 +359,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	totalSecurityDepositLiability: 0,
 	prepaidRentLiability: 0,
 	affiliatedLoanReceivable: 0,
+	// Note: zero values above are intentional - these liabilities don't exist for this ground-up deal
 
 	// Debt & Financing
 	loanAmountRequested: 18000000,
@@ -703,16 +643,13 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	tenantCredits_Prepayments: 0,
 
 	// Complex Structures
-	capexItems: [
-		{ item: "Roof Replacement", category: "Structure", cost: 150000, priority: "High", condition: "Old", usefulLife: 20, startDate: "2026-01-01", status: "Planned", notes: "Aging TPO roof" }
-	],
+	capexItems: [],
 	t12MonthlyData: (() => {
 		const months = [
 			"January 2024", "February 2024", "March 2024", "April 2024",
 			"May 2024", "June 2024", "July 2024", "August 2024",
 			"September 2024", "October 2024", "November 2024", "December 2024",
 		];
-		// Base monthly values (hypothetical stabilized property)
 		const baseGPR = 185000;
 		const baseOther = 12500;
 		const baseTaxes = 2850;
@@ -724,71 +661,44 @@ const hoqueProjectResumeBase: Record<string, any> = {
 		const baseMarketing = 1200;
 		const baseAdmin = 2100;
 		const baseContract = 1800;
+		const vary = (base: number, i: number) => Math.round(base * (0.96 + (i % 10) * 0.004));
 
 		return months.map((month, i) => {
-			// Add slight monthly variation (+/- 5%)
-			const vary = (base: number) => Math.round(base * (0.95 + Math.random() * 0.1));
-			const gpr = vary(baseGPR);
-			const vacancyLoss = -Math.round(gpr * 0.05);
-			const otherIncome = vary(baseOther);
+			const gpr = vary(baseGPR, i);
+			const otherIncome = vary(baseOther, i);
 			const concessions = i % 3 === 0 ? -Math.round(gpr * 0.01) : 0;
-
+			const capex = i === 5 || i === 11 ? 25000 : 5000;
 			return {
 				month,
-				categories: [
-					{
-						name: "Income",
-						category_type: "income",
-						items: [
-							{ name: "Gross Potential Rent", amount: gpr },
-							{ name: "Vacancy Loss", amount: vacancyLoss },
-							{ name: "Other Income", amount: otherIncome },
-							...(concessions !== 0 ? [{ name: "Concessions", amount: concessions }] : []),
-						],
-					},
-					{
-						name: "Operating Expenses",
-						category_type: "expense",
-						items: [
-							{ name: "Real Estate Taxes", amount: vary(baseTaxes) },
-							{ name: "Insurance", amount: vary(baseInsurance) },
-							{ name: "Utilities", amount: vary(baseUtilities) },
-							{ name: "Repairs & Maintenance", amount: vary(baseRepairs) },
-							{ name: "Payroll", amount: vary(basePayroll) },
-							{ name: "Management Fee", amount: vary(baseMgmtFee) },
-							{ name: "Marketing", amount: vary(baseMarketing) },
-							{ name: "General & Admin", amount: vary(baseAdmin) },
-							{ name: "Contract Services", amount: vary(baseContract) },
-						],
-					},
-					{
-						name: "Capital Expenditures",
-						category_type: "below_line",
-						items: [
-							{ name: "CapEx Reserves", amount: i === 5 || i === 11 ? 25000 : 5000 },
-						],
-					},
-				],
+				grossPotentialRent: gpr,
+				otherIncome,
+				concessions: concessions || undefined,
+				badDebt: 0,
+				utilities: vary(baseUtilities, i),
+				realEstateTaxes: vary(baseTaxes, i),
+				insurance: vary(baseInsurance, i),
+				managementFee: vary(baseMgmtFee, i),
+				payroll: vary(basePayroll, i),
+				repairsMaintenance: vary(baseRepairs, i),
+				contractServices: vary(baseContract, i),
+				marketing: vary(baseMarketing, i),
+				generalAdmin: vary(baseAdmin, i),
+				makeReady: 0,
+				capex,
 			};
 		});
 	})(),
-	fiveYearCashFlow: [
-		{ year: 2026, egi: 0, expenses: 0, noi: 0 },
-		{ year: 2027, egi: 1200000, expenses: 300000, noi: 900000 }
-	],
+	fiveYearCashFlow: [0, 900000, 950000, 1000000, 1050000],
 	returnsBreakdown: {
-		exitProceeds: 44500000,
-		totalDebtPayoff: 18000000,
-		netEquityProceeds: 26500000,
-		totalProfit: 14700000
+		cashFlow: 40,
+		assetAppreciation: 35,
+		taxBenefits: 15,
+		leverage: 10,
 	},
 	quarterlyDeliverySchedule: [
 		{ quarter: "Q1 2027", units: 30 }
 	],
-	sensitivityAnalysis: {
-		rentGrowthImpact: [{ growth: "0%", irr: 18.5 }],
-		constructionCostImpact: [{ cost: "Base", irr: 18.5 }]
-	},
+	sensitivityAnalysis: null,
 	drawSchedule: [
 		{ drawNumber: 1, percentComplete: 10, amount: 2500000 }
 	],
@@ -828,6 +738,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	sponsorEquity: 11800000,
 	taxCreditEquity: 0,
 	gapFinancing: 0,
+	// taxCreditEquity and gapFinancing are 0 - not applicable for this deal structure
 	prepaymentTerms: "Yield maintenance for first 12 months, then open with 1% exit fee",
 	permTakeoutPlanned: true,
 	allInRate: 8.0,
@@ -839,31 +750,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	rentGrowth: 3.0,
 	bachelorsShare: 0,
 	deliveryByQuarter: [],
-	landAcquisitionLabel: "Land Acquisition",
-	baseConstructionLabel: "Base Construction",
-	contingencyLabel: "Contingency",
-	constructionFeesLabel: "Construction Fees",
-	aeFeesLabel: "A&E Fees",
-	developerFeeLabel: "Developer Fee",
-	interestReserveLabel: "Interest Reserve",
-	workingCapitalLabel: "Working Capital",
-	opDeficitEscrowLabel: "Operating Deficit Escrow",
-	leaseUpEscrowLabel: "Lease-Up Escrow",
-	ffeLabel: "FF&E",
-	thirdPartyReportsLabel: "Third Party Reports",
-	legalAndOrgLabel: "Legal & Organizational",
-	titleAndRecordingLabel: "Title & Recording",
-	taxesDuringConstructionLabel: "Taxes During Construction",
-	loanFeesLabel: "Loan Fees",
-	relocationCostsLabel: "Relocation Costs",
-	syndicationCostsLabel: "Syndication Costs",
-	enviroRemediationLabel: "Environmental Remediation",
-	pfcStructuringFeeLabel: "PFC Structuring Fee",
 	equityContributionDescription: "Equity provided by Hoque Global (60%) and ACARA (40%)",
-	loanTypeLabel: "Loan Type",
-	sponsorEquityLabel: "Sponsor Equity",
-	taxCreditEquityLabel: "Tax Credit Equity",
-	gapFinancingLabel: "Gap Financing",
 	specialProgramsDescription: "Utilizing PFC tax exemption and Opportunity Zone structure",
 	liens: "None",
 	officeTIReimbursementCap: 0,
@@ -1429,30 +1316,35 @@ async function onboardUserDirectly(
 		let userId: string;
 
 		if (authError) {
-			// If user already exists, try to get them
-			if (authError.message.includes("already registered") || authError.message.includes("unique constraint")) {
-				console.log("[seed] User exists, trying to fetch...");
-				const { data: existingUser } = await supabaseAdmin.from("profiles").select("id").eq("email", email).single();
-				if (existingUser) {
-					return { user: { id: existingUser.id, email } };
+			const errMsg = typeof authError.message === "string" ? authError.message : JSON.stringify(authError);
+			// If user already exists, try to get them from profiles or Auth
+			const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("email", email).maybeSingle();
+			if (existingProfile) {
+				console.log("[seed] Found existing profile, reusing:", existingProfile.id);
+				return { user: { id: existingProfile.id, email } };
+			}
+			// Try Auth admin listUsers to find by email (e.g. user exists from another seed)
+			const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+			const existingAuthUser = listData?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+			if (existingAuthUser) {
+				console.log("[seed] Found existing auth user, ensuring profile/org:", existingAuthUser.id);
+				userId = existingAuthUser.id;
+				// Fall through to create profile and org below
+			} else {
+				console.error("[seed] Auth creation failed:", errMsg || authError);
+				if (
+					/HS256|signing method|invalid JWT|JWT/i.test(errMsg) ||
+					errMsg === "" ||
+					errMsg === "{}"
+				) {
+					console.error("");
+					console.error("  💡 For local Supabase: use keys from your running instance:");
+					console.error("     npx supabase status -o env");
+					console.error("  Copy SUPABASE_SERVICE_ROLE_KEY (and anon key) into .env.local");
+					console.error("");
 				}
-				// If profile doesn't exist but auth does, we need to handle that (edge case)
-				// For now, let's assume if auth exists, we can't get ID easily without profile
-				// Actually, we can search auth users by email if needed, but let's see
+				return { error: errMsg || "Auth creation failed" };
 			}
-			console.error(`[seed] Auth creation failed: ${authError.message}`);
-			if (
-				authError.message.includes("HS256") ||
-				authError.message.includes("signing method") ||
-				authError.message.includes("invalid JWT")
-			) {
-				console.error("");
-				console.error("  💡 Fix: Supabase now uses ES256 JWT by default. Use the keys from your running Supabase instance:");
-				console.error("     npx supabase status -o env");
-				console.error("  Then copy SUPABASE_SERVICE_ROLE_KEY (and optionally anon key) into .env.local");
-				console.error("");
-			}
-			return { error: authError.message };
 		} else {
 			userId = authData.user.id;
 		}
@@ -2697,11 +2589,11 @@ async function seedDocuments(
 		{ file: "sponsor_track_record.xlsx", name: "Sponsor Track Record" },
 	];
 
-	// Possible base paths for docs/so-good-apartments
+	// Possible base paths for data/so-good-apartments
 	const possibleBasePaths = [
-		resolve(process.cwd(), "./docs/so-good-apartments"),
-		resolve(process.cwd(), "../docs/so-good-apartments"),
-		resolve(process.cwd(), "../../docs/so-good-apartments"),
+		resolve(process.cwd(), "./data/so-good-apartments"),
+		resolve(process.cwd(), "../data/so-good-apartments"),
+		resolve(process.cwd(), "../../data/so-good-apartments"),
 	];
 
 	// Find the base path

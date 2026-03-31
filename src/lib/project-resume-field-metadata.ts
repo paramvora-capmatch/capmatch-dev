@@ -317,9 +317,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	restorationFundThreshold: {
 		fieldId: "restorationFundThreshold",
-		description: "Dollar amount of damage triggering lender control.",
-		expectedValue: "\"Threshold Amount\" (defined in GL)",
-		dataType: "Text",
+		description: "Dollar amount of damage triggering lender control over restoration proceeds.",
+		expectedValue: "500000",
+		dataType: "Integer",
 		section: "basic-info",
 	},
 	casualtyTerminationRight: {
@@ -621,9 +621,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Section 2.2: Amenities & Unit Details (Additional)
 	unitWasherDryer: {
 		fieldId: "unitWasherDryer",
-		description: "In-unit laundry status.",
-		expectedValue: "In-unit (all units)",
-		dataType: "Text",
+		description: "Whether in-unit washer/dryer connections or appliances are provided.",
+		expectedValue: "true / false",
+		dataType: "Boolean",
 		section: "property-specs",
 	},
 	meteringStructure: {

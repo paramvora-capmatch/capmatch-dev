@@ -6,8 +6,11 @@ import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { parseNumeric, formatLocale } from '@/lib/om-utils';
+import { useOMProject } from '@/hooks/useOMProject';
+import { OMEmptyState } from '@/components/om/OMEmptyState';
 
 export default function MilestonesPage() {
+  const { isGroundUp } = useOMProject();
   const { content } = useOmContent();
   
   // Helper function to calculate days between dates
@@ -95,6 +98,21 @@ export default function MilestonesPage() {
     subtitle: "Timeline of critical phases, durations, and current status.",
   });
 
+  if (!isGroundUp) {
+    return (
+      <Card>
+        <CardHeader>
+          <h2 className="text-xl font-semibold text-gray-800">Milestones</h2>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-600">
+            Construction milestones are shown for ground-up deals only.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Timeline View */}
@@ -122,7 +140,9 @@ export default function MilestonesPage() {
                   </div>
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-sm text-gray-500">{milestone.date ?? null}</p>
-                    <p className="text-sm text-gray-500">{milestone.duration ?? null} days</p>
+                    <p className="text-sm text-gray-500">
+                      {milestone.duration != null ? `${milestone.duration} days` : 'Start milestone'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -149,6 +169,10 @@ export default function MilestonesPage() {
               const duration = milestone.duration ?? 0;
               const startPercentage = totalDuration && totalDuration > 0 ? (cumulativeDuration / totalDuration) * 100 : 0;
               const widthPercentage = totalDuration && totalDuration > 0 ? (duration / totalDuration) * 100 : 0;
+              const displayWidthPercentage =
+                milestone.duration == null
+                  ? 12
+                  : Math.max(widthPercentage, 12);
 
               return (
                 <div key={index} className="relative">
@@ -157,7 +181,7 @@ export default function MilestonesPage() {
                       {milestone.phase ?? null}
                     </span>
                     <span className="text-sm text-gray-500 ml-2">
-                      {duration ? `${duration} days` : 'N/A'}
+                      {milestone.duration != null ? `${duration} days` : 'Start milestone'}
                     </span>
                   </div>
                   <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
@@ -173,12 +197,12 @@ export default function MilestonesPage() {
                       }`}
                       style={{
                         left: `${startPercentage}%`,
-                        width: `${widthPercentage}%`,
+                        width: `${displayWidthPercentage}%`,
                       }}
                     />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xs font-medium text-white">
-                        {milestone.date ?? ''}
+                    <div className="absolute inset-0 flex items-center justify-center px-2">
+                      <span className="rounded bg-white/85 px-2 py-0.5 text-xs font-medium text-slate-800 shadow-sm">
+                        {milestone.date ?? <OMEmptyState />}
                       </span>
                     </div>
                   </div>
@@ -193,20 +217,20 @@ export default function MilestonesPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
-            <h2 className="text-lg">Total Duration</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Total Duration</h2>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">{totalDuration ? `${totalDuration} days` : 'N/A'}</p>
+            <p className="text-3xl font-semibold text-blue-700">{totalDuration ? `${totalDuration} days` : 'N/A'}</p>
             <p className="text-sm text-gray-500 mt-1">From start to finish</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <h2 className="text-lg">Completed</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Completed</h2>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">
+            <p className="text-3xl font-semibold text-blue-700">
               {milestonesWithDuration.filter((m: { status?: string | null }) => m.status === 'completed').length}
             </p>
             <p className="text-sm text-gray-500 mt-1">Milestones completed</p>
@@ -215,10 +239,10 @@ export default function MilestonesPage() {
 
         <Card>
           <CardHeader>
-            <h2 className="text-lg">Remaining</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Remaining</h2>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-red-600">
+            <p className="text-3xl font-semibold text-blue-700">
               {milestonesWithDuration.filter((m: { status?: string | null }) => m.status === 'upcoming').length}
             </p>
             <p className="text-sm text-gray-500 mt-1">Milestones pending</p>

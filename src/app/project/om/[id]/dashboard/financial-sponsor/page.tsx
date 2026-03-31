@@ -2,16 +2,15 @@
 'use client';
 
 import React from 'react';
-import { useParams } from 'next/navigation';
-import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
 import { MetricCard } from '@/components/om/widgets/MetricCard';
 import dynamic from "next/dynamic";
-import { useOMDashboard } from '@/contexts/OMDashboardContext';
 import { DollarSign, BarChart3, Users, Activity } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { formatFixed } from '@/lib/om-utils';
+import { useOMProject } from '@/hooks/useOMProject';
+import { buildCapitalSources, buildCapitalUses } from '@/lib/om-display';
 
 const MiniChart = dynamic(
     () => import("@/components/om/widgets/MiniChart").then((m) => ({ default: m.MiniChart })),
@@ -24,12 +23,7 @@ const ReturnsCharts = dynamic(() => import('@/components/om/ReturnsCharts'), {
 });
 
 export default function FinancialSponsorPage() {
-    const params = useParams();
-    // Extract id immediately to avoid read-only property issues in Next.js 15
-    const projectId = typeof params?.id === 'string' ? params.id : '';
-    const { getProject } = useProjects();
-    const project = projectId ? getProject(projectId) : null;
-    const { scenario } = useOMDashboard();
+    const { projectId, project, dealType } = useOMProject();
 
     useOMPageHeader({
         subtitle: project
@@ -40,32 +34,8 @@ export default function FinancialSponsorPage() {
     const { content } = useOmContent();
 
     // Access flat fields directly
-    const totalDevCost = content?.totalDevelopmentCost ?? 0;
-    const loanAmount = content?.loanAmountRequested ?? 0;
-    const sponsorEquity = content?.sponsorEquity ?? 0;
-    const taxCreditEquity = content?.taxCreditEquity ?? 0;
-    const gapFinancing = content?.gapFinancing ?? 0;
-    const landAcquisition = content?.landAcquisition ?? content?.purchasePrice ?? 0;
-    const baseConstruction = content?.baseConstruction ?? 0;
-    const contingency = content?.contingency ?? 0;
-    const developerFee = content?.developerFee ?? 0;
-    const aeFees = content?.aeFees ?? 0;
-
-    // Build sources & uses from flat fields
-    const sources = [
-        { type: "Senior Construction Loan", amount: loanAmount },
-        { type: "Sponsor Equity", amount: sponsorEquity },
-        { type: "Tax Credit Equity", amount: taxCreditEquity },
-        { type: "Gap Financing", amount: gapFinancing },
-    ].filter(s => s.amount > 0);
-
-    const uses = [
-        { type: "Land Acquisition", amount: landAcquisition },
-        { type: "Base Construction", amount: baseConstruction },
-        { type: "Contingency", amount: contingency },
-        { type: "Developer Fee", amount: developerFee },
-        { type: "A&E Fees", amount: aeFees },
-    ].filter(u => u.amount > 0);
+    const sources = buildCapitalSources(content, dealType);
+    const uses = buildCapitalUses(content, dealType);
 
     // Access flat return fields
     const yieldOnCost = content?.yieldOnCost ?? null;
@@ -87,10 +57,6 @@ export default function FinancialSponsorPage() {
     const upsideIRR = content?.upsideIRR ?? null;
     const downsideIRR = content?.downsideIRR ?? null;
 
-    // Suppress unused variable warning
-    void totalDevCost;
-    void scenario;
-
     if (!project) return <div>Project not found</div>;
 
     const quadrants = [
@@ -98,7 +64,7 @@ export default function FinancialSponsorPage() {
             id: 'sources-uses',
             title: 'Sources & Uses',
             icon: DollarSign,
-            color: 'from-green-400 to-green-500',
+            color: 'from-blue-400 to-blue-500',
             href: `/project/om/${projectId}/dashboard/financial-sponsor/sources-uses`,
             metrics: (
                 <div className="space-y-3">
@@ -149,8 +115,14 @@ export default function FinancialSponsorPage() {
                         {content?.fiveYearCashFlow && Array.isArray(content.fiveYearCashFlow) ? (
                             <MiniChart
                                 type="line"
-                                data={content.fiveYearCashFlow.map((value: number) => ({ value: value / 1_000_000 }))}
+                                data={content.fiveYearCashFlow.map((value: number, index: number) => ({
+                                    year: `Year ${index + 1}`,
+                                    value: value / 1_000_000,
+                                }))}
                                 height={60}
+                                labelKey="year"
+                                tooltipLabel="Cash Flow"
+                                valueFormatter={(value) => `$${formatFixed(value, 2)}M`}
                             />
                         ) : null}
                     </div>
@@ -161,7 +133,7 @@ export default function FinancialSponsorPage() {
             id: 'sponsor-team',
             title: 'Sponsor & Team',
             icon: Users,
-            color: 'from-green-400 to-green-500',
+            color: 'from-blue-400 to-blue-500',
             href: `/project/om/${projectId}/dashboard/financial-sponsor/sponsor-profile`,
             metrics: (
                 <div className="space-y-3">
@@ -206,13 +178,13 @@ export default function FinancialSponsorPage() {
                         </div>
                         <div>
                             <p className="text-gray-500">Upside IRR</p>
-                            <p className="font-medium text-green-600">
+                            <p className="font-medium text-blue-700">
                                 {upsideIRR != null ? `${formatFixed(upsideIRR, 2)}%` : null}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-500">Downside IRR</p>
-                            <p className="font-medium text-red-600">
+                            <p className="font-medium text-slate-700">
                                 {downsideIRR != null ? `${formatFixed(downsideIRR, 2)}%` : null}
                             </p>
                         </div>

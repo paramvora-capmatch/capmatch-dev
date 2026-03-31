@@ -3,7 +3,7 @@ import React from 'react';
 import { cn } from '@/utils/cn';
 
 interface KeyValueDisplayProps {
-  label: string;
+  label: React.ReactNode;
   value: any;
   className?: string;
   isLarge?: boolean; // For prominent values like loan amount
@@ -46,12 +46,12 @@ export const KeyValueDisplay: React.FC<KeyValueDisplayProps> = ({
         fullWidth ? "md:col-span-2" : "", // Span 2 columns if fullWidth
         className
     )}>
-      <p className={cn(
+      <div className={cn(
           "text-xs font-medium text-gray-500 uppercase tracking-wider",
           isLarge ? "mb-0.5" : "mb-0.5"
        )}>
           {label}
-       </p>
+       </div>
       <p className={cn(
           "text-gray-900",
           isLarge ? "text-lg md:text-xl font-semibold" : "text-sm md:text-base"

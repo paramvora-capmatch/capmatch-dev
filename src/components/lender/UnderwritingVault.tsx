@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback } from "react";
-import { ChevronDown, ChevronRight, CheckCircle, Circle, ExternalLink, Download, Play, Loader2, Lock, Unlock, FileText, Send, Building2, Trophy } from "lucide-react";
+import { ChevronDown, ChevronRight, CheckCircle, Circle, ExternalLink, Download, Play, Loader2, Lock, Unlock, FileText, Send, Building2, Trophy, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/utils/cn";
 import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
@@ -294,23 +294,14 @@ const initialStages = [
         title: "Initial Application & Screening",
         description: "The \"Gatekeeper\" phase. Determine creditworthiness and deal fit.",
         docs: [
-            { name: "Loan Application Form", status: "pending", importance: "High", rationale: "The \"Ask\": Captures loan amount, usage (Acq/Refi), and entity structure.", canGenerate: true },
             { name: "Personal Financial Statement (PFS)", status: "pending", importance: "High", rationale: "Guarantor Strength: Verifies Net Worth (> Loan Amt) and Liquidity.", canGenerate: true },
-            { name: "Schedule of Real Estate Owned (SREO)", status: "pending", importance: "High", rationale: "Global Cash Flow: Analyzes sponsor’s portfolio leverage.", canGenerate: true },
-            { name: "Tax Returns (2-3 Years)", status: "pending", importance: "High", rationale: "Income Verification: Cross-references PFS.", addFromResume: true },
-            { name: "Purchase & Sale Agreement (PSA)", status: "pending", importance: "High", rationale: "Cost Basis: Establishes the \"Cost\" in LTC.", addFromResume: true },
-            { name: "Entity Formation Docs", status: "pending", importance: "High", rationale: "KYC & Authority: Confirms entity exists and signer authority.", addFromResume: true },
+            { name: "Schedule of Real Estate Owned (SREO)", status: "pending", importance: "High", rationale: "Global Cash Flow: Analyzes sponsor's portfolio leverage.", canGenerate: true },
             { name: "T12 Financial Statement", status: "pending", importance: "High", rationale: "Valuation Baseline: The \"Truth\" of historical performance.", canGenerate: true },
             { name: "Current Rent Roll", status: "pending", importance: "High", rationale: "Revenue Validation: Validates T-12 revenue and occupancy.", canGenerate: true },
             { name: "Sources & Uses Model", status: "pending", importance: "High", rationale: "Deal Math: Proof that the deal works (Loan + Equity = Cost + Fees).", canGenerate: true },
-            { name: "Credit Authorization & Gov ID", status: "pending", importance: "High", rationale: "Background Check: Mandatory for credit pulls and KYC.", addFromResume: true },
-            { name: "Bank Statements", status: "pending", importance: "High", rationale: "Liquidity Proof: Proves cash on PFS exists and is liquid.", canGenerate: true },
-            { name: "Church Financials", status: "pending", importance: "High", rationale: "Donation Stability: Tracks tithes, offerings, and attendance trends.", canGenerate: true },
             { name: "ProForma Cash flow", status: "pending", importance: "High", rationale: "Forecasts future performance.", canGenerate: true },
             { name: "CapEx Report", status: "pending", importance: "High", rationale: "Details capital expenditure plans.", canGenerate: true },
             { name: "Sponsor Bio", status: "pending", importance: "Medium", rationale: "Execution Capability: Proves borrower track record.", canGenerate: true },
-            { name: "Offering Memorandum (OM)", status: "pending", importance: "Medium", rationale: "Context: Narrative, photos, and broker pro-forma.", canGenerate: true },
-            { name: "Business Plan", status: "pending", importance: "Medium", rationale: "Strategy: Critical for value-add/construction.", canGenerate: true },
         ]
     },
     {
@@ -318,6 +309,15 @@ const initialStages = [
         title: "Underwriting & Due Diligence",
         description: "The \"Verification\" phase. Validate value and physical condition.",
         docs: [
+            { name: "Loan Application Form", status: "pending", importance: "High", rationale: "The \"Ask\": Captures loan amount, usage (Acq/Refi), and entity structure.", canGenerate: true },
+            { name: "Tax Returns (2-3 Years)", status: "pending", importance: "High", rationale: "Income Verification: Cross-references PFS.", addFromResume: true },
+            { name: "Purchase & Sale Agreement (PSA)", status: "pending", importance: "High", rationale: "Cost Basis: Establishes the \"Cost\" in LTC.", addFromResume: true },
+            { name: "Entity Formation Docs", status: "pending", importance: "High", rationale: "KYC & Authority: Confirms entity exists and signer authority.", addFromResume: true },
+            { name: "Credit Authorization & Gov ID", status: "pending", importance: "High", rationale: "Background Check: Mandatory for credit pulls and KYC.", addFromResume: true },
+            { name: "Bank Statements", status: "pending", importance: "High", rationale: "Liquidity Proof: Proves cash on PFS exists and is liquid.", canGenerate: true },
+            { name: "Church Financials", status: "pending", importance: "High", rationale: "Donation Stability: Tracks tithes, offerings, and attendance trends.", canGenerate: true },
+            { name: "Offering Memorandum (OM)", status: "pending", importance: "Medium", rationale: "Context: Narrative, photos, and broker pro-forma.", canGenerate: true },
+            { name: "Business Plan", status: "pending", importance: "Medium", rationale: "Strategy: Critical for value-add/construction.", canGenerate: true },
             { name: "Appraisal Report", status: "pending", importance: "High", rationale: "Valuation Check: Independent verification of As-Is/Stabilized Value." },
             { name: "Phase I ESA (Environmental)", status: "pending", importance: "High", rationale: "Liability Shield: Checks for contamination." },
             { name: "Title Commitment / ALTA Survey", status: "pending", importance: "High", rationale: "Lien Position: Ensures valid First Lien position." },
@@ -857,15 +857,28 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     const handleGenerateStage = async (stageId: string, docs: DocItem[]) => {
         const toGenerate = docs.filter(doc => doc.canGenerate && !generatingDocs.has(doc.name));
 
-        if (toGenerate.length === 0) return;
+        // Also include Investment Memo in the batch (generated first)
+        const includeInvestmentMemo = !generatingDocs.has("Investment Memo");
+        const totalCount = toGenerate.length + (includeInvestmentMemo ? 1 : 0);
+
+        if (totalCount === 0) return;
 
         // Initialize progress
         setStageProgress(prev => ({
             ...prev,
-            [stageId]: { total: toGenerate.length, completed: 0 }
+            [stageId]: { total: totalCount, completed: 0 }
         }));
 
-        const toastId = toast.loading(`Batch generating ${toGenerate.length} documents...`);
+        const toastId = toast.loading(`Batch generating ${totalCount} documents (incl. Investment Memo)...`);
+
+        // Generate Investment Memo first
+        if (includeInvestmentMemo) {
+            await handleGenerateDoc("Investment Memo", { isBatch: true });
+            setStageProgress(prev => {
+                const current = prev[stageId] || { total: totalCount, completed: 0 };
+                return { ...prev, [stageId]: { ...current, completed: current.completed + 1 } };
+            });
+        }
 
         // Run one doc at a time (backend allows only one underwriting_generate job per project)
         for (const doc of toGenerate) {
@@ -873,7 +886,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
             // Update progress
             setStageProgress(prev => {
-                const current = prev[stageId] || { total: toGenerate.length, completed: 0 };
+                const current = prev[stageId] || { total: totalCount, completed: 0 };
                 return {
                     ...prev,
                     [stageId]: { ...current, completed: current.completed + 1 }
@@ -895,7 +908,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
     // Merge fetched files into stages (when a lender is selected, only show files for that vault's resources)
     const resourceIdSet = useMemo(() => new Set(resources.map((r) => r.id)), [resources]);
-    const stages = useMemo(() => {
+    const { stages, investmentMemoFile } = useMemo(() => {
         const vaultFiles = selectedLenderLei
             ? files.filter((f) => resourceIdSet.has(f.resource_id))
             : files;
@@ -912,7 +925,10 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
         console.log("UnderwritingVault: fileMap keys:", Array.from(fileMap.keys()));
 
-        return initialStages.map(stage => ({
+        // Detect Investment Memo file
+        const memoFile = fileMap.get("Investment Memo") ?? null;
+
+        const mappedStages = initialStages.map(stage => ({
             ...stage,
             docs: stage.docs.map(doc => {
                 const foundFile = fileMap.get(doc.name);
@@ -953,6 +969,8 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 return doc;
             })
         }));
+
+        return { stages: mappedStages, investmentMemoFile: memoFile };
     }, [files, threads, projectId, validationData, resourceIdSet, selectedLenderLei]);
 
     const hasMatchedLenders = matchedLenders.length > 0;
@@ -1060,6 +1078,71 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                         )}
                     </div>
 
+                    {/* Investment Memo — standalone featured card */}
+                    <div className="mb-4 bg-gradient-to-r from-indigo-50 via-blue-50 to-violet-50 border border-indigo-200 rounded-xl p-4 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-lg shadow-sm">
+                                    <Sparkles className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-gray-900">Investment Memo</h3>
+                                    <p className="text-xs text-gray-500">One-page executive summary tailored for this lender</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {investmentMemoFile ? (
+                                    <>
+                                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-50 px-2 py-0.5 rounded-sm border border-green-200">
+                                            Generated
+                                        </span>
+                                        <button
+                                            onClick={() => handleClickFile(investmentMemoFile)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-white border border-blue-200 rounded-md shadow-sm hover:bg-blue-50 transition-all"
+                                        >
+                                            <FileText className="h-3.5 w-3.5" />
+                                            View
+                                        </button>
+                                        {!viewerOnly && (
+                                            <button
+                                                onClick={() => handleGenerateDoc("Investment Memo")}
+                                                disabled={generatingDocs.has("Investment Memo")}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50"
+                                            >
+                                                {generatingDocs.has("Investment Memo") ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <Play className="h-3.5 w-3.5 text-gray-500" />
+                                                )}
+                                                {generatingDocs.has("Investment Memo") ? "Regenerating..." : "Regenerate"}
+                                            </button>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-sm border border-amber-200">
+                                            Not generated
+                                        </span>
+                                        {!viewerOnly && (
+                                            <button
+                                                onClick={() => handleGenerateDoc("Investment Memo")}
+                                                disabled={generatingDocs.has("Investment Memo")}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-all"
+                                            >
+                                                {generatingDocs.has("Investment Memo") ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <Sparkles className="h-3.5 w-3.5" />
+                                                )}
+                                                {generatingDocs.has("Investment Memo") ? "Generating..." : "Generate"}
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Document stages — scoped to this lender */}
                     <div className="space-y-4">
                         {stages.map((stage) => (
@@ -1086,6 +1169,70 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             ) : !hasMatchedLenders ? (
                 /* Fallback: no matched lenders — show full vault as before */
                 <div className="space-y-4">
+                    {/* Investment Memo — standalone featured card (fallback) */}
+                    <div className="bg-gradient-to-r from-indigo-50 via-blue-50 to-violet-50 border border-indigo-200 rounded-xl p-4 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-lg shadow-sm">
+                                    <Sparkles className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-gray-900">Investment Memo</h3>
+                                    <p className="text-xs text-gray-500">One-page executive summary of the project</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {investmentMemoFile ? (
+                                    <>
+                                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-50 px-2 py-0.5 rounded-sm border border-green-200">
+                                            Generated
+                                        </span>
+                                        <button
+                                            onClick={() => handleClickFile(investmentMemoFile)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-white border border-blue-200 rounded-md shadow-sm hover:bg-blue-50 transition-all"
+                                        >
+                                            <FileText className="h-3.5 w-3.5" />
+                                            View
+                                        </button>
+                                        {!viewerOnly && (
+                                            <button
+                                                onClick={() => handleGenerateDoc("Investment Memo")}
+                                                disabled={generatingDocs.has("Investment Memo")}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50"
+                                            >
+                                                {generatingDocs.has("Investment Memo") ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <Play className="h-3.5 w-3.5 text-gray-500" />
+                                                )}
+                                                {generatingDocs.has("Investment Memo") ? "Regenerating..." : "Regenerate"}
+                                            </button>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-sm border border-amber-200">
+                                            Not generated
+                                        </span>
+                                        {!viewerOnly && (
+                                            <button
+                                                onClick={() => handleGenerateDoc("Investment Memo")}
+                                                disabled={generatingDocs.has("Investment Memo")}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-all"
+                                            >
+                                                {generatingDocs.has("Investment Memo") ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <Sparkles className="h-3.5 w-3.5" />
+                                                )}
+                                                {generatingDocs.has("Investment Memo") ? "Generating..." : "Generate"}
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                     {stages.map((stage) => (
                         <StageAccordion
                             key={stage.id}

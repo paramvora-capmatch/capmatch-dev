@@ -19,7 +19,13 @@ import { MapPin, Home, Package, Image as ImageIcon } from 'lucide-react';
 import { ImageSlideshow } from '@/components/om/ImageSlideshow';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { parseNumeric, calculateAverage, formatFixed, formatLocale } from '@/lib/om-utils';
+import { parseNumeric, formatFixed, formatLocale } from '@/lib/om-utils';
+import {
+  getAmenitySummary,
+  getComparableAverageRentPSF,
+  getComparableEntries,
+  getUnitMixEntries,
+} from '@/lib/om-display';
 
 export default function AssetProfilePage() {
   const params = useParams();
@@ -30,28 +36,15 @@ export default function AssetProfilePage() {
   const router = useRouter();
   const { content } = useOmContent();
 
-  // Access flat fields directly
-  const amenityList = Array.isArray(content?.amenityList) ? content.amenityList : [];
-  const amenitySF = parseNumeric(content?.amenitySF) ?? 0;
-  const residentialUnitMix = Array.isArray(content?.residentialUnitMix) ? content.residentialUnitMix : [];
-  const rentComps = Array.isArray(content?.rentComps) ? content.rentComps : [];
-  
-  // Build unit mix data from flat residentialUnitMix array
-  const unitMixData = residentialUnitMix.map((unit: any) => ({
-    type: unit.unitType || unit.type || "",
-    units: unit.unitCount || unit.units || 0,
-    avgSF: unit.avgSF || 0,
-    avgRent: unit.monthlyRent || 0,
+  const amenitySummary = getAmenitySummary(content);
+  const amenitySF = parseNumeric(content?.amenitySF) ?? amenitySummary.totalSF ?? 0;
+  const unitMixData = getUnitMixEntries(content).map((unit) => ({
+    type: unit.type,
+    units: unit.count,
+    avgSF: unit.avgSF ?? 0,
+    avgRent: unit.avgRent ?? 0,
   }));
-
-  // Build market comps from flat rentComps array
-  const marketComps = rentComps.map((comp: any) => ({
-    name: comp.name || "",
-    units: comp.units || 0,
-    yearBuilt: comp.yearBuilt || "",
-    rentPSF: comp.rentPSF || 0,
-    capRate: comp.capRate || "",
-  }));
+  const marketComps = getComparableEntries(content);
 
   // Extract flat field values
   const totalSiteAcreage = content?.totalSiteAcreage ?? null;
@@ -62,7 +55,7 @@ export default function AssetProfilePage() {
   const parkingRatio = parseNumeric(content?.parkingRatio) ?? null;
   const parkingSpaces = parseNumeric(content?.parkingSpaces) ?? null;
 
-  const avgCompRentPSF = calculateAverage(marketComps, (comp: typeof marketComps[0]) => comp.rentPSF ?? null);
+  const avgCompRentPSF = getComparableAverageRentPSF(content, marketComps);
 
   useOMPageHeader({
     subtitle: project
@@ -72,10 +65,7 @@ export default function AssetProfilePage() {
   
   if (!project) return <div>Project not found</div>;
   
-  // Extract amenity names from flat amenityList array
-  const amenityLabels = amenityList.map((a: string | { name?: string }) => 
-    typeof a === "string" ? a : a.name || ""
-  ).filter(Boolean);
+  const amenityLabels = amenitySummary.items.map((item) => item.name);
   const quadrants = [
     {
       id: 'site-zoning',
@@ -195,23 +185,27 @@ export default function AssetProfilePage() {
       id: 'comparable-assets',
       title: 'Comparable Assets',
       icon: ImageIcon,
-      color: 'from-red-400 to-red-500',
+      color: 'from-blue-400 to-blue-500',
       href: `/project/om/${projectId}/dashboard/asset-profile/comparables`,
       metrics: (
         <div className="space-y-3">
           <div className="space-y-2">
-            {marketComps.slice(0, 3).map((comp: { name?: string | null; units?: number | null; yearBuilt?: string | null; rentPSF?: number | null; capRate?: string | null }, index: number) => (
+            {marketComps.slice(0, 3).map((comp, index: number) => (
               <div key={`comp-${index}`} className="p-2 bg-gray-50 rounded">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm font-medium">{comp.name}</p>
                     <p className="text-xs text-gray-500">
-                      {comp.units} units • {comp.yearBuilt}
+                      {[comp.units != null ? `${formatLocale(comp.units)} units` : null, comp.yearBuilt]
+                        .filter(Boolean)
+                        .join(' • ')}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">${comp.rentPSF} PSF</p>
-                    <p className="text-xs text-gray-500">{comp.capRate}% cap</p>
+                    <p className="text-sm font-medium">{comp.rentPSFLabel ?? comp.avgRentMonthlyLabel ?? 'N/A'}</p>
+                    {comp.capRateLabel ? (
+                      <p className="text-xs text-gray-500">{comp.capRateLabel} cap</p>
+                    ) : null}
                   </div>
                 </div>
               </div>

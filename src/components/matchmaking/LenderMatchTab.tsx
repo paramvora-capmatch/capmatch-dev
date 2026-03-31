@@ -384,9 +384,34 @@ function MatchCard({
               <PillarRow label="Product" score={productFit} />
             </div>
           </div>
-          <div className="shrink-0 flex flex-col items-center gap-1">
-            <ScoreBadge score={score.total_score} />
-            {expanded ? <ChevronUp size={14} className="text-gray-300" /> : <ChevronDown size={14} className="text-gray-300" />}
+          <div className="shrink-0 flex flex-col items-end gap-2 self-start">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); if (canAddToWishlist) onAddToWishlist(score); }}
+              disabled={!canAddToWishlist || wishlistAdded.has(score.lender_lei) || wishlistLoading === score.lender_lei}
+              title={!canAddToWishlist ? "Save the matchmaking run first to add lenders to your wishlist" : wishlistAdded.has(score.lender_lei) ? "Already in wishlist" : "Add to wishlist"}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                wishlistAdded.has(score.lender_lei)
+                  ? "border-green-200 bg-green-50 text-green-700 cursor-default"
+                  : canAddToWishlist
+                    ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 cursor-pointer"
+                    : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+              )}
+            >
+              {wishlistLoading === score.lender_lei ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : wishlistAdded.has(score.lender_lei) ? (
+                <Check size={12} className="text-green-600" />
+              ) : (
+                <BookmarkPlus size={12} />
+              )}
+              {wishlistAdded.has(score.lender_lei) ? "Saved" : "Wishlist"}
+            </button>
+            <div className="flex flex-col items-center gap-1">
+              <ScoreBadge score={score.total_score} />
+              {expanded ? <ChevronUp size={14} className="text-gray-300" /> : <ChevronDown size={14} className="text-gray-300" />}
+            </div>
           </div>
         </div>
         {score.overall_narrative && (
@@ -422,26 +447,7 @@ function MatchCard({
             </div>
           )}
 
-          {/* Add to wishlist (only when run is saved) */}
-          {canAddToWishlist && projectResumeId && matchRunId && (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onAddToWishlist(score); }}
-                disabled={wishlistAdded.has(score.lender_lei) || wishlistLoading === score.lender_lei}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {wishlistLoading === score.lender_lei ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : wishlistAdded.has(score.lender_lei) ? (
-                  <Check size={14} className="text-green-600" />
-                ) : (
-                  <BookmarkPlus size={14} className="text-blue-600" />
-                )}
-                {wishlistAdded.has(score.lender_lei) ? "In wishlist" : "Add to wishlist"}
-              </button>
-            </div>
-          )}
+          {/* Wishlist button moved to Tier 1 header */}
 
           {/* Tier 3: AI Report */}
           <LenderAIReport

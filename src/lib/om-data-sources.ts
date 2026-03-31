@@ -149,11 +149,21 @@ export const dataSourceMap: Record<string, DataSource> = {
   // Loan Terms
   'loan type': { primary: 'User Input' },
   'rate': { primary: 'Document [Term Sheet]', backup: 'User Input' },
+  'all in rate': { primary: 'Document [Term Sheet]', backup: 'User Input' },
   'floor rate': { primary: 'Document [Term Sheet]', backup: 'User Input' },
   'term': { primary: 'Document [Term Sheet]', backup: 'User Input' },
+  'requested term': { primary: 'Document [Term Sheet]', backup: 'User Input' },
   'extension': { primary: 'Document [Term Sheet]', backup: 'User Input' },
+  'extensions': { primary: 'Document [Term Sheet]', backup: 'User Input' },
   'origination fee': { primary: 'Document [Term Sheet]', backup: 'User Input' },
   'exit fee': { primary: 'Document [Term Sheet]', backup: 'User Input' },
+  'interest rate type': { primary: 'Document [Term Sheet]', backup: 'User Input' },
+  'interest only period months': { primary: 'Document [Term Sheet]', backup: 'User Input' },
+  'target ltv': { primary: 'Document [Term Sheet]', backup: 'User Input' },
+  'target ltv percent': { primary: 'Document [Term Sheet]', backup: 'User Input' },
+  'target ltc': { primary: 'Document [Term Sheet]', backup: 'User Input' },
+  'target ltc percent': { primary: 'Document [Term Sheet]', backup: 'User Input' },
+  'use of proceeds': { primary: 'Document [Sources & Uses]', backup: 'User Input' },
   'lender reserves': { primary: 'Document [Term Sheet]', backup: 'User Input' },
   'tax & insurance': { primary: 'Document [Term Sheet]', backup: 'User Input' },
   'capex reserve': { primary: 'Document [Term Sheet]', backup: 'User Input' },
@@ -162,6 +172,15 @@ export const dataSourceMap: Record<string, DataSource> = {
   'min liquidity': { primary: 'Document [Term Sheet]', backup: 'User Input' },
   'completion guaranty': { primary: 'Document [Term Sheet]', backup: 'User Input' },
 };
+
+function normalizeFieldKey(field: string): string {
+  return field
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .trim();
+}
 
 /**
  * Get data sources for a field or set of fields
@@ -174,7 +193,7 @@ export function getDataSources(fields: string | string[]): DataSource[] {
   const seen = new Set<string>();
 
   fieldArray.forEach((field) => {
-    const normalized = field.toLowerCase().trim();
+    const normalized = normalizeFieldKey(field);
     const source = dataSourceMap[normalized];
     
     if (source && !seen.has(normalized)) {
@@ -186,7 +205,15 @@ export function getDataSources(fields: string | string[]): DataSource[] {
   // If no exact match, try partial matches
   if (sources.length === 0) {
     Object.keys(dataSourceMap).forEach((key) => {
-      if (fieldArray.some(f => key.includes(f.toLowerCase()) || f.toLowerCase().includes(key))) {
+      if (
+        fieldArray.some((field) => {
+          const normalizedField = normalizeFieldKey(field);
+          return (
+            key.includes(normalizedField) ||
+            normalizedField.includes(key)
+          );
+        })
+      ) {
         const source = dataSourceMap[key];
         if (source && !seen.has(key)) {
           sources.push(source);
