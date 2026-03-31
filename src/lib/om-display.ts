@@ -79,6 +79,9 @@ export interface OMQuarterlyDeliveryItem {
   units: number;
 }
 
+/** Raw row from API/OM `sensitivityAnalysis` arrays before normalization */
+type OMSensitivityAnalysisRawRow = Record<string, unknown>;
+
 function isRichFieldObject(value: unknown): value is { value: unknown } {
   if (
     !value ||
@@ -621,10 +624,15 @@ export function getFallbackSensitivityAnalysis(
       : null;
 
   const rentGrowthImpact = Array.isArray(sensitivityAnalysis?.rentGrowthImpact)
-    ? sensitivityAnalysis.rentGrowthImpact
+    ? (sensitivityAnalysis.rentGrowthImpact as OMSensitivityAnalysisRawRow[])
         .map((entry) => ({
           growth: asString(entry.growth ?? entry.label) ?? "Base",
-          irr: parseNumeric(entry.irr) ?? 0,
+          irr:
+            parseNumeric(
+              typeof entry.irr === "string" || typeof entry.irr === "number"
+                ? entry.irr
+                : undefined
+            ) ?? 0,
         }))
         .filter((entry) => entry.irr !== 0)
     : [];
@@ -632,10 +640,15 @@ export function getFallbackSensitivityAnalysis(
   const constructionCostImpact = Array.isArray(
     sensitivityAnalysis?.constructionCostImpact
   )
-    ? sensitivityAnalysis.constructionCostImpact
+    ? (sensitivityAnalysis.constructionCostImpact as OMSensitivityAnalysisRawRow[])
         .map((entry) => ({
           costChange: asString(entry.costChange ?? entry.label) ?? "Base",
-          irr: parseNumeric(entry.irr) ?? 0,
+          irr:
+            parseNumeric(
+              typeof entry.irr === "string" || typeof entry.irr === "number"
+                ? entry.irr
+                : undefined
+            ) ?? 0,
         }))
         .filter((entry) => entry.irr !== 0)
     : [];
