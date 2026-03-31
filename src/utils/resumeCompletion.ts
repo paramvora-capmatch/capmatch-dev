@@ -7,6 +7,7 @@ import {
 import { ProjectProfile } from "@/types/enhanced-types";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
 import borrowerFormSchema from "@/lib/borrower-resume-form.schema.json";
+import { isFieldVisibleForDealType, DealType } from "@/lib/deal-type-field-config";
 
 const clampPercent = (value: number): number => {
 	if (!Number.isFinite(value)) return 0;
@@ -169,13 +170,19 @@ export const computeProjectCompletion = (
 	lockedFields?: Record<string, boolean>
 ): number => {
 	const source = project || {};
-	
-	// Count fields that are BOTH required AND locked
+	const dealType = (source.deal_type as DealType) ?? 'ground_up';
+
+	// Filter required fields to only those visible for this deal type
+	const dealTypeRequiredFields = PROJECT_REQUIRED_FIELDS.filter((field) =>
+		isFieldVisibleForDealType(field as string, dealType)
+	);
+
+	// Count fields that are BOTH required (for this deal type) AND locked
 	const requiredAndLockedFields = lockedFields
-		? PROJECT_REQUIRED_FIELDS.filter((field) => lockedFields[field] === true)
+		? dealTypeRequiredFields.filter((field) => lockedFields[field] === true)
 		: [];
 	
-	const total = PROJECT_REQUIRED_FIELDS.length;
+	const total = dealTypeRequiredFields.length;
 	if (total === 0) return 0;
 
 	const answered = requiredAndLockedFields.length;

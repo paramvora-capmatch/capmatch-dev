@@ -3,7 +3,7 @@ import React from 'react';
 import { cn } from '@/utils/cn';
 
 interface KeyValueDisplayProps {
-  label: string;
+  label: React.ReactNode;
   value: any;
   className?: string;
   isLarge?: boolean; // For prominent values like loan amount

@@ -275,7 +275,7 @@ export default function CapitalStackPage() {
 		lender: content?.lender ?? null,
 		rate: rateDisplay,
 		floor: floorRate,
-		term: requestedTerm != null ? `${requestedTerm} months` : null,
+		term: requestedTerm != null ? `${requestedTerm} years` : null,
 		extension: extensions,
 		recourse: recourse,
 		origination: originationFee,
