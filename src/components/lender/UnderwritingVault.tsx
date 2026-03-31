@@ -17,6 +17,10 @@ import { ValidationErrorsModal } from "./ValidationErrorsModal";
 
 const MAX_LENDERS_SHOWN = 5;
 
+function makeGenKey(lenderLei: string | null, docName: string): string {
+    return `${lenderLei ?? "__project__"}::${docName}`;
+}
+
 export interface MatchedLender {
     match_score_id: string;
     lender_lei: string;
@@ -376,6 +380,13 @@ const initialStages = [
     },
 ];
 
+/** Set to true to show underwriting stages 2–5 (Verification through Post-Closing). */
+const SHOW_UNDERWRITING_PHASE_2_PLUS = false;
+
+const visibleStages = SHOW_UNDERWRITING_PHASE_2_PLUS
+    ? initialStages
+    : initialStages.filter((s) => s.id === "stage-1");
+
 export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId, orgId, viewerOnly = false }) => {
     const [expandedStage, setExpandedStage] = useState<string | null>("stage-1");
     // const [isGenerating, setIsGenerating] = useState(false); // Global generation disabled for generic button
@@ -533,6 +544,11 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
     const selectedLenderDisplayName = selectedLender
         ? (selectedLender.lender_name || selectedLender.lender_lei)
         : null;
+
+    const isDocGenerating = useCallback(
+        (docName: string) => generatingDocs.has(makeGenKey(selectedLenderLei, docName)),
+        [generatingDocs, selectedLenderLei]
+    );
 
     const handleSendPackage = useCallback(async (lender: MatchedLender) => {
         if (!projectId) return;
@@ -728,19 +744,45 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         setShowResumeModal(true);
     };
 
-    // Subscribe to job status via Supabase Realtime; resolves when completed, failed, or timeout.
+    // Job status: Supabase Realtime plus polling GET /jobs/{id} (prod-safe if Realtime misses updates).
     const subscribeToJobUntilDone = (jobId: string, timeoutMs = 180000): Promise<{ status: "completed" | "failed" | "timeout"; error_message?: string | null }> => {
         return new Promise((resolve) => {
             let resolved = false;
+            let channel: ReturnType<typeof supabase.channel> | null = null;
+            let timeoutId: ReturnType<typeof setTimeout> | null = null;
+            let pollId: ReturnType<typeof setInterval> | null = null;
+
+            const cleanup = () => {
+                if (timeoutId) clearTimeout(timeoutId);
+                if (pollId) clearInterval(pollId);
+                if (channel) supabase.removeChannel(channel);
+            };
+
             const finish = (result: { status: "completed" | "failed" | "timeout"; error_message?: string | null }) => {
                 if (resolved) return;
                 resolved = true;
-                if (timeoutId) clearTimeout(timeoutId);
-                if (channel) supabase.removeChannel(channel);
+                cleanup();
                 resolve(result);
             };
 
-            const channel = supabase
+            const checkTerminal = (status: string | undefined, error_message?: string | null) => {
+                if (status === "completed") finish({ status: "completed" });
+                else if (status === "failed") finish({ status: "failed", error_message: error_message ?? null });
+            };
+
+            const pollOnce = async () => {
+                const { data, error } = await apiClient.getJob(jobId);
+                if (resolved) return;
+                if (error || !data) return;
+                checkTerminal(data.status, data.error_message);
+            };
+
+            pollId = setInterval(() => {
+                void pollOnce();
+            }, 2000);
+            void pollOnce();
+
+            channel = supabase
                 .channel(`underwriting-job-${jobId}`)
                 .on(
                     "postgres_changes",
@@ -752,13 +794,12 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                     },
                     (payload: { new: { status: string; error_message?: string | null } }) => {
                         const row = payload.new;
-                        if (row.status === "completed") finish({ status: "completed" });
-                        else if (row.status === "failed") finish({ status: "failed", error_message: row.error_message ?? null });
+                        checkTerminal(row.status, row.error_message ?? null);
                     }
                 )
                 .subscribe();
 
-            const timeoutId = setTimeout(() => finish({ status: "timeout" }), timeoutMs);
+            timeoutId = setTimeout(() => finish({ status: "timeout" }), timeoutMs);
         });
     };
 
@@ -771,9 +812,10 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             return false;
         }
 
-        if (generatingDocs.has(docName)) return false; // Prevent double click
+        const genKey = makeGenKey(selectedLenderLei, docName);
+        if (generatingDocs.has(genKey)) return false;
 
-        setGeneratingDocs(prev => new Set(prev).add(docName));
+        setGeneratingDocs(prev => new Set(prev).add(genKey));
 
         // Only show toast if NOT part of a batch
         const toastId = !options?.isBatch ? toast.loading(`Generating ${docName}...`) : undefined;
@@ -783,9 +825,11 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                 project_id: projectId,
                 document_name: docName,
             };
-            if (selectedLenderLei && selectedLender?.project_resume_id) {
+            if (selectedLenderLei) {
                 body.lender_lei = selectedLenderLei;
-                body.project_resume_id = selectedLender.project_resume_id;
+                if (selectedLender?.project_resume_id) {
+                    body.project_resume_id = selectedLender.project_resume_id;
+                }
             }
             const res = await apiClient.post(`/api/v1/underwriting/generate-single`, body);
 
@@ -846,7 +890,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         } finally {
             setGeneratingDocs(prev => {
                 const next = new Set(prev);
-                next.delete(docName);
+                next.delete(genKey);
                 return next;
             });
         }
@@ -855,15 +899,14 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
 
     const handleGenerateStage = async (stageId: string, docs: DocItem[]) => {
-        const toGenerate = docs.filter(doc => doc.canGenerate && !generatingDocs.has(doc.name));
+        const gk = (name: string) => makeGenKey(selectedLenderLei, name);
+        const toGenerate = docs.filter(doc => doc.canGenerate && !generatingDocs.has(gk(doc.name)));
 
-        // Also include Investment Memo in the batch (generated first)
-        const includeInvestmentMemo = !generatingDocs.has("Investment Memo");
+        const includeInvestmentMemo = !generatingDocs.has(gk("Investment Memo"));
         const totalCount = toGenerate.length + (includeInvestmentMemo ? 1 : 0);
 
         if (totalCount === 0) return;
 
-        // Initialize progress
         setStageProgress(prev => ({
             ...prev,
             [stageId]: { total: totalCount, completed: 0 }
@@ -871,32 +914,40 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
         const toastId = toast.loading(`Batch generating ${totalCount} documents (incl. Investment Memo)...`);
 
-        // Generate Investment Memo first
+        let successCount = 0;
+        let hadFailure = false;
+
         if (includeInvestmentMemo) {
-            await handleGenerateDoc("Investment Memo", { isBatch: true });
-            setStageProgress(prev => {
-                const current = prev[stageId] || { total: totalCount, completed: 0 };
-                return { ...prev, [stageId]: { ...current, completed: current.completed + 1 } };
-            });
+            const ok = await handleGenerateDoc("Investment Memo", { isBatch: true });
+            if (ok) successCount += 1;
+            else hadFailure = true;
+            setStageProgress(prev => ({
+                ...prev,
+                [stageId]: { total: totalCount, completed: successCount }
+            }));
         }
 
-        // Run one doc at a time (backend allows only one underwriting_generate job per project)
         for (const doc of toGenerate) {
-            await handleGenerateDoc(doc.name, { isBatch: true });
-
-            // Update progress
-            setStageProgress(prev => {
-                const current = prev[stageId] || { total: totalCount, completed: 0 };
-                return {
-                    ...prev,
-                    [stageId]: { ...current, completed: current.completed + 1 }
-                };
-            });
+            const ok = await handleGenerateDoc(doc.name, { isBatch: true });
+            if (ok) successCount += 1;
+            else hadFailure = true;
+            setStageProgress(prev => ({
+                ...prev,
+                [stageId]: { total: totalCount, completed: successCount }
+            }));
         }
 
-        toast.success("Batch generation complete!", { id: toastId });
+        if (hadFailure || successCount < totalCount) {
+            toast.error(
+                successCount > 0
+                    ? `Batch finished with errors: ${successCount}/${totalCount} succeeded.`
+                    : "Batch generation failed. Check individual documents or try again.",
+                { id: toastId, duration: 6000 }
+            );
+        } else {
+            toast.success("Batch generation complete!", { id: toastId });
+        }
 
-        // Clear progress after a short delay
         setTimeout(() => {
             setStageProgress(prev => {
                 const next = { ...prev };
@@ -928,7 +979,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         // Detect Investment Memo file
         const memoFile = fileMap.get("Investment Memo") ?? null;
 
-        const mappedStages = initialStages.map(stage => ({
+        const mappedStages = visibleStages.map(stage => ({
             ...stage,
             docs: stage.docs.map(doc => {
                 const foundFile = fileMap.get(doc.name);
@@ -1106,15 +1157,15 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                                         {!viewerOnly && (
                                             <button
                                                 onClick={() => handleGenerateDoc("Investment Memo")}
-                                                disabled={generatingDocs.has("Investment Memo")}
+                                                disabled={isDocGenerating("Investment Memo")}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50"
                                             >
-                                                {generatingDocs.has("Investment Memo") ? (
+                                                {isDocGenerating("Investment Memo") ? (
                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                 ) : (
                                                     <Play className="h-3.5 w-3.5 text-gray-500" />
                                                 )}
-                                                {generatingDocs.has("Investment Memo") ? "Regenerating..." : "Regenerate"}
+                                                {isDocGenerating("Investment Memo") ? "Regenerating..." : "Regenerate"}
                                             </button>
                                         )}
                                     </>
@@ -1126,15 +1177,15 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                                         {!viewerOnly && (
                                             <button
                                                 onClick={() => handleGenerateDoc("Investment Memo")}
-                                                disabled={generatingDocs.has("Investment Memo")}
+                                                disabled={isDocGenerating("Investment Memo")}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-all"
                                             >
-                                                {generatingDocs.has("Investment Memo") ? (
+                                                {isDocGenerating("Investment Memo") ? (
                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                 ) : (
                                                     <Sparkles className="h-3.5 w-3.5" />
                                                 )}
-                                                {generatingDocs.has("Investment Memo") ? "Generating..." : "Generate"}
+                                                {isDocGenerating("Investment Memo") ? "Generating..." : "Generate"}
                                             </button>
                                         )}
                                     </>
@@ -1157,7 +1208,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                                 onClickFile={handleClickFile}
                                 onSelectFromResume={handleSelectFromResume}
                                 onGenerate={(docName) => handleGenerateDoc(docName)}
-                                isGenerating={(name) => generatingDocs.has(name)}
+                                isGenerating={isDocGenerating}
                                 onGenerateStage={(docs) => handleGenerateStage(stage.id, docs)}
                                 onActionRequired={handleActionRequired}
                                 progress={stageProgress[stage.id]}
@@ -1197,15 +1248,15 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                                         {!viewerOnly && (
                                             <button
                                                 onClick={() => handleGenerateDoc("Investment Memo")}
-                                                disabled={generatingDocs.has("Investment Memo")}
+                                                disabled={isDocGenerating("Investment Memo")}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 transition-all disabled:opacity-50"
                                             >
-                                                {generatingDocs.has("Investment Memo") ? (
+                                                {isDocGenerating("Investment Memo") ? (
                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                 ) : (
                                                     <Play className="h-3.5 w-3.5 text-gray-500" />
                                                 )}
-                                                {generatingDocs.has("Investment Memo") ? "Regenerating..." : "Regenerate"}
+                                                {isDocGenerating("Investment Memo") ? "Regenerating..." : "Regenerate"}
                                             </button>
                                         )}
                                     </>
@@ -1217,15 +1268,15 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                                         {!viewerOnly && (
                                             <button
                                                 onClick={() => handleGenerateDoc("Investment Memo")}
-                                                disabled={generatingDocs.has("Investment Memo")}
+                                                disabled={isDocGenerating("Investment Memo")}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-all"
                                             >
-                                                {generatingDocs.has("Investment Memo") ? (
+                                                {isDocGenerating("Investment Memo") ? (
                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                 ) : (
                                                     <Sparkles className="h-3.5 w-3.5" />
                                                 )}
-                                                {generatingDocs.has("Investment Memo") ? "Generating..." : "Generate"}
+                                                {isDocGenerating("Investment Memo") ? "Generating..." : "Generate"}
                                             </button>
                                         )}
                                     </>
@@ -1245,7 +1296,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                             onClickFile={handleClickFile}
                             onSelectFromResume={handleSelectFromResume}
                             onGenerate={(docName) => handleGenerateDoc(docName)}
-                            isGenerating={(name) => generatingDocs.has(name)}
+                            isGenerating={isDocGenerating}
                             onGenerateStage={(docs) => handleGenerateStage(stage.id, docs)}
                             onActionRequired={handleActionRequired}
                             progress={stageProgress[stage.id]}
