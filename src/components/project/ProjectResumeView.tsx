@@ -45,6 +45,8 @@ import { AlertModal } from "@/components/ui/AlertModal";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
 import { T12FinancialTable } from "@/components/project/T12FinancialTable";
 import { T12FinancialData, T12Category } from "@/types/t12-financial";
+import { isFieldVisibleForDealType, DealType } from "@/lib/deal-type-field-config";
+import { FieldHelpTooltip } from "@/components/ui/FieldHelpTooltip";
 
 interface ProjectResumeViewProps {
 	project: ProjectProfile;
@@ -202,6 +204,26 @@ const getFieldConfig = (fieldId: string): any => {
 const isFieldRequiredFromSchema = (fieldId: string): boolean => {
 	const config = getFieldConfig(fieldId);
 	return typeof config.required === "boolean" ? config.required : false;
+};
+
+// Helper: returns true if the value is considered "empty" for display purposes
+// (null, undefined, empty string, empty array, "N/A", or numeric zero for optional fields)
+const isEffectivelyEmpty = (value: any): boolean => {
+	if (value === null || value === undefined) return true;
+	if (typeof value === "string" && (value.trim() === "" || value.trim() === "N/A")) return true;
+	if (Array.isArray(value) && value.length === 0) return true;
+	if (typeof value === "number" && value === 0) return true;
+	// Handle rich format objects
+	if (value && typeof value === "object" && !Array.isArray(value) && "value" in value) {
+		return isEffectivelyEmpty(value.value);
+	}
+	return false;
+};
+
+// Helper: returns true if a field should be hidden (optional AND effectively empty)
+const shouldHideOptionalField = (fieldId: string, value: any): boolean => {
+	if (isFieldRequiredFromSchema(fieldId)) return false; // Never hide required fields
+	return isEffectivelyEmpty(value);
 };
 
 // Helper to format field value based on data type
@@ -368,7 +390,7 @@ const getFieldLabel = (field: {
 		totalDevelopmentCost: "Total Development Cost (TDC)",
 		loanAmountRequested: "Loan Amount Requested",
 		loanType: "Loan Type",
-		requestedTerm: "Requested Term",
+		requestedTerm: "Requested Term (Years)",
 		totalResidentialUnits: "Total Residential Units",
 		totalResidentialNRSF: "Total Residential NRSF",
 		averageUnitSize: "Average Unit Size",
@@ -626,6 +648,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 	const completeness = project.completenessPercent ?? 0;
 	const progressColor = completeness >= 100 ? "bg-green-600" : "bg-blue-600";
 	const router = useRouter();
+	const dealType: DealType = (project.deal_type as DealType) ?? 'ground_up';
 
 	// Use the shared autofill hook
 	const projectAddress =
@@ -1135,6 +1158,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																			) {
 																				return false;
 																			}
+																			// Deal-type visibility check
+																			if (!isFieldVisibleForDealType(field.fieldId, dealType)) {
+																				return false;
+																			}
 																			const value =
 																				getFieldValue(
 																					project,
@@ -1153,6 +1180,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																						value ===
 																						false)
 																				);
+																			}
+																			// Hide optional fields that have no meaningful value
+																			if (shouldHideOptionalField(field.fieldId, value)) {
+																				return false;
 																			}
 																			return hasValue(
 																				value
@@ -1303,24 +1334,39 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																					field.fieldId ===
 																					"contactInfo";
 
-																				return (
-																					<KeyValueDisplay
-																						key={`${sectionId}-${subsectionId}-${field.fieldId}-${fieldIndex}`}
-																						label={getDisplayLabel(
-																							field.fieldId,
-																							field
-																						)}
-																						value={
-																							formattedValue
-																						}
-																						fullWidth={
-																							isFullWidth
-																						}
-																					/>
-																				);
-																			}
-																		)}
-																	</div>
+																			// Get API metadata for tooltip (source info)
+																			// Normalize null -> undefined to satisfy FieldHelpTooltip's type
+																			const rawMeta = project._metadata?.[field.fieldId];
+																			const apiMetadata = rawMeta ? {
+																				...rawMeta,
+																				source: rawMeta.source ?? undefined,
+																			} : undefined;
+
+																			return (
+																				<KeyValueDisplay
+																					key={`${sectionId}-${subsectionId}-${field.fieldId}-${fieldIndex}`}
+																					label={
+																						<span className="flex items-center gap-1">
+																							{getDisplayLabel(field.fieldId, field)}
+																							<FieldHelpTooltip
+																								fieldId={field.fieldId}
+																								fieldMetadata={apiMetadata}
+																								iconSize={12}
+																								placement="top"
+																							/>
+																						</span>
+																					}
+																					value={
+																						formattedValue
+																					}
+																					fullWidth={
+																						isFullWidth
+																					}
+																				/>
+																			);
+																		}
+																	)}
+																</div>
 
 
 																	{/* T12 Financial Table */}
@@ -1670,9 +1716,8 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																project,
 																"rentRollUnits"
 															);
-															const rentRollData = Array.isArray(
-																rentRollUnits
-															)
+															// Rent roll is refinance-only: hide for ground-up deals
+															const rentRollData = Array.isArray(rentRollUnits) && isFieldVisibleForDealType('rentRollUnits', dealType)
 																? rentRollUnits
 																: null;
 
@@ -1774,8 +1819,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																}
 															}
 
-															// CapEx Items Table
-															const capexItemsRaw = getFieldValue(project, "capexItems");
+															// CapEx Items Table - refinance only
+															const capexItemsRaw = isFieldVisibleForDealType('capexItems', dealType)
+																? getFieldValue(project, "capexItems")
+																: null;
 															let capexData = Array.isArray(capexItemsRaw) ? capexItemsRaw : null;
 															if (typeof capexItemsRaw === 'string' && capexItemsRaw.startsWith('[')) {
 																try {

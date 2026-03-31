@@ -344,7 +344,7 @@ export interface ProjectProfile {
 	groundbreakingDate?: string;
 	completionDate?: string;
 	totalDevelopmentCost?: number;
-	requestedTerm?: string;
+	requestedTerm?: number;
 	dealStatus?: string;
 	syndicationStatus?: string;
 	sponsorExperience?: string;

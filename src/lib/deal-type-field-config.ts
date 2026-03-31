@@ -92,6 +92,7 @@ export const projectResumeFieldDealTypes: Record<string, FieldDealType> = {
   loanFees: ['ground_up', 'refinance'],
   interestReserve: ['ground_up'],
   capexBudget: ['refinance'],
+  capexItems: ['refinance'],
   officeTIReimbursementCap: ['ground_up', 'refinance'],
   siteRestorationAllowance: ['ground_up'],
 
@@ -105,8 +106,17 @@ export const projectResumeFieldDealTypes: Record<string, FieldDealType> = {
   sponsorEquity: ['ground_up', 'refinance'],
   taxCreditEquity: ['ground_up', 'refinance'],
   grantFundingAmount: ['ground_up', 'refinance'],
+  grantFundingSource: ['ground_up', 'refinance'],
+  privateInvestmentCommitment: ['ground_up', 'refinance'],
+  gapFinancing: ['ground_up', 'refinance'],
   partnerEquityBreakdown: ['ground_up', 'refinance'],
   liens: ['refinance'],
+  // Balance sheet items - refinance only (existing properties have these liabilities)
+  accountsPayableTrade: ['refinance'],
+  retainagePayableLiability: ['refinance'],
+  affiliatedLoanReceivable: ['refinance'],
+  totalSecurityDepositLiability: ['refinance'],
+  prepaidRentLiability: ['refinance'],
 
   // ============================================================================
   // Section 3: Financial Details - Loan Terms & Structure
