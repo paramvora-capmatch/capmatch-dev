@@ -33,6 +33,12 @@ export const QuadrantGrid: React.FC<QuadrantGridProps> = ({ quadrants, className
         <div className={cn("grid grid-cols-2 gap-7", className)}>
             {quadrants.map((quadrant) => {
                 const Icon = quadrant.icon;
+                const isRiskQuadrant = quadrant.id.toLowerCase().includes('risk');
+                const accentGradient = isRiskQuadrant
+                    ? 'from-rose-400 to-rose-500'
+                    : 'from-blue-400 to-sky-500';
+                const accentBg = isRiskQuadrant ? 'bg-rose-50' : 'bg-blue-50';
+                const accentText = isRiskQuadrant ? 'text-rose-600' : 'text-blue-600';
                 
                 return (
                     <div key={quadrant.id} className="group relative h-full">
@@ -48,28 +54,15 @@ export const QuadrantGrid: React.FC<QuadrantGridProps> = ({ quadrants, className
                                 quadrant.href && "cursor-pointer"
                             )}
                         >
-                        <div className={cn(
-                            "h-2 bg-gradient-to-r",
-                            quadrant.color
-                        )} />
+                        <div className={cn("h-2 bg-gradient-to-r", accentGradient)} />
                         
                         <div className="p-7">
                             <div className="flex items-start justify-between mb-5">
                                 <div className="flex items-center">
-                                    <div className={cn(
-                                        "p-4 rounded-lg",
-                                        quadrant.color.includes('blue') && "bg-blue-50",
-                                        quadrant.color.includes('green') && "bg-green-50",
-                                        quadrant.color.includes('red') && "bg-red-50"
-                                    )}>
-                                        <Icon className={cn(
-                                            "h-7 w-7",
-                                            quadrant.color.includes('blue') && "text-blue-600",
-                                            quadrant.color.includes('green') && "text-green-600",
-                                            quadrant.color.includes('red') && "text-red-600"
-                                        )} />
+                                    <div className={cn("rounded-lg p-4", accentBg)}>
+                                        <Icon className={cn("h-7 w-7", accentText)} />
                                     </div>
-                                    <h3 className="ml-4 text-xl font-semibold text-gray-800">
+                                    <h3 className="ml-4 text-lg font-semibold text-gray-800">
                                         {quadrant.title}
                                     </h3>
                                 </div>

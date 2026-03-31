@@ -6,6 +6,10 @@ import { Home, DollarSign, Users } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { formatLocale, formatFixed, parseNumeric } from "@/lib/om-utils";
+import {
+	getUnitMixEntries,
+	getWeightedAverageUnitRent,
+} from "@/lib/om-display";
 
 type UnitMixUnit = {
 	count?: number | null;
@@ -16,21 +20,20 @@ type UnitMixUnit = {
 
 export default function UnitMixPage() {
 	const { content, insights } = useOmContent();
-
-	// Access flat residentialUnitMix array directly
 	const residentialUnitMix = Array.isArray(content?.residentialUnitMix)
 		? content.residentialUnitMix
 		: [];
+	const normalizedUnitMix = getUnitMixEntries(content);
 
 	// Transform flat array to unit mix details structure for UI
 	const unitMixDetails: Record<string, UnitMixUnit> = {};
-	residentialUnitMix.forEach((unit: any) => {
-		const unitType = unit.unitType || unit.type || "unknown";
+	normalizedUnitMix.forEach((unit) => {
+		const unitType = unit.type || "unknown";
 		unitMixDetails[unitType] = {
-			count: unit.unitCount || unit.units || 0,
-			avgSF: unit.avgSF || unit.averageUnitSize || 0,
-			rentRange: unit.monthlyRent ? `$${unit.monthlyRent}` : null,
-			deposit: unit.deposit || null,
+			count: unit.count ?? 0,
+			avgSF: unit.avgSF ?? 0,
+			rentRange: unit.rentRangeLabel ?? unit.avgRentLabel,
+			deposit: null,
 		};
 	});
 
@@ -50,25 +53,9 @@ export default function UnitMixPage() {
 		0
 	);
 
-	const blendedAverageRent =
-		totalUnits > 0
-			? unitEntries.reduce(
-					(sum: number, [, unit]: [string, UnitMixUnit]) => {
-						const rentRange = unit.rentRange ?? "0";
-						const [low, high] = rentRange
-							.split("-")
-							.map(
-								(r: string) =>
-									parseFloat(r.replace(/[^\d.]/g, "")) || 0
-							);
-						const avg = (low + high) / 2;
-						return sum + avg * (unit.count ?? 0);
-					},
-					0
-			  ) / totalUnits
-			: 0;
+	const blendedAverageRent = getWeightedAverageUnitRent(normalizedUnitMix);
 	const blendedAverageRentDisplay =
-		totalUnits > 0 ? Math.round(blendedAverageRent) : null;
+		blendedAverageRent != null ? Math.round(blendedAverageRent) : null;
 	const avgSF =
 		totalUnits > 0 ? Math.round(totalRentableSF / totalUnits) : null;
 
@@ -80,22 +67,22 @@ export default function UnitMixPage() {
 		const colorMap: { [key: string]: { hex: string; tailwind: string } } = {
 			studios: { hex: "#3B82F6", tailwind: "bg-blue-500" }, // Blue
 			studio: { hex: "#3B82F6", tailwind: "bg-blue-500" },
-			oneBed: { hex: "#10B981", tailwind: "bg-green-500" }, // Green
-			"1bed": { hex: "#10B981", tailwind: "bg-green-500" },
-			"1-bed": { hex: "#10B981", tailwind: "bg-green-500" },
-			"1-bedroom": { hex: "#10B981", tailwind: "bg-green-500" },
-			twoBed: { hex: "#8B5CF6", tailwind: "bg-purple-500" }, // Purple
-			"2bed": { hex: "#8B5CF6", tailwind: "bg-purple-500" },
-			"2-bed": { hex: "#8B5CF6", tailwind: "bg-purple-500" },
-			"2-bedroom": { hex: "#8B5CF6", tailwind: "bg-purple-500" },
-			threeBed: { hex: "#F59E0B", tailwind: "bg-amber-500" }, // Amber
-			"3bed": { hex: "#F59E0B", tailwind: "bg-amber-500" },
-			"3-bed": { hex: "#F59E0B", tailwind: "bg-amber-500" },
-			"3-bedroom": { hex: "#F59E0B", tailwind: "bg-amber-500" },
-			fourBed: { hex: "#EF4444", tailwind: "bg-red-500" }, // Red
-			"4bed": { hex: "#EF4444", tailwind: "bg-red-500" },
-			"4-bed": { hex: "#EF4444", tailwind: "bg-red-500" },
-			"4-bedroom": { hex: "#EF4444", tailwind: "bg-red-500" },
+			oneBed: { hex: "#0EA5E9", tailwind: "bg-sky-500" },
+			"1bed": { hex: "#0EA5E9", tailwind: "bg-sky-500" },
+			"1-bed": { hex: "#0EA5E9", tailwind: "bg-sky-500" },
+			"1-bedroom": { hex: "#0EA5E9", tailwind: "bg-sky-500" },
+			twoBed: { hex: "#2563EB", tailwind: "bg-blue-600" },
+			"2bed": { hex: "#2563EB", tailwind: "bg-blue-600" },
+			"2-bed": { hex: "#2563EB", tailwind: "bg-blue-600" },
+			"2-bedroom": { hex: "#2563EB", tailwind: "bg-blue-600" },
+			threeBed: { hex: "#1D4ED8", tailwind: "bg-blue-700" },
+			"3bed": { hex: "#1D4ED8", tailwind: "bg-blue-700" },
+			"3-bed": { hex: "#1D4ED8", tailwind: "bg-blue-700" },
+			"3-bedroom": { hex: "#1D4ED8", tailwind: "bg-blue-700" },
+			fourBed: { hex: "#334155", tailwind: "bg-slate-600" },
+			"4bed": { hex: "#334155", tailwind: "bg-slate-600" },
+			"4-bed": { hex: "#334155", tailwind: "bg-slate-600" },
+			"4-bedroom": { hex: "#334155", tailwind: "bg-slate-600" },
 		};
 
 		// Try exact match first
@@ -116,13 +103,13 @@ export default function UnitMixPage() {
 		// Fallback: generate consistent color from string hash
 		const vibrantColors = [
 			{ hex: "#3B82F6", tailwind: "bg-blue-500" }, // Blue
-			{ hex: "#10B981", tailwind: "bg-green-500" }, // Green
-			{ hex: "#8B5CF6", tailwind: "bg-purple-500" }, // Purple
-			{ hex: "#F59E0B", tailwind: "bg-amber-500" }, // Amber
-			{ hex: "#EF4444", tailwind: "bg-red-500" }, // Red
-			{ hex: "#EC4899", tailwind: "bg-pink-500" }, // Pink
-			{ hex: "#06B6D4", tailwind: "bg-cyan-500" }, // Cyan
-			{ hex: "#84CC16", tailwind: "bg-lime-500" }, // Lime
+			{ hex: "#0EA5E9", tailwind: "bg-sky-500" },
+			{ hex: "#2563EB", tailwind: "bg-blue-600" },
+			{ hex: "#1D4ED8", tailwind: "bg-blue-700" },
+			{ hex: "#334155", tailwind: "bg-slate-600" },
+			{ hex: "#06B6D4", tailwind: "bg-cyan-500" },
+			{ hex: "#60A5FA", tailwind: "bg-blue-400" },
+			{ hex: "#93C5FD", tailwind: "bg-blue-300" },
 		];
 
 		// Hash the string to get a consistent color
@@ -212,7 +199,7 @@ export default function UnitMixPage() {
 						</div>
 					</CardHeader>
 					<CardContent>
-						<p className="text-3xl font-bold text-blue-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{content?.totalResidentialUnits ?? totalUnits}
 						</p>
 						<p className="text-sm text-gray-500 mt-1">
@@ -227,14 +214,14 @@ export default function UnitMixPage() {
 						dataSourceFields={["total residential nrsf"]}
 					>
 						<div className="flex items-center">
-							<Users className="h-5 w-5 text-green-500 mr-2" />
+							<Users className="h-5 w-5 text-blue-500 mr-2" />
 							<h3 className="text-lg font-semibold text-gray-800">
 								Total SF
 							</h3>
 						</div>
 					</CardHeader>
 					<CardContent>
-						<p className="text-3xl font-bold text-green-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{formatLocale(
 								content?.totalResidentialNRSF ?? totalRentableSF
 							) ?? 0}
@@ -255,7 +242,7 @@ export default function UnitMixPage() {
 						</div>
 					</CardHeader>
 					<CardContent>
-						<p className="text-3xl font-bold text-blue-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{blendedAverageRentDisplay != null
 								? `$${
 										formatLocale(
@@ -277,7 +264,7 @@ export default function UnitMixPage() {
 						</h3>
 					</CardHeader>
 					<CardContent>
-						<p className="text-3xl font-bold text-red-600">
+						<p className="text-3xl font-semibold text-blue-700">
 							{avgSF ?? null}
 						</p>
 						<p className="text-sm text-gray-500 mt-1">
@@ -466,19 +453,25 @@ export default function UnitMixPage() {
 							<div className="space-y-2">
 								{unitEntries.map(
 									([type, unit]: [string, UnitMixUnit]) => {
-										const avgRent =
-											(unit.rentRange ?? "0")
-												.split("-")
-												.map((r: string) =>
-													parseFloat(
-														r.replace(/[^\d]/g, "")
-													)
+										const rentRangeText = unit.rentRange ?? "0";
+										const rentValues = rentRangeText
+											.split("-")
+											.map((r: string) =>
+												parseFloat(
+													r.replace(/[^\d.]/g, "")
 												)
-												.reduce(
-													(a: number, b: number) =>
-														a + b,
-													0
-												) / 2;
+											)
+											.filter((value: number) =>
+												!Number.isNaN(value)
+											);
+										const avgRent =
+											rentValues.length === 0
+												? 0
+												: rentValues.reduce(
+														(sum: number, value: number) =>
+															sum + value,
+														0
+												  ) / rentValues.length;
 										const rentPSF =
 											avgRent / (unit.avgSF ?? 1);
 										return (

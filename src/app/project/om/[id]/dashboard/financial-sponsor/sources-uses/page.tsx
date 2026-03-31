@@ -6,38 +6,18 @@ import { DollarSign, TrendingDown, PieChart } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { formatCurrency, formatPercentage, parseNumeric, formatLocale } from "@/lib/om-utils";
+import { useOMProject } from "@/hooks/useOMProject";
+import { buildCapitalSources, buildCapitalUses } from "@/lib/om-display";
 
 export default function SourcesUsesPage() {
+  const { dealType } = useOMProject();
   const { content } = useOmContent();
   
   // Extract equity committed percent
   const equityCommittedPercent = parseNumeric(content?.equityCommittedPercent) ?? null;
 
-  // Build sources & uses from flat fields
-  const sources = [
-    { type: "Senior Debt", amount: content?.loanAmountRequested ?? 0 },
-    { type: "Sponsor Equity", amount: content?.sponsorEquity ?? 0 },
-    { type: "Tax Credit Equity", amount: content?.taxCreditEquity ?? 0 },
-    { type: "Gap Financing", amount: content?.gapFinancing ?? 0 },
-  ].filter(s => s.amount > 0).map(source => ({
-    ...source,
-    percentage: 0, // Will be calculated below
-  }));
-  
-  const uses = [
-    { type: "Land Acquisition", amount: content?.landAcquisition ?? content?.purchasePrice ?? 0 },
-    { type: "Base Construction", amount: content?.baseConstruction ?? 0 },
-    { type: "Contingency", amount: content?.contingency ?? 0 },
-    { type: "Construction Fees", amount: content?.constructionFees ?? 0 },
-    { type: "A&E Fees", amount: content?.aeFees ?? 0 },
-    { type: "Developer Fee", amount: content?.developerFee ?? 0 },
-    { type: "Interest Reserve", amount: content?.interestReserve ?? 0 },
-    { type: "Working Capital", amount: content?.workingCapital ?? 0 },
-    { type: "Op. Deficit Escrow", amount: content?.opDeficitEscrow ?? 0 },
-  ].filter(u => u.amount > 0).map(use => ({
-    ...use,
-    percentage: 0, // Will be calculated below
-  }));
+  const sources = buildCapitalSources(content, dealType);
+  const uses = buildCapitalUses(content, dealType);
 
   const totalSources = sources.reduce(
     (sum: number, source: { amount?: number | null }) => sum + (source.amount ?? 0),
@@ -47,16 +27,6 @@ export default function SourcesUsesPage() {
     (sum: number, use: { amount?: number | null }) => sum + (use.amount ?? 0),
     0
   );
-
-  // Calculate percentages (rounded to 2 decimal places)
-  sources.forEach(source => {
-    const rawPercentage = totalSources > 0 ? (source.amount ?? 0) / totalSources * 100 : 0;
-    source.percentage = Math.round(rawPercentage * 100) / 100; // Round to 2 decimal places
-  });
-  uses.forEach(use => {
-    const rawPercentage = totalUses > 0 ? (use.amount ?? 0) / totalUses * 100 : 0;
-    use.percentage = Math.round(rawPercentage * 100) / 100; // Round to 2 decimal places
-  });
 
   const primaryDebtSource =
     (sources.find((source: { type?: string | null }) =>
@@ -91,12 +61,12 @@ export default function SourcesUsesPage() {
         <Card>
           <CardHeader className="pb-2" dataSourceSection="sources & uses">
             <div className="flex items-center">
-              <TrendingDown className="h-5 w-5 text-green-500 mr-2" />
+              <TrendingDown className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold">Total Uses</h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">
+            <p className="text-3xl font-semibold text-blue-700">
               {formatCurrency(totalUses)}
             </p>
             <p className="text-sm text-gray-500 mt-1">Capital deployed</p>
@@ -191,14 +161,14 @@ export default function SourcesUsesPage() {
                     <span className="text-sm text-gray-500">
                       {formatCurrency(use.amount)}
                     </span>
-                    <Badge className="bg-green-100 text-green-800">
+                    <Badge className="bg-blue-100 text-blue-800">
                       {use.percentage != null ? `${use.percentage.toFixed(2)}%` : null}
                     </Badge>
                   </div>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div
-                    className="h-3 rounded-full bg-green-500"
+                    className="h-3 rounded-full bg-blue-500"
                     style={{ width: `${use.percentage ?? 0}%` }}
                   />
                 </div>
@@ -210,7 +180,7 @@ export default function SourcesUsesPage() {
                 <span className="text-sm font-medium text-gray-900">
                   Total Uses
                 </span>
-                <Badge className="bg-green-100 text-green-800">
+                <Badge className="bg-blue-100 text-blue-800">
                   {formatCurrency(totalUses)}
                 </Badge>
               </div>
@@ -315,7 +285,7 @@ export default function SourcesUsesPage() {
                       <div className="flex-1 relative">
                         <div className="relative h-12 bg-gray-100 rounded border-2 border-gray-200 overflow-hidden">
                           <div
-                            className="absolute bottom-0 left-0 bg-green-500 rounded transition-all duration-300 flex items-center justify-center"
+                            className="absolute bottom-0 left-0 bg-blue-500 rounded transition-all duration-300 flex items-center justify-center"
                             style={{
                               width: `${heightPercent}%`,
                               height: '100%',
@@ -347,7 +317,7 @@ export default function SourcesUsesPage() {
                       Total Uses
                     </div>
                     <div className="flex-1">
-                      <div className="h-12 bg-green-600 rounded border-2 border-green-700 flex items-center justify-center">
+                      <div className="h-12 bg-blue-600 rounded border-2 border-blue-700 flex items-center justify-center">
                         <span className="text-white font-semibold text-sm">
                           {formatCurrency(totalUses)}
                         </span>
@@ -412,7 +382,7 @@ export default function SourcesUsesPage() {
                 .map((use, index) => (
                   <div key={`use-${index}`} className="flex justify-between items-center">
                     <span className="text-gray-600">{use.type ?? null}</span>
-                    <Badge className="bg-green-50 text-green-800">
+                    <Badge className="bg-blue-50 text-blue-800">
                       {formatPercentage(use.amount, totalUses, 2) != null
                         ? `${formatPercentage(use.amount, totalUses, 2)}%`
                         : null}

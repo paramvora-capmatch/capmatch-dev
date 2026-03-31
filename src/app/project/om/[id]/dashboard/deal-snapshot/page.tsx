@@ -2,21 +2,16 @@
 'use client';
 
 import React from 'react';
-import { useParams } from 'next/navigation';
-import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
 import { MetricCard } from '@/components/om/widgets/MetricCard';
 import { useOMDashboard } from '@/contexts/OMDashboardContext';
 import { Layers, FileText, Calendar, AlertTriangle, Percent, Clock, Shield, DollarSign } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { useOMProject } from '@/hooks/useOMProject';
 
 export default function DealSnapshotPage() {
-    const params = useParams();
-    // Extract id immediately to avoid read-only property issues in Next.js 15
-    const projectId = typeof params?.id === 'string' ? params.id : '';
-    const { getProject } = useProjects();
-    const project = projectId ? getProject(projectId) : null;
+    const { projectId, project, isGroundUp } = useOMProject();
     const { scenario } = useOMDashboard();
     const { content } = useOmContent();
     
@@ -124,7 +119,7 @@ export default function DealSnapshotPage() {
                             <span className="font-medium">{formatPercent(equityPercent)}</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                            <div className="bg-green-500 h-full" style={{ width: `${equityPercent ?? 0}%` }} />
+                            <div className="bg-sky-500 h-full" style={{ width: `${equityPercent ?? 0}%` }} />
                         </div>
                     </div>
                     <MetricCard
@@ -145,31 +140,31 @@ export default function DealSnapshotPage() {
             metrics: (
                 <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
-                        <div className="text-sm p-2 bg-white rounded-lg border-2 border-green-200 hover:border-green-400 transition-colors">
+                        <div className="text-sm p-2 bg-white rounded-lg border border-blue-200 hover:border-blue-300 transition-colors">
                             <div className="flex items-center space-x-1 mb-1">
-                                <Percent className="h-3 w-3 text-green-600" />
-                                <p className="text-xs font-medium text-green-600">Rate</p>
+                                <Percent className="h-3 w-3 text-blue-600" />
+                                <p className="text-xs font-medium text-blue-600">Rate</p>
                             </div>
                             <p className="font-bold text-gray-900 text-xs leading-tight">{keyTerms.rate ?? null}</p>
                         </div>
-                        <div className="text-sm p-2 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
+                        <div className="text-sm p-2 bg-white rounded-lg border border-blue-200 hover:border-blue-300 transition-colors">
                             <div className="flex items-center space-x-1 mb-1">
-                                <Clock className="h-3 w-3 text-red-600" />
-                                <p className="text-xs font-medium text-red-600">Term</p>
+                                <Clock className="h-3 w-3 text-blue-600" />
+                                <p className="text-xs font-medium text-blue-600">Term</p>
                             </div>
                             <p className="font-bold text-gray-900 text-xs">{keyTerms.term ?? null}</p>
                         </div>
-                        <div className="text-sm p-2 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
+                        <div className="text-sm p-2 bg-white rounded-lg border border-blue-200 hover:border-blue-300 transition-colors">
                             <div className="flex items-center space-x-1 mb-1">
-                                <Shield className="h-3 w-3 text-red-600" />
-                                <p className="text-xs font-medium text-red-600">Recourse</p>
+                                <Shield className="h-3 w-3 text-blue-600" />
+                                <p className="text-xs font-medium text-blue-600">Recourse</p>
                             </div>
                             <p className="font-bold text-gray-900 text-xs leading-tight">{keyTerms.recourse ?? null}</p>
                         </div>
-                        <div className="text-sm p-2 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
+                        <div className="text-sm p-2 bg-white rounded-lg border border-blue-200 hover:border-blue-300 transition-colors">
                             <div className="flex items-center space-x-1 mb-1">
-                                <DollarSign className="h-3 w-3 text-red-600" />
-                                <p className="text-xs font-medium text-red-600">Origination</p>
+                                <DollarSign className="h-3 w-3 text-blue-600" />
+                                <p className="text-xs font-medium text-blue-600">Origination</p>
                             </div>
                             <p className="font-bold text-gray-900 text-xs">{keyTerms.origination ?? null}</p>
                         </div>
@@ -207,7 +202,7 @@ export default function DealSnapshotPage() {
             id: 'milestones',
             title: 'Milestones',
             icon: Calendar,
-            color: 'from-green-400 to-green-500',
+            color: 'from-blue-400 to-blue-500',
             href: `/project/om/${projectId}/dashboard/deal-snapshot/milestones`,
             metrics: (
                 <div className="space-y-3">
@@ -224,7 +219,7 @@ export default function DealSnapshotPage() {
                                               : milestone.status === 'current'
                                               ? 'bg-blue-500'
                                               : milestone.status === 'upcoming'
-                                              ? 'bg-red-400'
+                                              ? 'bg-slate-400'
                                               : 'bg-gray-400'
                                       }`} />
                                     )}
@@ -239,7 +234,7 @@ export default function DealSnapshotPage() {
             id: 'risk-analysis',
             title: 'Risk Flags & Mitigants',
             icon: AlertTriangle,
-            color: 'from-red-400 to-red-500',
+            color: 'from-rose-400 to-rose-500',
             href: `/project/om/${projectId}/dashboard/deal-snapshot/risk-analysis`,
             metrics: (
                 <div className="space-y-3">
@@ -261,9 +256,13 @@ export default function DealSnapshotPage() {
         }
     ];
     
+    const visibleQuadrants = isGroundUp
+        ? quadrants
+        : quadrants.filter((quadrant) => quadrant.id !== 'milestones');
+
     return (
         <div className="space-y-6">
-            <QuadrantGrid quadrants={quadrants} />
+            <QuadrantGrid quadrants={visibleQuadrants} />
         </div>
     );
 }

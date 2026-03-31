@@ -27,6 +27,10 @@ import {
   PieChart as PieChartIcon,
 } from "lucide-react";
 import { useOmContent } from "@/hooks/useOmContent";
+import {
+  getFallbackSensitivityAnalysis,
+  getQuarterlyDeliverySchedule,
+} from "@/lib/om-display";
 import { formatFixed } from "@/lib/om-utils";
 
 interface ReturnsChartsProps {
@@ -80,14 +84,15 @@ export default function ReturnsCharts({
     : [];
 
   // Build quarterly delivery from content
-  const quarterlySchedule = content?.quarterlyDeliverySchedule;
-  const quarterlyDelivery = quarterlySchedule && Array.isArray(quarterlySchedule)
-    ? quarterlySchedule.map((item: any, index: number) => ({
-        quarter: item.quarter ?? `Q${(index % 4) + 1} 202${5 + Math.floor(index / 4)}`,
-        units: item.units ?? 0,
-        color: ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"][index % 5],
-      }))
-    : [];
+  const quarterlyDelivery = getQuarterlyDeliverySchedule(content).map(
+    (item, index) => ({
+      quarter: item.quarter,
+      units: item.units,
+      color: ["#3b82f6", "#0ea5e9", "#60a5fa", "#93c5fd"][index % 4],
+    })
+  );
+  const { rentGrowthImpact, constructionCostImpact } =
+    getFallbackSensitivityAnalysis(content);
 
   const getScenarioData = () => {
     switch (activeScenario) {
@@ -484,13 +489,10 @@ export default function ReturnsCharts({
               <h4 className="font-semibold text-gray-800 mb-3">
                 Rent Growth Impact
               </h4>
-              {content?.sensitivityAnalysis?.rentGrowthImpact && Array.isArray(content.sensitivityAnalysis.rentGrowthImpact) && content.sensitivityAnalysis.rentGrowthImpact.length > 0 ? (
+              {rentGrowthImpact.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart
-                    data={content.sensitivityAnalysis.rentGrowthImpact.map((item: any) => ({
-                      growth: item.growth ?? '0%',
-                      irr: item.irr ?? 0,
-                    }))}
+                    data={rentGrowthImpact}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="growth" />
@@ -508,7 +510,7 @@ export default function ReturnsCharts({
                 </ResponsiveContainer>
               ) : (
                 <div className="h-[200px] flex items-center justify-center text-gray-500">
-                  No rent growth impact data available
+                  No rent growth sensitivity available
                 </div>
               )}
             </div>
@@ -517,12 +519,12 @@ export default function ReturnsCharts({
               <h4 className="font-semibold text-gray-800 mb-3">
                 Construction Cost Impact
               </h4>
-              {content?.sensitivityAnalysis?.constructionCostImpact && Array.isArray(content.sensitivityAnalysis.constructionCostImpact) && content.sensitivityAnalysis.constructionCostImpact.length > 0 ? (
+              {constructionCostImpact.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart
-                    data={content.sensitivityAnalysis.constructionCostImpact.map((item: any) => ({
-                      cost: item.cost ?? 'Base',
-                      irr: item.irr ?? 0,
+                    data={constructionCostImpact.map((item) => ({
+                      cost: item.costChange,
+                      irr: item.irr,
                     }))}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
@@ -541,7 +543,7 @@ export default function ReturnsCharts({
                 </ResponsiveContainer>
               ) : (
                 <div className="h-[200px] flex items-center justify-center text-gray-500">
-                  No construction cost impact data available
+                  No construction cost sensitivity available
                 </div>
               )}
             </div>

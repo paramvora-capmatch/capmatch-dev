@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Zap, Building2, DollarSign, Shield } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { parseNumeric, formatLocale } from "@/lib/om-utils";
+import { parseNumeric } from "@/lib/om-utils";
 
 export default function RegulatoryIncentivesPage() {
 	const { content } = useOmContent();
@@ -92,7 +92,7 @@ export default function RegulatoryIncentivesPage() {
 				<Card className="hover:shadow-lg transition-shadow">
 					<CardHeader>
 						<div className="flex items-center space-x-2">
-							<DollarSign className="h-6 w-6 text-green-600" />
+							<DollarSign className="h-6 w-6 text-blue-600" />
 							<h3 className="text-xl font-semibold text-gray-800">
 								Tax Exemption
 							</h3>
@@ -105,7 +105,7 @@ export default function RegulatoryIncentivesPage() {
 									<p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
 										Tax Exemption Status
 									</p>
-									<Badge className="bg-green-100 text-green-800">
+									<Badge className="bg-blue-100 text-blue-800">
 										{taxExemption ? "Yes" : "No"}
 									</Badge>
 								</div>
@@ -150,7 +150,7 @@ export default function RegulatoryIncentivesPage() {
 				<Card className="hover:shadow-lg transition-shadow">
 					<CardHeader>
 						<div className="flex items-center space-x-2">
-							<Shield className="h-6 w-6 text-red-600" />
+							<Shield className="h-6 w-6 text-blue-600" />
 							<h3 className="text-xl font-semibold text-gray-800">
 								Risk & Special Programs
 							</h3>
@@ -173,7 +173,7 @@ export default function RegulatoryIncentivesPage() {
 									<p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
 										Opportunity Zone
 									</p>
-									<Badge className="bg-green-100 text-green-800">
+									<Badge className="bg-blue-100 text-blue-800">
 										{opportunityZone ? "Yes" : "No"}
 									</Badge>
 								</div>
@@ -202,7 +202,7 @@ export default function RegulatoryIncentivesPage() {
 				<Card className="hover:shadow-lg transition-shadow">
 					<CardHeader>
 						<div className="flex items-center space-x-2">
-							<Zap className="h-6 w-6 text-purple-600" />
+							<Zap className="h-6 w-6 text-blue-600" />
 							<h3 className="text-xl font-semibold text-gray-800">
 								Tax Incentives & Financing
 							</h3>
@@ -291,7 +291,7 @@ export default function RegulatoryIncentivesPage() {
 				opportunityZone ||
 				tifDistrict ||
 				taxAbatement) && (
-				<Card className="hover:shadow-lg transition-shadow bg-gradient-to-br from-green-50 to-blue-50">
+				<Card className="hover:shadow-lg transition-shadow bg-gradient-to-br from-blue-50 to-sky-50">
 					<CardHeader>
 						<h3 className="text-xl font-semibold text-gray-800">
 							Incentive Summary
@@ -314,7 +314,7 @@ export default function RegulatoryIncentivesPage() {
 									<span className="text-sm font-medium text-gray-700">
 										Tax Exemption
 									</span>
-									<Badge className="bg-green-100 text-green-800">
+									<Badge className="bg-blue-100 text-blue-800">
 										{taxExemption ? "Yes" : "No"}
 									</Badge>
 								</div>
@@ -324,7 +324,7 @@ export default function RegulatoryIncentivesPage() {
 									<span className="text-sm font-medium text-gray-700">
 										Opportunity Zone
 									</span>
-									<Badge className="bg-green-100 text-green-800">
+									<Badge className="bg-blue-100 text-blue-800">
 										{opportunityZone ? "Yes" : "No"}
 									</Badge>
 								</div>
@@ -334,7 +334,7 @@ export default function RegulatoryIncentivesPage() {
 									<span className="text-sm font-medium text-gray-700">
 										TIF District
 									</span>
-									<Badge className="bg-purple-100 text-purple-800">
+									<Badge className="bg-blue-100 text-blue-800">
 										{typeof tifDistrict === "boolean"
 											? tifDistrict
 												? "Yes"
@@ -348,7 +348,7 @@ export default function RegulatoryIncentivesPage() {
 									<span className="text-sm font-medium text-gray-700">
 										Tax Abatement
 									</span>
-									<Badge className="bg-green-100 text-green-800">
+									<Badge className="bg-blue-100 text-blue-800">
 										{typeof taxAbatement === "boolean"
 											? taxAbatement
 												? "Yes"
