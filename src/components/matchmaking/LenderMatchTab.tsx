@@ -384,7 +384,7 @@ function MatchCard({
               <PillarRow label="Product" score={productFit} />
             </div>
           </div>
-          <div className="shrink-0 flex items-center gap-2">
+          <div className="shrink-0 flex flex-col items-end gap-2 self-start">
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); if (canAddToWishlist) onAddToWishlist(score); }}
