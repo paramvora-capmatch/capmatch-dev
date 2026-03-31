@@ -2677,11 +2677,11 @@ async function seedDocuments(
 		{ file: "sponsor_track_record.xlsx", name: "Sponsor Track Record" },
 	];
 
-	// Possible base paths for docs/so-good-apartments
+	// Possible base paths for data/so-good-apartments
 	const possibleBasePaths = [
-		resolve(process.cwd(), "./docs/so-good-apartments"),
-		resolve(process.cwd(), "../docs/so-good-apartments"),
-		resolve(process.cwd(), "../../docs/so-good-apartments"),
+		resolve(process.cwd(), "./data/so-good-apartments"),
+		resolve(process.cwd(), "../data/so-good-apartments"),
+		resolve(process.cwd(), "../../data/so-good-apartments"),
 	];
 
 	// Find the base path
