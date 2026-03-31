@@ -21,6 +21,11 @@ function makeGenKey(lenderLei: string | null, docName: string): string {
     return `${lenderLei ?? "__project__"}::${docName}`;
 }
 
+/** Batch progress must be scoped per lender; stage id alone is shared across all wishlist tabs. */
+function stageProgressKey(lenderLei: string | null, stageId: string): string {
+    return `${lenderLei ?? "__project__"}::${stageId}`;
+}
+
 export interface MatchedLender {
     match_score_id: string;
     lender_lei: string;
@@ -916,9 +921,10 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
 
         if (totalCount === 0) return;
 
+        const spk = stageProgressKey(selectedLenderLei, stageId);
         setStageProgress(prev => ({
             ...prev,
-            [stageId]: { total: totalCount, completed: 0 }
+            [spk]: { total: totalCount, completed: 0 }
         }));
 
         const toastId = toast.loading(`Batch generating ${totalCount} documents (incl. Investment Memo)...`);
@@ -932,7 +938,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             else hadFailure = true;
             setStageProgress(prev => ({
                 ...prev,
-                [stageId]: { total: totalCount, completed: successCount }
+                [spk]: { total: totalCount, completed: successCount }
             }));
         }
 
@@ -942,7 +948,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
             else hadFailure = true;
             setStageProgress(prev => ({
                 ...prev,
-                [stageId]: { total: totalCount, completed: successCount }
+                [spk]: { total: totalCount, completed: successCount }
             }));
         }
 
@@ -960,7 +966,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         setTimeout(() => {
             setStageProgress(prev => {
                 const next = { ...prev };
-                delete next[stageId];
+                delete next[spk];
                 return next;
             });
         }, 3000);
@@ -1220,7 +1226,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                                 isGenerating={isDocGenerating}
                                 onGenerateStage={(docs) => handleGenerateStage(stage.id, docs)}
                                 onActionRequired={handleActionRequired}
-                                progress={stageProgress[stage.id]}
+                                progress={stageProgress[stageProgressKey(selectedLenderLei, stage.id)]}
                                 viewerOnly={viewerOnly}
                             />
                         ))}
@@ -1308,7 +1314,7 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
                             isGenerating={isDocGenerating}
                             onGenerateStage={(docs) => handleGenerateStage(stage.id, docs)}
                             onActionRequired={handleActionRequired}
-                            progress={stageProgress[stage.id]}
+                            progress={stageProgress[stageProgressKey(null, stage.id)]}
                             viewerOnly={viewerOnly}
                         />
                     ))}
