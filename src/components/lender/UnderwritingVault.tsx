@@ -821,12 +821,21 @@ export const UnderwritingVault: React.FC<UnderwritingVaultProps> = ({ projectId,
         const toastId = !options?.isBatch ? toast.loading(`Generating ${docName}...`) : undefined;
 
         try {
-            const body: { project_id: string; document_name: string; lender_lei?: string; project_resume_id?: string } = {
+            const body: {
+                project_id: string;
+                document_name: string;
+                lender_lei?: string;
+                lender_name?: string;
+                project_resume_id?: string;
+            } = {
                 project_id: projectId,
                 document_name: docName,
             };
             if (selectedLenderLei) {
                 body.lender_lei = selectedLenderLei;
+                if (selectedLender?.lender_name?.trim()) {
+                    body.lender_name = selectedLender.lender_name.trim();
+                }
                 if (selectedLender?.project_resume_id) {
                     body.project_resume_id = selectedLender.project_resume_id;
                 }
