@@ -26,6 +26,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		propertyAddressZip: "96003",
 		parcelNumber: "107-570-018-000",
 		zoningDesignation: "COMMERCIAL",
+		taxingDistrictID: "1-108",
 		projectDescription:
 			"Existing multifamily asset at 1230 Canby Rd in Redding, California. ATTOM classifies the property as Apartment House (100+ Units), built in 1979, with 19,572 gross square feet across 1 story on 5.94 acres. The source bundle contains a material unit-count conflict: the property-type label implies 100+ units while the building summary reports only 5 units.",
 		businessPlanSummary:
@@ -37,6 +38,8 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		numberOfStories: 1,
 		buildingType: "1-story apartment complex",
 		constructionClass: "Wood Frame",
+		foundationSystemType: "CONCRETE",
+		amenityList: ["Pool"],
 		totalSiteAcreage: 5.94,
 		realEstateTaxes: 172_912.92,
 		purchasePrice: 15_675_000,
@@ -59,7 +62,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		contactInfo:
 			"Public-record mailing address: 2015 SHASTA ST, REDDING, CA 96001-0421",
 		internalAdvisorNotes:
-			"Mapped from data/property-upserge/1230_canby.json. ATTOM labels the property as Apartment House (100+ Units) but the building summary reports unitsCount = 5. totalResidentialUnits and averageUnitSize were left blank until the unit count is independently verified.",
+			"Mapped from data/property-upserge/1230_canby.json. ATTOM labels the property as Apartment House (100+ Units) but the building summary reports unitsCount = 5. totalResidentialUnits and averageUnitSize were left blank until the unit count is independently verified. Added tax district, foundation system, and the pool amenity from subject-property ATTOM detail endpoints.",
 	},
 	borrowerResume: {
 		fullLegalName: "BHZ TRUST",

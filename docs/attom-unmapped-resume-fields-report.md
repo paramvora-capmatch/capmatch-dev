@@ -39,7 +39,6 @@ Those sections are available in the JSON files, but they do not represent the su
 
 ### Project Resume: Available in ATTOM, Not Mapped
 
-
 | ATTOM field(s)                                                                                                                                                                                                           | Example value                                                       | Why it was not mapped                                                                                                                              |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `identifier.attomId`, `identifier.fips`                                                                                                                                                                                  | `11502377`, `06101`                                                 | Internal/public-record identifiers with no useful resume field.                                                                                    |
@@ -59,9 +58,7 @@ Those sections are available in the JSON files, but they do not represent the su
 | `mortgage.FirstConcurrent.trustDeedDocumentNumber`, `mortgage.SecondConcurrent.amount`                                                                                                                                   | `0000013068`, `0.0`                                                 | We mapped lender name and loan amount only. The trust deed doc number and zero-value second lien were not resume-relevant.                         |
 | `owner.owner1`, `owner.owner2`, `owner.owner3`, `owner.corporateIndicator`, `owner.absenteeOwnerStatus`                                                                                                                  | `ELIEZER BENAROYA`, `SHOSHANA BENAROYA`, `YANIV BENAROYA`, `Y`, `A` | Only the LLC was elevated into sponsor/borrower identity. The remaining ownership roster is too incomplete to convert into sponsor principals.     |
 
-
 ### Borrower Resume: Available in ATTOM, Not Mapped
-
 
 | ATTOM field(s)                                                                                   | Example value                                             | Why it was not mapped                                                                                        |
 | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -74,31 +71,29 @@ Those sections are available in the JSON files, but they do not represent the su
 
 #### Project resume fields still blank
 
-| Resume field(s) | ATTOM support | What is still needed |
-| --- | --- | --- |
-| `totalResidentialUnits`, `averageUnitSize`, `residentialUnitMix` | Partial | ATTOM gives beds/baths and total area, but not a reliable unit count. A rent roll, OM, or verified property profile is needed. |
-| `parkingSpaces`, `parkingRatio` | No | ATTOM does not give a usable parking count for this property. A site plan or property marketing package is needed. |
-| Loan terms such as `requestedTerm`, `amortizationYears`, `interestRate`, `targetCloseDate`, `recoursePreference` | No | These are deal-specific asks, not public-record property facts. Need sponsor or lender term-sheet input. |
-| Operating fields such as `insurance`, `utilitiesCosts`, `repairsAndMaintenance`, `managementFee`, `payroll`, `reserves`, `noiYear1`, `dscr`, `debtYield` | No | Need T12, rent roll, or underwriting model. ATTOM does not provide stabilized operating data here. |
-| Market fields such as `rentComps`, `saleComps`, `walkabilityScore`, `population3Mi`, `medianHHIncome` | Weak / indirect | These need a market study or a dedicated comp/demographic source. The ATTOM bundle mostly provides raw geography, not resume-ready market analysis. |
-| Sponsor fields such as `sponsorStructure`, `priorDevelopments`, `netWorth`, `guarantorLiquidity` | No | Need sponsor resume, PFS, or internal borrower materials. |
+| Resume field(s)                                                                                                                                          | ATTOM support   | What is still needed                                                                                                                                |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `totalResidentialUnits`, `averageUnitSize`, `residentialUnitMix`                                                                                         | Partial         | ATTOM gives beds/baths and total area, but not a reliable unit count. A rent roll, OM, or verified property profile is needed.                      |
+| `parkingSpaces`, `parkingRatio`                                                                                                                          | No              | ATTOM does not give a usable parking count for this property. A site plan or property marketing package is needed.                                  |
+| Loan terms such as `requestedTerm`, `amortizationYears`, `interestRate`, `targetCloseDate`, `recoursePreference`                                         | No              | These are deal-specific asks, not public-record property facts. Need sponsor or lender term-sheet input.                                            |
+| Operating fields such as `insurance`, `utilitiesCosts`, `repairsAndMaintenance`, `managementFee`, `payroll`, `reserves`, `noiYear1`, `dscr`, `debtYield` | No              | Need T12, rent roll, or underwriting model. ATTOM does not provide stabilized operating data here.                                                  |
+| Market fields such as `rentComps`, `saleComps`, `walkabilityScore`, `population3Mi`, `medianHHIncome`                                                    | Weak / indirect | These need a market study or a dedicated comp/demographic source. The ATTOM bundle mostly provides raw geography, not resume-ready market analysis. |
+| Sponsor fields such as `sponsorStructure`, `priorDevelopments`, `netWorth`, `guarantorLiquidity`                                                         | No              | Need sponsor resume, PFS, or internal borrower materials.                                                                                           |
 
 #### Borrower resume fields still blank
 
-| Resume field(s) | ATTOM support | What is still needed |
-| --- | --- | --- |
-| `contactEmail`, `contactPhone` | No | ATTOM gives a mailing address, but not borrower contact details. |
-| `yearsCREExperienceRange`, `yearFounded`, `activeProjects`, `totalDealValueClosedRange` | No | Need sponsor resume or borrower intake data. |
-| Financial profile fields such as `creditScoreRange`, `netWorthRange`, `liquidityRange`, `netWorth`, `totalAssets`, `totalLiquidAssets` | No | Need PFS, balance sheet, or borrower disclosures. |
+| Resume field(s)                                                                                                                                      | ATTOM support      | What is still needed                                                                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `contactEmail`, `contactPhone`                                                                                                                       | No                 | ATTOM gives a mailing address, but not borrower contact details.                                                                           |
+| `yearsCREExperienceRange`, `yearFounded`, `activeProjects`, `totalDealValueClosedRange`                                                              | No                 | Need sponsor resume or borrower intake data.                                                                                               |
+| Financial profile fields such as `creditScoreRange`, `netWorthRange`, `liquidityRange`, `netWorth`, `totalAssets`, `totalLiquidAssets`               | No                 | Need PFS, balance sheet, or borrower disclosures.                                                                                          |
 | Principal fields such as `principalLegalName`, `principalRoleDefault`, `principalEmail`, `ownershipPercentage`, `principalBio`, `principalEducation` | Partial but unsafe | ATTOM gives owner names, but not confirmed principal roles, percentages, or biographies. A sponsor org chart or borrower resume is needed. |
-| `references` | Partial but unsafe | ATTOM exposes the current lender name, but not a usable lender reference contact. |
-| A fuller `scheduleOfRealEstateOwned` | Partial | The seed includes only a one-line subject-property summary. A real SREO requires the sponsor's broader asset list and loan details. |
-
+| `references`                                                                                                                                         | Partial but unsafe | ATTOM exposes the current lender name, but not a usable lender reference contact.                                                          |
+| A fuller `scheduleOfRealEstateOwned`                                                                                                                 | Partial            | The seed includes only a one-line subject-property summary. A real SREO requires the sponsor's broader asset list and loan details.        |
 
 ## 540 South St
 
 ### Project Resume: Available in ATTOM, Not Mapped
-
 
 | ATTOM field(s)                                                                                                                                                                                                           | Example value                                        | Why it was not mapped                                                                                                               |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
@@ -118,9 +113,7 @@ Those sections are available in the JSON files, but they do not represent the su
 | `property_detailmortgage` loan-structure details                                                                                                                                                                         | Existing-loan detail such as recorded loan structure | Our resume fields represent the current financing story, not every public-record mortgage characteristic from ATTOM.                |
 | `owner.owner3`, `owner.owner4`, `owner.corporateIndicator`, `owner.absenteeOwnerStatus`                                                                                                                                  | `YANIV BENAROYA`, `THE BENAROYA TRUST`, `Y`, `A`     | Only the LLC was elevated into sponsor/borrower identity. The broader owner roster was not converted into sponsor principals.       |
 
-
 ### Borrower Resume: Available in ATTOM, Not Mapped
-
 
 | ATTOM field(s)                                          | Example value                          | Why it was not mapped                                                                                                                 |
 | ------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -132,31 +125,29 @@ Those sections are available in the JSON files, but they do not represent the su
 
 #### Project resume fields still blank
 
-| Resume field(s) | ATTOM support | What is still needed |
-| --- | --- | --- |
-| `parkingSpaces`, `parkingRatio` | Partial | ATTOM gives parking type and parking area, but not a trustworthy parking-space count. Need site plan or property package. |
-| Amenity / building-detail fields such as `amenityList`, `amenitySF`, `adaCompliantPercent`, `buildingEfficiency` | No | Need OM, appraisal, or borrower-provided building specs. |
-| Loan terms such as `requestedTerm`, `amortizationYears`, `interestRate`, `targetCloseDate`, `recoursePreference` | No | Need sponsor or lender term-sheet input. |
-| Operating fields such as `insurance`, `utilitiesCosts`, `repairsAndMaintenance`, `managementFee`, `payroll`, `reserves`, `noiYear1`, `dscr`, `debtYield` | No | Need T12, rent roll, or underwriting model. |
-| Market fields such as `rentComps`, `saleComps`, `walkabilityScore`, `population3Mi`, `medianHHIncome` | Weak / indirect | Need a market study or a dedicated comp/demographic source. ATTOM's parcel bundle is not enough for a full market section. |
-| Sponsor fields such as `sponsorStructure`, `priorDevelopments`, `netWorth`, `guarantorLiquidity` | No | Need sponsor resume, PFS, or internal borrower materials. |
+| Resume field(s)                                                                                                                                          | ATTOM support   | What is still needed                                                                                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `parkingSpaces`, `parkingRatio`                                                                                                                          | Partial         | ATTOM gives parking type and parking area, but not a trustworthy parking-space count. Need site plan or property package.  |
+| Amenity / building-detail fields such as `amenityList`, `amenitySF`, `adaCompliantPercent`, `buildingEfficiency`                                         | No              | Need OM, appraisal, or borrower-provided building specs.                                                                   |
+| Loan terms such as `requestedTerm`, `amortizationYears`, `interestRate`, `targetCloseDate`, `recoursePreference`                                         | No              | Need sponsor or lender term-sheet input.                                                                                   |
+| Operating fields such as `insurance`, `utilitiesCosts`, `repairsAndMaintenance`, `managementFee`, `payroll`, `reserves`, `noiYear1`, `dscr`, `debtYield` | No              | Need T12, rent roll, or underwriting model.                                                                                |
+| Market fields such as `rentComps`, `saleComps`, `walkabilityScore`, `population3Mi`, `medianHHIncome`                                                    | Weak / indirect | Need a market study or a dedicated comp/demographic source. ATTOM's parcel bundle is not enough for a full market section. |
+| Sponsor fields such as `sponsorStructure`, `priorDevelopments`, `netWorth`, `guarantorLiquidity`                                                         | No              | Need sponsor resume, PFS, or internal borrower materials.                                                                  |
 
 #### Borrower resume fields still blank
 
-| Resume field(s) | ATTOM support | What is still needed |
-| --- | --- | --- |
-| `contactEmail`, `contactPhone` | No | ATTOM gives a mailing address, but not borrower contact details. |
-| `yearsCREExperienceRange`, `yearFounded`, `activeProjects`, `totalDealValueClosedRange` | No | Need sponsor resume or borrower intake data. |
-| Financial profile fields such as `creditScoreRange`, `netWorthRange`, `liquidityRange`, `netWorth`, `totalAssets`, `totalLiquidAssets` | No | Need PFS, balance sheet, or borrower disclosures. |
-| Principal fields such as `principalLegalName`, `principalRoleDefault`, `principalEmail`, `ownershipPercentage`, `principalBio`, `principalEducation` | Partial but unsafe | ATTOM lists additional owners, but does not tell us who the actual principals are for resume purposes. |
-| `references` | Partial but unsafe | ATTOM exposes the current lender name, but not a usable lender reference contact. |
-| A fuller `scheduleOfRealEstateOwned` | Partial | The seed includes only a one-line subject-property summary. A real SREO requires the sponsor's broader asset list and loan details. |
-
+| Resume field(s)                                                                                                                                      | ATTOM support      | What is still needed                                                                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `contactEmail`, `contactPhone`                                                                                                                       | No                 | ATTOM gives a mailing address, but not borrower contact details.                                                                    |
+| `yearsCREExperienceRange`, `yearFounded`, `activeProjects`, `totalDealValueClosedRange`                                                              | No                 | Need sponsor resume or borrower intake data.                                                                                        |
+| Financial profile fields such as `creditScoreRange`, `netWorthRange`, `liquidityRange`, `netWorth`, `totalAssets`, `totalLiquidAssets`               | No                 | Need PFS, balance sheet, or borrower disclosures.                                                                                   |
+| Principal fields such as `principalLegalName`, `principalRoleDefault`, `principalEmail`, `ownershipPercentage`, `principalBio`, `principalEducation` | Partial but unsafe | ATTOM lists additional owners, but does not tell us who the actual principals are for resume purposes.                              |
+| `references`                                                                                                                                         | Partial but unsafe | ATTOM exposes the current lender name, but not a usable lender reference contact.                                                   |
+| A fuller `scheduleOfRealEstateOwned`                                                                                                                 | Partial            | The seed includes only a one-line subject-property summary. A real SREO requires the sponsor's broader asset list and loan details. |
 
 ## 1230 Canby Rd
 
 ### Project Resume: Available in ATTOM, Not Mapped
-
 
 | ATTOM field(s)                                                                                                                                                                                                           | Example value                                      | Why it was not mapped                                                                                                                                  |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -177,9 +168,7 @@ Those sections are available in the JSON files, but they do not represent the su
 | `sale.saleSearchDate`, `sale.saleTransDate`, `sale.transactionIdent`, `sale.saleAmountData.saleRecDate`, `sale.saleAmountData.saleDocNum`, `sale.saleAmountData.saleDisclosureType`, `sale.saleAmountData.saleTransType` | `2024-07-16`, `1040065353`, `0000015170`, `Resale` | Only sale price was mapped. The remaining fields are public-record transaction metadata.                                                               |
 | `owner.owner1`, `owner.owner4`, `owner.corporateIndicator`, `owner.absenteeOwnerStatus`                                                                                                                                  | `BENZION H ZADIK`, `YANIV BENAROYA`, `Y`, `A`      | Only `BHZ TRUST` was elevated into sponsor/borrower identity. The rest of the ownership roster could not be converted safely into borrower principals. |
 
-
 ### Borrower Resume: Available in ATTOM, Not Mapped
-
 
 | ATTOM field(s)                                          | Example value                                            | Why it was not mapped                                                                                                      |
 | ------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -191,42 +180,45 @@ Those sections are available in the JSON files, but they do not represent the su
 
 #### Project resume fields still blank
 
-| Resume field(s) | ATTOM support | What is still needed |
-| --- | --- | --- |
-| `totalResidentialUnits`, `averageUnitSize`, `residentialUnitMix` | Partial but conflicting | ATTOM gives a direct conflict between `propertyType = 100+ units` and `unitsCount = 5`. Independent verification is required before mapping these fields. |
-| `parkingSpaces`, `parkingRatio` | No | ATTOM gives parking area, but not a reliable parking-space count. |
-| Amenity / building-detail fields such as `amenityList`, `amenitySF`, `adaCompliantPercent`, `buildingEfficiency` | No | Need OM, appraisal, or borrower-provided building specs. |
-| Loan terms such as `requestedTerm`, `amortizationYears`, `interestRate`, `targetCloseDate`, `recoursePreference` | No | Need sponsor or lender term-sheet input. |
-| Operating fields such as `insurance`, `utilitiesCosts`, `repairsAndMaintenance`, `managementFee`, `payroll`, `reserves`, `noiYear1`, `dscr`, `debtYield` | No | Need T12, rent roll, or underwriting model. |
-| Market fields such as `rentComps`, `saleComps`, `walkabilityScore`, `population3Mi`, `medianHHIncome` | Weak / indirect | Need a market study or a dedicated comp/demographic source. |
-| Sponsor fields such as `sponsorStructure`, `priorDevelopments`, `netWorth`, `guarantorLiquidity` | No | Need sponsor resume, PFS, or internal borrower materials. |
+| Resume field(s)                                                                                                                                          | ATTOM support           | What is still needed                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `totalResidentialUnits`, `averageUnitSize`, `residentialUnitMix`                                                                                         | Partial but conflicting | ATTOM gives a direct conflict between `propertyType = 100+ units` and `unitsCount = 5`. Independent verification is required before mapping these fields. |
+| `parkingSpaces`, `parkingRatio`                                                                                                                          | No                      | ATTOM gives parking area, but not a reliable parking-space count.                                                                                         |
+| Amenity / building-detail fields such as `amenityList`, `amenitySF`, `adaCompliantPercent`, `buildingEfficiency`                                         | No                      | Need OM, appraisal, or borrower-provided building specs.                                                                                                  |
+| Loan terms such as `requestedTerm`, `amortizationYears`, `interestRate`, `targetCloseDate`, `recoursePreference`                                         | No                      | Need sponsor or lender term-sheet input.                                                                                                                  |
+| Operating fields such as `insurance`, `utilitiesCosts`, `repairsAndMaintenance`, `managementFee`, `payroll`, `reserves`, `noiYear1`, `dscr`, `debtYield` | No                      | Need T12, rent roll, or underwriting model.                                                                                                               |
+| Market fields such as `rentComps`, `saleComps`, `walkabilityScore`, `population3Mi`, `medianHHIncome`                                                    | Weak / indirect         | Need a market study or a dedicated comp/demographic source.                                                                                               |
+| Sponsor fields such as `sponsorStructure`, `priorDevelopments`, `netWorth`, `guarantorLiquidity`                                                         | No                      | Need sponsor resume, PFS, or internal borrower materials.                                                                                                 |
 
 #### Borrower resume fields still blank
 
-| Resume field(s) | ATTOM support | What is still needed |
-| --- | --- | --- |
-| `contactEmail`, `contactPhone` | No | ATTOM gives a mailing address, but not borrower contact details. |
-| `yearsCREExperienceRange`, `yearFounded`, `activeProjects`, `totalDealValueClosedRange` | No | Need sponsor resume or borrower intake data. |
-| Financial profile fields such as `creditScoreRange`, `netWorthRange`, `liquidityRange`, `netWorth`, `totalAssets`, `totalLiquidAssets` | No | Need PFS, balance sheet, or borrower disclosures. |
-| Principal fields such as `principalLegalName`, `principalRoleDefault`, `principalEmail`, `ownershipPercentage`, `principalBio`, `principalEducation` | Partial but unsafe | ATTOM lists several owners, but does not tell us the sponsor-side principal hierarchy. |
-| `references` | Partial but unsafe | ATTOM exposes the current lender name, but not a usable lender reference contact. |
-| A fuller `scheduleOfRealEstateOwned` | Partial | The seed includes only a one-line subject-property summary. A real SREO requires the sponsor's broader asset list and loan details. |
-
+| Resume field(s)                                                                                                                                      | ATTOM support      | What is still needed                                                                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `contactEmail`, `contactPhone`                                                                                                                       | No                 | ATTOM gives a mailing address, but not borrower contact details.                                                                    |
+| `yearsCREExperienceRange`, `yearFounded`, `activeProjects`, `totalDealValueClosedRange`                                                              | No                 | Need sponsor resume or borrower intake data.                                                                                        |
+| Financial profile fields such as `creditScoreRange`, `netWorthRange`, `liquidityRange`, `netWorth`, `totalAssets`, `totalLiquidAssets`               | No                 | Need PFS, balance sheet, or borrower disclosures.                                                                                   |
+| Principal fields such as `principalLegalName`, `principalRoleDefault`, `principalEmail`, `ownershipPercentage`, `principalBio`, `principalEducation` | Partial but unsafe | ATTOM lists several owners, but does not tell us the sponsor-side principal hierarchy.                                              |
+| `references`                                                                                                                                         | Partial but unsafe | ATTOM exposes the current lender name, but not a usable lender reference contact.                                                   |
+| A fuller `scheduleOfRealEstateOwned`                                                                                                                 | Partial            | The seed includes only a one-line subject-property summary. A real SREO requires the sponsor's broader asset list and loan details. |
 
 ## Cross-Property Takeaways
 
 1. The biggest unmapped buckets were geospatial metadata, public-record sale metadata, assessed-value breakdowns, and detailed ownership rosters.
 2. The most important intentional omissions were the fields that looked structured but were not trustworthy enough to seed directly:
-  - `330 Bird`: beds/baths without explicit unit count.
-  - `540 South`: conflicting whole-building size figures.
-  - `1230 Canby`: direct conflict between `propertyType` and `unitsCount`.
+
+- `330 Bird`: beds/baths without explicit unit count.
+- `540 South`: conflicting whole-building size figures.
+- `1230 Canby`: direct conflict between `propertyType` and `unitsCount`.
+
 3. Borrower-resume gaps were driven less by missing ATTOM data and more by ATTOM not telling us enough about sponsor roles. Owner names exist, but principal identity, role, email, biography, and ownership percentages do not.
 4. If we want fuller mappings later, the best next step is a second-source layer that validates:
-  - actual unit counts and rentable area,
-  - sponsor/principal roster and ownership percentages,
-  - current business plan and requested loan terms,
-  - whether ATTOM legal/tax data should drive any additional structured fields.
-5. The remaining resume backlog splits cleanly into two groups:
-  - ATTOM-adjacent fields that still need validation before mapping, such as unit count, average unit size, parking counts, and fuller SREO detail.
-  - Resume-native sponsor and underwriting fields that ATTOM cannot supply, such as principal bios, borrower contact info, sponsor net worth, deal terms, and operating performance.
 
+- actual unit counts and rentable area,
+- sponsor/principal roster and ownership percentages,
+- current business plan and requested loan terms,
+- whether ATTOM legal/tax data should drive any additional structured fields.
+
+5. The remaining resume backlog splits cleanly into two groups:
+
+- ATTOM-adjacent fields that still need validation before mapping, such as unit count, average unit size, parking counts, and fuller SREO detail.
+- Resume-native sponsor and underwriting fields that ATTOM cannot supply, such as principal bios, borrower contact info, sponsor net worth, deal terms, and operating performance.

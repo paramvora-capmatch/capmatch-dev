@@ -26,6 +26,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		propertyAddressZip: "95991",
 		parcelNumber: "051-452-026-000",
 		zoningDesignation: "R3",
+		taxingDistrictID: "1-000",
 		projectDescription:
 			"Existing multifamily asset at 330 Bird St in Yuba City, California. ATTOM classifies the property as Apartments (Generic), built in 1971, with 22,008 square feet across 2 stories on 1.13 acres. Public record shows 48 beds and 28 baths, but no explicit unit count was provided in the source bundle.",
 		businessPlanSummary:
@@ -37,7 +38,10 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		numberOfStories: 2,
 		buildingType: "2-story apartment building",
 		constructionClass: "Wood Frame",
+		amenityList: ["Pool"],
 		totalSiteAcreage: 1.13,
+		utilityAvailability:
+			"Water service: COMMERCIAL; sewer service: MUNICIPAL; heating indicator: YES.",
 		realEstateTaxes: 35_053.32,
 		purchasePrice: 2_850_000,
 		loanAmountRequested: firstMortgageAmount,
@@ -53,14 +57,15 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 			"Refinance existing multifamily asset based on the recorded first mortgage and public-record parcel data.",
 		exitStrategy: "Refinance",
 		currentSiteStatus: "Existing apartment property",
+		landValueDefinition_Legal:
+			"PARCEL MAP NO 37 FORMERLY @: 01-292-026- - 12-03-2003 PARCEL 1 AS SHOWN ON SUBD MAP RECORDED IN BOOK 1 OF SURVEYS, PG 37.",
 		msaName: "Yuba City",
 		submarketName: "Yuba City / Sutter County",
 		sponsorEntityName: "PROPERTY UPSURGE 101 LLC",
 		contactInfo:
 			"Public-record mailing address: 2015 SHASTA ST, REDDING, CA 96001-0421",
 		internalAdvisorNotes:
-			"Mapped from data/property-upserge/330_bird_st.json. ATTOM exposes 48 beds and 28 baths but no explicit unit count, so totalResidentialUnits and averageUnitSize were left blank. Loan amount requested is anchored to the recorded first mortgage amount rather than a new sponsor ask.",
-		utilities: "Municipal sewer; heating indicator present in ATTOM basic profile.",
+			"Mapped from data/property-upserge/330_bird_st.json. ATTOM exposes 48 beds and 28 baths but no explicit unit count, so totalResidentialUnits and averageUnitSize were left blank. Loan amount requested is anchored to the recorded first mortgage amount rather than a new sponsor ask. Added tax district, legal land-definition text, utility availability, and the pool amenity from subject-property ATTOM detail endpoints.",
 	},
 	borrowerResume: {
 		fullLegalName: "PROPERTY UPSURGE 101 LLC",

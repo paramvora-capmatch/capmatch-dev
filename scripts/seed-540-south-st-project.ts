@@ -28,6 +28,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		propertyAddressZip: "96001",
 		parcelNumber: "102-090-028-000",
 		zoningDesignation: "COMMERCIAL",
+		taxingDistrictID: "1-000",
 		projectDescription:
 			"Existing multifamily asset at 540 South St in Redding, California. ATTOM classifies the property as Apartment House (5+ Units), built in 1977, with 84 units across 2 stories on 4.54 acres. The source bundle includes a conflicting 1,350-square-foot building-size line item alongside a 51,435-square-foot gross-size figure.",
 		businessPlanSummary:
@@ -48,6 +49,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		loanType: "Senior Debt",
 		lender: "EXCHANGE BANK",
 		existingLender: "EXCHANGE BANK",
+		interestRateType: "ADJUSTABLE RATE",
 		targetLtvPercent: roundToOneDecimal(
 			(firstMortgageAmount / assessedValue) * 100
 		),
@@ -57,13 +59,14 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 			"Refinance existing multifamily asset based on the recorded first mortgage and public-record parcel data.",
 		exitStrategy: "Refinance",
 		currentSiteStatus: "Existing apartment property",
+		landValueDefinition_Legal: "SUBD:KUTRAS RIVERSIDE ADDITION",
 		msaName: "Redding",
 		submarketName: "Redding / Shasta County",
 		sponsorEntityName: "DK PROPERTIES 540 SOUTH LLC",
 		contactInfo:
 			"Public-record mailing address: 2015 SHASTA ST, REDDING, CA 96001-0421",
 		internalAdvisorNotes:
-			"Mapped from data/property-upserge/540_south_st.json. ATTOM reports 84 units and 51,435 gross square feet, but also includes a conflicting 1,350 square foot building-size line item. This seed uses grossSize as the more plausible whole-property area.",
+			"Mapped from data/property-upserge/540_south_st.json. ATTOM reports 84 units and 51,435 gross square feet, but also includes a conflicting 1,350 square foot building-size line item. This seed uses grossSize as the more plausible whole-property area. Added tax district, legal land-definition text, and the current first mortgage rate type from subject-property ATTOM detail endpoints.",
 	},
 	borrowerResume: {
 		fullLegalName: "DK PROPERTIES 540 SOUTH LLC",
