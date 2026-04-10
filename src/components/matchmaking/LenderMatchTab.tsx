@@ -49,6 +49,7 @@ import type { DealInput } from "@/lib/matchmaking/types";
 import type { RatePoint, RateTrendSignal } from "@/lib/matchmaking/rateTrend";
 import { rateTrendAdvisoryText } from "@/lib/matchmaking/explain";
 import { RateEnvironmentPanel } from "./RateEnvironmentPanel";
+import { isFieldVisibleForDealType, type DealType } from "@/lib/deal-type-field-config";
 import {
   buildMatchmakingResumeUpdates,
   formatRequestedTermLabel,
@@ -108,7 +109,7 @@ function formatDealValue(value: unknown, key: string): string {
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "number") {
     const currencyKeys = ["loanAmountRequested", "stabilizedValue", "purchasePrice", "baseConstruction", "loanFees", "propertyNoiT12", "noiYear1"];
-    const percentKeys = ["targetLtvPercent", "ltv", "interestRate", "originationFee"];
+    const percentKeys = ["targetLtvPercent", "ltv", "interestRate", "floorRate", "originationFee"];
     if (currencyKeys.includes(key)) return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
     if (percentKeys.includes(key)) return `${value}%`;
     return value.toLocaleString();
@@ -164,6 +165,7 @@ const KEY_DEAL_TERMS_SECTIONS: { label: string; keys: { key: string; label: stri
   { label: "Pricing", keys: [
     { key: "ratePreference", label: "Pricing preference" },
     { key: "interestRate", label: "Interest rate" },
+    { key: "floorRate", label: "Floor rate" },
     { key: "originationFee", label: "Origination fee" },
     { key: "loanFees", label: "Loan fees" },
   ]},
@@ -178,13 +180,13 @@ const EDITABLE_KEYS = new Set([
   "loanAmountRequested",
   "targetLtvPercent", "dscr", "propertyNoiT12", "noiYear1",
   "affordableHousing", "affordableUnitsNumber", "interestOnlyPeriodMonths",
-  "interestRate", "originationFee", "loanFees", "baseConstruction", "stabilizedValue",
+  "interestRate", "floorRate", "originationFee", "loanFees", "baseConstruction", "stabilizedValue",
   "purchasePrice", "totalResidentialUnits",
 ]);
 
 const NUMERIC_KEYS = new Set([
   "loanAmountRequested", "targetLtvPercent", "dscr", "propertyNoiT12", "noiYear1",
-  "affordableUnitsNumber", "interestOnlyPeriodMonths", "interestRate",
+  "affordableUnitsNumber", "interestOnlyPeriodMonths", "interestRate", "floorRate",
   "originationFee", "loanFees", "baseConstruction", "stabilizedValue", "purchasePrice",
   "totalResidentialUnits",
 ]);
@@ -284,6 +286,39 @@ function arraysEqual(a: string[], b: string[]): boolean {
   return a.every((value, index) => value === b[index]);
 }
 
+function resolveProjectDealType(project: ProjectProfile | null): DealType {
+  const raw = String((project as { deal_type?: unknown } | null)?.deal_type ?? "")
+    .trim()
+    .toLowerCase();
+  return raw === "refinance" ? "refinance" : "ground_up";
+}
+
+function shouldShowTunerField(
+  fieldId: string,
+  projectDealType: DealType,
+  mergedContext: Record<string, unknown>
+): boolean {
+  if (!isFieldVisibleForDealType(fieldId, projectDealType, true)) {
+    return false;
+  }
+
+  const rateType = normalizeMatchmakingRateType(mergedContext.interestRateType);
+  const affordableHousing = Boolean(
+    normalizeSanityFieldValue("affordableHousing", mergedContext.affordableHousing)
+  );
+
+  switch (fieldId) {
+    case "floorRate":
+      return rateType === "Floating";
+    case "interestRate":
+      return rateType !== "Floating";
+    case "affordableUnitsNumber":
+      return affordableHousing;
+    default:
+      return true;
+  }
+}
+
 function getCategoryBState(
   project: ProjectProfile | null,
   contentUpdates?: Record<string, unknown>
@@ -368,6 +403,7 @@ const DEAL_SUMMARY_KEYS: { key: string; label: string }[] = [
   { key: "interestRateType", label: "Rate type" },
   { key: "ratePreference", label: "Pricing preference" },
   { key: "interestRate", label: "Interest rate" },
+  { key: "floorRate", label: "Floor rate" },
   { key: "requestedTerm", label: "Loan term" },
   { key: "lenderTypes", label: "Lender types" },
   { key: "affordableHousing", label: "Affordable housing" },
@@ -1064,6 +1100,10 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     () => getMergedContext(project, fieldOverrides, categoryContentUpdates),
     [project, fieldOverrides, categoryContentUpdates]
   );
+  const projectDealType = useMemo(
+    () => resolveProjectDealType(project),
+    [project]
+  );
   const targetRate = useMemo(() => {
     const raw = mergedForCapitalize.interestRate;
     const numeric = Number(raw);
@@ -1620,6 +1660,32 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     handleSaveVersion(trimmed);
   }, [saveRunNameDraft, handleSaveVersion]);
 
+  const visibleTunerFieldKeys = useMemo(() => {
+    if (!project) return new Set<string>();
+    return new Set(
+      KEY_DEAL_TERMS_SECTIONS.flatMap((section) =>
+        section.keys
+          .filter(({ key }) =>
+            shouldShowTunerField(key, projectDealType, mergedForCapitalize)
+          )
+          .map(({ key }) => key)
+      )
+    );
+  }, [project, projectDealType, mergedForCapitalize]);
+
+  useEffect(() => {
+    if (!project) return;
+    setFieldWarnings((prev) => {
+      const filteredEntries = Object.entries(prev).filter(([key]) =>
+        visibleTunerFieldKeys.has(key)
+      );
+      if (filteredEntries.length === Object.keys(prev).length) {
+        return prev;
+      }
+      return Object.fromEntries(filteredEntries);
+    });
+  }, [project, visibleTunerFieldKeys]);
+
   const renderFieldWarnings = useCallback((warnings?: string[]) => {
     if (!warnings || warnings.length === 0) return null;
     return (
@@ -1641,275 +1707,288 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
 
     return (
       <div className="space-y-5">
-        {KEY_DEAL_TERMS_SECTIONS.map((section) => (
-          <div key={section.label}>
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              {section.label}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {section.keys.map(({ key, label }) => {
-                const warnings = fieldWarnings[key];
-                const rawValue = getFieldValue(project, key);
+        {KEY_DEAL_TERMS_SECTIONS.map((section) => {
+          const visibleKeys = section.keys.filter(({ key }) =>
+            shouldShowTunerField(key, projectDealType, mergedForCapitalize)
+          );
+          const hasPricingPanel = section.label === "Pricing" && useLocalCapitalize;
 
-                if (key === "assetType") {
-                  return (
-                    <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {label}
-                        </label>
-                        <span title="Editable — change and re-run matchmaking">
-                          <Pencil size={10} className="text-blue-500 shrink-0" />
-                        </span>
+          if (visibleKeys.length === 0 && !hasPricingPanel) {
+            return null;
+          }
+
+          return (
+            <div key={section.label}>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                {section.label}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {visibleKeys.map(({ key, label }) => {
+                  const warnings = fieldWarnings[key];
+                  const rawValue = getFieldValue(project, key);
+
+                  if (key === "assetType") {
+                    return (
+                      <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {label}
+                          </label>
+                          <span title="Editable — change and re-run matchmaking">
+                            <Pencil size={10} className="text-blue-500 shrink-0" />
+                          </span>
+                        </div>
+                        <ButtonSelect
+                          label=""
+                          options={matchmakingAssetTypeOptions}
+                          selectedValue={categoryB.assetClass}
+                          onSelect={(assetClass) =>
+                            setCategoryB((prev) => ({
+                              ...prev,
+                              assetClass: String(assetClass),
+                            }))
+                          }
+                          gridCols="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                          buttonClassName="text-xs"
+                          showContainerAccent={false}
+                          showSelectionRing={false}
+                        />
+                        {renderFieldWarnings(warnings)}
                       </div>
-                      <ButtonSelect
-                        label=""
-                        options={matchmakingAssetTypeOptions}
-                        selectedValue={categoryB.assetClass}
-                        onSelect={(assetClass) =>
-                          setCategoryB((prev) => ({
-                            ...prev,
-                            assetClass: String(assetClass),
-                          }))
-                        }
-                        gridCols="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-                        buttonClassName="text-xs"
-                        showContainerAccent={false}
-                        showSelectionRing={false}
-                      />
-                      {renderFieldWarnings(warnings)}
-                    </div>
-                  );
-                }
+                    );
+                  }
 
-                if (key === "interestRateType") {
-                  return (
-                    <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {label}
-                        </label>
-                        <span title="Editable — change and re-run matchmaking">
-                          <Pencil size={10} className="text-blue-500 shrink-0" />
-                        </span>
+                  if (key === "interestRateType") {
+                    return (
+                      <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {label}
+                          </label>
+                          <span title="Editable — change and re-run matchmaking">
+                            <Pencil size={10} className="text-blue-500 shrink-0" />
+                          </span>
+                        </div>
+                        <ButtonSelect
+                          label=""
+                          options={MATCHMAKING_RATE_TYPE_PILL_OPTIONS}
+                          selectedValue={categoryB.rateType}
+                          onSelect={(rateType) =>
+                            setCategoryB((prev) => ({
+                              ...prev,
+                              rateType: rateType as CategoryBState["rateType"],
+                            }))
+                          }
+                          gridCols="grid-cols-3"
+                          buttonClassName="text-xs"
+                          showContainerAccent={false}
+                          showSelectionRing={false}
+                        />
+                        {renderFieldWarnings(warnings)}
                       </div>
-                      <ButtonSelect
-                        label=""
-                        options={MATCHMAKING_RATE_TYPE_PILL_OPTIONS}
-                        selectedValue={categoryB.rateType}
-                        onSelect={(rateType) =>
-                          setCategoryB((prev) => ({
-                            ...prev,
-                            rateType: rateType as CategoryBState["rateType"],
-                          }))
-                        }
-                        gridCols="grid-cols-3"
-                        buttonClassName="text-xs"
-                        showContainerAccent={false}
-                        showSelectionRing={false}
-                      />
-                      {renderFieldWarnings(warnings)}
-                    </div>
-                  );
-                }
+                    );
+                  }
 
-                if (key === "lenderTypes") {
-                  return (
-                    <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {label}
-                        </label>
-                        <span title="Editable — change and re-run matchmaking">
-                          <Pencil size={10} className="text-blue-500 shrink-0" />
-                        </span>
+                  if (key === "lenderTypes") {
+                    return (
+                      <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {label}
+                          </label>
+                          <span title="Editable — change and re-run matchmaking">
+                            <Pencil size={10} className="text-blue-500 shrink-0" />
+                          </span>
+                        </div>
+                        <MultiSelectPills
+                          label=""
+                          options={matchmakingLenderTypeOptions}
+                          selectedValues={categoryB.lenderTypes}
+                          onSelect={(lenderTypes) =>
+                            setCategoryB((prev) => ({ ...prev, lenderTypes }))
+                          }
+                          gridCols="grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"
+                          buttonClassName="text-xs"
+                          showContainerAccent={false}
+                          showSelectionRing={false}
+                        />
+                        <p className="text-[11px] text-gray-500">
+                          Leave all pills unselected to include every lender type.
+                        </p>
+                        {renderFieldWarnings(warnings)}
                       </div>
-                      <MultiSelectPills
-                        label=""
-                        options={matchmakingLenderTypeOptions}
-                        selectedValues={categoryB.lenderTypes}
-                        onSelect={(lenderTypes) =>
-                          setCategoryB((prev) => ({ ...prev, lenderTypes }))
-                        }
-                        gridCols="grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"
-                        buttonClassName="text-xs"
-                        showContainerAccent={false}
-                        showSelectionRing={false}
-                      />
-                      <p className="text-[11px] text-gray-500">
-                        Leave all pills unselected to include every lender type.
-                      </p>
-                      {renderFieldWarnings(warnings)}
-                    </div>
-                  );
-                }
+                    );
+                  }
 
-                if (key === "requestedTerm") {
-                  return (
-                    <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {label}
-                        </label>
-                        <span title="Editable — change and re-run matchmaking">
-                          <Pencil size={10} className="text-blue-500 shrink-0" />
-                        </span>
+                  if (key === "requestedTerm") {
+                    return (
+                      <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {label}
+                          </label>
+                          <span title="Editable — change and re-run matchmaking">
+                            <Pencil size={10} className="text-blue-500 shrink-0" />
+                          </span>
+                        </div>
+                        <ButtonSelect
+                          label=""
+                          options={matchmakingTermOptions}
+                          selectedValue={categoryB.termBucket}
+                          onSelect={(termBucket) =>
+                            setCategoryB((prev) => ({
+                              ...prev,
+                              termBucket: String(termBucket),
+                            }))
+                          }
+                          gridCols="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                          buttonClassName="text-xs"
+                          showContainerAccent={false}
+                          showSelectionRing={false}
+                        />
+                        {renderFieldWarnings(warnings)}
                       </div>
-                      <ButtonSelect
-                        label=""
-                        options={matchmakingTermOptions}
-                        selectedValue={categoryB.termBucket}
-                        onSelect={(termBucket) =>
-                          setCategoryB((prev) => ({
-                            ...prev,
-                            termBucket: String(termBucket),
-                          }))
-                        }
-                        gridCols="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-                        buttonClassName="text-xs"
-                        showContainerAccent={false}
-                        showSelectionRing={false}
-                      />
-                      {renderFieldWarnings(warnings)}
-                    </div>
-                  );
-                }
+                    );
+                  }
 
-                if (key === "ratePreference") {
-                  return (
-                    <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {label}
-                        </label>
-                        <span title="Editable — change and re-run matchmaking">
-                          <Pencil size={10} className="text-blue-500 shrink-0" />
-                        </span>
+                  if (key === "ratePreference") {
+                    return (
+                      <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {label}
+                          </label>
+                          <span title="Editable — change and re-run matchmaking">
+                            <Pencil size={10} className="text-blue-500 shrink-0" />
+                          </span>
+                        </div>
+                        <ButtonSelect
+                          label=""
+                          options={matchmakingRatePreferenceOptions}
+                          selectedValue={categoryB.ratePreference}
+                          onSelect={(ratePreference) =>
+                            setCategoryB((prev) => ({
+                              ...prev,
+                              ratePreference:
+                                ratePreference as CategoryBState["ratePreference"],
+                            }))
+                          }
+                          gridCols="grid-cols-1 sm:grid-cols-3"
+                          buttonClassName="text-xs"
+                          showContainerAccent={false}
+                          showSelectionRing={false}
+                        />
+                        {renderFieldWarnings(warnings)}
                       </div>
-                      <ButtonSelect
-                        label=""
-                        options={matchmakingRatePreferenceOptions}
-                        selectedValue={categoryB.ratePreference}
-                        onSelect={(ratePreference) =>
-                          setCategoryB((prev) => ({
-                            ...prev,
-                            ratePreference:
-                              ratePreference as CategoryBState["ratePreference"],
-                          }))
-                        }
-                        gridCols="grid-cols-1 sm:grid-cols-3"
-                        buttonClassName="text-xs"
-                        showContainerAccent={false}
-                        showSelectionRing={false}
-                      />
-                      {renderFieldWarnings(warnings)}
-                    </div>
-                  );
-                }
+                    );
+                  }
 
-                if (key === "affordableHousing") {
-                  const overrideValue = fieldOverrides[key];
-                  const selectedValue =
-                    overrideValue !== undefined
-                      ? /^(1|true|yes)$/i.test(overrideValue)
-                        ? "yes"
-                        : "no"
-                      : rawValue === undefined || rawValue === null || rawValue === ""
-                        ? null
-                        : normalizeSanityFieldValue(key, rawValue)
+                  if (key === "affordableHousing") {
+                    const overrideValue = fieldOverrides[key];
+                    const selectedValue =
+                      overrideValue !== undefined
+                        ? /^(1|true|yes)$/i.test(overrideValue)
                           ? "yes"
-                          : "no";
-                  return (
-                    <div key={key} className="space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {label}
-                        </label>
-                        <span title="Editable — change and re-run matchmaking">
-                          <Pencil size={10} className="text-blue-500 shrink-0" />
-                        </span>
+                          : "no"
+                        : rawValue === undefined || rawValue === null || rawValue === ""
+                          ? null
+                          : normalizeSanityFieldValue(key, rawValue)
+                            ? "yes"
+                            : "no";
+                    return (
+                      <div key={key} className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {label}
+                          </label>
+                          <span title="Editable — change and re-run matchmaking">
+                            <Pencil size={10} className="text-blue-500 shrink-0" />
+                          </span>
+                        </div>
+                        <ButtonSelect
+                          label=""
+                          options={[
+                            { label: "Yes", value: "yes" },
+                            { label: "No", value: "no" },
+                          ]}
+                          selectedValue={selectedValue}
+                          onSelect={(selected) =>
+                            handleBlurWithSanity(key, String(selected))
+                          }
+                          gridCols="grid-cols-2"
+                          buttonClassName="text-xs"
+                          showContainerAccent={false}
+                          showSelectionRing={false}
+                        />
+                        {renderFieldWarnings(warnings)}
                       </div>
-                      <ButtonSelect
-                        label=""
-                        options={[
-                          { label: "Yes", value: "yes" },
-                          { label: "No", value: "no" },
-                        ]}
-                        selectedValue={selectedValue}
-                        onSelect={(selected) =>
-                          handleBlurWithSanity(key, String(selected))
+                    );
+                  }
+
+                  const overrideValue = EDITABLE_KEYS.has(key)
+                    ? fieldOverrides[key]
+                    : undefined;
+                  const displayValue =
+                    overrideValue !== undefined
+                      ? key === "affordableHousing"
+                        ? /^(1|true|yes)$/i.test(overrideValue)
+                          ? "Yes"
+                          : "No"
+                        : overrideValue
+                      : formatDealValue(rawValue, key);
+                  const isEditable = EDITABLE_KEYS.has(key);
+                  const isModified = overrideValue !== undefined;
+                  const isCurrentlyEditing = editingFieldKey === key;
+                  const isBoolean = key === "affordableHousing";
+                  const inputDefault =
+                    overrideValue !== undefined
+                      ? overrideValue
+                      : isBoolean
+                        ? rawValue === true || rawValue === "true" || rawValue === "1"
+                          ? "yes"
+                          : "no"
+                        : String(rawValue ?? "");
+
+                  return (
+                    <DealParameterControl
+                      key={key}
+                      label={label}
+                      displayValue={displayValue}
+                      editable={isEditable}
+                      modified={isModified}
+                      isBoolean={isBoolean}
+                      isEditing={isCurrentlyEditing}
+                      inputDefaultValue={inputDefault}
+                      onStartEdit={() => setEditingFieldKey(key)}
+                      onBlur={(val) => handleBlurWithSanity(key, val)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          (e.target as HTMLInputElement | HTMLSelectElement).blur();
                         }
-                        gridCols="grid-cols-2"
-                        buttonClassName="text-xs"
-                        showContainerAccent={false}
-                        showSelectionRing={false}
-                      />
-                      {renderFieldWarnings(warnings)}
-                    </div>
+                        if (e.key === "Escape") setEditingFieldKey(null);
+                      }}
+                      warnings={warnings}
+                    />
                   );
-                }
-
-                const overrideValue = EDITABLE_KEYS.has(key)
-                  ? fieldOverrides[key]
-                  : undefined;
-                const displayValue =
-                  overrideValue !== undefined
-                    ? key === "affordableHousing"
-                      ? /^(1|true|yes)$/i.test(overrideValue)
-                        ? "Yes"
-                        : "No"
-                      : overrideValue
-                    : formatDealValue(rawValue, key);
-                const isEditable = EDITABLE_KEYS.has(key);
-                const isModified = overrideValue !== undefined;
-                const isCurrentlyEditing = editingFieldKey === key;
-                const isBoolean = key === "affordableHousing";
-                const inputDefault =
-                  overrideValue !== undefined
-                    ? overrideValue
-                    : isBoolean
-                      ? rawValue === true || rawValue === "true" || rawValue === "1"
-                        ? "yes"
-                        : "no"
-                      : String(rawValue ?? "");
-
-                return (
-                  <DealParameterControl
-                    key={key}
-                    label={label}
-                    displayValue={displayValue}
-                    editable={isEditable}
-                    modified={isModified}
-                    isBoolean={isBoolean}
-                    isEditing={isCurrentlyEditing}
-                    inputDefaultValue={inputDefault}
-                    onStartEdit={() => setEditingFieldKey(key)}
-                    onBlur={(val) => handleBlurWithSanity(key, val)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        (e.target as HTMLInputElement | HTMLSelectElement).blur();
-                      }
-                      if (e.key === "Escape") setEditingFieldKey(null);
-                    }}
-                    warnings={warnings}
-                  />
-                );
-              })}
+                })}
+              </div>
+              {hasPricingPanel ? (
+                <CategoryBPanel
+                  categoryB={categoryB}
+                  targetRate={targetRate}
+                  setTargetRate={setTargetRate}
+                  benchmarkSeriesId={benchmarkSeriesId}
+                />
+              ) : null}
             </div>
-            {section.label === "Pricing" && useLocalCapitalize ? (
-              <CategoryBPanel
-                categoryB={categoryB}
-                targetRate={targetRate}
-                setTargetRate={setTargetRate}
-                benchmarkSeriesId={benchmarkSeriesId}
-              />
-            ) : null}
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }, [
     project,
+    projectDealType,
+    mergedForCapitalize,
     fieldWarnings,
     categoryB,
     fieldOverrides,
@@ -2238,9 +2317,9 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
           )}
         </>
       ) : (
-        <div className="flex gap-6 items-start">
+        <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-6 items-start">
       {/* ──────── LEFT PANEL: Version + Key Deal Terms ──────── */}
-      <div className="flex-1 min-w-0 space-y-4">
+      <div className="min-w-0 space-y-4">
         {/* Version card */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
           <div className="flex items-center justify-between">
@@ -2410,7 +2489,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
       </div>
 
       {/* ──────── RIGHT PANEL: Lender Matches (backend) ──────── */}
-      <div className="w-[420px] shrink-0 space-y-4 sticky top-6">
+      <div className="min-w-0 space-y-4 sticky top-6">
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
           <div className="flex items-center justify-between mb-3">
             <div>
