@@ -636,7 +636,7 @@ function CategoryBPanel({
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Target All-In Rate</span>
+                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Total rate</span>
                 <span className="text-lg font-bold text-indigo-700">
                   {benchmarkRate != null ? `${(benchmarkRate + spreadBps / 100).toFixed(2)}%` : "—"}
                 </span>

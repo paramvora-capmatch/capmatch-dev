@@ -9,7 +9,7 @@ import { RateTrendChart } from "./RateTrendChart";
 export interface RateEnvironmentPanelProps {
   points: RatePoint[];
   signal: RateTrendSignal;
-  /** When set, draws implied all-in line (benchmark + median spread). */
+  /** When set, draws estimated total rate = benchmark + this lender's median spread. */
   lenderSpreadMedian?: number | null;
   variant: "embedded" | "modal";
   /** Subtitle under main title (e.g. window description). */
@@ -36,38 +36,35 @@ export const RateEnvironmentPanel: React.FC<RateEnvironmentPanelProps> = ({
       )}
     >
       <div className={cn("px-4 pt-3 pb-2 border-b border-slate-100/80", isModal ? "" : "bg-indigo-50/40")}>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="flex items-start gap-2 min-w-0">
-            <span
-              className={cn(
-                "mt-0.5 p-1.5 rounded-lg shrink-0",
-                isModal ? "bg-slate-100 text-slate-600" : "bg-indigo-100 text-indigo-700",
-              )}
-            >
-              <TrendingUp size={16} aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900">
-                Benchmark: {signal.label}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">{chartSubtitle}</p>
-            </div>
-          </div>
-          <p
+        <div className="flex items-start gap-2 min-w-0">
+          <span
             className={cn(
-              "text-xs leading-snug max-w-full sm:max-w-[240px] text-right",
-              isModal ? "text-gray-500" : "text-gray-600",
+              "mt-0.5 p-1.5 rounded-lg shrink-0",
+              isModal ? "bg-slate-100 text-slate-600" : "bg-indigo-100 text-indigo-700",
             )}
-            title={signal.environmentLabel}
           >
-            {signal.environmentLabel}
-          </p>
+            <TrendingUp size={16} aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-gray-900">Benchmark: {signal.label}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{chartSubtitle}</p>
+            <p
+              className={cn(
+                "text-xs mt-1.5 leading-snug",
+                isModal ? "text-gray-500" : "text-gray-600",
+                "sm:whitespace-nowrap sm:overflow-x-auto sm:[scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden",
+              )}
+              title={signal.environmentLabel}
+            >
+              {signal.environmentLabel}
+            </p>
+          </div>
         </div>
 
         {signal.vasicek && (
           <div className="mt-3 flex flex-wrap gap-2">
             <MetricPill label="Current" value={`${signal.current.toFixed(2)}%`} emphasis />
-            <MetricPill label="Long-run eq." value={`${signal.vasicek.longRunMean.toFixed(2)}%`} />
+            <MetricPill label="Long-run level" value={`${signal.vasicek.longRunMean.toFixed(2)}%`} />
             <MetricPill label="30d (model)" value={`${signal.vasicek.projected30d.toFixed(2)}%`} />
             <MetricPill label="90d (model)" value={`${signal.vasicek.projected90d.toFixed(2)}%`} />
           </div>
@@ -75,8 +72,8 @@ export const RateEnvironmentPanel: React.FC<RateEnvironmentPanelProps> = ({
 
         {signal.vasicek && (
           <p className="text-[10px] text-slate-500 mt-2 leading-snug">
-            30d/90d levels are a mean-reversion (Vasicek-style) estimate from recent history, not a
-            forecast or trading signal.
+            30d/90d paths are a simple mean-reversion sketch on recent history, not a forecast or
+            trading signal.
           </p>
         )}
       </div>
@@ -108,18 +105,18 @@ export const RateEnvironmentPanel: React.FC<RateEnvironmentPanelProps> = ({
         {lenderSpreadMedian != null && (
           <span className="inline-flex items-center gap-1">
             <span className="w-3 h-px bg-emerald-500 shrink-0" style={{ borderTop: "1px dashed #10b981", height: 0, background: "transparent" }} />
-            Implied all-in
+            Benchmark + typical spread
           </span>
         )}
         {signal.vasicek && (
           <>
             <span className="inline-flex items-center gap-1">
               <span className="w-3 h-px shrink-0" style={{ borderTop: "1px dashed #94a3b8", height: 0 }} />
-              Equilibrium
+              Long-run level
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="w-3 h-px shrink-0" style={{ borderTop: "1px dotted #8b5cf6", height: 0 }} />
-              30d / 90d projection
+              30 / 90 day model sketch
             </span>
           </>
         )}

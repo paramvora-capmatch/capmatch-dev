@@ -205,14 +205,18 @@ export function computeRateTrendSignal(
         ? "accelerating"
         : "decelerating";
 
-  const parts: string[] = [];
-  parts.push(direction === "rising" ? "Rates rising" : direction === "falling" ? "Rates falling" : "Rates stable");
+  /** One short line: trend, 90d move if meaningful, vs model long-run level (matches benchmark card wording). */
+  const trendWord =
+    direction === "rising" ? "Up" : direction === "falling" ? "Down" : "Mostly flat";
+  let environmentLabel = trendWord;
   if (Math.abs(roc90d) >= 5) {
-    parts.push(`${roc90d > 0 ? "+" : ""}${roc90d.toFixed(0)}bps/90d`);
+    environmentLabel += ` ${roc90d > 0 ? "+" : ""}${roc90d.toFixed(0)} bps / 90d`;
   }
   if (vasicek) {
-    const rel = vasicek.currentVsEquilibrium > 10 ? "above" : vasicek.currentVsEquilibrium < -10 ? "below" : "near";
-    parts.push(`${rel} long-run equilibrium`);
+    const bps = vasicek.currentVsEquilibrium;
+    const rel = bps > 10 ? "above" : bps < -10 ? "below" : "near";
+    // Keep "long-run level" from breaking across lines (NBSP before phrase).
+    environmentLabel += `, ${rel}\u00A0long-run level`;
   }
 
   return {
@@ -231,7 +235,7 @@ export function computeRateTrendSignal(
     volatility30d,
     vasicek,
     momentum,
-    environmentLabel: parts.join(", "),
+    environmentLabel,
   };
 }
 

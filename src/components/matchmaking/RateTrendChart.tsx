@@ -129,7 +129,7 @@ export const RateTrendChart: React.FC<RateTrendChartProps> = ({
                   : name === "ema60"
                     ? "EMA-60"
                     : name === "implied"
-                      ? "Implied All-In"
+                      ? "Benchmark + typical spread"
                       : name,
             ]}
             labelFormatter={formatChartDate}
@@ -186,7 +186,7 @@ export const RateTrendChart: React.FC<RateTrendChartProps> = ({
               stroke="#94a3b8"
               strokeDasharray="8 4"
               label={{
-                value: `Eq: ${v.longRunMean.toFixed(2)}%`,
+                value: `Long-term: ${v.longRunMean.toFixed(2)}%`,
                 position: "right",
                 fontSize: 9,
                 fill: "#94a3b8",

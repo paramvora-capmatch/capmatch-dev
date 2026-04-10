@@ -84,9 +84,9 @@ export function rateTrendOverlayText(
   if (signal.vasicek) {
     const v = signal.vasicek;
     const eqRel =
-      v.currentVsEquilibrium > 10 ? "above" : v.currentVsEquilibrium < -10 ? "below" : "near";
+      v.currentVsEquilibrium > 10 ? "above" : v.currentVsEquilibrium < -10 ? "below" : "close to";
     lines.push(
-      `Long-run equilibrium estimate: ${v.longRunMean.toFixed(2)}% (current is ${eqRel}). 90-day mean-reversion projection: ${v.projected90d.toFixed(2)}%.`,
+      `Model long-run level ~${v.longRunMean.toFixed(2)}% (today is ${eqRel} that). 90-day sketch ~${v.projected90d.toFixed(2)}% (illustrative only).`,
     );
   }
 
@@ -116,13 +116,13 @@ export function rateTrendAdvisoryText(
   const rateType = deal.rateType ?? "any";
 
   if (signal.direction === "rising" && (rateType === "fixed" || rateType === "any")) {
-    tips.push("Consider locking sooner; fixed rates trending up.");
+    tips.push("Benchmark is rising; if you need a fixed rate, locking earlier may help.");
   }
   if (signal.direction === "falling" && (rateType === "floating" || rateType === "any")) {
-    tips.push("Floating-rate economics improving as benchmarks decline.");
+    tips.push("Benchmark is falling; floating-rate deals may look a bit cheaper.");
   }
   if (signal.volatility30d > 5) {
-    tips.push("Elevated rate volatility; consider a longer rate-lock period.");
+    tips.push("Benchmark has been choppy; a longer rate lock can reduce timing risk.");
   }
   if (
     signal.vasicek &&
@@ -130,7 +130,7 @@ export function rateTrendAdvisoryText(
     signal.vasicek.projectedDirection === "toward_equilibrium"
   ) {
     tips.push(
-      `Rates are ${signal.vasicek.currentVsEquilibrium.toFixed(0)}bps above long-run equilibrium — mean-reversion model suggests gradual easing.`,
+      `Benchmark is about ${signal.vasicek.currentVsEquilibrium.toFixed(0)} bps above its usual long-term level; the simple model expects a slow drift back toward that level.`,
     );
   }
   if (
@@ -139,18 +139,24 @@ export function rateTrendAdvisoryText(
     signal.vasicek.projectedDirection === "toward_equilibrium"
   ) {
     tips.push(
-      `Rates are ${Math.abs(signal.vasicek.currentVsEquilibrium).toFixed(0)}bps below equilibrium — upward pressure likely.`,
+      `Benchmark is about ${Math.abs(signal.vasicek.currentVsEquilibrium).toFixed(0)} bps below its usual long-term level; the simple model expects a slow drift back up.`,
     );
   }
   if (signal.momentum === "accelerating" && signal.direction === "rising") {
-    tips.push("Rate increases are accelerating — urgency for locking may increase.");
+    tips.push("The rise in the benchmark has been speeding up.");
   }
   if (signal.momentum === "decelerating" && signal.direction === "rising") {
-    tips.push("Rate increases are decelerating — pace of tightening may be slowing.");
+    tips.push("The rise in the benchmark has been slowing down.");
+  }
+
+  if (signal.vasicek) {
+    tips.push(
+      `Rough model read: ~${signal.vasicek.projected90d.toFixed(2)}% in ~90 days vs ~${signal.vasicek.longRunMean.toFixed(2)}% long-run — illustration only, not a forecast.`,
+    );
   }
 
   if (tips.length === 0) {
-    tips.push("Rate environment is stable. No urgent timing considerations.");
+    tips.push("Benchmark has been steady; no strong timing signal from this view.");
   }
 
   return tips;
