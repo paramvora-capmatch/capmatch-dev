@@ -2,7 +2,7 @@
 # Multi-stage build for Next.js standalone deployment
 
 # ---- Stage 1: Install dependencies ----
-FROM node:22-alpine AS deps
+FROM node:22 AS deps
 WORKDIR /app
 
 # Install dependencies needed for native modules
@@ -12,7 +12,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 
 # ---- Stage 2: Build the application ----
-FROM node:22-alpine AS builder
+FROM node:22 AS builder
 WORKDIR /app
 
 RUN apk add --no-cache gcompat
@@ -41,7 +41,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ---- Stage 3: Production runner ----
-FROM node:22-alpine AS runner
+FROM node:22 AS runner
 WORKDIR /app
 
 RUN apk add --no-cache gcompat
