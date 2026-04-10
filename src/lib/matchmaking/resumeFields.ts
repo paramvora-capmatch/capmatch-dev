@@ -242,8 +242,8 @@ export function normalizeMatchmakingRatePreference(
   value: unknown
 ): MatchmakingRatePreferenceValue {
   const raw = String(maybeExtractValue(value) ?? "").trim().toLowerCase();
-  if (raw === "competitive" || raw === "target") return raw;
-  return "none";
+  if (raw === "competitive" || raw === "target" || raw === "none") return raw;
+  return "target";
 }
 
 export function normalizeMatchmakingLenderTypes(value: unknown): string[] {

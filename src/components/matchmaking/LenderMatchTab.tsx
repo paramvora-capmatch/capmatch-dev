@@ -1001,7 +1001,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   const [categoryB, setCategoryB] = useState<CategoryBState>({
     assetClass: ASSET_CLASS_VALUES[0],
     rateType: "any",
-    ratePreference: "none",
+    ratePreference: "target",
     termBucket: "",
     lenderTypes: [],
   });
