@@ -6,7 +6,7 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 
 # Install dependencies needed for native modules
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache gcompat
 
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
@@ -14,6 +14,8 @@ RUN npm ci --ignore-scripts
 # ---- Stage 2: Build the application ----
 FROM node:22-alpine AS builder
 WORKDIR /app
+
+RUN apk add --no-cache gcompat
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -41,6 +43,8 @@ RUN npm run build
 # ---- Stage 3: Production runner ----
 FROM node:22-alpine AS runner
 WORKDIR /app
+
+RUN apk add --no-cache gcompat
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
