@@ -19,6 +19,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		dealStatus: "Underwriting",
 		projectPhase: "Existing / Stabilized Asset",
 		constructionType: "Existing Construction",
+		ownershipType: "Fee Simple",
 		propertyAddressStreet: "330 Bird St",
 		propertyAddressCity: "Yuba City",
 		propertyAddressState: "CA",
@@ -62,10 +63,11 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		msaName: "Yuba City",
 		submarketName: "Yuba City / Sutter County",
 		sponsorEntityName: "PROPERTY UPSURGE 101 LLC",
+		sponsorStructure: "Limited Liability Company",
 		contactInfo:
 			"Public-record mailing address: 2015 SHASTA ST, REDDING, CA 96001-0421",
 		internalAdvisorNotes:
-			"Mapped from data/property-upserge/330_bird_st.json. ATTOM exposes 48 beds and 28 baths but no explicit unit count, so totalResidentialUnits and averageUnitSize were left blank. Loan amount requested is anchored to the recorded first mortgage amount rather than a new sponsor ask. Added tax district, legal land-definition text, utility availability, and the pool amenity from subject-property ATTOM detail endpoints.",
+			"Mapped from data/property-upserge/330_bird_st.json. ATTOM exposes 48 beds and 28 baths but no explicit unit count, so totalResidentialUnits and averageUnitSize were left blank. Loan amount requested is anchored to the recorded first mortgage amount rather than a new sponsor ask. ownershipType set to Fee Simple based on Grant Deed (GD) with no ground-lease indicators. sponsorStructure set to Limited Liability Company per the PROPERTY UPSURGE 101 LLC entity. Also includes tax district, legal land-definition text, utility availability, and the pool amenity from subject-property ATTOM detail endpoints.",
 	},
 	borrowerResume: {
 		fullLegalName: "PROPERTY UPSURGE 101 LLC",

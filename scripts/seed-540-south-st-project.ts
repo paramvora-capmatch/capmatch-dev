@@ -21,6 +21,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		dealStatus: "Underwriting",
 		projectPhase: "Existing / Stabilized Asset",
 		constructionType: "Existing Construction",
+		ownershipType: "Fee Simple",
 		propertyAddressStreet: "540 South St",
 		propertyAddressCity: "Redding",
 		propertyAddressState: "CA",
@@ -47,6 +48,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		purchasePrice: 8_510_000,
 		loanAmountRequested: firstMortgageAmount,
 		loanType: "Senior Debt",
+		requestedTerm: 5,
 		lender: "EXCHANGE BANK",
 		existingLender: "EXCHANGE BANK",
 		interestRateType: "ADJUSTABLE RATE",
@@ -63,10 +65,11 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		msaName: "Redding",
 		submarketName: "Redding / Shasta County",
 		sponsorEntityName: "DK PROPERTIES 540 SOUTH LLC",
+		sponsorStructure: "Limited Liability Company",
 		contactInfo:
 			"Public-record mailing address: 2015 SHASTA ST, REDDING, CA 96001-0421",
 		internalAdvisorNotes:
-			"Mapped from data/property-upserge/540_south_st.json. ATTOM reports 84 units and 51,435 gross square feet, but also includes a conflicting 1,350 square foot building-size line item. This seed uses grossSize as the more plausible whole-property area. Added tax district, legal land-definition text, and the current first mortgage rate type from subject-property ATTOM detail endpoints.",
+			"Mapped from data/property-upserge/540_south_st.json and supplemented with data/property-upserge/540-capitalize.txt. ATTOM reports 84 units and 51,435 gross square feet, but also includes a conflicting 1,350 square foot building-size line item. This seed uses grossSize as the more plausible whole-property area. ownershipType set to Fee Simple based on Grant Deed (GD) with no ground-lease indicators. sponsorStructure set to Limited Liability Company per DK PROPERTIES 540 SOUTH LLC. Capitalize supplied a five-year loan term from 2021-08-17 to estimated due date 2026-08-17, which was mapped into requestedTerm. Capitalize's interestRate = 290 was not seeded because the source format is not explicitly labeled, and its borrower name (YANIV BENAROYA LIVING TRUST) was retained as a supplemental note rather than replacing the ATTOM owner LLC.",
 	},
 	borrowerResume: {
 		fullLegalName: "DK PROPERTIES 540 SOUTH LLC",
@@ -79,7 +82,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		geographicMarketsExperience: ["Redding, CA", "Shasta County, CA"],
 		existingLenderRelationships: "EXCHANGE BANK",
 		scheduleOfRealEstateOwned:
-			"540 South St, Redding, CA 96001 | Apartment property | Assessed value $9,041,681 | First mortgage $6,604,500 with Exchange Bank.",
+			"540 South St, Redding, CA 96001 | Apartment property | Assessed value $9,041,681 | Purchase price $8,510,000 | First mortgage $6,604,500 with Exchange Bank | 5-year adjustable loan originated 2021-08-17 with estimated maturity 2026-08-17.",
 	},
 };
 

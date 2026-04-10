@@ -1,0 +1,180 @@
+Property: 540 South St, Redding, CA 96001
+
+**`internalPropertyId`:** `51df7981-bc32-470a-a6ed-bada7f9d8f24`
+
+### `properties` (all scalar columns)
+
+| Field | Value |
+|-------|-------|
+| `internalPropertyId` | 51df7981-bc32-470a-a6ed-bada7f9d8f24 |
+| `address` | 540 South St |
+| `city` | Redding |
+| `state` | CA |
+| `zip` | 96001 |
+| `county` | Shasta County |
+| `fips` | `null` |
+| `latitude` | 40.579339 |
+| `longitude` | -122.376606 |
+| `yearBuilt` | 1977 |
+| `unitCount` | 84 |
+| `sumBuildingSqFt` | 51435 |
+| `landUseCode` | 1110 |
+| `assessorParcelNumber` | 102-090-028-000 |
+| `countyLandUseCode` | 1505 |
+| `country` | USA |
+| `internalLandCategory` | Multifamily |
+| `internalLandSubcategory` | `null` |
+| `scrapedAt` | 2026-03-12 11:04:35 |
+
+
+
+#### `properties.raw_json`
+
+```text
+(null)
+```
+
+### `transactions` (1 row(s))
+
+
+
+#### Transaction #1: `44b65cae-8ba3-4a0e-989a-d564b43842a2`
+
+| Field | Value |
+|-------|-------|
+| `id` | 44b65cae-8ba3-4a0e-989a-d564b43842a2 |
+| `propertyName` | `null` |
+| `address` | 540 South St |
+| `city` | Redding |
+| `state` | CA |
+| `zip` | 96001 |
+| `county` | Shasta County |
+| `fips` | `null` |
+| `latitude` | 40.579339 |
+| `longitude` | -122.376606 |
+| `distance` | `null` |
+| `mortgageAmount` | 6604500.0 |
+| `saleAmount` | 8510000.0 |
+| `lenderName` | EXCHANGE BANCORP OF MISSOURI INC. |
+| `lenderType` | bank |
+| `transactionDate` | 2021-08-17T00:00:00+00:00 |
+| `term` | `null` |
+| `estimatedDueDate` | 2026-08-17T00:00:00+00:00 |
+| `dueDate` | `null` |
+| `landUseCode` | 1110 |
+| `interestRate` | 290.0 |
+| `interestRateType` | ADJ |
+| `ltv` | 0.776087 |
+| `propertyType` | Sale |
+| `country` | USA |
+| `mortagePurpose` | `null` |
+| `documentNumber` | `null` |
+| `yearBuilt` | 1977 |
+| `unitCount` | 84 |
+| `sumBuildingSqFt` | 51435 |
+| `prospectScore` | 100 |
+| `borrowerName` | YANIV BENAROYA LIVING TRUST |
+| `sellerName` | KUTRAS GARDENS PARTNERSHIP |
+| `landUseCategory` | `null` |
+| `countyLandUseCode` | 1505 |
+| `internalLenderId` | 2579cd4c-c18a-495f-8878-5293a4f85628 |
+| `internalTitleRecordId` | a821dbdd-4c79-430b-8947-dd83e475f05a |
+| `internalTitleParentRecordId` | `null` |
+| `internalPropertyId` | 51df7981-bc32-470a-a6ed-bada7f9d8f24 |
+| `unifiedPropertyId` | 0ae056f7-766d-4298-9663-0ccdf3e3350b |
+| `unifiedPropertyMortgageId` | 3bdf2600-4ae7-5f04-abe4-ccef27ded2c0 |
+| `portfolioId` | `null` |
+| `internalLandCategory` | Multifamily |
+| `internalLandSubcategory` | `null` |
+| `internalGinnieMaeCusipId` | `null` |
+| `internalFannieMaeRecordId` | `null` |
+| `internalFreddieMacRecordId` | `null` |
+| `internalCmbsRecordId` | `null` |
+| `internalStatus` | `null` |
+| `internalLtvStatus` | `null` |
+| `buyerId` | `null` |
+| `sellerId` | `null` |
+| `derivedBuyerId` | `null` |
+| `derivedSellerId` | `null` |
+| `latestTransaction` | `null` |
+| `lenderFullMailAddress` | `null` |
+| `lenderMailCity` | `null` |
+| `lenderMailState` | `null` |
+| `lenderMailZip` | `null` |
+| `prospectingStatus` | `null` |
+| `prospectingAgentVersion` | `null` |
+| `hasActiveLien` | `null` |
+| `hasMoreRecentTransfer` | `null` |
+| `hasActivePreforclosureNotice` | `null` |
+| `createdAt` | `null` |
+| `updatedAt` | `null` |
+| `deletedAt` | `null` |
+| `scrapedAt` | 2026-03-12 11:04:35 |
+| `dataSource` | phase2_lender |
+#### `transactions.lenderJson`
+
+```json
+{
+  "id": "2579cd4c-c18a-495f-8878-5293a4f85628",
+  "name": "EXCHANGE BANCORP OF MISSOURI INC.",
+  "customLogo": "https://zenprospect-production.s3.amazonaws.com/uploads/pictures/63edac0a998f12000100b12d/picture"
+}
+```
+
+#### `transactions.raw_json`
+
+```json
+{
+  "id": "44b65cae-8ba3-4a0e-989a-d564b43842a2",
+  "propertyName": null,
+  "address": "540 South St",
+  "city": "Redding",
+  "state": "CA",
+  "zip": "96001",
+  "latitude": 40.579339,
+  "longitude": -122.376606,
+  "mortgageAmount": 6604500,
+  "saleAmount": 8510000,
+  "lenderName": "EXCHANGE BANCORP OF MISSOURI INC.",
+  "transactionDate": "2021-08-17T00:00:00+00:00",
+  "term": null,
+  "estimatedDueDate": "2026-08-17T00:00:00+00:00",
+  "landUseCode": "1110",
+  "dueDate": null,
+  "interestRate": 290,
+  "internalLenderId": "2579cd4c-c18a-495f-8878-5293a4f85628",
+  "internalTitleRecordId": "a821dbdd-4c79-430b-8947-dd83e475f05a",
+  "internalTitleParentRecordId": null,
+  "unifiedPropertyId": "0ae056f7-766d-4298-9663-0ccdf3e3350b",
+  "unifiedPropertyMortgageId": "3bdf2600-4ae7-5f04-abe4-ccef27ded2c0",
+  "portfolioId": null,
+  "internalLandCategory": "Multifamily",
+  "internalLandSubcategory": null,
+  "propertyType": "Sale",
+  "country": "USA",
+  "mortagePurpose": null,
+  "interestRateType": "ADJ",
+  "documentNumber": null,
+  "ltv": 0.776087,
+  "yearBuilt": 1977,
+  "unitCount": 84,
+  "sumBuildingSqFt": 51435,
+  "prospectScore": 100,
+  "borrowerName": "YANIV BENAROYA LIVING TRUST",
+  "sellerName": "KUTRAS GARDENS PARTNERSHIP",
+  "landUseCategory": null,
+  "internalGinnieMaeCusipId": null,
+  "internalFannieMaeRecordId": null,
+  "assessorParcelNumber": "102-090-028-000",
+  "countyLandUseCode": "1505",
+  "county": "Shasta County",
+  "internalCmbsRecordId": null,
+  "internalFreddieMacRecordId": null,
+  "lender": {
+    "id": "2579cd4c-c18a-495f-8878-5293a4f85628",
+    "name": "EXCHANGE BANCORP OF MISSOURI INC.",
+    "customLogo": "https://zenprospect-production.s3.amazonaws.com/uploads/pictures/63edac0a998f12000100b12d/picture"
+  },
+  "lenderType": "bank",
+  "internalPropertyId": "51df7981-bc32-470a-a6ed-bada7f9d8f24"
+}
