@@ -15,22 +15,22 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 	projectResume: {
 		deal_type: "refinance",
 		projectName: "330 Bird St Apartments",
-		assetType: "Multifamily",
-		dealStatus: "Underwriting",
-		projectPhase: "Existing / Stabilized Asset",
-		constructionType: "Wood Frame",
-		ownershipType: "Tenants in Common / Corporate Trust",
-		lastRenovationDate: "2021 / 2025",
+		dealStatus: "Existing / Hold",
+		projectPhase: "Stabilized / Existing (Built in 1971)",
+		constructionType: "WOOD (Wood Frame)",
+		ownershipType: "Company (Corporate Indicator: Y)",
+		lastRenovationDate:
+			"2025 (Based on latest HVAC building permits; major TPO reroofing completed in 2021)",
 		propertyAddressStreet: "330 BIRD ST",
 		propertyAddressCity: "YUBA CITY",
 		propertyAddressState: "CA",
 		propertyAddressCounty: "Sutter",
 		propertyAddressZip: "95991",
 		parcelNumber: "051-452-026-000",
-		zoningDesignation: "Residential (R3)",
+		zoningDesignation: "R3 (Residential)",
 		taxingDistrictID: "1-000",
 		projectDescription:
-			"22,008 SqFt, 2-story Wood-frame Apartment complex built in 1971. Features 48 bedrooms, 28 full bathrooms, and a swimming pool, situated on a 1.13-acre (49,222 sq ft) lot.",
+			"22,008 sq ft, 2-story residential apartment complex built in 1971 on 1.13 acres, containing approximately 28 units (48 beds) with a pool.",
 		businessPlanSummary:
 			"Public-record refinance scenario for an existing multifamily property. The seed anchors loan sizing to the recorded first mortgage and keeps ambiguous operational fields blank when the ATTOM bundle does not provide a reliable value.",
 		marketOverviewSummary:
@@ -42,22 +42,26 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		grossBuildingArea: 22_008,
 		numberOfStories: 2,
 		buildingType: "APARTMENTS (GENERIC)",
+		assetType: "Apartment / Multifamily",
 		constructionClass: "WOOD",
 		amenityList: ["Swimming Pool"],
-		hvacSystem: "Central / Package Roof / Wall Units",
-		roofTypeAge: "TPO / ~5 Years",
+		hvacSystem:
+			"Package air conditioning unit on roof & HVAC wall furnaces (Multiple recent change-outs from 2017 to 2025)",
+		roofTypeAge:
+			"TPO Roof (Installed August 2021, replaced tar/gravel foam)",
 		topography: "VIEW - NONE",
 		providerWaterSewer: "MUNICIPAL Sewer / COMMERCIAL Water",
 		totalSiteAcreage: 1.13,
-		buildableAcreage: 49_222,
-		utilityAvailability:
-			"Water service: COMMERCIAL; sewer service: MUNICIPAL; heating indicator: YES.",
+		buildableAcreage: 1.13,
+		utilityAvailability: "Sewer: MUNICIPAL, Water: COMMERCIAL, Heating: YES",
 		realEstateTaxes: 35_053.32,
 		purchasePrice: 2_850_000,
+		capexBudget: 150_890,
 		loanAmountRequested: firstMortgageAmount,
 		loanType: "COM (Commercial)",
 		lender: "SYMETRA LIFE INSURANCE CO",
-		existingLender: "SYMETRA LIFE INSURANCE CO",
+		existingLender:
+			"SYMETRA LIFE INSURANCE CO (First Concurrent Mortgage: $1,600,000 from 2020)",
 		existingLoanAmount: firstMortgageAmount,
 		targetLtvPercent: roundToOneDecimal(
 			(firstMortgageAmount / assessedValue) * 100
@@ -65,44 +69,51 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		ltv: roundToOneDecimal((firstMortgageAmount / assessedValue) * 100),
 		stabilizedValue: assessedValue,
 		appraisedLandValue: 243_543,
-		appraisedInsurableValue: 3_085_649,
+		appraisedInsurableValue: 2_842_106,
 		titleAndRecording: "FIDELITY NATL TTL CO OF CA",
-		capexItems: "Meticulous permit log detailing a historical CapEx budget of roughly $145,590+ since 2017: $55k TPO Reroof (2021), $38.5k TPO Reroof (2020), $40k+ in systematic HVAC / Package unit modifications spanning 2017-2025.",
+		capexItems:
+			"HVAC change-outs (multiple units), TPO Reroofing, Main Breaker electrical change. (Detailed permit log shows $150k+ in systematic improvements since 2017).",
 		useOfProceeds:
 			"Refinance existing multifamily asset based on the recorded first mortgage and public-record parcel data.",
 		exitStrategy: "Refinance",
-		currentSiteStatus: "Occupied / Revenue Generating",
+		currentSiteStatus: "Developed / Improved",
 		foreclosureHistory: "Clean",
 		riskLevel: "Low",
 		landValueDefinition_Legal:
 			"PARCEL MAP NO 37 FORMERLY @: 01-292-026- - 12-03-2003 PARCEL 1 AS SHOWN ON SUBD MAP RECORDED IN BOOK 1 OF SURVEYS, PG 37.",
-		msaName: "Yuba City",
-		submarketName: "Yuba City / Sutter County",
+		msaName: "Yuba City MSA",
+		submarketName: "Sutter County",
 		sponsorEntityName: "PROPERTY UPSURGE 101 LLC",
-		sponsorStructure: "Limited Liability Company",
-		contactInfo:
-			"Public-record mailing address: 2015 SHASTA ST, REDDING, CA 96001-0421",
+		sponsorStructure: "LLC",
+		contactInfo: "2015 SHASTA ST, REDDING, CA 96001-0421",
 		internalAdvisorNotes:
 			"Mapped from data/property-upserge/330_bird_st.json. Added 28 implicitly derived units.",
 	},
 	borrowerResume: {
-		fullLegalName: "ELIEZER BENAROYA, SHOSHANA BENAROYA, YANIV BENAROYA, PROPERTY UPSURGE 101 LLC",
+		fullLegalName: "PROPERTY UPSURGE 101 LLC",
 		primaryEntityName: "PROPERTY UPSURGE 101 LLC",
-		primaryEntityStructure: "COMPANY / LLC",
-		principalLegalName: "Yaniv Benaroya, Eliezer Benaroya, Shoshana Benaroya",
+		primaryEntityStructure: "LLC / Company",
+		principalLegalName: "ELIEZER BENAROYA, SHOSHANA BENAROYA, YANIV BENAROYA",
+		principalRoleDefault: "Co-Owners / Managing Members",
 		contactAddress: "2015 SHASTA ST, REDDING, CA 96001-0421",
 		yearsCREExperienceRange: "10+ Years",
 		geographicMarketsExperience: ["Northern California (Redding, Yuba City)"],
-		trackRecord: "Sponsor executed a highly successful value-add strategy on this site. Acquired for $1.42M in 2015, used construction/bridge debt from Rubicon and Banner Bank to stabilize, and doubled the valuation to $2.85M upon transfer to current LLC in 2020.",
-		existingLenderRelationships: "SYMETRA LIFE INSURANCE CO, BANNER BANK, RUBICON MORTGAGE FUND LLC",
+		trackRecord:
+			"Successful acquisition and ongoing operation/renovation of 330 Bird St Apartments, Yuba City CA. Sponsor executed a highly successful value-add strategy on this site: acquired for $1.42M in 2015, used construction/bridge debt from Rubicon and Banner Bank to stabilize, and doubled the valuation to $2.85M upon transfer to current LLC in 2020.",
+		existingLenderRelationships:
+			"SYMETRA LIFE INSURANCE CO (Issued $1.6M Commercial Loan in Aug 2020), BANNER BANK, RUBICON MORTGAGE FUND LLC",
 		historicalCostBasis: 2_850_000,
-		sreoProperties: "330 Bird St, Yuba City, CA 95991 (Current amortized loan balance ~$1.32M)",
+		totalAssets: 3_085_649,
+		totalLiabilities: 1_600_000,
+		assets: "330 BIRD ST, YUBA CITY, CA 95991",
+		liabilities: "$1.6M First Concurrent Mortgage",
+		sreoProperties:
+			"330 BIRD ST, YUBA CITY, CA 95991 (28-Unit / 48-Bed Apartment Complex)",
 		foreclosureHistory: "None detected on this asset.",
 		bioNarrative:
 			"Public record identifies PROPERTY UPSURGE 101 LLC and the Benaroya family members as owners tied to the 330 Bird St apartment property in Yuba City, California. ATTOM shows absentee ownership with a shared Redding mailing address and a current first mortgage with Symetra Life Insurance Co.",
-		assetClassesExperience: ["Multifamily"],
-		scheduleOfRealEstateOwned:
-			"330 Bird St, Yuba City, CA 95991 | Apartment property | Assessed value $3,085,649 | First mortgage $1,600,000 with Symetra Life Insurance Co.",
+		assetClassesExperience: ["Multi-Family / Apartments"],
+		scheduleOfRealEstateOwned: "330 BIRD ST, YUBA CITY, CA 95991",
 	},
 };
 
