@@ -8,7 +8,7 @@ import type {
   MatchResult,
 } from "./types";
 import { generateHeadline } from "./explain";
-import { TERM_BUCKET_LABELS, TERM_BUCKET_NO_DISCRIMINATION } from "./constants";
+import { TERM_BUCKET_LABELS, TERM_BUCKET_NO_DISCRIMINATION, benchmarkSeriesIdFromRateAndTerm } from "./constants";
 
 const WEIGHTS_STRUCTURAL = {
   amount: 0.35,
@@ -70,6 +70,11 @@ export function selectBenchmark(
     return { rate: cfg.latestBenchmarkRate, label: "10Y Treasury" };
   }
   return { rate: cfg.latestBenchmarkRate, label: "10Y Treasury" };
+}
+
+/** Returns the FRED series ID (DGS10, SOFR, etc.) for a deal's benchmark. */
+export function benchmarkSeriesForDeal(deal: DealInput): string {
+  return benchmarkSeriesIdFromRateAndTerm(deal.rateType, deal.termBucket);
 }
 
 interface EngineLender {

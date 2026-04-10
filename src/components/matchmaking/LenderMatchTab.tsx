@@ -38,8 +38,17 @@ import { Input } from "@/components/ui/Input";
 import { MultiSelectPills } from "@/components/ui/MultiSelectPills";
 import { AlertModal } from "@/components/ui/AlertModal";
 import { getProjectWithResumeVersion } from "@/lib/project-queries";
-import { ASSET_CLASS_VALUES, LENDER_TYPE_LABELS, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
+import {
+  ASSET_CLASS_VALUES,
+  LENDER_TYPE_LABELS,
+  STATE_CODES,
+  benchmarkSeriesIdFromRateAndTerm,
+  mapProjectPhaseToPurposes,
+} from "@/lib/matchmaking/constants";
 import type { DealInput } from "@/lib/matchmaking/types";
+import type { RatePoint, RateTrendSignal } from "@/lib/matchmaking/rateTrend";
+import { rateTrendAdvisoryText } from "@/lib/matchmaking/explain";
+import { RateEnvironmentPanel } from "./RateEnvironmentPanel";
 import {
   buildMatchmakingResumeUpdates,
   formatRequestedTermLabel,
@@ -516,15 +525,20 @@ function CategoryBPanel({
   categoryB,
   targetRate,
   setTargetRate,
+  benchmarkSeriesId,
 }: {
   categoryB: CategoryBState;
   targetRate?: number;
   setTargetRate: (rate?: number) => void;
+  benchmarkSeriesId: string;
 }) {
   const [allBenchmarks, setAllBenchmarks] = useState<{
     dgs10: number; dgs7: number; dgs5: number; sofr: number;
   } | null>(null);
   const [spreadBps, setSpreadBps] = useState<number>(200);
+
+  const [rateHistoryPoints, setRateHistoryPoints] = useState<RatePoint[] | null>(null);
+  const [rateSignal, setRateSignal] = useState<RateTrendSignal | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -559,6 +573,32 @@ function CategoryBPanel({
     }
     return { benchmarkRate: allBenchmarks.dgs10, benchmarkLabel: "10Y Treasury" };
   }, [allBenchmarks, categoryB.rateType, categoryB.termBucket]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/matchmaking/benchmark/history?series=${benchmarkSeriesId}&days=365`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.points && data?.signal) {
+          setRateHistoryPoints(data.points as RatePoint[]);
+          setRateSignal(data.signal as RateTrendSignal);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [benchmarkSeriesId]);
+
+  const advisoryTips = useMemo(() => {
+    if (!rateSignal) return [];
+    const pseudoDeal: DealInput = {
+      loanAmount: 0,
+      state: "",
+      purpose: "Refinance",
+      assetClass: categoryB.assetClass,
+      rateType: categoryB.rateType,
+    };
+    return rateTrendAdvisoryText(rateSignal, pseudoDeal);
+  }, [rateSignal, categoryB.assetClass, categoryB.rateType]);
 
   const handleSpreadChange = useCallback(
     (bps: number) => {
@@ -633,7 +673,6 @@ function CategoryBPanel({
               </span>
             </div>
           </div>
-
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-gray-400">or enter directly:</span>
             <input
@@ -653,6 +692,29 @@ function CategoryBPanel({
             />
             <span className="text-[11px] text-gray-400">%</span>
           </div>
+        </div>
+      )}
+
+      {/* Rate Intelligence: chart + advisory */}
+      {rateSignal && rateHistoryPoints && rateHistoryPoints.length > 30 && (
+        <div className="mt-5 pt-4 border-t border-gray-200 space-y-3">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Market rate environment
+          </div>
+          <RateEnvironmentPanel points={rateHistoryPoints} signal={rateSignal} variant="embedded" />
+          {advisoryTips.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 space-y-1">
+              <p className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">
+                Market Advisory
+              </p>
+              {advisoryTips.map((tip, i) => (
+                <p key={i} className="text-xs text-blue-800 leading-snug flex items-start gap-1.5">
+                  <span className="text-blue-400 mt-0.5 shrink-0">•</span>
+                  <span>{tip}</span>
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1040,6 +1102,10 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     lastMatchRunId,
     useLocalCapitalize,
   } = useMatchmaking(projectId, selectedVersionId ?? null, contentOverridesForRun);
+  const benchmarkSeriesId = useMemo(
+    () => benchmarkSeriesIdFromRateAndTerm(categoryB.rateType, categoryB.termBucket || undefined),
+    [categoryB.rateType, categoryB.termBucket],
+  );
   const capitalizeDealForAI = useMemo(
     () =>
       useLocalCapitalize
@@ -1587,7 +1653,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
 
                 if (key === "assetType") {
                   return (
-                    <div key={key} className="space-y-1">
+                    <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
                       <div className="flex items-center gap-1.5">
                         <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                           {label}
@@ -1606,8 +1672,10 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                             assetClass: String(assetClass),
                           }))
                         }
-                        gridCols="grid-cols-2"
+                        gridCols="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
                         buttonClassName="text-xs"
+                        showContainerAccent={false}
+                        showSelectionRing={false}
                       />
                       {renderFieldWarnings(warnings)}
                     </div>
@@ -1616,7 +1684,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
 
                 if (key === "interestRateType") {
                   return (
-                    <div key={key} className="space-y-1">
+                    <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
                       <div className="flex items-center gap-1.5">
                         <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                           {label}
@@ -1637,6 +1705,8 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                         }
                         gridCols="grid-cols-3"
                         buttonClassName="text-xs"
+                        showContainerAccent={false}
+                        showSelectionRing={false}
                       />
                       {renderFieldWarnings(warnings)}
                     </div>
@@ -1645,7 +1715,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
 
                 if (key === "lenderTypes") {
                   return (
-                    <div key={key} className="space-y-1">
+                    <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
                       <div className="flex items-center gap-1.5">
                         <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                           {label}
@@ -1661,8 +1731,10 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                         onSelect={(lenderTypes) =>
                           setCategoryB((prev) => ({ ...prev, lenderTypes }))
                         }
-                        gridCols="grid-cols-2"
+                        gridCols="grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"
                         buttonClassName="text-xs"
+                        showContainerAccent={false}
+                        showSelectionRing={false}
                       />
                       <p className="text-[11px] text-gray-500">
                         Leave all pills unselected to include every lender type.
@@ -1693,8 +1765,10 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                             termBucket: String(termBucket),
                           }))
                         }
-                        gridCols="grid-cols-2 lg:grid-cols-3"
+                        gridCols="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
                         buttonClassName="text-xs"
+                        showContainerAccent={false}
+                        showSelectionRing={false}
                       />
                       {renderFieldWarnings(warnings)}
                     </div>
@@ -1725,6 +1799,8 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                         }
                         gridCols="grid-cols-1 sm:grid-cols-3"
                         buttonClassName="text-xs"
+                        showContainerAccent={false}
+                        showSelectionRing={false}
                       />
                       {renderFieldWarnings(warnings)}
                     </div>
@@ -1765,6 +1841,8 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                         }
                         gridCols="grid-cols-2"
                         buttonClassName="text-xs"
+                        showContainerAccent={false}
+                        showSelectionRing={false}
                       />
                       {renderFieldWarnings(warnings)}
                     </div>
@@ -1823,6 +1901,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                 categoryB={categoryB}
                 targetRate={targetRate}
                 setTargetRate={setTargetRate}
+                benchmarkSeriesId={benchmarkSeriesId}
               />
             ) : null}
           </div>
@@ -1840,6 +1919,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     useLocalCapitalize,
     targetRate,
     setTargetRate,
+    benchmarkSeriesId,
   ]);
 
   return (
@@ -2449,6 +2529,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
           dealSummary={dealSummaryForAI}
           capitalizeDeal={capitalizeDealForAI}
           advisorRateType={categoryB.rateType}
+          benchmarkSeriesId={benchmarkSeriesId}
           canAddToWishlist={canAddToWishlist}
           onAddToWishlist={handleAddToWishlist}
           wishlistAdded={wishlistLeis}

@@ -1,12 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Zap, Building2, BookmarkPlus, Check, Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { LenderAIReport } from "./LenderAIReport";
 import { DimensionDistributionViz } from "./DimensionDistributionViz";
+import { RateEnvironmentPanel } from "./RateEnvironmentPanel";
 import type { MatchScore, VariableVizData } from "@/hooks/useMatchmaking";
 import type { DealInput } from "@/lib/matchmaking/types";
+import type { RatePoint, RateTrendSignal } from "@/lib/matchmaking/rateTrend";
 import { cn } from "@/utils/cn";
 
 function ScoreBar({ score, color }: { score: number; color: string }) {
@@ -35,6 +37,8 @@ interface LenderDetailModalProps {
   dealSummary: Record<string, unknown> | null;
   capitalizeDeal: DealInput | null;
   advisorRateType: "fixed" | "floating" | "any";
+  /** Benchmark series for rate history (DGS5/DGS7/DGS10/SOFR) — aligned with lender matching tab. */
+  benchmarkSeriesId: string;
   canAddToWishlist: boolean;
   onAddToWishlist: (score: MatchScore) => void;
   wishlistAdded: Set<string>;
@@ -50,12 +54,34 @@ export const LenderDetailModal: React.FC<LenderDetailModalProps> = ({
   dealSummary,
   capitalizeDeal,
   advisorRateType,
+  benchmarkSeriesId,
   canAddToWishlist,
   onAddToWishlist,
   wishlistAdded,
   wishlistLoading,
 }) => {
   const displayName = score.lender_name || score.lender_lei || "Unknown";
+
+  const [historyPoints, setHistoryPoints] = useState<RatePoint[] | null>(null);
+  const [historySignal, setHistorySignal] = useState<RateTrendSignal | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    const series = encodeURIComponent(benchmarkSeriesId);
+    fetch(`/api/matchmaking/benchmark/history?series=${series}&days=365`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.points && data?.signal) {
+          setHistoryPoints(data.points as RatePoint[]);
+          setHistorySignal(data.signal as RateTrendSignal);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isOpen, benchmarkSeriesId]);
+
+  const lenderSpread = score.capitalize_meta?.spreadMedian ?? null;
 
   const headerRight = (
     <div className="flex items-center gap-3">
@@ -156,6 +182,16 @@ export const LenderDetailModal: React.FC<LenderDetailModalProps> = ({
               )}
             </ul>
           </div>
+        )}
+
+        {/* Rate environment — same benchmark series as matching tab */}
+        {historyPoints && historySignal && historyPoints.length > 30 && (
+          <RateEnvironmentPanel
+            points={historyPoints}
+            signal={historySignal}
+            lenderSpreadMedian={lenderSpread}
+            variant="modal"
+          />
         )}
 
         {/* AI Report */}

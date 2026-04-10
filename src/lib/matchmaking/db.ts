@@ -14,6 +14,10 @@ const REQUIRED_FILES = [
   "engine_config.parquet",
 ] as const;
 
+const OPTIONAL_FILES = [
+  "lender_regime_profiles.parquet",
+] as const;
+
 function sqlStringLiteral(value: string): string {
   return `'${value.replace(/\\/g, "/").replace(/'/g, "''")}'`;
 }
@@ -82,6 +86,81 @@ export async function fetchEngineConfig(): Promise<EngineConfigRow> {
       latest_dgs5: num("latest_dgs5"),
       latest_dgs7: num("latest_dgs7"),
     };
+  });
+}
+
+function optionalPq(name: (typeof OPTIONAL_FILES)[number]): string | null {
+  const full = resolve(matchmakingDataDir(), name);
+  if (!existsSync(full)) return null;
+  return sqlStringLiteral(full.replace(/\\/g, "/"));
+}
+
+export interface LenderRegimeRow {
+  dimension_type: string;
+  dimension_value: string;
+  spread_median: number;
+  txn_count: number;
+  low_threshold: number;
+  high_threshold: number;
+}
+
+export async function fetchLenderRegimeProfile(
+  lenderId: string,
+): Promise<LenderRegimeRow[]> {
+  const path = optionalPq("lender_regime_profiles.parquet");
+  if (!path) return [];
+
+  const idLit = sqlStringLiteral(lenderId);
+  return withConnection(async (conn) => {
+    const reader = await conn.runAndReadAll(
+      `SELECT dimension_type, dimension_value, spread_median, txn_count, low_threshold, high_threshold
+       FROM read_parquet(${path})
+       WHERE lender_id = ${idLit}
+       ORDER BY dimension_type, dimension_value`
+    );
+    await reader.readAll();
+    return (reader.getRowObjectsJson() as Record<string, unknown>[]).map((row) => ({
+      dimension_type: String(row.dimension_type ?? ""),
+      dimension_value: String(row.dimension_value ?? ""),
+      spread_median: Number(row.spread_median ?? 0),
+      txn_count: Number(row.txn_count ?? 0),
+      low_threshold: Number(row.low_threshold ?? 0),
+      high_threshold: Number(row.high_threshold ?? 0),
+    }));
+  });
+}
+
+export interface BenchmarkHistoryRow {
+  rate_date: string;
+  rate_value: number;
+}
+
+const VALID_SERIES = new Set(["DGS5", "DGS7", "DGS10", "SOFR", "DPRIME"]);
+
+export async function fetchBenchmarkHistory(
+  series: string,
+  days: number,
+): Promise<BenchmarkHistoryRow[]> {
+  if (!matchmakingParquetReady()) {
+    throw new Error("Matchmaking parquet files missing; run: npx tsx scripts/build-matchmaking-db.ts");
+  }
+  if (!VALID_SERIES.has(series)) {
+    throw new Error(`Invalid series: ${series}. Must be one of: ${[...VALID_SERIES].join(", ")}`);
+  }
+  const safeDays = Math.max(30, Math.min(days, 3650));
+  return withConnection(async (conn) => {
+    const reader = await conn.runAndReadAll(
+      `SELECT rate_date::VARCHAR AS rate_date, rate_value
+       FROM read_parquet(${pq("benchmark_rates_daily.parquet")})
+       WHERE series_id = ${sqlStringLiteral(series)}
+         AND rate_date >= CURRENT_DATE - INTERVAL '${safeDays} days'
+       ORDER BY rate_date`
+    );
+    await reader.readAll();
+    return (reader.getRowObjectsJson() as Record<string, unknown>[]).map((row) => ({
+      rate_date: String(row.rate_date ?? ""),
+      rate_value: Number(row.rate_value ?? 0),
+    }));
   });
 }
 

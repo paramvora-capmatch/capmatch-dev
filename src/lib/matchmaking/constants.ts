@@ -109,3 +109,20 @@ export function mapProjectPhaseToPurposes(projectPhase: string | null | undefine
       return { purpose: "Sale", eligiblePurposes: ["Sale"] };
   }
 }
+
+/**
+ * FRED / parquet series id for benchmark history (DGS5, DGS7, DGS10, SOFR).
+ * Shared with {@link benchmarkSeriesForDeal} in engine.ts — keep in sync.
+ */
+export function benchmarkSeriesIdFromRateAndTerm(
+  rateType: "fixed" | "floating" | "any" | undefined,
+  termBucket: string | undefined,
+): string {
+  if (rateType === "floating") return "SOFR";
+  if (rateType === "fixed") {
+    const tb = termBucket ?? "";
+    if (["bridge_lte1yr", "short_1_3yr", "medium_3_5yr"].includes(tb)) return "DGS5";
+    if (["medium_5_7yr"].includes(tb)) return "DGS7";
+  }
+  return "DGS10";
+}

@@ -24,18 +24,35 @@ function linearPos(value: number, lo: number, hi: number): number {
   return clampPct(((value - lo) / (hi - lo)) * 100);
 }
 
+/** Loan sizes span orders of magnitude; log spacing matches skewed books and aligns the marker with rank intuition. */
+function logBandPos(value: number, lo: number, hi: number): number {
+  if (!(hi > lo) || !Number.isFinite(value)) return 50;
+  if (lo <= 0 || hi <= 0 || value <= 0) return linearPos(value, lo, hi);
+  const logLo = Math.log(lo);
+  const logHi = Math.log(hi);
+  if (!(logHi > logLo)) return linearPos(value, lo, hi);
+  const logV = Math.log(value);
+  return clampPct(((logV - logLo) / (logHi - logLo)) * 100);
+}
+
 function LoanAmountChart({ v }: { v: Extract<DimensionBandViz, { kind: "loan_amount" }> }) {
   const { p05, p50, p95, dealAmount, percentile } = v;
   if (!(p95 > p05)) {
     return <p className="text-xs text-gray-500">Amount distribution unavailable.</p>;
   }
-  const pos = (x: number) => linearPos(x, p05, p95);
-  const dealPos = pos(dealAmount);
+  const pos = (x: number) => logBandPos(x, p05, p95);
+  /** Match the copy ("~Nth percentile"): x-position = rank on the track (0–100), not log dollars between p05–p95. */
+  const dealMarkerPos = clampPct(percentile);
+  /** Center point markers on the track (% + translate avoids border-triangle vs w-px mismatch). */
+  const centerX = (pct: number): React.CSSProperties => ({
+    left: `${pct}%`,
+    transform: "translateX(-50%)",
+  });
   const tick = (x: number | null, label: string) =>
     x != null && Number.isFinite(x) && x >= p05 && x <= p95 ? (
       <div
         className="absolute top-0 bottom-0 w-px bg-slate-300/90"
-        style={{ left: `${pos(x)}%` }}
+        style={centerX(pos(x))}
         title={label}
       />
     ) : null;
@@ -53,15 +70,21 @@ function LoanAmountChart({ v }: { v: Extract<DimensionBandViz, { kind: "loan_amo
         />
         {tick(v.p25, "p25")}
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-indigo-500/70"
-          style={{ left: `${pos(p50)}%` }}
+          className="absolute top-0 bottom-0 w-0.5 bg-indigo-500/70 z-[1]"
+          style={centerX(pos(p50))}
           title="Median"
         />
         {tick(v.p75, "p75")}
         <div
-          className="absolute -top-1 w-0 h-0 border-l-[5px] border-r-[5px] border-b-[7px] border-l-transparent border-r-transparent border-b-blue-600 drop-shadow-sm"
-          style={{ left: `calc(${dealPos}% - 5px)` }}
+          className="absolute top-0 bottom-0 w-px bg-blue-600 z-[2]"
+          style={centerX(dealMarkerPos)}
           title={`Your request: ${fmtUsd(dealAmount)}`}
+        />
+        <div
+          className="absolute -top-1 z-[2] w-0 h-0 border-l-[5px] border-r-[5px] border-b-[7px] border-l-transparent border-r-transparent border-b-blue-600 drop-shadow-sm"
+          style={centerX(dealMarkerPos)}
+          title={`Your request: ${fmtUsd(dealAmount)}`}
+          aria-hidden
         />
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-600">
@@ -194,7 +217,7 @@ function SpreadBandChart({ v }: { v: Extract<DimensionBandViz, { kind: "spread" 
     <div className="mt-2 space-y-1.5">
       {v.impliedAllInRate != null && (
         <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-md px-2.5 py-1.5">
-          <span className="text-[11px] text-indigo-600 font-medium">Implied all-in rate:</span>
+          <span className="text-[11px] text-indigo-600 font-medium">Typical rate (benchmark + spread):</span>
           <span className="text-sm font-bold text-indigo-800">{v.impliedAllInRate.toFixed(2)}%</span>
           <span className="text-[10px] text-indigo-400">
             ({v.benchmarkRate.toFixed(2)}% {v.benchmarkLabel ?? "benchmark"} + {v.median.toFixed(2)}% spread)
@@ -287,10 +310,6 @@ function LtvHistoryChart({ v }: { v: Extract<DimensionBandViz, { kind: "ltv_hist
         />
       </div>
       <div className="flex flex-wrap gap-x-3 text-[11px] text-gray-600">
-        <span>
-          <span className="text-gray-400">IQR:</span>{" "}
-          {v.p25 != null && v.p75 != null ? `${v.p25.toFixed(0)}–${v.p75.toFixed(0)}%` : "—"}
-        </span>
         <span>
           <span className="text-gray-400">Median:</span> {v.median.toFixed(1)}%
         </span>

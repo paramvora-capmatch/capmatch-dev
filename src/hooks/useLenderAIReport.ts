@@ -43,6 +43,7 @@ export interface AIReportContent {
   dimension_insights?: DimensionInsightRow[];
   pricing_analysis?: string | null;
   ltv_context?: string | null;
+  rate_environment?: string | null;
 }
 
 export function matchScoreToMatchResult(score: MatchScore): MatchResult {
