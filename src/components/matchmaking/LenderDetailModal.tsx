@@ -9,6 +9,7 @@ import { RateEnvironmentPanel } from "./RateEnvironmentPanel";
 import type { MatchScore, VariableVizData } from "@/hooks/useMatchmaking";
 import type { DealInput } from "@/lib/matchmaking/types";
 import type { RatePoint, RateTrendSignal } from "@/lib/matchmaking/rateTrend";
+import { getBackendUrl } from "@/lib/apiConfig";
 import { cn } from "@/utils/cn";
 
 function ScoreBar({ score, color }: { score: number; color: string }) {
@@ -68,8 +69,9 @@ export const LenderDetailModal: React.FC<LenderDetailModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
+    const base = getBackendUrl();
     const series = encodeURIComponent(benchmarkSeriesId);
-    fetch(`/api/matchmaking/benchmark/history?series=${series}&days=365`)
+    fetch(`${base}/api/v1/matchmaking/capitalize/benchmark/history?series=${series}&days=365`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!cancelled && data?.points && data?.signal) {
