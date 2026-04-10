@@ -10,6 +10,7 @@ import type { MatchScore, VariableVizData } from "@/hooks/useMatchmaking";
 import type { DealInput } from "@/lib/matchmaking/types";
 import type { RatePoint, RateTrendSignal } from "@/lib/matchmaking/rateTrend";
 import { getBackendUrl } from "@/lib/apiConfig";
+import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/utils/cn";
 
 function ScoreBar({ score, color }: { score: number; color: string }) {
@@ -69,17 +70,21 @@ export const LenderDetailModal: React.FC<LenderDetailModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
-    const base = getBackendUrl();
-    const series = encodeURIComponent(benchmarkSeriesId);
-    fetch(`${base}/api/v1/matchmaking/capitalize/benchmark/history?series=${series}&days=365`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled && data?.points && data?.signal) {
-          setHistoryPoints(data.points as RatePoint[]);
-          setHistorySignal(data.signal as RateTrendSignal);
-        }
-      })
-      .catch(() => {});
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = getBackendUrl();
+      const series = encodeURIComponent(benchmarkSeriesId);
+      const res = await fetch(`${base}/api/v1/matchmaking/capitalize/benchmark/history?series=${series}&days=365`, {
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+      });
+      if (!res.ok || cancelled) return;
+      const data = await res.json();
+      if (!cancelled && data?.points && data?.signal) {
+        setHistoryPoints(data.points as RatePoint[]);
+        setHistorySignal(data.signal as RateTrendSignal);
+      }
+    })().catch(() => {});
     return () => { cancelled = true; };
   }, [isOpen, benchmarkSeriesId]);
 
