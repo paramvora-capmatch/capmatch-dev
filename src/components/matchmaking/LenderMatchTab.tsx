@@ -129,20 +129,13 @@ const KEY_DEAL_TERMS_SECTIONS: { label: string; keys: { key: string; label: stri
   ]},
 ];
 
-/** Capitalize v1: only resume fields that feed the local engine (memo). */
-const CAPITALIZE_KEY_DEAL_TERMS_SECTIONS: typeof KEY_DEAL_TERMS_SECTIONS = [
-  {
-    label: "Resume (Capitalize)",
-    keys: [
-      { key: "loanAmountRequested", label: "Loan amount" },
-      { key: "propertyAddressState", label: "State" },
-      { key: "projectPhase", label: "Project phase" },
-    ],
-  },
-];
+/** Every field id shown in Key Deal Terms (for resume-backed merge / summaries). */
+const RESUME_CONTEXT_KEYS_FROM_SECTIONS = new Set(
+  KEY_DEAL_TERMS_SECTIONS.flatMap((s) => s.keys.map((k) => k.key))
+);
 
 const EDITABLE_KEYS = new Set([
-  "loanAmountRequested", "propertyAddressState", "projectPhase",
+  "loanAmountRequested",
   "targetLtvPercent", "dscr", "propertyNoiT12", "noiYear1",
   "affordableHousing", "affordableUnitsNumber", "requestedTerm", "interestOnlyPeriodMonths",
   "interestRate", "originationFee", "loanFees", "baseConstruction", "stabilizedValue",
@@ -185,6 +178,11 @@ function getMergedContext(
       const v = getFieldValue(project, key);
       if (v !== undefined && v !== null) base[key] = v;
     }
+    for (const key of RESUME_CONTEXT_KEYS_FROM_SECTIONS) {
+      if (EDITABLE_KEYS.has(key)) continue;
+      const v = getFieldValue(project, key);
+      if (v !== undefined && v !== null && v !== "") base[key] = v;
+    }
   }
   const normalized = normalizeContentUpdates(overrides);
   return { ...base, ...normalized };
@@ -192,6 +190,11 @@ function getMergedContext(
 
 /** Keys and labels for AI report deal summary (subset of merged context). */
 const DEAL_SUMMARY_KEYS: { key: string; label: string }[] = [
+  { key: "propertyAddressState", label: "State" },
+  { key: "propertyAddressCounty", label: "County" },
+  { key: "propertyAddressCity", label: "City" },
+  { key: "propertyAddressZip", label: "Zip" },
+  { key: "msaName", label: "MSA" },
   { key: "loanAmountRequested", label: "Loan amount requested" },
   { key: "targetLtvPercent", label: "Target LTV %" },
   { key: "dscr", label: "DSCR" },
@@ -199,6 +202,7 @@ const DEAL_SUMMARY_KEYS: { key: string; label: string }[] = [
   { key: "purchasePrice", label: "Purchase price" },
   { key: "totalResidentialUnits", label: "Total residential units" },
   { key: "projectPhase", label: "Project phase" },
+  { key: "useOfProceeds", label: "Use of proceeds" },
   { key: "interestRate", label: "Interest rate" },
   { key: "requestedTerm", label: "Requested term" },
   { key: "affordableHousing", label: "Affordable housing" },
@@ -774,7 +778,10 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     if (!projectId) return;
     const draft = getMatchmakingDraft(projectId);
     if (draft?.field_overrides && Object.keys(draft.field_overrides).length > 0) {
-      setFieldOverrides(draft.field_overrides);
+      const filtered = Object.fromEntries(
+        Object.entries(draft.field_overrides).filter(([k]) => EDITABLE_KEYS.has(k))
+      );
+      setFieldOverrides(filtered);
     }
   }, [projectId]);
 
@@ -804,7 +811,6 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     useLocalCapitalize,
   } = useMatchmaking(projectId, selectedVersionId ?? null, contentOverridesForRun);
 
-  const keyDealSections = useLocalCapitalize ? CAPITALIZE_KEY_DEAL_TERMS_SECTIONS : KEY_DEAL_TERMS_SECTIONS;
   const mergedForCapitalize = useMemo(
     () => getMergedContext(project, fieldOverrides),
     [project, fieldOverrides]
@@ -1353,6 +1359,12 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                 <p className="text-sm text-gray-500 mb-2">
                   Adjust these deal parameters to explore scenarios. Re-run matchmaking to see how lender matches change.
                 </p>
+                {useLocalCapitalize && (
+                  <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 mb-3">
+                    Capitalize uses loan amount, state, and project phase from the project resume (locked on this tab).
+                    Other fields are context; asset class and rate options are set in Matchmaking-only below.
+                  </p>
+                )}
                 {!useLocalCapitalize && (
                   <div className="flex justify-end mb-4">
                     <button
@@ -1371,7 +1383,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   <p className="text-sm text-gray-500">No project data. Open a project to see deal terms.</p>
                 ) : (
                   <div className="space-y-5">
-                    {keyDealSections.map((section) => (
+                    {KEY_DEAL_TERMS_SECTIONS.map((section) => (
                       <div key={section.label}>
                         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                           {section.label}
@@ -1379,7 +1391,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {section.keys.map(({ key, label }) => {
                             const rawValue = getFieldValue(project, key);
-                            const overrideValue = fieldOverrides[key];
+                            const overrideValue = EDITABLE_KEYS.has(key) ? fieldOverrides[key] : undefined;
                             const displayValue =
                               overrideValue !== undefined
                                 ? key === "affordableHousing"
@@ -1705,6 +1717,12 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
           <p className="text-sm text-gray-500 mb-2">
             Adjust these deal parameters to explore scenarios. Re-run matchmaking to see how lender matches change.
           </p>
+          {useLocalCapitalize && (
+            <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 mb-3">
+              Capitalize uses loan amount, state, and project phase from the project resume (locked on this tab).
+              Other fields are context; asset class and rate options are set in Matchmaking-only below.
+            </p>
+          )}
           {!useLocalCapitalize && (
             <div className="flex justify-end mb-4">
               <button
@@ -1723,7 +1741,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
             <p className="text-sm text-gray-500">No project data. Open a project to see deal terms.</p>
           ) : (
             <div className="space-y-5">
-              {keyDealSections.map((section) => (
+              {KEY_DEAL_TERMS_SECTIONS.map((section) => (
                 <div key={section.label}>
                   <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                     {section.label}
@@ -1731,7 +1749,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {section.keys.map(({ key, label }) => {
                       const rawValue = getFieldValue(project, key);
-                      const overrideValue = fieldOverrides[key];
+                      const overrideValue = EDITABLE_KEYS.has(key) ? fieldOverrides[key] : undefined;
                       const displayValue =
                         overrideValue !== undefined
                           ? key === "affordableHousing"
