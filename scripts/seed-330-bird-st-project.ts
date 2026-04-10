@@ -14,9 +14,9 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 	sourceJsonFile: "data/property-upserge/330_bird_st.json",
 	projectResume: {
 		deal_type: "refinance",
-		projectName: "Palm Garden Apartments",
-		assetType: "Apartment",
-		dealStatus: "Stabilized / Operating",
+		projectName: "330 Bird St Apartments",
+		assetType: "Multifamily",
+		dealStatus: "Underwriting",
 		projectPhase: "Existing / Stabilized Asset",
 		constructionType: "Wood Frame",
 		ownershipType: "Tenants in Common / Corporate Trust",
