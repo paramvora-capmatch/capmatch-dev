@@ -22,7 +22,7 @@ interface LenderAIReportProps {
   score: MatchScore;
   dealSummary: DealSummaryForAI;
   lenderName: string;
-  /** When set with local Capitalize mode, calls `/api/matchmaking/ai-report`. */
+  /** When Capitalize engine is enabled, AI report calls FastAPI `/api/v1/matchmaking/capitalize/ai-report`. */
   capitalizeDeal?: DealInput | null;
 }
 

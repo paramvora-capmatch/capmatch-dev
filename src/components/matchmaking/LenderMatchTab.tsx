@@ -369,7 +369,8 @@ function CategoryBPanel({
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/matchmaking/benchmark")
+    const base = getBackendUrl();
+    fetch(`${base}/api/v1/matchmaking/capitalize/benchmark`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!cancelled && data?.dgs10 != null) {
@@ -935,7 +936,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     visualizationData,
     draftPayload,
     lastMatchRunId,
-    useLocalCapitalize,
+    useCapitalizeEngine,
   } = useMatchmaking(projectId, selectedVersionId ?? null, contentOverridesForRun);
 
   const mergedForCapitalize = useMemo(
@@ -943,8 +944,8 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     [project, fieldOverrides]
   );
   const capitalizeDealForAI = useMemo(
-    () => (useLocalCapitalize ? buildCapitalizeDealInput(mergedForCapitalize, categoryB) : null),
-    [useLocalCapitalize, mergedForCapitalize, categoryB]
+    () => (useCapitalizeEngine ? buildCapitalizeDealInput(mergedForCapitalize, categoryB) : null),
+    [useCapitalizeEngine, mergedForCapitalize, categoryB]
   );
 
   const runLocalCapitalizeMatch = useCallback(() => {
@@ -955,7 +956,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   }, [runMatchmaking, fieldOverrides, mergedForCapitalize, categoryB, contentOverridesForRun]);
 
   const capitalizeRunBlocked =
-    useLocalCapitalize &&
+    useCapitalizeEngine &&
     categoryB.ratePreference === "target" &&
     (categoryB.targetRate == null || !Number.isFinite(categoryB.targetRate));
 
@@ -1029,7 +1030,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
       const nextOverrides = { ...fieldOverrides, [key]: val };
       setFieldOverrides(nextOverrides);
       setEditingFieldKey(null);
-      if (useLocalCapitalize) {
+      if (useCapitalizeEngine) {
         return;
       }
       const merged = getMergedContext(project, nextOverrides);
@@ -1067,11 +1068,11 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
         }
       }
     },
-    [project, fieldOverrides, useLocalCapitalize]
+    [project, fieldOverrides, useCapitalizeEngine]
   );
 
   const handleRerunSanityCheckAll = useCallback(async () => {
-    if (useLocalCapitalize) {
+    if (useCapitalizeEngine) {
       setFieldWarnings({});
       return;
     }
@@ -1129,7 +1130,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     } finally {
       setIsRecheckingSanity(false);
     }
-  }, [project, fieldOverrides, useLocalCapitalize]);
+  }, [project, fieldOverrides, useCapitalizeEngine]);
 
   const dealSummaryForAI = useMemo(() => {
     const merged = getMergedContext(project, fieldOverrides);
@@ -1297,7 +1298,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   }, [projectId, fetchVersions, fieldOverrides, hasOverrides, draftPayload]);
 
   const runAndShowResults = () => {
-    if (useLocalCapitalize) {
+    if (useCapitalizeEngine) {
       runLocalCapitalizeMatch();
     } else {
       runMatchmaking(fieldOverrides);
@@ -1306,13 +1307,13 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   };
 
   const openSaveRunModal = useCallback(() => {
-    if (!useLocalCapitalize && hasSanityWarnings) {
+    if (!useCapitalizeEngine && hasSanityWarnings) {
       setValidationAlertOpen(true);
       return;
     }
     setSaveRunNameDraft("");
     setSaveRunModalOpen(true);
-  }, [hasSanityWarnings, useLocalCapitalize]);
+  }, [hasSanityWarnings, useCapitalizeEngine]);
 
   const submitSaveRunModal = useCallback(() => {
     const trimmed = saveRunNameDraft.trim();
@@ -1486,13 +1487,13 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                 <p className="text-sm text-gray-500 mb-2">
                   Adjust these deal parameters to explore scenarios. Re-run matchmaking to see how lender matches change.
                 </p>
-                {useLocalCapitalize && (
+                {useCapitalizeEngine && (
                   <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 mb-3">
                     Capitalize uses loan amount, state, and project phase from the project resume (locked on this tab).
                     Other fields are context; asset class and rate options are set in Matchmaking-only below.
                   </p>
                 )}
-                {!useLocalCapitalize && (
+                {!useCapitalizeEngine && (
                   <div className="flex justify-end mb-4">
                     <button
                       type="button"
@@ -1557,7 +1558,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                         </div>
                       </div>
                     ))}
-                    {useLocalCapitalize && <CategoryBPanel categoryB={categoryB} setCategoryB={setCategoryB} />}
+                    {useCapitalizeEngine && <CategoryBPanel categoryB={categoryB} setCategoryB={setCategoryB} />}
                   </div>
                 )}
               </div>
@@ -1566,12 +1567,12 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   type="button"
                   onClick={runAndShowResults}
                   disabled={
-                    matchRunning || capitalizeRunBlocked || (!useLocalCapitalize && hasSanityWarnings)
+                    matchRunning || capitalizeRunBlocked || (!useCapitalizeEngine && hasSanityWarnings)
                   }
                   title={
                     capitalizeRunBlocked
                       ? "Enter a target rate (%) when using Target rate preference."
-                      : !useLocalCapitalize && hasSanityWarnings
+                      : !useCapitalizeEngine && hasSanityWarnings
                         ? "Fix validation warnings on deal parameters before running."
                         : undefined
                   }
@@ -1603,15 +1604,15 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   <button
                     type="button"
                     onClick={() =>
-                      useLocalCapitalize ? runLocalCapitalizeMatch() : runMatchmaking(fieldOverrides)
+                      useCapitalizeEngine ? runLocalCapitalizeMatch() : runMatchmaking(fieldOverrides)
                     }
                     disabled={
-                      matchRunning || capitalizeRunBlocked || (!useLocalCapitalize && hasSanityWarnings)
+                      matchRunning || capitalizeRunBlocked || (!useCapitalizeEngine && hasSanityWarnings)
                     }
                     title={
                       capitalizeRunBlocked
                         ? "Enter a target rate (%) when using Target rate preference."
-                        : !useLocalCapitalize && hasSanityWarnings
+                        : !useCapitalizeEngine && hasSanityWarnings
                           ? "Fix validation warnings on deal parameters before running."
                           : undefined
                     }
@@ -1626,7 +1627,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                     )}
                   </button>
                 </div>
-                {!useLocalCapitalize && hasSanityWarnings && (
+                {!useCapitalizeEngine && hasSanityWarnings && (
                   <p className="text-xs text-amber-600 mt-1">Fix validation warnings on deal parameters before running or saving.</p>
                 )}
                 {matchError && (
@@ -1642,7 +1643,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   <div className="flex flex-wrap gap-2 mt-3">
                     <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg text-sm font-medium text-gray-600">
                       <BarChart3 size={14} />
-                      {useLocalCapitalize && totalEligible != null
+                      {useCapitalizeEngine && totalEligible != null
                         ? `${totalEligible} eligible · ${matchedLenderCount} in results`
                         : `${matchedLenderCount} lenders scored`}
                     </div>
@@ -1661,7 +1662,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                     <Loader2 size={32} className="text-blue-500 animate-spin mb-4" />
                     <h4 className="text-base font-semibold text-gray-800">Analyzing Lenders...</h4>
                     <p className="text-sm text-gray-500 text-center mt-2">
-                      {useLocalCapitalize
+                      {useCapitalizeEngine
                         ? "Running the Capitalize parquet matchmaking engine."
                         : "Matching your project parameters against the backend matchmaking engine."}
                     </p>
@@ -1838,13 +1839,13 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
           <p className="text-sm text-gray-500 mb-2">
             Adjust these deal parameters to explore scenarios. Re-run matchmaking to see how lender matches change.
           </p>
-          {useLocalCapitalize && (
+          {useCapitalizeEngine && (
             <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 mb-3">
               Capitalize uses loan amount, state, and project phase from the project resume (locked on this tab).
               Other fields are context; asset class and rate options are set in Matchmaking-only below.
             </p>
           )}
-          {!useLocalCapitalize && (
+          {!useCapitalizeEngine && (
             <div className="flex justify-end mb-4">
               <button
                 type="button"
@@ -1910,7 +1911,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   </div>
                 </div>
               ))}
-              {useLocalCapitalize && <CategoryBPanel categoryB={categoryB} setCategoryB={setCategoryB} />}
+              {useCapitalizeEngine && <CategoryBPanel categoryB={categoryB} setCategoryB={setCategoryB} />}
             </div>
           )}
         </div>
@@ -1932,15 +1933,15 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
             <button
               type="button"
               onClick={() =>
-                useLocalCapitalize ? runLocalCapitalizeMatch() : runMatchmaking(fieldOverrides)
+                useCapitalizeEngine ? runLocalCapitalizeMatch() : runMatchmaking(fieldOverrides)
               }
               disabled={
-                matchRunning || capitalizeRunBlocked || (!useLocalCapitalize && hasSanityWarnings)
+                matchRunning || capitalizeRunBlocked || (!useCapitalizeEngine && hasSanityWarnings)
               }
               title={
                 capitalizeRunBlocked
                   ? "Enter a target rate (%) when using Target rate preference."
-                  : !useLocalCapitalize && hasSanityWarnings
+                  : !useCapitalizeEngine && hasSanityWarnings
                     ? "Fix validation warnings on deal parameters before running."
                     : undefined
               }
@@ -1955,7 +1956,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
               )}
             </button>
           </div>
-          {!useLocalCapitalize && hasSanityWarnings && (
+          {!useCapitalizeEngine && hasSanityWarnings && (
             <p className="text-xs text-amber-600 mt-1">Fix validation warnings on deal parameters above before running or saving.</p>
           )}
 
@@ -1973,7 +1974,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
             <div className="flex flex-wrap gap-2 mt-3">
               <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg text-sm font-medium text-gray-600">
                 <BarChart3 size={14} />
-                {useLocalCapitalize && totalEligible != null
+                {useCapitalizeEngine && totalEligible != null
                   ? `${totalEligible} eligible · ${matchedLenderCount} in results`
                   : `${matchedLenderCount} lenders scored`}
               </div>
@@ -1993,7 +1994,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
               <Loader2 size={32} className="text-blue-500 animate-spin mb-4" />
               <h4 className="text-base font-semibold text-gray-800">Analyzing Lenders...</h4>
               <p className="text-sm text-gray-500 text-center mt-2">
-                {useLocalCapitalize
+                {useCapitalizeEngine
                   ? "Running the Capitalize parquet matchmaking engine."
                   : "Matching your project parameters against the backend matchmaking engine."}
               </p>
