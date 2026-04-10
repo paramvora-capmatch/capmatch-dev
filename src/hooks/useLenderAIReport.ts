@@ -6,7 +6,7 @@ import { fetchJob } from "@/lib/apiClient";
 import { getBackendUrl } from "@/lib/apiConfig";
 import { supabase } from "@/lib/supabaseClient";
 import type { MatchScore } from "@/hooks/useMatchmaking";
-import { useLocalCapitalizeMatchmaking } from "@/lib/matchmaking/capitalizeLocal";
+import { useCapitalizeMatchmakingEngine } from "@/lib/matchmaking/engineMode";
 import type { DealInput, MatchResult } from "@/lib/matchmaking/types";
 
 const MAX_AI_REPORT_JOB_WAIT_MS = 120000; // 2 min
@@ -130,7 +130,7 @@ export function useLenderAIReport(
   dealSummary: DealSummaryForAI = null,
   capitalizeDeal: DealInput | null = null
 ) {
-  const localCap = useLocalCapitalizeMatchmaking();
+  const useCapitalizeEngine = useCapitalizeMatchmakingEngine();
   const [state, setState] = useState<UseLenderAIReportState>({
     report: null,
     isLoading: false,
@@ -283,10 +283,12 @@ export function useLenderAIReport(
     if (!score) return;
     setState((s) => ({ ...s, isGenerating: true, error: null }));
     try {
-      if (localCap && capitalizeDeal) {
-        const res = await fetch("/api/matchmaking/ai-report", {
+      if (useCapitalizeEngine && capitalizeDeal) {
+        const headers = await getAuthHeaders();
+        const base = getBackendUrl();
+        const res = await fetch(`${base}/api/v1/matchmaking/capitalize/ai-report`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             deal: capitalizeDeal,
             match_result: matchScoreToMatchResult(score),
@@ -295,7 +297,14 @@ export function useLenderAIReport(
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(data?.error || "Failed to generate AI report");
+          const detail = (data as { detail?: unknown }).detail;
+          const msg =
+            typeof detail === "string"
+              ? detail
+              : Array.isArray(detail)
+                ? detail.map((e: { msg?: string }) => e?.msg).filter(Boolean).join(", ") || "Failed to generate AI report"
+                : (data as { error?: string }).error || "Failed to generate AI report";
+          throw new Error(msg);
         }
         setState((s) => ({
           ...s,
@@ -360,7 +369,7 @@ export function useLenderAIReport(
     dealSummary,
     getAuthHeaders,
     subscribeToAIReportJob,
-    localCap,
+    useCapitalizeEngine,
     capitalizeDeal,
   ]);
 

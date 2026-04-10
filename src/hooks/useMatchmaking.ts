@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { getBackendUrl } from "@/lib/apiConfig";
 import { supabase } from "@/lib/supabaseClient";
-import { useLocalCapitalizeMatchmaking } from "@/lib/matchmaking/capitalizeLocal";
+import { useCapitalizeMatchmakingEngine } from "@/lib/matchmaking/engineMode";
 import type { DimensionBandViz, MatchResponse, MatchResult } from "@/lib/matchmaking/types";
 
 export interface VisualizationData {
@@ -296,7 +296,7 @@ export function useMatchmaking(
   resumeId: string | null = null,
   contentOverrides?: Record<string, unknown>
 ) {
-  const localCap = useLocalCapitalizeMatchmaking();
+  const localCap = useCapitalizeMatchmakingEngine();
   const resumeIdReady = resumeId !== null;
   const [state, setState] = useState<MatchmakingState>(() => {
     const draft = projectId ? getDraftForResume(projectId, resumeId) : null;
@@ -429,39 +429,75 @@ export function useMatchmaking(
       setState((s) => ({ ...s, isRunning: true, error: null }));
       try {
         if (localCap && capitalizeBody) {
-          const res = await fetch("/api/matchmaking/run", {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          const token = session?.access_token;
+          const base = getBackendUrl();
+          const res = await fetch(`${base}/api/v1/matchmaking/capitalize/run`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(token && { Authorization: `Bearer ${token}` }),
+            },
             body: JSON.stringify(capitalizeBody),
           });
-          const data = (await res.json().catch(() => ({}))) as MatchResponse & { error?: string };
+          const data = (await res.json().catch(() => ({}))) as MatchResponse & {
+            error?: string;
+            detail?: unknown;
+            scores?: MatchScore[];
+            visualization_data?: VisualizationData;
+            run_id?: string;
+            config?: Record<string, unknown>;
+            hmda_source?: string;
+            totalEligible?: number;
+            totalLenders?: number;
+          };
           if (!res.ok) {
+            const detail = data?.detail;
+            const message =
+              typeof detail === "string"
+                ? detail
+                : Array.isArray(detail)
+                  ? detail
+                      .map((e: { msg?: string }) => e?.msg)
+                      .filter(Boolean)
+                      .join(", ") || "Matchmaking failed"
+                  : data?.error || "Matchmaking failed";
             setState((s) => ({
               ...s,
               isRunning: false,
-              error: data?.error || "Matchmaking failed",
+              error: message,
             }));
             return;
           }
-          const scores = data.results.map(capitalizeMatchResultToMatchScore);
-          const viz: VisualizationData = {
-            ...stubVizFromScores(scores, "Matchmaking"),
-            matchmakingContext: {
-              scores,
-              totalEligible: data.totalEligible,
-            },
+          const scores =
+            Array.isArray(data.scores) && data.scores.length > 0
+              ? data.scores
+              : data.results.map(capitalizeMatchResultToMatchScore);
+          const vizSafe: VisualizationData =
+            data.visualization_data ?? stubVizFromScores(scores, "Capitalize");
+          vizSafe.matchmakingContext = {
+            ...(vizSafe.matchmakingContext ?? {}),
+            scores,
+            totalEligible: getTotalEligible(
+              vizSafe,
+              (data.config as Record<string, unknown>) ?? {
+                capitalize_total_eligible: data.totalEligible,
+              }
+            ),
           };
           const top = scores[0];
           const draftPayload: MatchmakingDraftPayload = {
-            run_id: `capitalize_${Date.now()}`,
-            config: {
+            run_id: data.run_id ?? `capitalize_${Date.now()}`,
+            config: (data.config as Record<string, unknown>) ?? {
               engine: "capitalize-v1",
               capitalize_total_eligible: data.totalEligible,
               capitalize_total_scanned: data.totalLenders,
             },
-            hmda_source: "capitalize-local",
-            total_lenders: data.totalLenders,
-            visualization_data: viz,
+            hmda_source: data.hmda_source ?? "capitalize-backend",
+            total_lenders: data.totalLenders ?? scores.length,
+            visualization_data: vizSafe,
             lastRunAt: new Date().toISOString(),
             scores,
             content_updates:
@@ -475,10 +511,10 @@ export function useMatchmaking(
           setState((s) => ({
             ...s,
             isRunning: false,
-            visualizationData: viz,
+            visualizationData: vizSafe,
             matchScores: scores,
-            totalLenders: data.totalLenders,
-            totalEligible: data.totalEligible,
+            totalLenders: data.totalLenders ?? scores.length,
+            totalEligible: getTotalEligible(vizSafe, draftPayload.config),
             topMatchName: top?.lender_name ?? null,
             topMatchScore: top?.total_score ?? null,
             lastRunAt: draftPayload.lastRunAt,
@@ -602,5 +638,6 @@ export function useMatchmaking(
     refreshAll,
     fetchRunByResume,
     useLocalCapitalize: localCap,
+    useCapitalizeEngine: localCap,
   };
 }

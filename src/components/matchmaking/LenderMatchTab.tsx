@@ -578,7 +578,8 @@ function CategoryBPanel({
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/matchmaking/benchmark")
+    const base = getBackendUrl();
+    fetch(`${base}/api/v1/matchmaking/capitalize/benchmark`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!cancelled && data?.dgs10 != null) {
