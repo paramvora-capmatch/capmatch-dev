@@ -11,6 +11,7 @@ import {
 	computeProjectCompletion,
 	computeBorrowerCompletion,
 } from "@/utils/resumeCompletion";
+import { normalizeMatchmakingFieldValue } from "@/lib/matchmaking/resumeFields";
 import { getAllFieldIds } from "./schema-utils";
 import { toSourceObject } from "./source-utils";
 import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
@@ -45,6 +46,8 @@ export interface ProjectResumeContent {
 	syndicationStatus?: string;
 	projectDescription?: string;
 	projectPhase?: string;
+	ratePreference?: "none" | "competitive" | "target";
+	lenderTypes?: string[];
 
 	// Section 2: Property Specifications
 	totalResidentialUnits?: number;
@@ -416,7 +419,8 @@ function processResumeContent(rawContent: Record<string, unknown>): {
 		) {
 			// Rich format from backend: { value, source, warnings, other_values }
 			const anyItem: any = item;
-			(flatContent as any)[key] = anyItem.value;
+			const normalizedValue = normalizeMatchmakingFieldValue(key, anyItem.value);
+			(flatContent as any)[key] = normalizedValue;
 
 			// Prefer the single `source` object; fall back to first entry in legacy `sources` array.
 			let primarySource = anyItem.source;
@@ -429,13 +433,13 @@ function processResumeContent(rawContent: Record<string, unknown>): {
 			}
 
 			metadata[key] = {
-				value: anyItem.value,
+				value: normalizedValue,
 				source: primarySource ?? null,
 				warnings: anyItem.warnings || [],
 				other_values: anyItem.other_values || [],
 			};
 		} else {
-			(flatContent as any)[key] = item;
+			(flatContent as any)[key] = normalizeMatchmakingFieldValue(key, item);
 		}
 	}
 
@@ -510,6 +514,59 @@ async function fetchProjectResumeData(projectId: string): Promise<{
 	return {
 		resume: resume ? { content: rawContent } : null,
 		completenessPercent: projectCompletenessPercent,
+		lockedFields: projectLockedFields,
+		fieldStates,
+		resourceId: resource?.id ?? null,
+	};
+}
+
+async function fetchProjectResumeVersionData(
+	projectId: string,
+	resumeVersionId: string
+): Promise<{
+	resume: { content: ProjectResumeContent } | null;
+	completenessPercent: number | undefined;
+	lockedFields: Record<string, boolean>;
+	fieldStates: Record<string, unknown>;
+	resourceId: string | null;
+}> {
+	const { data: resource } = await supabase
+		.from("resources")
+		.select("id")
+		.eq("resource_type", "PROJECT_RESUME")
+		.eq("project_id", projectId)
+		.maybeSingle();
+
+	const result = await supabase
+		.from("project_resumes")
+		.select("content, completeness_percent, locked_fields")
+		.eq("id", resumeVersionId)
+		.eq("project_id", projectId)
+		.maybeSingle();
+
+	const resume = result.data;
+	let rawContent = (resume?.content || {}) as Record<string, unknown> & {
+		_lockedFields?: Record<string, boolean>;
+		_fieldStates?: Record<string, unknown>;
+	};
+	let projectLockedFields =
+		(result.data?.locked_fields as Record<string, boolean> | undefined) || {};
+
+	if (!projectLockedFields || Object.keys(projectLockedFields).length === 0) {
+		projectLockedFields = rawContent._lockedFields || {};
+	}
+
+	const fieldStates = rawContent._fieldStates || {};
+	rawContent = { ...rawContent };
+	delete rawContent._lockedFields;
+	delete rawContent._fieldStates;
+	delete rawContent._metadata;
+
+	return {
+		resume: resume
+			? { content: rawContent as unknown as ProjectResumeContent }
+			: null,
+		completenessPercent: result.data?.completeness_percent,
 		lockedFields: projectLockedFields,
 		fieldStates,
 		resourceId: resource?.id ?? null,
@@ -657,6 +714,45 @@ export const getProjectWithResume = async (
 	const borrowerData = await fetchBorrowerResumeData(projectId);
 
 	// Build and return profile
+	return buildProjectProfile(
+		project,
+		{
+			flatContent,
+			metadata,
+			completenessPercent: resumeData.completenessPercent,
+			lockedFields: resumeData.lockedFields,
+			fieldStates: resumeData.fieldStates,
+			resourceId: resumeData.resourceId,
+		},
+		borrowerData
+	);
+};
+
+export const getProjectWithResumeVersion = async (
+	projectId: string,
+	resumeVersionId: string
+): Promise<ProjectProfile> => {
+	const { data: project, error: projectError } = await supabase
+		.from("projects")
+		.select(
+			"id, name, owner_org_id, assigned_advisor_id, created_at, updated_at, deal_type"
+		)
+		.eq("id", projectId)
+		.single();
+
+	if (projectError) {
+		throw new Error(`Failed to fetch project: ${projectError.message}`);
+	}
+
+	const resumeData = await fetchProjectResumeVersionData(
+		projectId,
+		resumeVersionId
+	);
+	const { flatContent, metadata } = processResumeContent(
+		(resumeData.resume?.content || {}) as Record<string, unknown>
+	);
+	const borrowerData = await fetchBorrowerResumeData(projectId);
+
 	return buildProjectProfile(
 		project,
 		{

@@ -14,6 +14,7 @@ import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { parseNumeric } from "@/lib/om-utils";
 import { useOMProject } from "@/hooks/useOMProject";
+import { formatRequestedTermLabel } from "@/lib/matchmaking/resumeFields";
 
 export default function KeyTermsPage() {
 	const { dealType } = useOMProject();
@@ -41,7 +42,10 @@ export default function KeyTermsPage() {
 			content?.underwritingRate != null
 				? `${content.underwritingRate}%`
 				: null,
-		term: content?.requestedTerm ?? null,
+		term:
+			content?.requestedTerm != null && content.requestedTerm !== ""
+				? formatRequestedTermLabel(content.requestedTerm)
+				: null,
 		extension: content?.extensions ?? null,
 		recourse: content?.recoursePreference ?? null,
 		origination: content?.originationFee ?? null,

@@ -5,7 +5,7 @@ import { Button } from './Button';
 
 interface MultiSelectPillsProps {
   label?: string;
-  options: ReadonlyArray<string>;
+  options: ReadonlyArray<string | { label: string; value: string }>;
   selectedValues: string[];
   onSelect: (values: string[]) => void;
   required?: boolean;
@@ -16,6 +16,8 @@ interface MultiSelectPillsProps {
   isAutofilled?: boolean; // Deprecated: use isLocked instead
   isLocked?: boolean; // Use lock status for color coding (green = locked, blue = unlocked)
   hasAutofillBeenRun?: boolean; // Whether autofill has ever been run (affects styling)
+  showContainerAccent?: boolean;
+  showSelectionRing?: boolean;
 }
 
 export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
@@ -31,7 +33,13 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
   isAutofilled = false, // Deprecated
   isLocked,
   hasAutofillBeenRun = true,
+  showContainerAccent = true,
+  showSelectionRing = true,
 }) => {
+  const normalizedOptions = options.map((option) =>
+    typeof option === "string" ? { label: option, value: option } : option
+  );
+
   const handleClick = (option: string) => {
     if (disabled) return;
     const isSelected = selectedValues.includes(option);
@@ -50,7 +58,7 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
   const isLockedState = isLocked !== undefined ? isLocked : (isAutofilled || disabled);
   const hasSelection = Array.isArray(selectedValues) && selectedValues.length > 0;
 
-  const containerBgClass = !hasSelection
+  const containerBgClass = !showContainerAccent || !hasSelection
     ? "" // Initial empty state: white background, no accent border
     : isLockedState
     ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200"
@@ -64,24 +72,26 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
         </label>
       )}
       <div className={cn(`grid ${gridCols} gap-2`, containerBgClass)}>
-        {options.map((option) => {
-          const isSelected = selectedValues.includes(option);
+        {normalizedOptions.map((option) => {
+          const isSelected = selectedValues.includes(option.value);
           return (
             <Button
-              key={option}
+            key={option.value}
               type="button"
               variant={isSelected ? 'primary' : 'outline'}
-              onClick={() => handleClick(option)}
+            onClick={() => handleClick(option.value)}
               disabled={disabled}
               className={cn(
                 "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500",
                 isSelected
-                  ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
+                  ? showSelectionRing
+                    ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
+                    : ''
                   : 'text-gray-700 hover:bg-gray-50',
                 buttonClassName
               )}
             >
-              {option}
+              {option.label}
             </Button>
           );
         })}

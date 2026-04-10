@@ -17,6 +17,7 @@ import { useOmContent } from "@/hooks/useOmContent";
 import { formatFixed, parseNumeric, formatCurrency } from "@/lib/om-utils";
 import { useOMProject } from "@/hooks/useOMProject";
 import { buildCapitalSources, buildCapitalUses } from "@/lib/om-display";
+import { formatRequestedTermLabel } from "@/lib/matchmaking/resumeFields";
 
 export default function CapitalStackPage() {
 	const { project, dealType } = useOMProject();
@@ -74,7 +75,10 @@ export default function CapitalStackPage() {
 		lender: content?.lender ?? null,
 		rate: rateDisplay,
 		floor: floorRate,
-		term: requestedTerm != null ? `${requestedTerm} years` : null,
+		term:
+			requestedTerm != null && requestedTerm !== ""
+				? formatRequestedTermLabel(requestedTerm)
+				: null,
 		extension: extensions,
 		recourse: recourse,
 		origination: originationFee,

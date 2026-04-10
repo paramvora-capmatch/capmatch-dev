@@ -9,6 +9,7 @@ import { Layers, FileText, Calendar, AlertTriangle, Percent, Clock, Shield, Doll
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { useOMProject } from '@/hooks/useOMProject';
+import { formatRequestedTermLabel } from '@/lib/matchmaking/resumeFields';
 
 export default function DealSnapshotPage() {
     const { projectId, project, isGroundUp } = useOMProject();
@@ -44,7 +45,10 @@ export default function DealSnapshotPage() {
     // Build key terms from flat fields
     const keyTerms = {
       rate: allInRate != null ? `${allInRate}% all-in` : interestRate != null ? `${interestRate}%` : null,
-      term: requestedTerm ?? null,
+      term:
+        requestedTerm != null && requestedTerm !== ""
+          ? formatRequestedTermLabel(requestedTerm)
+          : null,
       recourse: recoursePreference ?? null,
       origination: content?.originationFee ?? null,
       covenants: {

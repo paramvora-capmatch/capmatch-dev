@@ -29,6 +29,8 @@ interface ButtonSelectProps {
    * Used when AI/user has interacted (e.g. sources set) but no choice picked yet.
    */
   isTouched?: boolean;
+  showContainerAccent?: boolean;
+  showSelectionRing?: boolean;
 }
 
 export const ButtonSelect: React.FC<ButtonSelectProps> = ({
@@ -45,6 +47,8 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
   isLocked,
   hasAutofillBeenRun = true,
   isTouched = false,
+  showContainerAccent = true,
+  showSelectionRing = true,
 }) => {
   // Handler that checks if onSelect exists before calling it
   const handleClick = (option: ButtonOptionValue) => {
@@ -69,7 +73,7 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
   // or has been "touched" (e.g. AI/user set sources but left value empty).
   const hasSignal = hasSelection || isTouched;
 
-  const containerBgClass = !hasSignal
+  const containerBgClass = !showContainerAccent || !hasSignal
     ? "" // Initial untouched state: white background, no accent border
     : isLockedState
     ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200"
@@ -77,9 +81,11 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
 
   return (
     <div className={cn("w-full", className)}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
+      {label ? (
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      ) : null}
       <div className={cn(`grid ${gridCols} gap-2`, containerBgClass)}>
         {options.map((rawOption) => {
           const option = normalizeOption(rawOption);
@@ -96,7 +102,9 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
             className={cn(
               "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500",
                isSelected
-                ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
+                ? showSelectionRing
+                  ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
+                  : ''
                 : 'text-gray-700 hover:bg-gray-50',
                buttonClassName
             )}

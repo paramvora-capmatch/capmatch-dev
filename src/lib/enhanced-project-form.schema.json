@@ -299,6 +299,8 @@
 						"underwritingRate",
 						"floorRate",
 						"interestRateType",
+						"ratePreference",
+						"lenderTypes",
 						"interestOnlyPeriodMonths",
 						"extensions",
 						"targetLtvPercent",
@@ -497,6 +499,8 @@
 				"underwritingRate",
 				"floorRate",
 				"interestRateType",
+				"ratePreference",
+				"lenderTypes",
 				"interestOnlyPeriodMonths",
 				"extensions",
 				"targetLtvPercent",
@@ -1206,6 +1210,14 @@
 			"label": "Interest Rate Type",
 			"required": false
 		},
+		"ratePreference": {
+			"label": "Pricing Preference",
+			"required": false
+		},
+		"lenderTypes": {
+			"label": "Preferred Lender Types",
+			"required": false
+		},
 		"targetCloseDate": {
 			"label": "Target Close Date",
 			"required": true
@@ -1251,8 +1263,8 @@
 			"required": true
 		},
 		"requestedTerm": {
-			"label": "Requested Term (Years)",
-			"required": true
+			"label": "Loan Term",
+			"required": false
 		},
 		"prepaymentPremium": {
 			"label": "Prepayment Premium",

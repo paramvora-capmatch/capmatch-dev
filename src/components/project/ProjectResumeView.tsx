@@ -3,6 +3,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { ProjectProfile } from "@/types/enhanced-types";
+import { formatRequestedTermLabel } from "@/lib/matchmaking/resumeFields";
 import { Button } from "../ui/Button";
 import { ResumeVersionHistory } from "./ResumeVersionHistory";
 import {
@@ -278,6 +279,10 @@ const formatFieldValue = (value: any, dataType?: string): string => {
 
 	// If it's a string, check metadata for special handling
 	if (typeof value === "string") {
+		const formattedTerm = formatRequestedTermLabel(value);
+		if (formattedTerm !== "No preference" && formattedTerm !== value) {
+			return formattedTerm;
+		}
 		switch (dataType) {
 			case "Date":
 				return formatDate(value);
@@ -390,7 +395,7 @@ const getFieldLabel = (field: {
 		totalDevelopmentCost: "Total Development Cost (TDC)",
 		loanAmountRequested: "Loan Amount Requested",
 		loanType: "Loan Type",
-		requestedTerm: "Requested Term (Years)",
+		requestedTerm: "Loan Term",
 		totalResidentialUnits: "Total Residential Units",
 		totalResidentialNRSF: "Total Residential NRSF",
 		averageUnitSize: "Average Unit Size",
@@ -408,6 +413,8 @@ const getFieldLabel = (field: {
 		amortizationYears: "Amortization (Years)",
 		interestOnlyPeriodMonths: "Interest-Only Period (Months)",
 		interestRateType: "Interest Rate Type",
+		ratePreference: "Pricing Preference",
+		lenderTypes: "Preferred Lender Types",
 		targetCloseDate: "Target Close Date",
 		recoursePreference: "Recourse Preference",
 		useOfProceeds: "Use of Proceeds",

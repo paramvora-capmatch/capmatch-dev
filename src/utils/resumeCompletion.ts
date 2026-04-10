@@ -152,7 +152,7 @@ export const PROJECT_PLACEHOLDER_VALUES: Partial<
 	Record<keyof ProjectProfile, unknown>
 > = {
 	assetType: "Multifamily",
-	interestRateType: "Not Specified",
+	interestRateType: "Any",
 	recoursePreference: "Flexible",
 	exitStrategy: "Undecided",
 };

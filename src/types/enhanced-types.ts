@@ -172,7 +172,11 @@ export type ProjectPhase =
 	| "Development"
 	| "Value-Add"
 	| "Other";
-export type InterestRateType = "Fixed" | "Floating" | "Not Specified";
+export type InterestRateType =
+	| "Any"
+	| "Fixed"
+	| "Floating"
+	| "Not Specified";
 export type RecoursePreference =
 	| "Full Recourse"
 	| "Partial Recourse"
@@ -344,7 +348,7 @@ export interface ProjectProfile {
 	groundbreakingDate?: string;
 	completionDate?: string;
 	totalDevelopmentCost?: number;
-	requestedTerm?: number;
+	requestedTerm?: string | null;
 	dealStatus?: string;
 	syndicationStatus?: string;
 	sponsorExperience?: string;
@@ -424,6 +428,8 @@ export interface ProjectProfile {
 	prepaymentTerms?: string;
 	permTakeoutPlanned?: boolean;
 	allInRate?: number;
+	ratePreference?: "none" | "competitive" | "target" | null;
+	lenderTypes?: string[] | null;
 	realEstateTaxes?: number;
 	insurance?: number;
 	utilitiesCosts?: number;

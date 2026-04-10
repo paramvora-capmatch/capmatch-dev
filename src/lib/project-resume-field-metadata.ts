@@ -80,7 +80,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		description:
 			"Primary asset type classification. Matches project with appropriate lenders.",
 		expectedValue:
-			"Multifamily, Office, Retail, Industrial, Mixed-Use, etc.",
+			"Multifamily, Retail, Agricultural / Rural, Industrial, Office, Special Purpose, Land, Mixed-Use, Mobile Home Park, Hospitality, Residential Investment, Self Storage, SFR, Healthcare, Co-op Housing",
 		dataType: "Dropdown",
 		section: "basic-info",
 	},
@@ -207,9 +207,11 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	requestedTerm: {
 		fieldId: "requestedTerm",
-		description: "Requested loan term in years.",
-		expectedValue: "Number of years, e.g., 5",
-		dataType: "Integer",
+		description:
+			"Preferred loan term bucket used for lender matching and pricing comparisons.",
+		expectedValue:
+			"No preference, <=1 year bridge, 1-3 years, 3-5 years, 5-7 years, 7-10 years, 10-15 years, 15-20 years, 20-30 years, >30 years",
+		dataType: "Dropdown",
 		section: "loan-terms",
 	},
 	targetLtvPercent: {
@@ -243,9 +245,26 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	interestRateType: {
 		fieldId: "interestRateType",
 		description: "Fixed vs Floating interest rate.",
-		expectedValue: "Fixed, Floating, Not Specified",
+		expectedValue: "Any, Fixed, Floating",
 		dataType: "Dropdown",
 		section: "loan-info",
+	},
+	ratePreference: {
+		fieldId: "ratePreference",
+		description:
+			"How pricing should be evaluated when matching lenders for this deal.",
+		expectedValue: "none, competitive, target",
+		dataType: "Dropdown",
+		section: "loan-terms",
+	},
+	lenderTypes: {
+		fieldId: "lenderTypes",
+		description:
+			"Preferred lender categories to include or prioritize in lender matching.",
+		expectedValue:
+			"bank, credit_union, debt_fund, insurance, agency, cmbs, private_credit, other",
+		dataType: "Multi-select",
+		section: "loan-terms",
 	},
 	targetCloseDate: {
 		fieldId: "targetCloseDate",
