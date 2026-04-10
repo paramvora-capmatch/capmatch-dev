@@ -37,6 +37,9 @@ import { Input } from "@/components/ui/Input";
 import { AlertModal } from "@/components/ui/AlertModal";
 import { ASSET_CLASS_VALUES, TERM_BUCKET_VALUES, TERM_BUCKET_LABELS, TERM_BUCKET_SHORT_LABELS, TERM_BUCKET_NO_DISCRIMINATION, LENDER_TYPE_VALUES, LENDER_TYPE_LABELS, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
 import type { DealInput } from "@/lib/matchmaking/types";
+import type { RatePoint, RateTrendSignal } from "@/lib/matchmaking/rateTrend";
+import { rateTrendAdvisoryText } from "@/lib/matchmaking/explain";
+import { RateTrendSparkline } from "./RateTrendSparkline";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -367,6 +370,9 @@ function CategoryBPanel({
   } | null>(null);
   const [spreadBps, setSpreadBps] = useState<number>(200);
 
+  const [rateHistoryPoints, setRateHistoryPoints] = useState<RatePoint[] | null>(null);
+  const [rateSignal, setRateSignal] = useState<RateTrendSignal | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/matchmaking/benchmark")
@@ -400,6 +406,44 @@ function CategoryBPanel({
     }
     return { benchmarkRate: allBenchmarks.dgs10, benchmarkLabel: "10Y Treasury" };
   }, [allBenchmarks, categoryB.rateType, categoryB.termBucket]);
+
+  const benchmarkSeriesId = useMemo(() => {
+    if (categoryB.rateType === "floating") return "SOFR";
+    if (categoryB.rateType === "fixed") {
+      const tb = categoryB.termBucket ?? "";
+      const shortTerms = ["bridge_lte1yr", "short_1_3yr", "medium_3_5yr"];
+      const midTerms = ["medium_5_7yr"];
+      if (shortTerms.includes(tb)) return "DGS5";
+      if (midTerms.includes(tb)) return "DGS7";
+    }
+    return "DGS10";
+  }, [categoryB.rateType, categoryB.termBucket]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/matchmaking/benchmark/history?series=${benchmarkSeriesId}&days=365`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.points && data?.signal) {
+          setRateHistoryPoints(data.points as RatePoint[]);
+          setRateSignal(data.signal as RateTrendSignal);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [benchmarkSeriesId]);
+
+  const advisoryTips = useMemo(() => {
+    if (!rateSignal) return [];
+    const pseudoDeal: DealInput = {
+      loanAmount: 0,
+      state: "",
+      purpose: "Refinance",
+      assetClass: categoryB.assetClass,
+      rateType: categoryB.rateType,
+    };
+    return rateTrendAdvisoryText(rateSignal, pseudoDeal);
+  }, [rateSignal, categoryB.assetClass, categoryB.rateType]);
 
   const handleSpreadChange = useCallback(
     (bps: number) => {
@@ -631,6 +675,34 @@ function CategoryBPanel({
           </div>
         )}
       </div>
+
+      {/* Rate Intelligence: sparkline + environment label + advisory */}
+      {rateSignal && rateHistoryPoints && rateHistoryPoints.length > 30 && (
+        <div className="mt-5 pt-4 border-t border-gray-200 space-y-3">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Market rate environment
+          </div>
+          <div className="flex items-center gap-3">
+            <RateTrendSparkline points={rateHistoryPoints} signal={rateSignal} />
+            <p className="text-xs text-gray-600 leading-snug flex-1">
+              {rateSignal.environmentLabel}
+            </p>
+          </div>
+          {advisoryTips.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 space-y-1">
+              <p className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">
+                Market Advisory
+              </p>
+              {advisoryTips.map((tip, i) => (
+                <p key={i} className="text-xs text-blue-800 leading-snug flex items-start gap-1.5">
+                  <span className="text-blue-400 mt-0.5 shrink-0">•</span>
+                  <span>{tip}</span>
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

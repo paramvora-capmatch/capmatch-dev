@@ -72,6 +72,17 @@ export function selectBenchmark(
   return { rate: cfg.latestBenchmarkRate, label: "10Y Treasury" };
 }
 
+/** Returns the FRED series ID (DGS10, SOFR, etc.) for a deal's benchmark. */
+export function benchmarkSeriesForDeal(deal: DealInput): string {
+  if (deal.rateType === "floating") return "SOFR";
+  if (deal.rateType === "fixed") {
+    const tb = deal.termBucket ?? "";
+    if (["bridge_lte1yr", "short_1_3yr", "medium_3_5yr"].includes(tb)) return "DGS5";
+    if (["medium_5_7yr"].includes(tb)) return "DGS7";
+  }
+  return "DGS10";
+}
+
 interface EngineLender {
   lender_id: string;
   display_name: string;

@@ -1,12 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Zap, Building2, BookmarkPlus, Check, Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { LenderAIReport } from "./LenderAIReport";
 import { DimensionDistributionViz } from "./DimensionDistributionViz";
+import { RateTrendChart } from "./RateTrendChart";
 import type { MatchScore, VariableVizData } from "@/hooks/useMatchmaking";
 import type { DealInput } from "@/lib/matchmaking/types";
+import type { RatePoint, RateTrendSignal } from "@/lib/matchmaking/rateTrend";
 import { cn } from "@/utils/cn";
 
 function ScoreBar({ score, color }: { score: number; color: string }) {
@@ -56,6 +58,29 @@ export const LenderDetailModal: React.FC<LenderDetailModalProps> = ({
   wishlistLoading,
 }) => {
   const displayName = score.lender_name || score.lender_lei || "Unknown";
+
+  const [historyPoints, setHistoryPoints] = useState<RatePoint[] | null>(null);
+  const [historySignal, setHistorySignal] = useState<RateTrendSignal | null>(null);
+
+  const seriesId =
+    advisorRateType === "floating" ? "SOFR" : "DGS10";
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    fetch(`/api/matchmaking/benchmark/history?series=${seriesId}&days=365`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.points && data?.signal) {
+          setHistoryPoints(data.points as RatePoint[]);
+          setHistorySignal(data.signal as RateTrendSignal);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isOpen, seriesId]);
+
+  const lenderSpread = score.capitalize_meta?.spreadMedian ?? null;
 
   const headerRight = (
     <div className="flex items-center gap-3">
@@ -155,6 +180,54 @@ export const LenderDetailModal: React.FC<LenderDetailModalProps> = ({
                 </li>
               )}
             </ul>
+          </div>
+        )}
+
+        {/* Rate Trend Chart */}
+        {historyPoints && historySignal && historyPoints.length > 30 && (
+          <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-gray-800">
+                {historySignal.label} — 6 Month Trend
+              </span>
+              <span className={cn(
+                "text-xs font-medium px-2 py-0.5 rounded-full",
+                historySignal.direction === "rising"
+                  ? "bg-red-50 text-red-700"
+                  : historySignal.direction === "falling"
+                    ? "bg-green-50 text-green-700"
+                    : "bg-gray-100 text-gray-600",
+              )}>
+                {historySignal.environmentLabel}
+              </span>
+            </div>
+            <RateTrendChart
+              points={historyPoints}
+              signal={historySignal}
+              lenderSpreadMedian={lenderSpread}
+              height={200}
+            />
+            <div className="flex gap-4 mt-2 text-[10px] text-gray-400">
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-px bg-indigo-500 inline-block" /> {historySignal.label}
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-px bg-amber-500 inline-block border-dashed" /> EMA-20
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-px bg-red-500 inline-block" /> EMA-60
+              </span>
+              {lenderSpread != null && (
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-px bg-emerald-500 inline-block" /> Implied All-In
+                </span>
+              )}
+              {historySignal.vasicek && (
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-px bg-slate-400 inline-block" /> Equilibrium
+                </span>
+              )}
+            </div>
           </div>
         )}
 

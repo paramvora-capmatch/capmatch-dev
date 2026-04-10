@@ -637,9 +637,100 @@ async function build(): Promise<void> {
       GROUP BY lender_id, term_bucket;
     `);
 
+    console.log("Step 6: lender_regime_profiles (per-era + per-regime spread stats)...");
+    await conn.run(`
+      CREATE TABLE lender_regime_profiles AS
+      ${TXN_CLEAN_AND_BASE},
+      txn_with_benchmark_regime AS (
+          SELECT
+              tb.*,
+              CASE
+                  WHEN tb.clean_rate_type = 'Floating' THEN
+                      COALESCE(sofr.rate_value, prime.rate_value)
+                  WHEN tb.clean_rate_type = 'Fixed' AND tb.term_months IS NOT NULL THEN
+                      CASE
+                          WHEN tb.term_months <= 72 THEN dgs5.rate_value
+                          WHEN tb.term_months <= 108 THEN dgs7.rate_value
+                          ELSE dgs10.rate_value
+                      END
+                  ELSE dgs10.rate_value
+              END AS bench_rate,
+              dgs10.rate_value AS dgs10_rate
+          FROM txn_base tb
+          LEFT JOIN benchmark_rates_daily dgs5
+              ON tb.txn_date = dgs5.rate_date AND dgs5.series_id = 'DGS5'
+          LEFT JOIN benchmark_rates_daily dgs7
+              ON tb.txn_date = dgs7.rate_date AND dgs7.series_id = 'DGS7'
+          LEFT JOIN benchmark_rates_daily dgs10
+              ON tb.txn_date = dgs10.rate_date AND dgs10.series_id = 'DGS10'
+          LEFT JOIN benchmark_rates_daily sofr
+              ON tb.txn_date = sofr.rate_date AND sofr.series_id = 'SOFR'
+          LEFT JOIN benchmark_rates_daily prime
+              ON tb.txn_date = prime.rate_date AND prime.series_id = 'DPRIME'
+      ),
+      regime_thresholds AS (
+          SELECT
+              PERCENTILE_CONT(0.333) WITHIN GROUP (ORDER BY rate_value) AS low_threshold,
+              PERCENTILE_CONT(0.667) WITHIN GROUP (ORDER BY rate_value) AS high_threshold
+          FROM benchmark_rates_daily
+          WHERE series_id = 'DGS10'
+      ),
+      txn_enriched AS (
+          SELECT
+              t.lender_id,
+              t.valid_rate - t.bench_rate AS spread,
+              CASE
+                  WHEN t.txn_date < DATE '2008-01-01' THEN 'pre_gfc'
+                  WHEN t.txn_date < DATE '2014-01-01' THEN 'gfc_recovery'
+                  WHEN t.txn_date < DATE '2020-03-01' THEN 'zirp'
+                  WHEN t.txn_date < DATE '2023-01-01' THEN 'covid_hiking'
+                  ELSE 'current'
+              END AS era,
+              CASE
+                  WHEN t.dgs10_rate <= rt.low_threshold THEN 'Low'
+                  WHEN t.dgs10_rate <= rt.high_threshold THEN 'Medium'
+                  ELSE 'High'
+              END AS rate_regime,
+              rt.low_threshold,
+              rt.high_threshold
+          FROM txn_with_benchmark_regime t
+          CROSS JOIN regime_thresholds rt
+          WHERE t.valid_rate IS NOT NULL
+            AND t.bench_rate IS NOT NULL
+            AND t.dgs10_rate IS NOT NULL
+      ),
+      era_stats AS (
+          SELECT
+              lender_id,
+              'era' AS dimension_type,
+              era AS dimension_value,
+              PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY spread) AS spread_median,
+              CAST(COUNT(*) AS INTEGER) AS txn_count,
+              MAX(low_threshold) AS low_threshold,
+              MAX(high_threshold) AS high_threshold
+          FROM txn_enriched
+          GROUP BY lender_id, era
+      ),
+      regime_stats AS (
+          SELECT
+              lender_id,
+              'regime' AS dimension_type,
+              rate_regime AS dimension_value,
+              PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY spread) AS spread_median,
+              CAST(COUNT(*) AS INTEGER) AS txn_count,
+              MAX(low_threshold) AS low_threshold,
+              MAX(high_threshold) AS high_threshold
+          FROM txn_enriched
+          GROUP BY lender_id, rate_regime
+      )
+      SELECT * FROM era_stats
+      UNION ALL
+      SELECT * FROM regime_stats
+    `);
+
     await validate(conn);
 
-    console.log("Step 6: export parquet →", OUTPUT_DIR);
+    console.log("Step 7: export parquet →", OUTPUT_DIR);
     const tables = [
       "lender_profiles",
       "lender_state_prefs",
@@ -649,6 +740,7 @@ async function build(): Promise<void> {
       "lender_amount_arrays",
       "benchmark_rates_daily",
       "engine_config",
+      "lender_regime_profiles",
     ] as const;
     for (const table of tables) {
       const outPath = resolve(OUTPUT_DIR, `${table}.parquet`).replace(/\\/g, "/");

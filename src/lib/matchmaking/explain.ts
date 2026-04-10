@@ -1,4 +1,5 @@
 import type { DealInput, MatchResult } from "./types";
+import type { RateTrendSignal } from "./rateTrend";
 
 export function generateHeadline(result: MatchResult, deal: DealInput): string {
   const dims = result.dimensions;
@@ -64,6 +65,95 @@ export interface DimensionInsight {
   dimension: string;
   score: number;
   insight: string;
+}
+
+/**
+ * Deterministic text for the AI report prompt's RATE ENVIRONMENT block
+ * and as fallback UI content when LLM output is missing.
+ */
+export function rateTrendOverlayText(
+  signal: RateTrendSignal,
+  deal: DealInput,
+): string {
+  const lines: string[] = [];
+
+  lines.push(
+    `${signal.label} is currently at ${signal.current.toFixed(2)}%, ${signal.direction} over the past 30 days (${signal.roc30d > 0 ? "+" : ""}${signal.roc30d.toFixed(0)}bps).`,
+  );
+
+  if (signal.vasicek) {
+    const v = signal.vasicek;
+    const eqRel =
+      v.currentVsEquilibrium > 10 ? "above" : v.currentVsEquilibrium < -10 ? "below" : "near";
+    lines.push(
+      `Long-run equilibrium estimate: ${v.longRunMean.toFixed(2)}% (current is ${eqRel}). 90-day mean-reversion projection: ${v.projected90d.toFixed(2)}%.`,
+    );
+  }
+
+  if (signal.volatility30d > 5) {
+    lines.push(`30-day rate volatility is elevated at ${signal.volatility30d.toFixed(1)}bps/day.`);
+  }
+
+  const rateType = deal.rateType ?? "any";
+  if (rateType === "fixed" && signal.direction === "rising") {
+    lines.push("With fixed-rate preference and rising rates, earlier rate locks may be advantageous.");
+  } else if (rateType === "floating" && signal.direction === "falling") {
+    lines.push("Floating-rate economics are improving as short-term benchmarks decline.");
+  }
+
+  return lines.join(" ");
+}
+
+/**
+ * Deterministic Category-C advisory text for the UI Market Advisory card.
+ * Rule-based, no LLM needed.
+ */
+export function rateTrendAdvisoryText(
+  signal: RateTrendSignal,
+  deal: DealInput,
+): string[] {
+  const tips: string[] = [];
+  const rateType = deal.rateType ?? "any";
+
+  if (signal.direction === "rising" && (rateType === "fixed" || rateType === "any")) {
+    tips.push("Consider locking sooner; fixed rates trending up.");
+  }
+  if (signal.direction === "falling" && (rateType === "floating" || rateType === "any")) {
+    tips.push("Floating-rate economics improving as benchmarks decline.");
+  }
+  if (signal.volatility30d > 5) {
+    tips.push("Elevated rate volatility; consider a longer rate-lock period.");
+  }
+  if (
+    signal.vasicek &&
+    signal.vasicek.currentVsEquilibrium > 20 &&
+    signal.vasicek.projectedDirection === "toward_equilibrium"
+  ) {
+    tips.push(
+      `Rates are ${signal.vasicek.currentVsEquilibrium.toFixed(0)}bps above long-run equilibrium — mean-reversion model suggests gradual easing.`,
+    );
+  }
+  if (
+    signal.vasicek &&
+    signal.vasicek.currentVsEquilibrium < -20 &&
+    signal.vasicek.projectedDirection === "toward_equilibrium"
+  ) {
+    tips.push(
+      `Rates are ${Math.abs(signal.vasicek.currentVsEquilibrium).toFixed(0)}bps below equilibrium — upward pressure likely.`,
+    );
+  }
+  if (signal.momentum === "accelerating" && signal.direction === "rising") {
+    tips.push("Rate increases are accelerating — urgency for locking may increase.");
+  }
+  if (signal.momentum === "decelerating" && signal.direction === "rising") {
+    tips.push("Rate increases are decelerating — pace of tightening may be slowing.");
+  }
+
+  if (tips.length === 0) {
+    tips.push("Rate environment is stable. No urgent timing considerations.");
+  }
+
+  return tips;
 }
 
 export function generateDimensionInsights(result: MatchResult, deal: DealInput): DimensionInsight[] {
