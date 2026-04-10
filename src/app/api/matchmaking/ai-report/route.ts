@@ -5,12 +5,13 @@ import { fetchEngineConfig, fetchLenderProfileBundle } from "@/lib/matchmaking/d
 import { mapParquetToLenderProfile } from "@/lib/matchmaking/mapLenderProfile";
 import { computeRecommendations } from "@/lib/matchmaking/recommendations";
 import { pricingOverlayText, ltvOverlayText, generateDimensionInsights } from "@/lib/matchmaking/explain";
+import { selectBenchmark } from "@/lib/matchmaking/engine";
 import type { DealInput, MatchResult } from "@/lib/matchmaking/types";
 import type { LenderProfile } from "@/lib/matchmaking/types";
 
 export const runtime = "nodejs";
 
-function buildDealBlock(deal: DealInput, bench: number): string {
+function buildDealBlock(deal: DealInput, bench: number, benchLabel: string): string {
   const lines = [
     `- Loan Amount: $${deal.loanAmount.toLocaleString()}`,
     `- State: ${deal.state}`,
@@ -20,13 +21,14 @@ function buildDealBlock(deal: DealInput, bench: number): string {
     `- Rate Preference: ${deal.ratePreference ?? "none"}`,
   ];
   if (deal.targetRate != null) lines.push(`- Target Rate: ${deal.targetRate}%`);
-  lines.push(`- Current 10Y Treasury Benchmark: ${bench.toFixed(2)}%`);
+  lines.push(`- Current ${benchLabel} Benchmark: ${bench.toFixed(2)}%`);
   return "CURRENT DEAL (from advisor's scenario):\n" + lines.join("\n");
 }
 
 function buildLenderTypicalBlock(
   profile: LenderProfile,
-  bench: number
+  bench: number,
+  benchLabel: string
 ): string {
   const lines: string[] = [];
   if (profile.amountP50 > 0) lines.push(`- Median deal size: $${Math.round(profile.amountP50).toLocaleString()}`);
@@ -41,7 +43,7 @@ function buildLenderTypicalBlock(
   }
   if (profile.spreadMedian != null) {
     const implied = bench + profile.spreadMedian;
-    lines.push(`- Median spread over benchmark: ${profile.spreadMedian.toFixed(2)}% (implied all-in ~${implied.toFixed(2)}%)`);
+    lines.push(`- Median spread over ${benchLabel}: ${profile.spreadMedian.toFixed(2)}% (implied all-in ~${implied.toFixed(2)}%)`);
     if (profile.spreadP25 != null && profile.spreadP75 != null) {
       lines.push(`- Spread IQR: ${profile.spreadP25.toFixed(2)}% – ${profile.spreadP75.toFixed(2)}%`);
     }
@@ -86,9 +88,9 @@ function buildVizContext(match: MatchResult): string {
       const v = dim.viz;
       const impliedRate = v.impliedAllInRate ?? v.benchmarkRate + v.median;
       parts.push(
-        `- Spread: median ${v.median.toFixed(2)}% over benchmark` +
+        `- Spread: median ${v.median.toFixed(2)}% over ${v.benchmarkLabel ?? "benchmark"}` +
         (v.p25 != null && v.p75 != null ? `, IQR ${v.p25.toFixed(2)}–${v.p75.toFixed(2)}%` : "") +
-        `, implied all-in ~${impliedRate.toFixed(2)}%, benchmark ${v.benchmarkRate.toFixed(2)}%`
+        `, implied all-in ~${impliedRate.toFixed(2)}%, ${v.benchmarkLabel ?? "benchmark"} ${v.benchmarkRate.toFixed(2)}%`
       );
     }
   }
@@ -100,11 +102,12 @@ function buildPrompt(
   match: MatchResult,
   profile: LenderProfile,
   bench: number,
+  benchLabel: string,
   pricingNarrative: string | null,
   ltvNarrative: string | null
 ): string {
-  const dealBlock = buildDealBlock(deal, bench);
-  const lenderTypicalBlock = buildLenderTypicalBlock(profile, bench);
+  const dealBlock = buildDealBlock(deal, bench, benchLabel);
+  const lenderTypicalBlock = buildLenderTypicalBlock(profile, bench, benchLabel);
   const varBlock = buildVarBlock(match);
   const vizBlock = buildVizContext(match);
 
@@ -197,7 +200,14 @@ export async function POST(req: NextRequest) {
     }
 
     const cfg = await fetchEngineConfig();
-    const bench = cfg.latest_benchmark_rate ?? 4.5;
+    const engineCfg = {
+      marketFloor: cfg.market_floor ?? 1.0,
+      latestBenchmarkRate: cfg.latest_benchmark_rate ?? 4.5,
+      latestSofr: cfg.latest_sofr ?? 4.3,
+      latestDgs5: cfg.latest_dgs5 ?? 4.1,
+      latestDgs7: cfg.latest_dgs7 ?? 4.2,
+    };
+    const { rate: bench, label: benchLabel } = selectBenchmark(deal, engineCfg);
     const recs = computeRecommendations(deal, matchResult, profile, bench);
 
     const pricingNarrative = pricingOverlayText(
@@ -216,7 +226,7 @@ export async function POST(req: NextRequest) {
 
     if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       try {
-        const prompt = buildPrompt(deal, matchResult, profile, bench, pricingNarrative, ltvNarrative);
+        const prompt = buildPrompt(deal, matchResult, profile, bench, benchLabel, pricingNarrative, ltvNarrative);
         const { text } = await generateText({
           model: google("gemini-3-flash-preview"),
           prompt,

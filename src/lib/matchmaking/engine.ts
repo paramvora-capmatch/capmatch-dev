@@ -45,6 +45,31 @@ const WEIGHTS_WITH_TERM_AND_RATE = {
 export interface EngineConfig {
   marketFloor: number;
   latestBenchmarkRate: number;
+  latestSofr: number;
+  latestDgs5: number;
+  latestDgs7: number;
+}
+
+/**
+ * Pick the right benchmark rate & label based on the deal's rate type and term.
+ * Mirrors the logic in build-matchmaking-db.ts that computes historical spreads.
+ */
+export function selectBenchmark(
+  deal: DealInput,
+  cfg: EngineConfig
+): { rate: number; label: string } {
+  if (deal.rateType === "floating") {
+    return { rate: cfg.latestSofr, label: "SOFR" };
+  }
+  if (deal.rateType === "fixed") {
+    const tb = deal.termBucket ?? "";
+    const shortTerms = ["bridge_lte1yr", "short_1_3yr", "medium_3_5yr"];
+    const midTerms = ["medium_5_7yr"];
+    if (shortTerms.includes(tb)) return { rate: cfg.latestDgs5, label: "5Y Treasury" };
+    if (midTerms.includes(tb)) return { rate: cfg.latestDgs7, label: "7Y Treasury" };
+    return { rate: cfg.latestBenchmarkRate, label: "10Y Treasury" };
+  }
+  return { rate: cfg.latestBenchmarkRate, label: "10Y Treasury" };
 }
 
 interface EngineLender {
@@ -418,9 +443,7 @@ function scorePricingFit(
 
   const w = WEIGHTS_WITH_RATE.pricingFit;
   const floor = Number.isFinite(engineConfig.marketFloor) ? engineConfig.marketFloor : 1.0;
-  const bench = Number.isFinite(engineConfig.latestBenchmarkRate)
-    ? engineConfig.latestBenchmarkRate
-    : 4.5;
+  const { rate: bench, label: benchLabel } = selectBenchmark(deal, engineConfig);
 
   if (lender.spread_count < 10 || lender.spread_median === null) {
     const spreadViz: DimensionBandViz = {
@@ -432,6 +455,7 @@ function scorePricingFit(
       marketFloor: floor,
       targetSpread: null,
       mode: "insufficient",
+      benchmarkLabel: benchLabel,
     };
     return {
       dimension: "Pricing Fit",
@@ -455,6 +479,7 @@ function scorePricingFit(
     benchmarkRate: bench,
     marketFloor: floor,
     impliedAllInRate,
+    benchmarkLabel: benchLabel,
   };
 
   if (mode === "competitive") {

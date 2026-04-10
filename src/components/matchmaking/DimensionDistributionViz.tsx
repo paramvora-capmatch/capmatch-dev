@@ -197,7 +197,7 @@ function SpreadBandChart({ v }: { v: Extract<DimensionBandViz, { kind: "spread" 
           <span className="text-[11px] text-indigo-600 font-medium">Implied all-in rate:</span>
           <span className="text-sm font-bold text-indigo-800">{v.impliedAllInRate.toFixed(2)}%</span>
           <span className="text-[10px] text-indigo-400">
-            ({v.benchmarkRate.toFixed(2)}% benchmark + {v.median.toFixed(2)}% spread)
+            ({v.benchmarkRate.toFixed(2)}% {v.benchmarkLabel ?? "benchmark"} + {v.median.toFixed(2)}% spread)
           </span>
         </div>
       )}
@@ -244,7 +244,7 @@ function SpreadBandChart({ v }: { v: Extract<DimensionBandViz, { kind: "spread" 
           <span className="text-gray-400">Floor:</span> {fmtPctPt(v.marketFloor)}
         </span>
         <span className="text-gray-400">
-          Benchmark {v.benchmarkRate.toFixed(2)}% (DGS10)
+          Benchmark {v.benchmarkRate.toFixed(2)}% ({v.benchmarkLabel ?? "DGS10"})
         </span>
         {v.mode === "target" && v.targetSpread != null && (
           <span className="font-medium text-rose-700">Target spread: {fmtPctPt(v.targetSpread)}</span>

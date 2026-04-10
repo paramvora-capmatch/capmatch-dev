@@ -102,6 +102,8 @@ export type DimensionBandViz =
       mode: "competitive" | "target" | "insufficient";
       /** Implied all-in rate = benchmarkRate + median spread */
       impliedAllInRate?: number;
+      /** Human-readable label for which benchmark series was used (e.g. "SOFR", "10Y Treasury") */
+      benchmarkLabel?: string;
     }
   | {
       kind: "ltv_history";

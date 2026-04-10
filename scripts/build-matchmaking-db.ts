@@ -555,11 +555,22 @@ async function build(): Promise<void> {
         (SELECT PERCENTILE_CONT(0.10) WITHIN GROUP (ORDER BY spread_median)
          FROM lender_profiles
          WHERE spread_count >= 10 AND spread_median IS NOT NULL) AS market_floor,
-        (SELECT rate_value
-         FROM benchmark_rates_daily
+        (SELECT rate_value FROM benchmark_rates_daily
          WHERE series_id = 'DGS10'
            AND rate_date = (SELECT MAX(rate_date) FROM benchmark_rates_daily WHERE series_id = 'DGS10')
-         LIMIT 1) AS latest_benchmark_rate;
+         LIMIT 1) AS latest_benchmark_rate,
+        (SELECT rate_value FROM benchmark_rates_daily
+         WHERE series_id = 'SOFR'
+           AND rate_date = (SELECT MAX(rate_date) FROM benchmark_rates_daily WHERE series_id = 'SOFR')
+         LIMIT 1) AS latest_sofr,
+        (SELECT rate_value FROM benchmark_rates_daily
+         WHERE series_id = 'DGS5'
+           AND rate_date = (SELECT MAX(rate_date) FROM benchmark_rates_daily WHERE series_id = 'DGS5')
+         LIMIT 1) AS latest_dgs5,
+        (SELECT rate_value FROM benchmark_rates_daily
+         WHERE series_id = 'DGS7'
+           AND rate_date = (SELECT MAX(rate_date) FROM benchmark_rates_daily WHERE series_id = 'DGS7')
+         LIMIT 1) AS latest_dgs7;
     `);
 
     console.log("Step 5: preference tables + amount arrays...");

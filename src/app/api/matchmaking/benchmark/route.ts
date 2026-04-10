@@ -13,7 +13,10 @@ export async function GET() {
   try {
     const cfg = await fetchEngineConfig();
     return NextResponse.json({
-      benchmarkRate: cfg.latest_benchmark_rate ?? 4.5,
+      dgs10: cfg.latest_benchmark_rate ?? 4.5,
+      dgs7: cfg.latest_dgs7 ?? 4.2,
+      dgs5: cfg.latest_dgs5 ?? 4.1,
+      sofr: cfg.latest_sofr ?? 4.3,
       marketFloor: cfg.market_floor ?? 1.0,
     });
   } catch (e) {

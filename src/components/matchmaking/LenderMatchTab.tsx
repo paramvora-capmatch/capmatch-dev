@@ -362,7 +362,9 @@ function CategoryBPanel({
   categoryB: CategoryBState;
   setCategoryB: React.Dispatch<React.SetStateAction<CategoryBState>>;
 }) {
-  const [benchmarkRate, setBenchmarkRate] = useState<number | null>(null);
+  const [allBenchmarks, setAllBenchmarks] = useState<{
+    dgs10: number; dgs7: number; dgs5: number; sofr: number;
+  } | null>(null);
   const [spreadBps, setSpreadBps] = useState<number>(200);
 
   useEffect(() => {
@@ -370,13 +372,34 @@ function CategoryBPanel({
     fetch("/api/matchmaking/benchmark")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (!cancelled && data?.benchmarkRate != null) {
-          setBenchmarkRate(data.benchmarkRate);
+        if (!cancelled && data?.dgs10 != null) {
+          setAllBenchmarks({
+            dgs10: data.dgs10,
+            dgs7: data.dgs7 ?? data.dgs10,
+            dgs5: data.dgs5 ?? data.dgs10,
+            sofr: data.sofr ?? data.dgs10,
+          });
         }
       })
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  const { benchmarkRate, benchmarkLabel } = useMemo(() => {
+    if (!allBenchmarks) return { benchmarkRate: null, benchmarkLabel: "" };
+    if (categoryB.rateType === "floating") {
+      return { benchmarkRate: allBenchmarks.sofr, benchmarkLabel: "SOFR" };
+    }
+    if (categoryB.rateType === "fixed") {
+      const tb = categoryB.termBucket ?? "";
+      const shortTerms = ["bridge_lte1yr", "short_1_3yr", "medium_3_5yr"];
+      const midTerms = ["medium_5_7yr"];
+      if (shortTerms.includes(tb)) return { benchmarkRate: allBenchmarks.dgs5, benchmarkLabel: "5Y Treasury" };
+      if (midTerms.includes(tb)) return { benchmarkRate: allBenchmarks.dgs7, benchmarkLabel: "7Y Treasury" };
+      return { benchmarkRate: allBenchmarks.dgs10, benchmarkLabel: "10Y Treasury" };
+    }
+    return { benchmarkRate: allBenchmarks.dgs10, benchmarkLabel: "10Y Treasury" };
+  }, [allBenchmarks, categoryB.rateType, categoryB.termBucket]);
 
   const handleSpreadChange = useCallback(
     (bps: number) => {
@@ -390,11 +413,12 @@ function CategoryBPanel({
   );
 
   useEffect(() => {
-    if (categoryB.ratePreference === "target" && benchmarkRate != null && categoryB.targetRate == null) {
+    if (categoryB.ratePreference === "target" && benchmarkRate != null) {
       const computed = benchmarkRate + spreadBps / 100;
       setCategoryB((b) => ({ ...b, targetRate: parseFloat(computed.toFixed(2)) }));
     }
-  }, [categoryB.ratePreference, benchmarkRate, categoryB.targetRate, spreadBps, setCategoryB]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryB.ratePreference, benchmarkRate, spreadBps, setCategoryB]);
 
   return (
     <div className="mt-5 pt-4 border-t border-gray-200 space-y-4">
@@ -548,7 +572,7 @@ function CategoryBPanel({
           <div className="space-y-3 sm:col-span-2">
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Current Benchmark (10Y Treasury)</span>
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Current Benchmark ({benchmarkLabel || "10Y Treasury"})</span>
                 <span className="text-sm font-semibold text-gray-800">
                   {benchmarkRate != null ? `${benchmarkRate.toFixed(2)}%` : "Loading..."}
                 </span>

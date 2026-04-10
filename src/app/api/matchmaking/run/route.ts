@@ -228,6 +228,9 @@ export async function POST(req: NextRequest) {
     const engineConfig: EngineConfig = {
       marketFloor: cfgRow.market_floor ?? 1.0,
       latestBenchmarkRate: cfgRow.latest_benchmark_rate ?? 4.5,
+      latestSofr: cfgRow.latest_sofr ?? 4.3,
+      latestDgs5: cfgRow.latest_dgs5 ?? 4.1,
+      latestDgs7: cfgRow.latest_dgs7 ?? 4.2,
     };
 
     const { results, totalEligible, totalScanned } = runMatchmaking(deal, lenders, engineConfig);

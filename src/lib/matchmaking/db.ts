@@ -30,6 +30,9 @@ export function matchmakingParquetReady(): boolean {
 export interface EngineConfigRow {
   market_floor: number | null;
   latest_benchmark_rate: number | null;
+  latest_sofr: number | null;
+  latest_dgs5: number | null;
+  latest_dgs7: number | null;
 }
 
 let instancePromise: Promise<DuckDBInstance> | null = null;
@@ -62,18 +65,22 @@ export async function fetchEngineConfig(): Promise<EngineConfigRow> {
   }
   return withConnection(async (conn) => {
     const reader = await conn.runAndReadAll(
-      `SELECT market_floor, latest_benchmark_rate FROM read_parquet(${pq("engine_config.parquet")})`
+      `SELECT market_floor, latest_benchmark_rate, latest_sofr, latest_dgs5, latest_dgs7
+       FROM read_parquet(${pq("engine_config.parquet")})`
     );
     await reader.readAll();
     const rows = reader.getRowObjectsJson();
     const row = rows[0] as Record<string, unknown> | undefined;
     if (!row) {
-      return { market_floor: null, latest_benchmark_rate: null };
+      return { market_floor: null, latest_benchmark_rate: null, latest_sofr: null, latest_dgs5: null, latest_dgs7: null };
     }
+    const num = (k: string) => (row[k] != null ? Number(row[k]) : null);
     return {
-      market_floor: row.market_floor != null ? Number(row.market_floor) : null,
-      latest_benchmark_rate:
-        row.latest_benchmark_rate != null ? Number(row.latest_benchmark_rate) : null,
+      market_floor: num("market_floor"),
+      latest_benchmark_rate: num("latest_benchmark_rate"),
+      latest_sofr: num("latest_sofr"),
+      latest_dgs5: num("latest_dgs5"),
+      latest_dgs7: num("latest_dgs7"),
     };
   });
 }
