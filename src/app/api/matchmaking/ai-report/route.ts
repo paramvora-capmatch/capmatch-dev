@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 
     if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       const { text } = await generateText({
-        model: google("gemini-2.0-flash"),
+        model: google("gemini-3-flash-preview"),
         prompt,
       });
       executive_summary = text || fallbackExecutiveSummary(matchResult);
