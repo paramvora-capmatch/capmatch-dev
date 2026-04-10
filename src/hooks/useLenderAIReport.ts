@@ -6,6 +6,8 @@ import { fetchJob } from "@/lib/apiClient";
 import { getBackendUrl } from "@/lib/apiConfig";
 import { supabase } from "@/lib/supabaseClient";
 import type { MatchScore } from "@/hooks/useMatchmaking";
+import { useLocalCapitalizeMatchmaking } from "@/lib/matchmaking/capitalizeLocal";
+import type { DealInput, MatchResult } from "@/lib/matchmaking/types";
 
 const MAX_AI_REPORT_JOB_WAIT_MS = 120000; // 2 min
 const POLL_JOBS_INTERVAL_MS = 2000;
@@ -17,12 +19,57 @@ interface JobRow {
   metadata?: Record<string, unknown> | null;
 }
 
+export interface ParameterRecommendationRow {
+  parameter: string;
+  currentValue: string;
+  suggestedValue: string;
+  impact: "high" | "medium" | "low";
+  explanation: string;
+}
+
 export interface AIReportContent {
   numerical_recommendations?: string[];
+  parameter_recommendations?: ParameterRecommendationRow[];
   executive_summary: string;
   strengths: string[];
   gaps: string[];
   recommendations: string[];
+}
+
+export function matchScoreToMatchResult(score: MatchScore): MatchResult {
+  const meta = score.capitalize_meta;
+  const confCombined = meta?.confidenceCombined ?? 1;
+  const affinity =
+    confCombined > 0 ? (score.total_score / 100) / confCombined : score.total_score / 100;
+  return {
+    lenderId: score.lender_lei,
+    lenderName: score.lender_name ?? score.lender_lei,
+    lenderType: meta?.lenderType ?? "unknown",
+    lenderLogoUrl: score.lender_logo_url ?? null,
+    totalTxns: score.lender_typical?.total_loans ?? 0,
+    finalScore: score.total_score,
+    affinityScore: Math.min(1, Math.max(0, affinity)),
+    confidence: {
+      base: 1,
+      recency: 1,
+      completeness: 1,
+      rateType: meta?.rateTypeFactor ?? 1,
+      combined: confCombined,
+    },
+    dimensions: (score.variable_scores || []).map((v) => ({
+      dimension: v.name,
+      score: v.score,
+      weight: v.weight,
+      weighted: v.weighted,
+      explanation: v.explanation,
+    })),
+    rank: score.rank,
+    headline: score.overall_narrative ?? "",
+    spreadMedian: meta?.spreadMedian ?? null,
+    spreadCount: 0,
+    ltvMedian: meta?.ltvMedian ?? null,
+    ltvCoverage: meta?.ltvCoverage ?? null,
+  };
 }
 
 export interface AIReport {
@@ -70,8 +117,10 @@ export function useLenderAIReport(
   projectId: string,
   matchRunId: string | null,
   score: MatchScore | null,
-  dealSummary: DealSummaryForAI = null
+  dealSummary: DealSummaryForAI = null,
+  capitalizeDeal: DealInput | null = null
 ) {
+  const localCap = useLocalCapitalizeMatchmaking();
   const [state, setState] = useState<UseLenderAIReportState>({
     report: null,
     isLoading: false,
@@ -224,6 +273,36 @@ export function useLenderAIReport(
     if (!score) return;
     setState((s) => ({ ...s, isGenerating: true, error: null }));
     try {
+      if (localCap && capitalizeDeal) {
+        const res = await fetch("/api/matchmaking/ai-report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deal: capitalizeDeal,
+            match_result: matchScoreToMatchResult(score),
+            lender_id: score.lender_lei,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data?.error || "Failed to generate AI report");
+        }
+        setState((s) => ({
+          ...s,
+          isGenerating: false,
+          report: {
+            lender_lei: score.lender_lei,
+            report_content: data.report_content as AIReportContent,
+            model_used: (data.model_used as string | null) ?? null,
+            created_at: null,
+            found: true,
+            match_run_id: matchRunId,
+          },
+          error: null,
+        }));
+        return;
+      }
+
       const headers = await getAuthHeaders();
       const base = getBackendUrl();
       const body: Record<string, unknown> = {
@@ -264,7 +343,16 @@ export function useLenderAIReport(
         error: err instanceof Error ? err.message : "AI report generation failed",
       }));
     }
-  }, [projectId, matchRunId, score, dealSummary, getAuthHeaders, subscribeToAIReportJob]);
+  }, [
+    projectId,
+    matchRunId,
+    score,
+    dealSummary,
+    getAuthHeaders,
+    subscribeToAIReportJob,
+    localCap,
+    capitalizeDeal,
+  ]);
 
   useEffect(() => {
     return () => {

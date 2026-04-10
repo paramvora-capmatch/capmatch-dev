@@ -1,0 +1,283 @@
+import { existsSync } from "fs";
+import { resolve } from "path";
+import { DuckDBInstance, DuckDBConnection } from "@duckdb/node-api";
+
+/** Parquet outputs from scripts/build-matchmaking-db.ts */
+const REQUIRED_FILES = [
+  "lender_profiles.parquet",
+  "lender_state_prefs.parquet",
+  "lender_asset_prefs.parquet",
+  "lender_purpose_prefs.parquet",
+  "lender_amount_arrays.parquet",
+  "benchmark_rates_daily.parquet",
+  "engine_config.parquet",
+] as const;
+
+function sqlStringLiteral(value: string): string {
+  return `'${value.replace(/\\/g, "/").replace(/'/g, "''")}'`;
+}
+
+export function matchmakingDataDir(): string {
+  return resolve(process.cwd(), "data/matchmaking");
+}
+
+export function matchmakingParquetReady(): boolean {
+  const dir = matchmakingDataDir();
+  return REQUIRED_FILES.every((f) => existsSync(resolve(dir, f)));
+}
+
+export interface EngineConfigRow {
+  market_floor: number | null;
+  latest_benchmark_rate: number | null;
+}
+
+let instancePromise: Promise<DuckDBInstance> | null = null;
+
+async function getInstance(): Promise<DuckDBInstance> {
+  if (!instancePromise) {
+    instancePromise = DuckDBInstance.create(":memory:");
+  }
+  return instancePromise;
+}
+
+async function withConnection<T>(fn: (c: DuckDBConnection) => Promise<T>): Promise<T> {
+  const inst = await getInstance();
+  const conn = await inst.connect();
+  try {
+    return await fn(conn);
+  } finally {
+    conn.closeSync();
+  }
+}
+
+function pq(name: (typeof REQUIRED_FILES)[number]): string {
+  const full = resolve(matchmakingDataDir(), name).replace(/\\/g, "/");
+  return sqlStringLiteral(full);
+}
+
+export async function fetchEngineConfig(): Promise<EngineConfigRow> {
+  if (!matchmakingParquetReady()) {
+    throw new Error("Matchmaking parquet files missing; run: npx tsx scripts/build-matchmaking-db.ts");
+  }
+  return withConnection(async (conn) => {
+    const reader = await conn.runAndReadAll(
+      `SELECT market_floor, latest_benchmark_rate FROM read_parquet(${pq("engine_config.parquet")})`
+    );
+    await reader.readAll();
+    const rows = reader.getRowObjectsJson();
+    const row = rows[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      return { market_floor: null, latest_benchmark_rate: null };
+    }
+    return {
+      market_floor: row.market_floor != null ? Number(row.market_floor) : null,
+      latest_benchmark_rate:
+        row.latest_benchmark_rate != null ? Number(row.latest_benchmark_rate) : null,
+    };
+  });
+}
+
+/** Deal slice needed to join preference parquet files (engine scores in TS). */
+export interface DealParquetJoinInput {
+  state: string;
+  assetClass: string;
+  /** Primary purpose key (canonical). */
+  purpose: string;
+  /** Optional multi-purpose (e.g. Bridge); shares are summed in SQL. */
+  eligiblePurposes?: string[];
+}
+
+export interface LenderRow {
+  lender_id: string;
+  display_name: string;
+  custom_logo_url: string | null;
+  primary_lender_type: string | null;
+  total_txns: number;
+  last_txn_date: string;
+  amount_p05: number;
+  amount_p50: number;
+  amount_p95: number;
+  geo_concentration: number | null;
+  asset_coverage: number;
+  purpose_coverage: number;
+  spread_median: number | null;
+  spread_std: number | null;
+  spread_count: number;
+  spread_p25: number | null;
+  spread_p75: number | null;
+  known_fixed_count: number;
+  known_floating_count: number;
+  unknown_rate_count: number;
+  known_rate_ratio: number;
+  fixed_share_of_known: number | null;
+  state_share: number | null;
+  asset_share: number | null;
+  purpose_share: number | null;
+  sorted_log_amounts: number[];
+  ltv_median: number | null;
+  ltv_coverage: number | null;
+  ltv_count: number;
+  ltv_p25: number | null;
+  ltv_p75: number | null;
+}
+
+const CANONICAL_PURPOSES = new Set(["Sale", "Refinance", "New Construction"]);
+
+function purposeInList(deal: DealParquetJoinInput): string[] {
+  const raw = deal.eligiblePurposes?.length
+    ? deal.eligiblePurposes
+    : [deal.purpose];
+  const out: string[] = [];
+  for (const p of raw) {
+    if (CANONICAL_PURPOSES.has(p)) out.push(p);
+  }
+  if (!out.length) out.push(deal.purpose);
+  return [...new Set(out)];
+}
+
+/**
+ * Single DuckDB query: profiles + prefs + amount arrays.
+ * Eligibility and scoring run in TypeScript (`engine.ts`).
+ */
+export async function fetchLendersForDeal(deal: DealParquetJoinInput): Promise<LenderRow[]> {
+  if (!matchmakingParquetReady()) {
+    throw new Error("Matchmaking parquet files missing; run: npx tsx scripts/build-matchmaking-db.ts");
+  }
+  const state = deal.state.toUpperCase();
+  const purposes = purposeInList(deal);
+  const inList = purposes.map((p) => sqlStringLiteral(p)).join(", ");
+
+  const sql = `
+    SELECT
+      p.lender_id,
+      p.display_name,
+      p.custom_logo_url,
+      p.primary_lender_type,
+      p.total_txns,
+      p.last_txn_date::VARCHAR AS last_txn_date,
+      p.amount_p05,
+      p.amount_p50,
+      p.amount_p95,
+      p.geo_concentration,
+      p.asset_coverage,
+      p.purpose_coverage,
+      p.spread_median,
+      p.spread_std,
+      COALESCE(p.spread_count, 0) AS spread_count,
+      p.spread_p25,
+      p.spread_p75,
+      COALESCE(p.known_fixed_count, 0) AS known_fixed_count,
+      COALESCE(p.known_floating_count, 0) AS known_floating_count,
+      COALESCE(p.unknown_rate_count, 0) AS unknown_rate_count,
+      COALESCE(p.known_rate_ratio, 0) AS known_rate_ratio,
+      p.fixed_share_of_known,
+      sp.share AS state_share,
+      ap.share AS asset_share,
+      pp.purpose_share,
+      aa.sorted_log_amounts,
+      p.ltv_median,
+      p.ltv_coverage,
+      COALESCE(p.ltv_count, 0) AS ltv_count,
+      p.ltv_p25,
+      p.ltv_p75
+    FROM read_parquet(${pq("lender_profiles.parquet")}) p
+    LEFT JOIN read_parquet(${pq("lender_state_prefs.parquet")}) sp
+      ON p.lender_id = sp.lender_id AND sp.state = ${sqlStringLiteral(state)}
+    LEFT JOIN read_parquet(${pq("lender_asset_prefs.parquet")}) ap
+      ON p.lender_id = ap.lender_id AND ap.asset_class = ${sqlStringLiteral(deal.assetClass)}
+    LEFT JOIN (
+      SELECT lender_id, SUM(share) AS purpose_share
+      FROM read_parquet(${pq("lender_purpose_prefs.parquet")})
+      WHERE purpose IN (${inList})
+      GROUP BY lender_id
+    ) pp ON p.lender_id = pp.lender_id
+    LEFT JOIN read_parquet(${pq("lender_amount_arrays.parquet")}) aa
+      ON p.lender_id = aa.lender_id
+  `;
+
+  return withConnection(async (conn) => {
+    const reader = await conn.runAndReadAll(sql);
+    await reader.readAll();
+    const objects = reader.getRowObjectsJson() as Record<string, unknown>[];
+    return objects.map((row) => ({
+      lender_id: String(row.lender_id ?? ""),
+      display_name: String(row.display_name ?? row.lender_id ?? ""),
+      custom_logo_url: row.custom_logo_url != null ? String(row.custom_logo_url) : null,
+      primary_lender_type:
+        row.primary_lender_type != null ? String(row.primary_lender_type) : null,
+      total_txns: Number(row.total_txns ?? 0),
+      last_txn_date: String(row.last_txn_date ?? ""),
+      amount_p05: Number(row.amount_p05 ?? 0),
+      amount_p50: Number(row.amount_p50 ?? 0),
+      amount_p95: Number(row.amount_p95 ?? 0),
+      geo_concentration: row.geo_concentration != null ? Number(row.geo_concentration) : null,
+      asset_coverage: Number(row.asset_coverage ?? 0),
+      purpose_coverage: Number(row.purpose_coverage ?? 0),
+      spread_median: row.spread_median != null ? Number(row.spread_median) : null,
+      spread_std: row.spread_std != null ? Number(row.spread_std) : null,
+      spread_count: Number(row.spread_count ?? 0),
+      spread_p25: row.spread_p25 != null ? Number(row.spread_p25) : null,
+      spread_p75: row.spread_p75 != null ? Number(row.spread_p75) : null,
+      known_fixed_count: Number(row.known_fixed_count ?? 0),
+      known_floating_count: Number(row.known_floating_count ?? 0),
+      unknown_rate_count: Number(row.unknown_rate_count ?? 0),
+      known_rate_ratio: Number(row.known_rate_ratio ?? 0),
+      fixed_share_of_known:
+        row.fixed_share_of_known != null ? Number(row.fixed_share_of_known) : null,
+      state_share: row.state_share != null ? Number(row.state_share) : null,
+      asset_share: row.asset_share != null ? Number(row.asset_share) : null,
+      purpose_share: row.purpose_share != null ? Number(row.purpose_share) : null,
+      sorted_log_amounts: Array.isArray(row.sorted_log_amounts)
+        ? (row.sorted_log_amounts as unknown[]).map((x) => Number(x))
+        : [],
+      ltv_median: row.ltv_median != null ? Number(row.ltv_median) : null,
+      ltv_coverage: row.ltv_coverage != null ? Number(row.ltv_coverage) : null,
+      ltv_count: Number(row.ltv_count ?? 0),
+      ltv_p25: row.ltv_p25 != null ? Number(row.ltv_p25) : null,
+      ltv_p75: row.ltv_p75 != null ? Number(row.ltv_p75) : null,
+    }));
+  });
+}
+
+export async function fetchLenderProfileBundle(lenderId: string): Promise<{
+  profile: Record<string, unknown> | null;
+  states: Record<string, unknown>[];
+  assets: Record<string, unknown>[];
+  purposes: Record<string, unknown>[];
+}> {
+  if (!matchmakingParquetReady()) {
+    throw new Error("Matchmaking parquet files missing; run: npx tsx scripts/build-matchmaking-db.ts");
+  }
+  const idLit = sqlStringLiteral(lenderId);
+  return withConnection(async (conn) => {
+    const profReader = await conn.runAndReadAll(
+      `SELECT * FROM read_parquet(${pq("lender_profiles.parquet")}) WHERE lender_id = ${idLit}`
+    );
+    await profReader.readAll();
+    const profRows = profReader.getRowObjectsJson();
+    const profile = (profRows[0] as Record<string, unknown>) ?? null;
+
+    const stReader = await conn.runAndReadAll(
+      `SELECT state, txn_count, share FROM read_parquet(${pq("lender_state_prefs.parquet")})
+       WHERE lender_id = ${idLit} ORDER BY share DESC LIMIT 10`
+    );
+    await stReader.readAll();
+    const states = stReader.getRowObjectsJson() as Record<string, unknown>[];
+
+    const asReader = await conn.runAndReadAll(
+      `SELECT asset_class, txn_count, share FROM read_parquet(${pq("lender_asset_prefs.parquet")})
+       WHERE lender_id = ${idLit} ORDER BY share DESC`
+    );
+    await asReader.readAll();
+    const assets = asReader.getRowObjectsJson() as Record<string, unknown>[];
+
+    const puReader = await conn.runAndReadAll(
+      `SELECT purpose, txn_count, share FROM read_parquet(${pq("lender_purpose_prefs.parquet")})
+       WHERE lender_id = ${idLit} ORDER BY share DESC`
+    );
+    await puReader.readAll();
+    const purposes = puReader.getRowObjectsJson() as Record<string, unknown>[];
+
+    return { profile, states, assets, purposes };
+  });
+}

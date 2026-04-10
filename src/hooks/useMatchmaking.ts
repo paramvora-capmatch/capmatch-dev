@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { getBackendUrl } from "@/lib/apiConfig";
 import { supabase } from "@/lib/supabaseClient";
+import { useLocalCapitalizeMatchmaking } from "@/lib/matchmaking/capitalizeLocal";
+import type { DimensionBandViz, MatchResponse, MatchResult } from "@/lib/matchmaking/types";
 
 export interface VisualizationData {
   deal: { name: string; x: number; y: number; z: number };
@@ -47,6 +49,17 @@ export interface VariableVizData {
   weight: number;
   weighted: number;
   explanation: string;
+  /** Capitalize engine: percentile / band data for inline charts */
+  viz?: DimensionBandViz;
+}
+
+export interface CapitalizeMatchMeta {
+  confidenceCombined: number;
+  rateTypeFactor: number;
+  spreadMedian: number | null;
+  ltvMedian: number | null;
+  ltvCoverage: number | null;
+  lenderType: string;
 }
 
 export interface MatchScore {
@@ -59,6 +72,11 @@ export interface MatchScore {
   pillar_scores: Record<string, number>;
   variable_scores: VariableVizData[];
   lender_typical?: LenderTypical | null;
+  lender_logo_url?: string | null;
+  /** Set when using Capitalize local engine. */
+  capitalize_meta?: CapitalizeMatchMeta;
+  /** Historical LTV band from Capitalize (informational, not a scored dimension). */
+  capitalize_ltv_band?: Extract<DimensionBandViz, { kind: "ltv_history" }>;
 }
 
 /** Draft run payload for sessionStorage and save-run. */
@@ -70,9 +88,7 @@ export interface MatchmakingDraftPayload {
   visualization_data: VisualizationData;
   lastRunAt: string;
   scores?: MatchScore[];
-  /** Override parameters used for this run; rehydrated when returning to the tab. */
   field_overrides?: Record<string, string>;
-  /** Set after save-run; required to add lenders to wishlist. */
   match_run_id?: string;
   project_resume_id?: string;
 }
@@ -81,6 +97,65 @@ const DRAFT_STORAGE_KEY_PREFIX = "matchmaking_draft_";
 
 function getDraftStorageKey(projectId: string): string {
   return `${DRAFT_STORAGE_KEY_PREFIX}${projectId}`;
+}
+
+export function capitalizeMatchResultToMatchScore(r: MatchResult): MatchScore {
+  return {
+    id: r.lenderId,
+    lender_lei: r.lenderId,
+    lender_name: r.lenderName,
+    lender_logo_url: r.lenderLogoUrl,
+    total_score: r.finalScore,
+    rank: r.rank,
+    overall_narrative: r.headline,
+    pillar_scores: {},
+    variable_scores: r.dimensions.map((d) => ({
+      name: d.dimension,
+      key: d.dimension.toLowerCase().replace(/\s+/g, "_"),
+      score: d.score,
+      weight: d.weight,
+      weighted: d.weighted,
+      explanation: d.explanation,
+      viz: d.viz,
+    })),
+    capitalize_ltv_band: r.ltvBand,
+    lender_typical: {
+      total_loans: r.totalTxns,
+      ltv_median: r.ltvMedian,
+      loan_amount_median: null,
+    },
+    capitalize_meta: {
+      confidenceCombined: r.confidence.combined,
+      rateTypeFactor: r.confidence.rateType,
+      spreadMedian: r.spreadMedian,
+      ltvMedian: r.ltvMedian,
+      ltvCoverage: r.ltvCoverage,
+      lenderType: r.lenderType,
+    },
+  };
+}
+
+function stubVizFromScores(scores: MatchScore[], dealName: string): VisualizationData {
+  return {
+    deal: { name: dealName, x: 0, y: 0, z: 0 },
+    sceneScale: 1,
+    lenders: scores.map((s) => ({
+      lei: s.lender_lei,
+      name: s.lender_name ?? s.lender_lei,
+      x: 0,
+      y: 0,
+      z: 0,
+      market_fit: 0,
+      capital_fit: 0,
+      product_fit: 0,
+      total_score: s.total_score,
+      rank: s.rank,
+      narrative: s.overall_narrative ?? "",
+      pillar_scores: s.pillar_scores,
+      variables: s.variable_scores,
+      lender_typical: s.lender_typical,
+    })),
+  };
 }
 
 export function getMatchmakingDraft(projectId: string): MatchmakingDraftPayload | null {
@@ -112,7 +187,6 @@ export function clearMatchmakingDraft(projectId: string): void {
   }
 }
 
-/** Clear all matchmaking drafts (e.g. on logout). */
 export function clearAllMatchmakingDrafts(): void {
   if (typeof window === "undefined") return;
   try {
@@ -127,7 +201,6 @@ export function clearAllMatchmakingDrafts(): void {
   }
 }
 
-/** Derive MatchScore[] from visualization_data.lenders (saved run or draft). */
 export function vizLendersToMatchScores(
   lenders: LenderVizData[] | null | undefined,
   matchRunId?: string | null
@@ -152,13 +225,12 @@ interface MatchmakingState {
   visualizationData: VisualizationData | null;
   matchScores: MatchScore[];
   totalLenders: number;
+  totalEligible: number | null;
   topMatchName: string | null;
   topMatchScore: number | null;
   lastRunAt: string | null;
   error: string | null;
-  /** Current draft payload for save-run (run_id, config, hmda_source, viz, etc.). */
   draftPayload: MatchmakingDraftPayload | null;
-  /** When viewing a saved run, the match_run id (for AI report cache key). */
   lastMatchRunId: string | null;
 }
 
@@ -167,46 +239,57 @@ export function useMatchmaking(
   resumeId: string | null = null,
   contentOverrides?: Record<string, unknown>
 ) {
+  const localCap = useLocalCapitalizeMatchmaking();
   const resumeIdReady = resumeId !== null;
   const [state, setState] = useState<MatchmakingState>(() => {
     const draft = projectId ? getMatchmakingDraft(projectId) : null;
     if (draft) {
       const scores = draft.scores ?? vizLendersToMatchScores(draft.visualization_data?.lenders, null);
       const top = draft.visualization_data?.lenders?.[0];
+      return {
+        isRunning: false,
+        isLoading: false,
+        visualizationData: draft.visualization_data,
+        matchScores: scores,
+        totalLenders: draft.total_lenders,
+        totalEligible:
+          typeof draft.config?.capitalize_total_eligible === "number"
+            ? (draft.config.capitalize_total_eligible as number)
+            : null,
+        topMatchName: top?.name ?? null,
+        topMatchScore: top?.total_score ?? null,
+        lastRunAt: draft.lastRunAt,
+        error: null,
+        draftPayload: draft,
+        lastMatchRunId: null,
+      };
+    }
     return {
       isRunning: false,
-      isLoading: false,
-      visualizationData: draft.visualization_data,
-      matchScores: scores,
-      totalLenders: draft.total_lenders,
-      topMatchName: top?.name ?? null,
-      topMatchScore: top?.total_score ?? null,
-      lastRunAt: draft.lastRunAt,
+      isLoading: true,
+      visualizationData: null,
+      matchScores: [],
+      totalLenders: 0,
+      totalEligible: null,
+      topMatchName: null,
+      topMatchScore: null,
+      lastRunAt: null,
       error: null,
-      draftPayload: draft,
+      draftPayload: null,
       lastMatchRunId: null,
     };
-  }
-  return {
-    isRunning: false,
-    isLoading: true,
-    visualizationData: null,
-    matchScores: [],
-    totalLenders: 0,
-    topMatchName: null,
-    topMatchScore: null,
-    lastRunAt: null,
-    error: null,
-    draftPayload: null,
-    lastMatchRunId: null,
-  };
-});
+  });
 
   const fetchRunByResume = useCallback(async () => {
-    if (!resumeId) return;
+    if (!resumeId || localCap) {
+      setState((s) => ({ ...s, isLoading: false }));
+      return;
+    }
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const token = session?.access_token;
       const base = getBackendUrl();
       const url = `${base}/api/v1/matchmaking/${encodeURIComponent(projectId)}/run/by-resume/${encodeURIComponent(resumeId)}`;
@@ -228,6 +311,7 @@ export function useMatchmaking(
           visualizationData: viz,
           matchScores: scores,
           totalLenders: data.total_lenders || 0,
+          totalEligible: null,
           topMatchName: top?.name ?? null,
           topMatchScore: top?.total_score ?? null,
           lastRunAt: data.created_at || null,
@@ -245,6 +329,10 @@ export function useMatchmaking(
             visualizationData: draft.visualization_data,
             matchScores: scores,
             totalLenders: draft.total_lenders,
+            totalEligible:
+              typeof draft.config?.capitalize_total_eligible === "number"
+                ? (draft.config.capitalize_total_eligible as number)
+                : null,
             topMatchName: top?.name ?? null,
             topMatchScore: top?.total_score ?? null,
             lastRunAt: draft.lastRunAt,
@@ -258,6 +346,7 @@ export function useMatchmaking(
             visualizationData: null,
             matchScores: [],
             totalLenders: 0,
+            totalEligible: null,
             topMatchName: null,
             topMatchScore: null,
             lastRunAt: null,
@@ -273,16 +362,69 @@ export function useMatchmaking(
         error: err instanceof Error ? err.message : "Failed to fetch results",
       }));
     }
-  }, [projectId, resumeId]);
+  }, [projectId, resumeId, localCap]);
 
   const refreshAll = useCallback(async () => {
     await fetchRunByResume();
   }, [fetchRunByResume]);
 
   const runMatchmaking = useCallback(
-    async (overridesToPersist?: Record<string, string>) => {
+    async (overridesToPersist?: Record<string, string>, capitalizeBody?: Record<string, unknown>) => {
       setState((s) => ({ ...s, isRunning: true, error: null }));
       try {
+        if (localCap && capitalizeBody) {
+          const res = await fetch("/api/matchmaking/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(capitalizeBody),
+          });
+          const data = (await res.json().catch(() => ({}))) as MatchResponse & { error?: string };
+          if (!res.ok) {
+            setState((s) => ({
+              ...s,
+              isRunning: false,
+              error: data?.error || "Matchmaking failed",
+            }));
+            return;
+          }
+          const scores = data.results.map(capitalizeMatchResultToMatchScore);
+          const viz = stubVizFromScores(scores, "Capitalize");
+          const top = scores[0];
+          const draftPayload: MatchmakingDraftPayload = {
+            run_id: `capitalize_${Date.now()}`,
+            config: {
+              engine: "capitalize-v1",
+              capitalize_total_eligible: data.totalEligible,
+              capitalize_total_scanned: data.totalLenders,
+            },
+            hmda_source: "capitalize-local",
+            total_lenders: data.totalLenders,
+            visualization_data: viz,
+            lastRunAt: new Date().toISOString(),
+            scores,
+            field_overrides:
+              overridesToPersist && Object.keys(overridesToPersist).length > 0
+                ? overridesToPersist
+                : undefined,
+          };
+          setMatchmakingDraft(projectId, draftPayload);
+          setState((s) => ({
+            ...s,
+            isRunning: false,
+            visualizationData: viz,
+            matchScores: scores,
+            totalLenders: data.totalLenders,
+            totalEligible: data.totalEligible,
+            topMatchName: top?.lender_name ?? null,
+            topMatchScore: top?.total_score ?? null,
+            lastRunAt: draftPayload.lastRunAt,
+            draftPayload,
+            lastMatchRunId: null,
+            error: null,
+          }));
+          return;
+        }
+
         const {
           data: { session },
         } = await supabase.auth.getSession();
@@ -323,12 +465,15 @@ export function useMatchmaking(
             ? (data.scores as MatchScore[])
             : vizLendersToMatchScores(viz?.lenders, null);
         const top = viz?.lenders?.[0];
+        const vizSafe: VisualizationData =
+          viz ??
+          stubVizFromScores(scores, "HMDA");
         const draftPayload: MatchmakingDraftPayload = {
           run_id: data.run_id ?? "",
           config: (data.config as Record<string, unknown>) ?? {},
           hmda_source: data.hmda_source ?? "",
           total_lenders: data.total_lenders ?? 0,
-          visualization_data: viz!,
+          visualization_data: vizSafe,
           lastRunAt: new Date().toISOString(),
           scores,
           field_overrides:
@@ -340,9 +485,10 @@ export function useMatchmaking(
         setState((s) => ({
           ...s,
           isRunning: false,
-          visualizationData: viz ?? null,
+          visualizationData: vizSafe,
           matchScores: scores,
           totalLenders: data.total_lenders ?? 0,
+          totalEligible: null,
           topMatchName: top?.name ?? data.top_match_name ?? null,
           topMatchScore: top?.total_score ?? data.top_match_score ?? null,
           lastRunAt: draftPayload.lastRunAt,
@@ -358,7 +504,7 @@ export function useMatchmaking(
         }));
       }
     },
-    [projectId, resumeId, contentOverrides]
+    [projectId, resumeId, contentOverrides, localCap]
   );
 
   useEffect(() => {
@@ -366,18 +512,22 @@ export function useMatchmaking(
       setState((s) => ({ ...s, isLoading: false }));
       return;
     }
-    // Prefer draft (latest run, possibly with overrides) over saved run when returning to the tab.
+    if (localCap) {
+      setState((s) => ({ ...s, isLoading: false }));
+      return;
+    }
     if (getMatchmakingDraft(projectId)) {
       setState((s) => ({ ...s, isLoading: false }));
       return;
     }
     fetchRunByResume();
-  }, [fetchRunByResume, resumeIdReady, projectId, resumeId]);
+  }, [fetchRunByResume, resumeIdReady, projectId, resumeId, localCap]);
 
   return {
     ...state,
     runMatchmaking,
     refreshAll,
     fetchRunByResume,
+    useLocalCapitalize: localCap,
   };
 }

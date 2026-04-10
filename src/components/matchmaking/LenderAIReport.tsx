@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useLenderAIReport, type DealSummaryForAI } from "@/hooks/useLenderAIReport";
 import type { MatchScore } from "@/hooks/useMatchmaking";
+import type { DealInput } from "@/lib/matchmaking/types";
 
 interface LenderAIReportProps {
   projectId: string;
@@ -19,6 +20,8 @@ interface LenderAIReportProps {
   score: MatchScore;
   dealSummary: DealSummaryForAI;
   lenderName: string;
+  /** When set with local Capitalize mode, calls `/api/matchmaking/ai-report`. */
+  capitalizeDeal?: DealInput | null;
 }
 
 export const LenderAIReport: React.FC<LenderAIReportProps> = ({
@@ -27,13 +30,14 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
   score,
   dealSummary,
   lenderName,
+  capitalizeDeal = null,
 }) => {
   const {
     report,
     isGenerating,
     error,
     generateReport,
-  } = useLenderAIReport(projectId, matchRunId, score, dealSummary);
+  } = useLenderAIReport(projectId, matchRunId, score, dealSummary, capitalizeDeal);
 
   const content = report?.report_content;
 
@@ -82,6 +86,61 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
       </div>
 
       <div className="p-4 space-y-4">
+        {content.parameter_recommendations && content.parameter_recommendations.length > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-indigo-800 flex items-center gap-1.5 mb-2">
+              <Target size={14} />
+              Parameter suggestions
+            </h4>
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    <th className="px-3 py-2">Parameter</th>
+                    <th className="px-3 py-2">Current</th>
+                    <th className="px-3 py-2">Suggested</th>
+                    <th className="px-3 py-2">Impact</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {content.parameter_recommendations.map((row, i) => (
+                    <tr key={i} className="border-t border-gray-100">
+                      <td className="px-3 py-2 font-medium text-gray-800">{row.parameter}</td>
+                      <td className="px-3 py-2 text-gray-600">{row.currentValue}</td>
+                      <td className="px-3 py-2 text-gray-900">{row.suggestedValue}</td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={
+                            row.impact === "high"
+                              ? "text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-800"
+                              : row.impact === "medium"
+                                ? "text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800"
+                                : "text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-700"
+                          }
+                        >
+                          {row.impact}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {content.parameter_recommendations.some((r) => r.explanation) && (
+              <ul className="mt-2 space-y-1 text-xs text-gray-500">
+                {content.parameter_recommendations.map(
+                  (r, i) =>
+                    r.explanation && (
+                      <li key={i}>
+                        <span className="font-medium text-gray-600">{r.parameter}:</span> {r.explanation}
+                      </li>
+                    )
+                )}
+              </ul>
+            )}
+          </div>
+        )}
+
         {content.numerical_recommendations && content.numerical_recommendations.length > 0 && (
           <div>
             <h4 className="text-sm font-semibold text-indigo-700 flex items-center gap-1.5 mb-1.5">

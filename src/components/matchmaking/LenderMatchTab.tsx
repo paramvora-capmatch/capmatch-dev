@@ -30,12 +30,15 @@ import { supabase } from "@/lib/supabaseClient";
 import { getBackendUrl } from "@/lib/apiConfig";
 import type { ProjectProfile } from "@/types/enhanced-types";
 import { LenderAIReport } from "./LenderAIReport";
+import { DimensionDistributionViz } from "./DimensionDistributionViz";
 import { FIELD_DEPENDENCIES } from "@/features/project-resume/domain/validationDependencies";
 import { cn } from "@/utils/cn";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { AlertModal } from "@/components/ui/AlertModal";
+import { ASSET_CLASS_VALUES, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
+import type { DealInput } from "@/lib/matchmaking/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -126,8 +129,21 @@ const KEY_DEAL_TERMS_SECTIONS: { label: string; keys: { key: string; label: stri
   ]},
 ];
 
+/** Capitalize v1: only resume fields that feed the local engine (memo). */
+const CAPITALIZE_KEY_DEAL_TERMS_SECTIONS: typeof KEY_DEAL_TERMS_SECTIONS = [
+  {
+    label: "Resume (Capitalize)",
+    keys: [
+      { key: "loanAmountRequested", label: "Loan amount" },
+      { key: "propertyAddressState", label: "State" },
+      { key: "projectPhase", label: "Project phase" },
+    ],
+  },
+];
+
 const EDITABLE_KEYS = new Set([
-  "loanAmountRequested", "targetLtvPercent", "dscr", "propertyNoiT12", "noiYear1",
+  "loanAmountRequested", "propertyAddressState", "projectPhase",
+  "targetLtvPercent", "dscr", "propertyNoiT12", "noiYear1",
   "affordableHousing", "affordableUnitsNumber", "requestedTerm", "interestOnlyPeriodMonths",
   "interestRate", "originationFee", "loanFees", "baseConstruction", "stabilizedValue",
   "purchasePrice", "totalResidentialUnits",
@@ -328,6 +344,170 @@ function PillarRow({ label, score }: { label: string; score: number }) {
   );
 }
 
+type CategoryBState = {
+  assetClass: string;
+  rateType: "fixed" | "floating" | "any";
+  ratePreference: "none" | "competitive" | "target";
+  targetRate?: number;
+};
+
+function CategoryBPanel({
+  categoryB,
+  setCategoryB,
+}: {
+  categoryB: CategoryBState;
+  setCategoryB: React.Dispatch<React.SetStateAction<CategoryBState>>;
+}) {
+  return (
+    <div className="mt-5 pt-4 border-t border-gray-200 space-y-4">
+      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        Matchmaking-only (not saved to resume)
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Asset class</label>
+          <select
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+            value={categoryB.assetClass}
+            onChange={(e) => setCategoryB((b) => ({ ...b, assetClass: e.target.value }))}
+          >
+            {ASSET_CLASS_VALUES.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Rate type (confidence)</label>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {(["any", "fixed", "floating"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setCategoryB((b) => ({ ...b, rateType: t }))}
+                className={cn(
+                  "flex-1 px-2 py-2 text-xs font-medium capitalize",
+                  categoryB.rateType === t ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                )}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Rate preference (scoring)</label>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-wrap">
+            {(
+              [
+                { v: "none" as const, label: "None" },
+                { v: "competitive" as const, label: "Competitive" },
+                { v: "target" as const, label: "Target" },
+              ] as const
+            ).map(({ v, label }) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setCategoryB((b) => ({ ...b, ratePreference: v }))}
+                className={cn(
+                  "flex-1 min-w-[100px] px-2 py-2 text-xs font-medium",
+                  categoryB.ratePreference === v ? "bg-indigo-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {categoryB.ratePreference === "target" && (
+          <div className="space-y-1 sm:col-span-2">
+            <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Target rate (%)</label>
+            <input
+              type="number"
+              step="0.01"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
+              placeholder="e.g. 6.5"
+              value={categoryB.targetRate ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setCategoryB((b) => ({
+                  ...b,
+                  targetRate: v === "" ? undefined : parseFloat(v),
+                }));
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function buildCapitalizeRunBody(
+  merged: Record<string, unknown>,
+  categoryB: CategoryBState,
+  contentOverrides?: Record<string, unknown>
+): Record<string, unknown> {
+  const loan = Number(merged.loanAmountRequested);
+  const state = String(merged.propertyAddressState ?? "").trim().toUpperCase();
+  const projectPhase =
+    merged.projectPhase != null && merged.projectPhase !== "" ? String(merged.projectPhase) : "";
+  const body: Record<string, unknown> = {
+    loanAmount: loan,
+    state,
+    project_phase: projectPhase,
+    asset_class: categoryB.assetClass,
+    rate_type: categoryB.rateType,
+    rate_preference: categoryB.ratePreference,
+  };
+  if (
+    categoryB.ratePreference === "target" &&
+    categoryB.targetRate != null &&
+    Number.isFinite(categoryB.targetRate)
+  ) {
+    body.target_rate = categoryB.targetRate;
+  }
+  if (contentOverrides && Object.keys(contentOverrides).length > 0) {
+    body.content_overrides = contentOverrides;
+  }
+  return body;
+}
+
+function buildCapitalizeDealInput(
+  merged: Record<string, unknown>,
+  categoryB: CategoryBState
+): DealInput | null {
+  const loan = Number(merged.loanAmountRequested);
+  const state = String(merged.propertyAddressState ?? "").trim().toUpperCase();
+  if (!Number.isFinite(loan) || loan <= 0) return null;
+  if (!STATE_CODES.includes(state as (typeof STATE_CODES)[number])) return null;
+  const { purpose, eligiblePurposes } = mapProjectPhaseToPurposes(
+    merged.projectPhase != null ? String(merged.projectPhase) : undefined
+  );
+  if (!ASSET_CLASS_VALUES.includes(categoryB.assetClass as (typeof ASSET_CLASS_VALUES)[number])) return null;
+  return {
+    loanAmount: loan,
+    state,
+    purpose,
+    eligiblePurposes: [...eligiblePurposes],
+    assetClass: categoryB.assetClass,
+    rateType: categoryB.rateType,
+    ratePreference:
+      categoryB.ratePreference === "competitive"
+        ? "competitive"
+        : categoryB.ratePreference === "target"
+          ? "target"
+          : "none",
+    targetRate:
+      categoryB.ratePreference === "target" &&
+      categoryB.targetRate != null &&
+      Number.isFinite(categoryB.targetRate)
+        ? categoryB.targetRate
+        : undefined,
+  };
+}
+
 // ─── Match card with Tier 1 (pillar bars + narrative) and Tier 2 (quick view + AI) ──
 
 function MatchCard({
@@ -335,6 +515,8 @@ function MatchCard({
   matchRunId,
   score,
   dealSummary,
+  capitalizeDeal,
+  advisorRateType,
   expanded,
   onToggle,
   canAddToWishlist,
@@ -347,6 +529,8 @@ function MatchCard({
   matchRunId: string | null;
   score: MatchScore;
   dealSummary: Record<string, unknown> | null;
+  capitalizeDeal: DealInput | null;
+  advisorRateType: "fixed" | "floating" | "any";
   expanded: boolean;
   onToggle: () => void;
   canAddToWishlist: boolean;
@@ -361,6 +545,11 @@ function MatchCard({
   const marketFit = (pillar.market_fit ?? pillar.Market ?? 0) * 100;
   const capitalFit = (pillar.capital_fit ?? pillar.Capital ?? 0) * 100;
   const productFit = (pillar.product_fit ?? pillar.Product ?? 0) * 100;
+  const hmdaPillarSum = marketFit + capitalFit + productFit;
+  const dimPreview = (score.variable_scores || [])
+    .slice()
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 4);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm transition-shadow hover:shadow-md">
@@ -375,13 +564,30 @@ function MatchCard({
           </span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <Building2 size={16} className="text-gray-400 shrink-0" />
+              {score.lender_logo_url ? (
+                <img
+                  src={score.lender_logo_url}
+                  alt=""
+                  className="h-8 w-8 rounded object-contain border border-gray-100 bg-white shrink-0"
+                  loading="lazy"
+                />
+              ) : (
+                <Building2 size={16} className="text-gray-400 shrink-0" />
+              )}
               <span className="text-base font-semibold text-gray-900 truncate">{displayName}</span>
             </div>
             <div className="mt-1.5 space-y-1">
-              <PillarRow label="Market" score={marketFit} />
-              <PillarRow label="Capital" score={capitalFit} />
-              <PillarRow label="Product" score={productFit} />
+              {hmdaPillarSum > 0 ? (
+                <>
+                  <PillarRow label="Market" score={marketFit} />
+                  <PillarRow label="Capital" score={capitalFit} />
+                  <PillarRow label="Product" score={productFit} />
+                </>
+              ) : (
+                dimPreview.map((v) => (
+                  <PillarRow key={v.key} label={v.name} score={v.score * 100} />
+                ))
+              )}
             </div>
           </div>
           <div className="shrink-0 flex flex-col items-end gap-2 self-start">
@@ -414,6 +620,12 @@ function MatchCard({
             </div>
           </div>
         </div>
+        {advisorRateType !== "any" && score.capitalize_meta && (
+          <p className="text-xs text-slate-500 mt-1.5 ml-8">
+            Rate-type confidence: {(score.capitalize_meta.rateTypeFactor * 100).toFixed(0)}% of blend
+            {score.capitalize_meta.lenderType ? ` · ${score.capitalize_meta.lenderType}` : ""}
+          </p>
+        )}
         {score.overall_narrative && (
           <p className="text-sm text-gray-500 italic leading-relaxed mt-2 ml-8">
             {score.overall_narrative}
@@ -432,7 +644,7 @@ function MatchCard({
               </div>
               <ul className="space-y-2">
                 {score.variable_scores.map((v: VariableVizData, i: number) => (
-                  <li key={i} className="text-sm">
+                  <li key={i} className="text-sm border-b border-gray-100 last:border-0 pb-3 last:pb-0">
                     <div className="flex items-center justify-between mb-0.5">
                       <span className="font-medium text-gray-700">{v.name}</span>
                       <span className="text-xs font-semibold text-gray-500">{(v.score * 100).toFixed(0)}</span>
@@ -441,8 +653,21 @@ function MatchCard({
                     {v.explanation && (
                       <p className="text-xs text-gray-500 mt-0.5">{v.explanation}</p>
                     )}
+                    {v.viz && (
+                      <div className="mt-2 rounded-lg bg-slate-50/80 border border-slate-100 px-2 py-2">
+                        <DimensionDistributionViz viz={v.viz} />
+                      </div>
+                    )}
                   </li>
                 ))}
+                {score.capitalize_ltv_band && (
+                  <li className="text-sm pt-2 border-t border-dashed border-gray-200">
+                    <span className="font-medium text-gray-700">Historical LTV</span>
+                    <div className="mt-1 rounded-lg bg-amber-50/50 border border-amber-100/80 px-2 py-2">
+                      <DimensionDistributionViz viz={score.capitalize_ltv_band} />
+                    </div>
+                  </li>
+                )}
               </ul>
             </div>
           )}
@@ -456,6 +681,7 @@ function MatchCard({
             score={score}
             dealSummary={dealSummary}
             lenderName={displayName}
+            capitalizeDeal={capitalizeDeal}
           />
         </div>
       )}
@@ -507,6 +733,11 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
 
   // Editable field overrides
   const [fieldOverrides, setFieldOverrides] = useState<Record<string, string>>({});
+  const [categoryB, setCategoryB] = useState<CategoryBState>({
+    assetClass: ASSET_CLASS_VALUES[0],
+    rateType: "any",
+    ratePreference: "none",
+  });
   const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null);
   const [isSavingVersion, setIsSavingVersion] = useState(false);
   const [fieldWarnings, setFieldWarnings] = useState<Record<string, string[]>>({});
@@ -561,6 +792,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     isLoading: matchLoading,
     matchScores,
     totalLenders: matchedLenderCount,
+    totalEligible,
     topMatchName,
     topMatchScore,
     lastRunAt,
@@ -569,7 +801,30 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     visualizationData,
     draftPayload,
     lastMatchRunId,
+    useLocalCapitalize,
   } = useMatchmaking(projectId, selectedVersionId ?? null, contentOverridesForRun);
+
+  const keyDealSections = useLocalCapitalize ? CAPITALIZE_KEY_DEAL_TERMS_SECTIONS : KEY_DEAL_TERMS_SECTIONS;
+  const mergedForCapitalize = useMemo(
+    () => getMergedContext(project, fieldOverrides),
+    [project, fieldOverrides]
+  );
+  const capitalizeDealForAI = useMemo(
+    () => (useLocalCapitalize ? buildCapitalizeDealInput(mergedForCapitalize, categoryB) : null),
+    [useLocalCapitalize, mergedForCapitalize, categoryB]
+  );
+
+  const runLocalCapitalizeMatch = useCallback(() => {
+    runMatchmaking(
+      fieldOverrides,
+      buildCapitalizeRunBody(mergedForCapitalize, categoryB, contentOverridesForRun)
+    );
+  }, [runMatchmaking, fieldOverrides, mergedForCapitalize, categoryB, contentOverridesForRun]);
+
+  const capitalizeRunBlocked =
+    useLocalCapitalize &&
+    categoryB.ratePreference === "target" &&
+    (categoryB.targetRate == null || !Number.isFinite(categoryB.targetRate));
 
   const hasResults = matchScores.length > 0 || !!visualizationData;
   const hasOverrides = Object.keys(fieldOverrides).length > 0;
@@ -641,6 +896,9 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
       const nextOverrides = { ...fieldOverrides, [key]: val };
       setFieldOverrides(nextOverrides);
       setEditingFieldKey(null);
+      if (useLocalCapitalize) {
+        return;
+      }
       const merged = getMergedContext(project, nextOverrides);
       const parsedValue =
         key === "affordableHousing"
@@ -676,10 +934,14 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
         }
       }
     },
-    [project, fieldOverrides]
+    [project, fieldOverrides, useLocalCapitalize]
   );
 
   const handleRerunSanityCheckAll = useCallback(async () => {
+    if (useLocalCapitalize) {
+      setFieldWarnings({});
+      return;
+    }
     if (!project || !sanityCheckerRef.current) return;
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
@@ -734,7 +996,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     } finally {
       setIsRecheckingSanity(false);
     }
-  }, [project, fieldOverrides]);
+  }, [project, fieldOverrides, useLocalCapitalize]);
 
   const dealSummaryForAI = useMemo(() => {
     const merged = getMergedContext(project, fieldOverrides);
@@ -902,18 +1164,22 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   }, [projectId, fetchVersions, fieldOverrides, hasOverrides, draftPayload]);
 
   const runAndShowResults = () => {
-    runMatchmaking(fieldOverrides);
+    if (useLocalCapitalize) {
+      runLocalCapitalizeMatch();
+    } else {
+      runMatchmaking(fieldOverrides);
+    }
     setNarrowView("results");
   };
 
   const openSaveRunModal = useCallback(() => {
-    if (hasSanityWarnings) {
+    if (!useLocalCapitalize && hasSanityWarnings) {
       setValidationAlertOpen(true);
       return;
     }
     setSaveRunNameDraft("");
     setSaveRunModalOpen(true);
-  }, [hasSanityWarnings]);
+  }, [hasSanityWarnings, useLocalCapitalize]);
 
   const submitSaveRunModal = useCallback(() => {
     const trimmed = saveRunNameDraft.trim();
@@ -1087,23 +1353,25 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                 <p className="text-sm text-gray-500 mb-2">
                   Adjust these deal parameters to explore scenarios. Re-run matchmaking to see how lender matches change.
                 </p>
-                <div className="flex justify-end mb-4">
-                  <button
-                    type="button"
-                    onClick={handleRerunSanityCheckAll}
-                    disabled={!project || isRecheckingSanity}
-                    title="Re-run validation on all deal parameters (e.g. if a warning did not clear after editing another value)"
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isRecheckingSanity ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                    Re-check all values
-                  </button>
-                </div>
+                {!useLocalCapitalize && (
+                  <div className="flex justify-end mb-4">
+                    <button
+                      type="button"
+                      onClick={handleRerunSanityCheckAll}
+                      disabled={!project || isRecheckingSanity}
+                      title="Re-run validation on all deal parameters (e.g. if a warning did not clear after editing another value)"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isRecheckingSanity ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                      Re-check all values
+                    </button>
+                  </div>
+                )}
                 {!project ? (
                   <p className="text-sm text-gray-500">No project data. Open a project to see deal terms.</p>
                 ) : (
                   <div className="space-y-5">
-                    {KEY_DEAL_TERMS_SECTIONS.map((section) => (
+                    {keyDealSections.map((section) => (
                       <div key={section.label}>
                         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                           {section.label}
@@ -1150,6 +1418,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                         </div>
                       </div>
                     ))}
+                    {useLocalCapitalize && <CategoryBPanel categoryB={categoryB} setCategoryB={setCategoryB} />}
                   </div>
                 )}
               </div>
@@ -1157,8 +1426,16 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                 <button
                   type="button"
                   onClick={runAndShowResults}
-                  disabled={matchRunning || hasSanityWarnings}
-                  title={hasSanityWarnings ? "Fix validation warnings on deal parameters before running." : undefined}
+                  disabled={
+                    matchRunning || capitalizeRunBlocked || (!useLocalCapitalize && hasSanityWarnings)
+                  }
+                  title={
+                    capitalizeRunBlocked
+                      ? "Enter a target rate (%) when using Target rate preference."
+                      : !useLocalCapitalize && hasSanityWarnings
+                        ? "Fix validation warnings on deal parameters before running."
+                        : undefined
+                  }
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
                 >
                   {matchRunning ? (
@@ -1186,9 +1463,19 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   </div>
                   <button
                     type="button"
-                    onClick={() => runMatchmaking(fieldOverrides)}
-                    disabled={matchRunning || hasSanityWarnings}
-                    title={hasSanityWarnings ? "Fix validation warnings on deal parameters before running." : undefined}
+                    onClick={() =>
+                      useLocalCapitalize ? runLocalCapitalizeMatch() : runMatchmaking(fieldOverrides)
+                    }
+                    disabled={
+                      matchRunning || capitalizeRunBlocked || (!useLocalCapitalize && hasSanityWarnings)
+                    }
+                    title={
+                      capitalizeRunBlocked
+                        ? "Enter a target rate (%) when using Target rate preference."
+                        : !useLocalCapitalize && hasSanityWarnings
+                          ? "Fix validation warnings on deal parameters before running."
+                          : undefined
+                    }
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
                   >
                     {matchRunning ? (
@@ -1200,7 +1487,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                     )}
                   </button>
                 </div>
-                {hasSanityWarnings && (
+                {!useLocalCapitalize && hasSanityWarnings && (
                   <p className="text-xs text-amber-600 mt-1">Fix validation warnings on deal parameters before running or saving.</p>
                 )}
                 {matchError && (
@@ -1216,7 +1503,9 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   <div className="flex flex-wrap gap-2 mt-3">
                     <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg text-sm font-medium text-gray-600">
                       <BarChart3 size={14} />
-                      {matchedLenderCount} lenders scored
+                      {useLocalCapitalize && totalEligible != null
+                        ? `${totalEligible} eligible · ${matchedLenderCount} in results`
+                        : `${matchedLenderCount} lenders scored`}
                     </div>
                     {topMatchName != null && topMatchScore != null && (
                       <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 rounded-lg text-sm font-medium text-emerald-700">
@@ -1233,7 +1522,9 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                     <Loader2 size={32} className="text-blue-500 animate-spin mb-4" />
                     <h4 className="text-base font-semibold text-gray-800">Analyzing Lenders...</h4>
                     <p className="text-sm text-gray-500 text-center mt-2">
-                      Matching your project parameters against the backend matchmaking engine.
+                      {useLocalCapitalize
+                        ? "Running the Capitalize parquet matchmaking engine."
+                        : "Matching your project parameters against the backend matchmaking engine."}
                     </p>
                   </div>
                 ) : !hasResults ? (
@@ -1252,6 +1543,8 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                       matchRunId={savedMatchRunId ?? lastMatchRunId}
                       score={score}
                       dealSummary={dealSummaryForAI}
+                      capitalizeDeal={capitalizeDealForAI}
+                      advisorRateType={categoryB.rateType}
                       expanded={expandedScoreId === score.id}
                       onToggle={() => setExpandedScoreId((id) => (id === score.id ? null : score.id))}
                       canAddToWishlist={canAddToWishlist}
@@ -1412,23 +1705,25 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
           <p className="text-sm text-gray-500 mb-2">
             Adjust these deal parameters to explore scenarios. Re-run matchmaking to see how lender matches change.
           </p>
-          <div className="flex justify-end mb-4">
-            <button
-              type="button"
-              onClick={handleRerunSanityCheckAll}
-              disabled={!project || isRecheckingSanity}
-              title="Re-run validation on all deal parameters (e.g. if a warning did not clear after editing another value)"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isRecheckingSanity ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-              Re-check all values
-            </button>
-          </div>
+          {!useLocalCapitalize && (
+            <div className="flex justify-end mb-4">
+              <button
+                type="button"
+                onClick={handleRerunSanityCheckAll}
+                disabled={!project || isRecheckingSanity}
+                title="Re-run validation on all deal parameters (e.g. if a warning did not clear after editing another value)"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRecheckingSanity ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                Re-check all values
+              </button>
+            </div>
+          )}
           {!project ? (
             <p className="text-sm text-gray-500">No project data. Open a project to see deal terms.</p>
           ) : (
             <div className="space-y-5">
-              {KEY_DEAL_TERMS_SECTIONS.map((section) => (
+              {keyDealSections.map((section) => (
                 <div key={section.label}>
                   <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                     {section.label}
@@ -1476,6 +1771,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   </div>
                 </div>
               ))}
+              {useLocalCapitalize && <CategoryBPanel categoryB={categoryB} setCategoryB={setCategoryB} />}
             </div>
           )}
         </div>
@@ -1496,9 +1792,19 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
             </div>
             <button
               type="button"
-              onClick={() => runMatchmaking(fieldOverrides)}
-              disabled={matchRunning || hasSanityWarnings}
-              title={hasSanityWarnings ? "Fix validation warnings on deal parameters before running." : undefined}
+              onClick={() =>
+                useLocalCapitalize ? runLocalCapitalizeMatch() : runMatchmaking(fieldOverrides)
+              }
+              disabled={
+                matchRunning || capitalizeRunBlocked || (!useLocalCapitalize && hasSanityWarnings)
+              }
+              title={
+                capitalizeRunBlocked
+                  ? "Enter a target rate (%) when using Target rate preference."
+                  : !useLocalCapitalize && hasSanityWarnings
+                    ? "Fix validation warnings on deal parameters before running."
+                    : undefined
+              }
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
             >
               {matchRunning ? (
@@ -1510,7 +1816,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
               )}
             </button>
           </div>
-          {hasSanityWarnings && (
+          {!useLocalCapitalize && hasSanityWarnings && (
             <p className="text-xs text-amber-600 mt-1">Fix validation warnings on deal parameters above before running or saving.</p>
           )}
 
@@ -1528,7 +1834,9 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
             <div className="flex flex-wrap gap-2 mt-3">
               <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg text-sm font-medium text-gray-600">
                 <BarChart3 size={14} />
-                {matchedLenderCount} lenders scored
+                {useLocalCapitalize && totalEligible != null
+                  ? `${totalEligible} eligible · ${matchedLenderCount} in results`
+                  : `${matchedLenderCount} lenders scored`}
               </div>
               {topMatchName != null && topMatchScore != null && (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 rounded-lg text-sm font-medium text-emerald-700">
@@ -1546,7 +1854,9 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
               <Loader2 size={32} className="text-blue-500 animate-spin mb-4" />
               <h4 className="text-base font-semibold text-gray-800">Analyzing Lenders...</h4>
               <p className="text-sm text-gray-500 text-center mt-2">
-                Matching your project parameters against the backend matchmaking engine.
+                {useLocalCapitalize
+                  ? "Running the Capitalize parquet matchmaking engine."
+                  : "Matching your project parameters against the backend matchmaking engine."}
               </p>
             </div>
           ) : !hasResults ? (
@@ -1565,6 +1875,8 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                 matchRunId={savedMatchRunId ?? lastMatchRunId}
                 score={score}
                 dealSummary={dealSummaryForAI}
+                capitalizeDeal={capitalizeDealForAI}
+                advisorRateType={categoryB.rateType}
                 expanded={expandedScoreId === score.id}
                 onToggle={() => setExpandedScoreId((id) => (id === score.id ? null : score.id))}
                 canAddToWishlist={canAddToWishlist}
