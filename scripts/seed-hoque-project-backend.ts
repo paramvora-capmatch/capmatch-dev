@@ -201,7 +201,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	groundbreakingDate: "2025-08-01",
 	completionDate: "2027-09-30",
 	totalDevelopmentCost: 29800000,
-	requestedTerm: 2,
+	requestedTerm: "short_1_3yr",
 	projectDescription:
 		"Ground-up development of Building B within the SoGood master plan, delivering 116 units over activated ground-floor innovation space between the Dallas Farmers Market and Deep Ellum.",
 	projectPhase: "Construction",
@@ -732,6 +732,8 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	targetLtvPercent: 40.4,
 	targetLtcPercent: 60.4,
 	interestRateType: "Floating",
+	ratePreference: "none",
+	lenderTypes: [],
 	targetCloseDate: "2025-08-15",
 	recoursePreference: "Non-Recourse",
 	useOfProceeds: "Ground-up development of workforce multifamily housing",

@@ -77,9 +77,11 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
 
   return (
     <div className={cn("w-full", className)}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
+      {label ? (
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      ) : null}
       <div className={cn(`grid ${gridCols} gap-2`, containerBgClass)}>
         {options.map((rawOption) => {
           const option = normalizeOption(rawOption);

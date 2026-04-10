@@ -141,7 +141,7 @@ const MOCK_KEY_PARAMS = {
 };
 
 const MOCK_LOAN_TERMS = [
-  { label: "Requested Term", value: "36 months" },
+  { label: "Loan Term", value: "3-5 years" },
   { label: "Amortization", value: "Interest-Only" },
   { label: "IO Period", value: "36 months (full term)" },
   { label: "Extensions", value: "2 × 6-month extensions" },

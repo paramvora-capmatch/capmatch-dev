@@ -9,21 +9,16 @@ import type {
 	RecoursePreference,
 	ExitStrategy,
 } from "@/types/enhanced-types";
+import {
+	matchmakingAssetTypeOptions,
+	matchmakingLenderTypeOptions,
+	matchmakingRatePreferenceOptions,
+	matchmakingRateTypeOptions,
+	matchmakingTermOptions,
+} from "@/lib/matchmaking/resumeFields";
 
 export const assetTypeOptions: string[] = [
-	"Multifamily",
-	"Office",
-	"Retail",
-	"Industrial",
-	"Hospitality",
-	"Land",
-	"Mixed-Use",
-	"Self-Storage",
-	"Data Center",
-	"Medical Office",
-	"Senior Housing",
-	"Student Housing",
-	"Other",
+	...matchmakingAssetTypeOptions,
 ];
 
 export const projectPhaseOptions: ProjectPhase[] = [
@@ -45,11 +40,19 @@ export const capitalTypeOptions = [
 	{ label: "Other", value: "Other" },
 ];
 
-export const interestRateTypeOptions: InterestRateType[] = [
-	"Not Specified",
-	"Fixed",
-	"Floating",
-];
+export const interestRateTypeOptions: Array<{
+	label: InterestRateType;
+	value: InterestRateType;
+}> = matchmakingRateTypeOptions as Array<{
+	label: InterestRateType;
+	value: InterestRateType;
+}>;
+
+export const requestedTermOptions = [...matchmakingTermOptions];
+
+export const ratePreferenceOptions = [...matchmakingRatePreferenceOptions];
+
+export const lenderTypeOptions = [...matchmakingLenderTypeOptions];
 
 export const recourseOptions: RecoursePreference[] = [
 	"Flexible",

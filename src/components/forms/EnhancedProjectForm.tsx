@@ -21,6 +21,7 @@ import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import { Button } from "../ui/Button";
 import { ButtonSelect } from "../ui/ButtonSelect";
+import { MultiSelectPills } from "../ui/MultiSelectPills";
 import { AskAIButton } from "../ui/AskAIProvider";
 import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
 import { FieldWarningsTooltip } from "../ui/FieldWarningsTooltip";
@@ -56,6 +57,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { PROJECT_REQUIRED_FIELDS } from "@/utils/resumeCompletion";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
 import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
+import { normalizeMatchmakingFieldValue } from "@/lib/matchmaking/resumeFields";
 import { saveProjectResume } from "@/lib/project-queries";
 import { isFieldVisibleForDealType, type DealType } from "@/lib/deal-type-field-config";
 import {
@@ -63,6 +65,9 @@ import {
 	projectPhaseOptions,
 	capitalTypeOptions,
 	interestRateTypeOptions,
+	requestedTermOptions,
+	ratePreferenceOptions,
+	lenderTypeOptions,
 	recourseOptions,
 	exitStrategyOptions,
 	buildWorkspaceStepId,
@@ -788,7 +793,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		| "number"
 		| "textarea"
 		| "select"
-		| "button-select";
+		| "button-select"
+		| "multi-select";
 
 	const sectionIconComponents = useMemo<
 		Record<string, React.ComponentType<{ className?: string }>>
@@ -814,7 +820,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			assetType: "button-select",
 			projectPhase: "button-select",
 			loanType: "button-select",
+			requestedTerm: "button-select",
 			interestRateType: "button-select",
+			ratePreference: "button-select",
 			recoursePreference: "button-select",
 			exitStrategy: "button-select",
 			// Convert all dropdown fields to button-select (except state which stays as dropdown)
@@ -857,7 +865,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			assetType: assetTypeOptions,
 			projectPhase: projectPhaseOptions,
 			loanType: capitalTypeOptions,
+			requestedTerm: requestedTermOptions,
 			interestRateType: interestRateTypeOptions,
+			ratePreference: ratePreferenceOptions,
+			lenderTypes: lenderTypeOptions,
 			recoursePreference: recourseOptions,
 			exitStrategy: exitStrategyOptions,
 			// Dropdown field options
@@ -903,6 +914,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					return "textarea";
 				case "dropdown":
 					return "select";
+				case "multi-select":
+					return "multi-select";
 				case "boolean":
 					return "button-select";
 				case "currency":
@@ -956,7 +969,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			// Also filter out image fields that are rendered by ProjectMediaUpload component
 			if (
 				fieldId === "totalProjectCost" ||
-				fieldId === "requestedTerm" ||
 				fieldId === "residentialUnitMix" ||
 				fieldId === "commercialSpaceMix" ||
 				fieldId === "drawSchedule" ||
@@ -992,7 +1004,24 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			// We allow editing if unlocked. If locked, user must click unlock icon first.
 			const disabled = isLocked;
 
-			const value = (formData as any)[fieldId] ?? "";
+			let value = normalizeMatchmakingFieldValue(
+				fieldId,
+				(formData as any)[fieldId]
+			);
+			if (dataType === "Multi-select") {
+				if (!value) {
+					value = [];
+				} else if (typeof value === "string") {
+					value = value
+						.split(",")
+						.map((item: string) => item.trim())
+						.filter((item: string) => item.length > 0);
+				} else if (!Array.isArray(value)) {
+					value = [];
+				}
+			} else {
+				value = value ?? "";
+			}
 
 			// Determine if this field has any source metadata (e.g. touched by AI/user)
 			const metaFromState = fieldMetadata[fieldId];
@@ -1023,7 +1052,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					const displayValue =
 						typeof value === "object" && value !== null
 							? JSON.stringify(value, null, 2)
-							: value;
+							: String(value ?? "");
 
 					const handleTextareaChange = (
 						e: React.ChangeEvent<HTMLTextAreaElement>
@@ -1082,7 +1111,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							<ButtonSelect
 								label=""
 								options={options}
-								selectedValue={value} // Pass value directly (supports boolean)
+								selectedValue={
+									value as string | number | boolean | null | undefined
+								}
 								onSelect={async (selected) => {
 									handleInputChange(fieldId, selected);
 									// Call sanity check immediately after selection (ButtonSelect doesn't have blur)
@@ -1100,6 +1131,30 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					);
 				}
 
+				if (controlKind === "multi-select") {
+					return (
+						<div
+							data-field-id={fieldId}
+							data-field-type="multi-select"
+							data-field-section={sectionId}
+							data-field-label={label}
+							className="relative group/field"
+						>
+							<MultiSelectPills
+								label=""
+								options={Array.isArray(fieldOptionsRegistry[fieldId]) ? fieldOptionsRegistry[fieldId] : []}
+								selectedValues={Array.isArray(value) ? value : []}
+								onSelect={async (selectedValues) => {
+									handleInputChange(fieldId, selectedValues);
+									await handleBlur(fieldId, selectedValues);
+								}}
+								disabled={disabled}
+								isLocked={isLocked}
+							/>
+						</div>
+					);
+				}
+
 				if (controlKind === "select") {
 					// Special handling for state field: show full names but store abbreviations
 					if (fieldId === "propertyAddressState") {
@@ -1112,12 +1167,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						// Ensure the select's value matches the option values (abbreviations).
 						// Handle legacy data that may have stored full state names by mapping
 						// them back to abbreviations when possible.
+						const stringValue =
+							typeof value === "string"
+								? value
+								: typeof value === "number"
+									? String(value)
+									: "";
 						const effectiveValue =
-							value &&
-								typeof value === "string" &&
-								value.length > 2
-								? STATE_REVERSE_MAP[value] || value
-								: value || "";
+							stringValue.length > 2
+								? STATE_REVERSE_MAP[stringValue] || stringValue
+								: stringValue;
 						return (
 							<Select
 								id={fieldId}
@@ -1148,7 +1207,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					return (
 						<Select
 							id={fieldId}
-							value={value || ""}
+							value={
+								typeof value === "string" || typeof value === "number"
+									? value
+									: ""
+							}
 							onChange={(e) =>
 								handleInputChange(fieldId, e.target.value)
 							}

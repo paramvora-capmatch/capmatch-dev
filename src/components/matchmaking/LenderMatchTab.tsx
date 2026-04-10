@@ -33,10 +33,27 @@ import { FIELD_DEPENDENCIES } from "@/features/project-resume/domain/validationD
 import { cn } from "@/utils/cn";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { ButtonSelect } from "@/components/ui/ButtonSelect";
 import { Input } from "@/components/ui/Input";
+import { MultiSelectPills } from "@/components/ui/MultiSelectPills";
 import { AlertModal } from "@/components/ui/AlertModal";
-import { ASSET_CLASS_VALUES, TERM_BUCKET_VALUES, TERM_BUCKET_LABELS, TERM_BUCKET_SHORT_LABELS, TERM_BUCKET_NO_DISCRIMINATION, LENDER_TYPE_VALUES, LENDER_TYPE_LABELS, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
+import { getProjectWithResumeVersion } from "@/lib/project-queries";
+import { ASSET_CLASS_VALUES, LENDER_TYPE_LABELS, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
 import type { DealInput } from "@/lib/matchmaking/types";
+import {
+  buildMatchmakingResumeUpdates,
+  formatRequestedTermLabel,
+  getMatchmakingResumeSettings,
+  matchmakingAssetTypeOptions,
+  matchmakingLenderTypeOptions,
+  matchmakingRatePreferenceOptions,
+  matchmakingRateTypeOptions,
+  matchmakingTermOptions,
+  normalizeMatchmakingFieldValue,
+  normalizeMatchmakingRateType,
+  normalizeRequestedTermBucket,
+  toMatcherRateType,
+} from "@/lib/matchmaking/resumeFields";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -69,10 +86,20 @@ function getFieldValue(project: ProjectProfile | null | undefined, fieldId: stri
 
 function formatDealValue(value: unknown, key: string): string {
   if (value === null || value === undefined || value === "") return "—";
+  if (key === "requestedTerm") return formatRequestedTermLabel(value);
+  if (Array.isArray(value)) {
+    return value
+      .map((item) =>
+        key === "lenderTypes"
+          ? LENDER_TYPE_LABELS[item as keyof typeof LENDER_TYPE_LABELS] ?? String(item)
+          : String(item)
+      )
+      .join(", ");
+  }
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "number") {
     const currencyKeys = ["loanAmountRequested", "stabilizedValue", "purchasePrice", "baseConstruction", "loanFees", "propertyNoiT12", "noiYear1"];
-    const percentKeys = ["targetLtvPercent", "ltv", "dscr", "interestRate", "originationFee"];
+    const percentKeys = ["targetLtvPercent", "ltv", "interestRate", "originationFee"];
     if (currencyKeys.includes(key)) return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
     if (percentKeys.includes(key)) return `${value}%`;
     return value.toLocaleString();
@@ -116,11 +143,17 @@ const KEY_DEAL_TERMS_SECTIONS: { label: string; keys: { key: string; label: stri
     { key: "useOfProceeds", label: "Use of proceeds" },
     { key: "baseConstruction", label: "Base construction" },
   ]},
+  { label: "Structuring", keys: [
+    { key: "assetType", label: "Asset class" },
+    { key: "interestRateType", label: "Rate type" },
+    { key: "lenderTypes", label: "Lender types" },
+  ]},
   { label: "Term structure", keys: [
-    { key: "requestedTerm", label: "Requested term" },
+    { key: "requestedTerm", label: "Loan term" },
     { key: "interestOnlyPeriodMonths", label: "Interest-only (months)" },
   ]},
   { label: "Pricing", keys: [
+    { key: "ratePreference", label: "Pricing preference" },
     { key: "interestRate", label: "Interest rate" },
     { key: "originationFee", label: "Origination fee" },
     { key: "loanFees", label: "Loan fees" },
@@ -135,17 +168,57 @@ const RESUME_CONTEXT_KEYS_FROM_SECTIONS = new Set(
 const EDITABLE_KEYS = new Set([
   "loanAmountRequested",
   "targetLtvPercent", "dscr", "propertyNoiT12", "noiYear1",
-  "affordableHousing", "affordableUnitsNumber", "requestedTerm", "interestOnlyPeriodMonths",
+  "affordableHousing", "affordableUnitsNumber", "interestOnlyPeriodMonths",
   "interestRate", "originationFee", "loanFees", "baseConstruction", "stabilizedValue",
   "purchasePrice", "totalResidentialUnits",
 ]);
 
 const NUMERIC_KEYS = new Set([
   "loanAmountRequested", "targetLtvPercent", "dscr", "propertyNoiT12", "noiYear1",
-  "affordableUnitsNumber", "requestedTerm", "interestOnlyPeriodMonths", "interestRate",
+  "affordableUnitsNumber", "interestOnlyPeriodMonths", "interestRate",
   "originationFee", "loanFees", "baseConstruction", "stabilizedValue", "purchasePrice",
   "totalResidentialUnits",
 ]);
+
+const MATCHMAKING_CATEGORY_FIELD_MAP = {
+  assetClass: "assetType",
+  rateType: "interestRateType",
+  ratePreference: "ratePreference",
+  termBucket: "requestedTerm",
+  lenderTypes: "lenderTypes",
+} as const;
+
+const TUNER_SANITY_KEYS = new Set([
+  ...EDITABLE_KEYS,
+  "assetType",
+  "interestRateType",
+  "requestedTerm",
+  "ratePreference",
+  "lenderTypes",
+]);
+
+const MATCHMAKING_RATE_TYPE_PILL_OPTIONS = matchmakingRateTypeOptions.map(
+  ({ label, value }) => ({
+    label,
+    value: toMatcherRateType(value),
+  })
+);
+
+function normalizeSanityFieldValue(fieldId: string, value: unknown): unknown {
+  if (fieldId === "affordableHousing") {
+    if (typeof value === "boolean") return value;
+    return /^(1|true|yes)$/i.test(String(value ?? "").trim());
+  }
+
+  if (NUMERIC_KEYS.has(fieldId)) {
+    if (typeof value === "number") return value;
+    const parsed = parseFloat(String(value ?? "").replace(/[,$%]/g, "").trim());
+    return Number.isFinite(parsed) ? parsed : value;
+  }
+
+  const normalized = normalizeMatchmakingFieldValue(fieldId, value);
+  return typeof normalized === "string" ? normalized.trim() : normalized;
+}
 
 function normalizeContentUpdates(overrides: Record<string, string>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -168,22 +241,103 @@ function normalizeContentUpdates(overrides: Record<string, string>): Record<stri
 /** Build flat context for sanity checks: base values from project + overrides. */
 function getMergedContext(
   project: ProjectProfile | null,
-  overrides: Record<string, string>
+  overrides: Record<string, string>,
+  additionalUpdates: Record<string, unknown> = {}
 ): Record<string, unknown> {
   const base: Record<string, unknown> = {};
   if (project) {
     for (const key of EDITABLE_KEYS) {
       const v = getFieldValue(project, key);
-      if (v !== undefined && v !== null) base[key] = v;
+      if (v !== undefined && v !== null) {
+        base[key] = normalizeSanityFieldValue(key, v);
+      }
     }
     for (const key of RESUME_CONTEXT_KEYS_FROM_SECTIONS) {
       if (EDITABLE_KEYS.has(key)) continue;
       const v = getFieldValue(project, key);
-      if (v !== undefined && v !== null && v !== "") base[key] = v;
+      if (v !== undefined && v !== null && v !== "") {
+        base[key] = normalizeSanityFieldValue(key, v);
+      }
     }
   }
   const normalized = normalizeContentUpdates(overrides);
-  return { ...base, ...normalized };
+  const normalizedAdditionalUpdates = Object.fromEntries(
+    Object.entries(additionalUpdates).map(([key, value]) => [
+      key,
+      normalizeSanityFieldValue(key, value),
+    ])
+  );
+  return { ...base, ...normalized, ...normalizedAdditionalUpdates };
+}
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+}
+
+function getCategoryBState(
+  project: ProjectProfile | null,
+  contentUpdates?: Record<string, unknown>
+): CategoryBState {
+  const source = { ...(project ?? {}), ...(contentUpdates ?? {}) };
+  const settings = getMatchmakingResumeSettings(source);
+  return {
+    assetClass: settings.assetType,
+    rateType: toMatcherRateType(settings.interestRateType),
+    ratePreference: settings.ratePreference,
+    termBucket: settings.requestedTerm,
+    lenderTypes: settings.lenderTypes,
+  };
+}
+
+function getCategoryContentUpdates(
+  project: ProjectProfile | null,
+  categoryB: CategoryBState
+): Record<string, unknown> {
+  const base = getMatchmakingResumeSettings(project);
+  const current = buildMatchmakingResumeUpdates({
+    assetType: categoryB.assetClass,
+    interestRateType: normalizeMatchmakingRateType(categoryB.rateType),
+    requestedTerm: normalizeRequestedTermBucket(categoryB.termBucket),
+    ratePreference: categoryB.ratePreference,
+    lenderTypes: categoryB.lenderTypes,
+  });
+
+  const updates: Record<string, unknown> = {};
+  if (String(current.assetType ?? "") !== base.assetType) {
+    updates.assetType = current.assetType;
+  }
+  if (String(current.interestRateType ?? "") !== base.interestRateType) {
+    updates.interestRateType = current.interestRateType;
+  }
+  if (String(current.requestedTerm ?? "") !== base.requestedTerm) {
+    updates.requestedTerm = current.requestedTerm;
+  }
+  if (String(current.ratePreference ?? "") !== base.ratePreference) {
+    updates.ratePreference = current.ratePreference;
+  }
+  if (!arraysEqual((current.lenderTypes as string[]) ?? [], base.lenderTypes)) {
+    updates.lenderTypes = current.lenderTypes;
+  }
+  return updates;
+}
+
+function getFieldOverridesFromContentUpdates(
+  contentUpdates?: Record<string, unknown>
+): Record<string, string> {
+  if (!contentUpdates) return {};
+  const overrides: Record<string, string> = {};
+  for (const key of EDITABLE_KEYS) {
+    if (!(key in contentUpdates)) continue;
+    const value = contentUpdates[key];
+    if (value === undefined || value === null) continue;
+    if (key === "affordableHousing") {
+      overrides[key] = value ? "yes" : "no";
+      continue;
+    }
+    overrides[key] = String(value);
+  }
+  return overrides;
 }
 
 /** Keys and labels for AI report deal summary (subset of merged context). */
@@ -193,6 +347,7 @@ const DEAL_SUMMARY_KEYS: { key: string; label: string }[] = [
   { key: "propertyAddressCity", label: "City" },
   { key: "propertyAddressZip", label: "Zip" },
   { key: "msaName", label: "MSA" },
+  { key: "assetType", label: "Asset type" },
   { key: "loanAmountRequested", label: "Loan amount requested" },
   { key: "targetLtvPercent", label: "Target LTV %" },
   { key: "dscr", label: "DSCR" },
@@ -201,8 +356,11 @@ const DEAL_SUMMARY_KEYS: { key: string; label: string }[] = [
   { key: "totalResidentialUnits", label: "Total residential units" },
   { key: "projectPhase", label: "Project phase" },
   { key: "useOfProceeds", label: "Use of proceeds" },
+  { key: "interestRateType", label: "Rate type" },
+  { key: "ratePreference", label: "Pricing preference" },
   { key: "interestRate", label: "Interest rate" },
-  { key: "requestedTerm", label: "Requested term" },
+  { key: "requestedTerm", label: "Loan term" },
+  { key: "lenderTypes", label: "Lender types" },
   { key: "affordableHousing", label: "Affordable housing" },
   { key: "affordableUnitsNumber", label: "Affordable units number" },
   { key: "propertyNoiT12", label: "Property NOI T12" },
@@ -350,17 +508,18 @@ type CategoryBState = {
   assetClass: string;
   rateType: "fixed" | "floating" | "any";
   ratePreference: "none" | "competitive" | "target";
-  targetRate?: number;
   termBucket: string;
   lenderTypes: string[];
 };
 
 function CategoryBPanel({
   categoryB,
-  setCategoryB,
+  targetRate,
+  setTargetRate,
 }: {
   categoryB: CategoryBState;
-  setCategoryB: React.Dispatch<React.SetStateAction<CategoryBState>>;
+  targetRate?: number;
+  setTargetRate: (rate?: number) => void;
 }) {
   const [allBenchmarks, setAllBenchmarks] = useState<{
     dgs10: number; dgs7: number; dgs5: number; sofr: number;
@@ -406,231 +565,96 @@ function CategoryBPanel({
       setSpreadBps(bps);
       if (benchmarkRate != null) {
         const computed = benchmarkRate + bps / 100;
-        setCategoryB((b) => ({ ...b, targetRate: parseFloat(computed.toFixed(2)) }));
+        setTargetRate(parseFloat(computed.toFixed(2)));
       }
     },
-    [benchmarkRate, setCategoryB]
+    [benchmarkRate, setTargetRate]
   );
 
   useEffect(() => {
-    if (categoryB.ratePreference === "target" && benchmarkRate != null) {
+    if (
+      categoryB.ratePreference === "target" &&
+      benchmarkRate != null &&
+      (targetRate == null || !Number.isFinite(targetRate))
+    ) {
       const computed = benchmarkRate + spreadBps / 100;
-      setCategoryB((b) => ({ ...b, targetRate: parseFloat(computed.toFixed(2)) }));
+      setTargetRate(parseFloat(computed.toFixed(2)));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryB.ratePreference, benchmarkRate, spreadBps, setCategoryB]);
+  }, [categoryB.ratePreference, benchmarkRate, spreadBps, setTargetRate, targetRate]);
+
+  if (categoryB.ratePreference === "none") {
+    return null;
+  }
 
   return (
-    <div className="mt-5 pt-4 border-t border-gray-200 space-y-4">
-      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-        Matchmaking-only (not saved to resume)
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Asset class</label>
-          <select
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
-            value={categoryB.assetClass}
-            onChange={(e) => setCategoryB((b) => ({ ...b, assetClass: e.target.value }))}
-          >
-            {ASSET_CLASS_VALUES.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1 sm:col-span-2">
-          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Loan term</label>
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setCategoryB((b) => ({ ...b, termBucket: "" }))}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
-                categoryB.termBucket === ""
-                  ? "bg-indigo-600 text-white border-indigo-600"
-                  : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
-              )}
-            >
-              No preference
-            </button>
-            {TERM_BUCKET_VALUES.filter((b) => b !== TERM_BUCKET_NO_DISCRIMINATION).map((b) => (
-              <button
-                key={b}
-                type="button"
-                onClick={() => setCategoryB((prev) => ({ ...prev, termBucket: b }))}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
-                  categoryB.termBucket === b
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
-                )}
-                title={TERM_BUCKET_LABELS[b]}
-              >
-                {TERM_BUCKET_SHORT_LABELS[b]}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-1 sm:col-span-2">
-          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Lender type</label>
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-wrap">
-            <button
-              type="button"
-              onClick={() => setCategoryB((b) => ({ ...b, lenderTypes: [] }))}
-              className={cn(
-                "px-3 py-2 text-xs font-medium",
-                categoryB.lenderTypes.length === 0
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-              )}
-            >
-              All
-            </button>
-            {LENDER_TYPE_VALUES.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() =>
-                  setCategoryB((b) => {
-                    const cur = b.lenderTypes;
-                    const next = cur.includes(t)
-                      ? cur.filter((x) => x !== t)
-                      : [...cur, t];
-                    return { ...b, lenderTypes: next.length === LENDER_TYPE_VALUES.length ? [] : next };
-                  })
-                }
-                className={cn(
-                  "px-3 py-2 text-xs font-medium",
-                  categoryB.lenderTypes.includes(t)
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-gray-600 hover:bg-gray-50"
-                )}
-              >
-                {LENDER_TYPE_LABELS[t as keyof typeof LENDER_TYPE_LABELS]}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Rate type (confidence)</label>
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-            {(["any", "fixed", "floating"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setCategoryB((b) => ({ ...b, rateType: t }))}
-                className={cn(
-                  "flex-1 px-2 py-2 text-xs font-medium capitalize",
-                  categoryB.rateType === t ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Pricing preference</label>
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-wrap">
-            {(
-              [
-                { v: "none" as const, label: "No Pricing Filter", subtitle: null },
-                { v: "competitive" as const, label: "Best Pricing", subtitle: "Lowest spreads rank highest" },
-                { v: "target" as const, label: "Target Rate", subtitle: "Match to a specific rate" },
-              ] as const
-            ).map(({ v, label, subtitle }) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setCategoryB((b) => ({ ...b, ratePreference: v }))}
-                className={cn(
-                  "flex-1 min-w-[120px] px-2 py-2 text-center",
-                  categoryB.ratePreference === v ? "bg-indigo-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
-                )}
-              >
-                <span className="text-xs font-medium block">{label}</span>
-                {subtitle && (
-                  <span className={cn(
-                    "text-[10px] block mt-0.5",
-                    categoryB.ratePreference === v ? "text-indigo-200" : "text-gray-400"
-                  )}>
-                    {subtitle}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          {categoryB.ratePreference === "competitive" && (
-            <p className="text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-md px-2.5 py-1.5">
-              Lenders are scored by how aggressively they price relative to the market floor. Lower typical spreads over benchmark = higher scores.
-            </p>
-          )}
-        </div>
-        {categoryB.ratePreference === "target" && (
-          <div className="space-y-3 sm:col-span-2">
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
+    <div className="mt-4 space-y-3">
+      {categoryB.ratePreference === "competitive" && (
+        <p className="text-[11px] text-blue-700 bg-blue-50 border border-blue-100 rounded-md px-2.5 py-1.5">
+          Lenders are scored by how aggressively they price relative to the market floor. Lower typical spreads over benchmark rank higher.
+        </p>
+      )}
+      {categoryB.ratePreference === "target" && (
+        <div className="space-y-3">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Current Benchmark ({benchmarkLabel || "10Y Treasury"})</span>
+              <span className="text-sm font-semibold text-gray-800">
+                {benchmarkRate != null ? `${benchmarkRate.toFixed(2)}%` : "Loading..."}
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Current Benchmark ({benchmarkLabel || "10Y Treasury"})</span>
-                <span className="text-sm font-semibold text-gray-800">
-                  {benchmarkRate != null ? `${benchmarkRate.toFixed(2)}%` : "Loading..."}
-                </span>
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Spread over benchmark</span>
+                <span className="text-sm font-semibold text-blue-700">{spreadBps} bps</span>
               </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Spread over benchmark</span>
-                  <span className="text-sm font-semibold text-indigo-700">{spreadBps} bps</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={500}
-                  step={25}
-                  value={spreadBps}
-                  onChange={(e) => handleSpreadChange(parseInt(e.target.value, 10))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                />
-                <div className="flex justify-between text-[10px] text-gray-400">
-                  <span>0 bps</span>
-                  <span>125</span>
-                  <span>250</span>
-                  <span>375</span>
-                  <span>500 bps</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Target All-In Rate</span>
-                <span className="text-lg font-bold text-indigo-700">
-                  {benchmarkRate != null ? `${(benchmarkRate + spreadBps / 100).toFixed(2)}%` : "—"}
-                </span>
+              <input
+                type="range"
+                min={0}
+                max={500}
+                step={25}
+                value={spreadBps}
+                onChange={(e) => handleSpreadChange(parseInt(e.target.value, 10))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400">
+                <span>0 bps</span>
+                <span>125</span>
+                <span>250</span>
+                <span>375</span>
+                <span>500 bps</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-gray-400">or enter directly:</span>
-              <input
-                type="number"
-                step="0.01"
-                className="w-28 px-2 py-1 text-xs border border-gray-300 rounded-md"
-                placeholder="e.g. 6.5"
-                value={categoryB.targetRate ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  const rate = v === "" ? undefined : parseFloat(v);
-                  setCategoryB((b) => ({ ...b, targetRate: rate }));
-                  if (rate != null && benchmarkRate != null) {
-                    setSpreadBps(Math.max(0, Math.min(500, Math.round((rate - benchmarkRate) * 100 / 25) * 25)));
-                  }
-                }}
-              />
-              <span className="text-[11px] text-gray-400">%</span>
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Target All-In Rate</span>
+              <span className="text-lg font-bold text-blue-700">
+                {benchmarkRate != null ? `${(benchmarkRate + spreadBps / 100).toFixed(2)}%` : "—"}
+              </span>
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-gray-400">or enter directly:</span>
+            <input
+              type="number"
+              step="0.01"
+              className="w-28 px-2 py-1 text-xs border border-gray-300 rounded-md"
+              placeholder="e.g. 6.5"
+              value={targetRate ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                const rate = v === "" ? undefined : parseFloat(v);
+                setTargetRate(rate);
+                if (rate != null && benchmarkRate != null) {
+                  setSpreadBps(Math.max(0, Math.min(500, Math.round((rate - benchmarkRate) * 100 / 25) * 25)));
+                }
+              }}
+            />
+            <span className="text-[11px] text-gray-400">%</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -638,6 +662,7 @@ function CategoryBPanel({
 function buildCapitalizeRunBody(
   merged: Record<string, unknown>,
   categoryB: CategoryBState,
+  targetRate: number | undefined,
   contentOverrides?: Record<string, unknown>
 ): Record<string, unknown> {
   const loan = Number(merged.loanAmountRequested);
@@ -660,10 +685,10 @@ function buildCapitalizeRunBody(
   }
   if (
     categoryB.ratePreference === "target" &&
-    categoryB.targetRate != null &&
-    Number.isFinite(categoryB.targetRate)
+    targetRate != null &&
+    Number.isFinite(targetRate)
   ) {
-    body.target_rate = categoryB.targetRate;
+    body.target_rate = targetRate;
   }
   if (contentOverrides && Object.keys(contentOverrides).length > 0) {
     body.content_overrides = contentOverrides;
@@ -673,7 +698,8 @@ function buildCapitalizeRunBody(
 
 function buildCapitalizeDealInput(
   merged: Record<string, unknown>,
-  categoryB: CategoryBState
+  categoryB: CategoryBState,
+  targetRate: number | undefined
 ): DealInput | null {
   const loan = Number(merged.loanAmountRequested);
   const state = String(merged.propertyAddressState ?? "").trim().toUpperCase();
@@ -698,9 +724,9 @@ function buildCapitalizeDealInput(
           : "none",
     targetRate:
       categoryB.ratePreference === "target" &&
-      categoryB.targetRate != null &&
-      Number.isFinite(categoryB.targetRate)
-        ? categoryB.targetRate
+      targetRate != null &&
+      Number.isFinite(targetRate)
+        ? targetRate
         : undefined,
     termBucket: categoryB.termBucket || undefined,
     lenderTypes: categoryB.lenderTypes.length > 0 ? categoryB.lenderTypes : undefined,
@@ -854,6 +880,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   const [versions, setVersions] = useState<VersionRow[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [versionsLoading, setVersionsLoading] = useState(true);
+  const [versionProject, setVersionProject] = useState<ProjectProfile | null>(null);
 
   // Inline label editing
   const [editingLabel, setEditingLabel] = useState(false);
@@ -873,6 +900,8 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   const [isSavingVersion, setIsSavingVersion] = useState(false);
   const [fieldWarnings, setFieldWarnings] = useState<Record<string, string[]>>({});
   const sanityCheckerRef = useRef<InstanceType<typeof import("@/lib/debouncedSanityCheck").DebouncedSanityChecker> | null>(null);
+  const prevCategoryBRef = useRef<CategoryBState>(categoryB);
+  const prevTargetRateRef = useRef<number | undefined>(undefined);
 
   // Wishlist: lenders already in wishlist (LEI set), and loading state per LEI
   const [wishlistLeis, setWishlistLeis] = useState<Set<string>>(new Set());
@@ -900,26 +929,100 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     };
   }, []);
 
-  // Rehydrate field overrides from draft when returning to the tab (e.g. after switching to Underwriting).
-  useEffect(() => {
-    if (!projectId) return;
-    const draft = getMatchmakingDraft(projectId);
-    if (draft?.field_overrides && Object.keys(draft.field_overrides).length > 0) {
-      const filtered = Object.fromEntries(
-        Object.entries(draft.field_overrides).filter(([k]) => EDITABLE_KEYS.has(k))
-      );
-      setFieldOverrides(filtered);
-    }
-  }, [projectId]);
-
   const activeProject = useProjectStore((s) => s.activeProject);
-  const project = activeProject?.id === projectId ? activeProject : null;
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!projectId) {
+      setVersionProject(null);
+      return;
+    }
+
+    if (!selectedVersionId) {
+      setVersionProject(activeProject?.id === projectId ? activeProject : null);
+      return;
+    }
+
+    getProjectWithResumeVersion(projectId, selectedVersionId)
+      .then((profile) => {
+        if (!cancelled) {
+          setVersionProject(profile);
+        }
+      })
+      .catch((err) => {
+        console.error("[LenderMatchTab] failed to load selected resume version:", err);
+        if (!cancelled) {
+          setVersionProject(activeProject?.id === projectId ? activeProject : null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, selectedVersionId, activeProject]);
+
+  const project = versionProject ?? (activeProject?.id === projectId ? activeProject : null);
+  const draft = useMemo(() => {
+    if (!projectId) return null;
+    const candidate = getMatchmakingDraft(projectId);
+    if (!candidate) return null;
+    if (
+      selectedVersionId &&
+      candidate.project_resume_id &&
+      candidate.project_resume_id !== selectedVersionId
+    ) {
+      return null;
+    }
+    return candidate;
+  }, [projectId, selectedVersionId]);
+
+  useEffect(() => {
+    if (!project) return;
+    const draftContentUpdates =
+      draft?.content_updates ??
+      (draft?.field_overrides ? normalizeContentUpdates(draft.field_overrides) : undefined);
+    setFieldOverrides(getFieldOverridesFromContentUpdates(draftContentUpdates));
+    setCategoryB(getCategoryBState(project, draftContentUpdates));
+    setFieldWarnings({});
+  }, [project, draft]);
 
   console.log(`[LenderMatchTab] render: projectId=${projectId}, selectedVersionId=${selectedVersionId}`);
 
-  const contentOverridesForRun = useMemo(
-    () => (Object.keys(fieldOverrides).length > 0 ? normalizeContentUpdates(fieldOverrides) : undefined),
-    [fieldOverrides]
+  const categoryContentUpdates = useMemo(
+    () => getCategoryContentUpdates(project, categoryB),
+    [project, categoryB]
+  );
+  const contentOverridesForRun = useMemo(() => {
+    const fieldContentUpdates =
+      Object.keys(fieldOverrides).length > 0 ? normalizeContentUpdates(fieldOverrides) : {};
+    const combined = { ...fieldContentUpdates, ...categoryContentUpdates };
+    return Object.keys(combined).length > 0 ? combined : undefined;
+  }, [fieldOverrides, categoryContentUpdates]);
+  const mergedForCapitalize = useMemo(
+    () => getMergedContext(project, fieldOverrides, categoryContentUpdates),
+    [project, fieldOverrides, categoryContentUpdates]
+  );
+  const targetRate = useMemo(() => {
+    const raw = mergedForCapitalize.interestRate;
+    const numeric = Number(raw);
+    return Number.isFinite(numeric) ? numeric : undefined;
+  }, [mergedForCapitalize]);
+  const setTargetRate = useCallback(
+    (rate?: number) => {
+      setFieldOverrides((prev) => {
+        const next = { ...prev };
+        const baseRate = getFieldValue(project, "interestRate");
+        if (rate == null || !Number.isFinite(rate)) {
+          delete next.interestRate;
+        } else if (String(baseRate ?? "") === String(rate)) {
+          delete next.interestRate;
+        } else {
+          next.interestRate = String(rate);
+        }
+        return next;
+      });
+    },
+    [project]
   );
   const {
     isRunning: matchRunning,
@@ -937,34 +1040,41 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     lastMatchRunId,
     useLocalCapitalize,
   } = useMatchmaking(projectId, selectedVersionId ?? null, contentOverridesForRun);
-
-  const mergedForCapitalize = useMemo(
-    () => getMergedContext(project, fieldOverrides),
-    [project, fieldOverrides]
-  );
   const capitalizeDealForAI = useMemo(
-    () => (useLocalCapitalize ? buildCapitalizeDealInput(mergedForCapitalize, categoryB) : null),
-    [useLocalCapitalize, mergedForCapitalize, categoryB]
+    () =>
+      useLocalCapitalize
+        ? buildCapitalizeDealInput(mergedForCapitalize, categoryB, targetRate)
+        : null,
+    [useLocalCapitalize, mergedForCapitalize, categoryB, targetRate]
   );
 
   const runLocalCapitalizeMatch = useCallback(() => {
     runMatchmaking(
-      fieldOverrides,
-      buildCapitalizeRunBody(mergedForCapitalize, categoryB, contentOverridesForRun)
+      contentOverridesForRun,
+      buildCapitalizeRunBody(
+        mergedForCapitalize,
+        categoryB,
+        targetRate,
+        contentOverridesForRun
+      )
     );
-  }, [runMatchmaking, fieldOverrides, mergedForCapitalize, categoryB, contentOverridesForRun]);
+  }, [runMatchmaking, contentOverridesForRun, mergedForCapitalize, categoryB, targetRate]);
 
   const capitalizeRunBlocked =
     useLocalCapitalize &&
     categoryB.ratePreference === "target" &&
-    (categoryB.targetRate == null || !Number.isFinite(categoryB.targetRate));
+    (targetRate == null || !Number.isFinite(targetRate));
 
   const hasResults = matchScores.length > 0 || !!visualizationData;
-  const hasOverrides = Object.keys(fieldOverrides).length > 0;
+  const hasOverrides =
+    Object.keys(fieldOverrides).length > 0 ||
+    Object.keys(categoryContentUpdates).length > 0;
+  const changedCount =
+    Object.keys(fieldOverrides).length +
+    Object.keys(categoryContentUpdates).length;
   const hasSanityWarnings = Object.values(fieldWarnings).some((w) => w.length > 0);
 
   // Resolve saved run ids for wishlist (run must be saved to add to wishlist)
-  const draft = getMatchmakingDraft(projectId);
   const savedMatchRunId = lastMatchRunId ?? draft?.match_run_id ?? null;
   const savedProjectResumeId = selectedVersionId ?? draft?.project_resume_id ?? null;
   const canAddToWishlist = Boolean(savedMatchRunId && savedProjectResumeId && hasResults);
@@ -1022,23 +1132,31 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   const handleBlurWithSanity = useCallback(
     (key: string, val: string) => {
       const rawBase = getFieldValue(project, key);
-      if (val === String(rawBase ?? "")) {
+      const normalizedBase = normalizeSanityFieldValue(key, rawBase);
+      const normalizedNext = normalizeSanityFieldValue(key, val);
+      const valuesMatch =
+        typeof normalizedBase === "number" && typeof normalizedNext === "number"
+          ? normalizedBase === normalizedNext
+          : typeof normalizedBase === "boolean" && typeof normalizedNext === "boolean"
+            ? normalizedBase === normalizedNext
+            : String(normalizedNext ?? "") === String(normalizedBase ?? "");
+
+      if (valuesMatch) {
+        setFieldOverrides((prev) => {
+          if (!(key in prev)) return prev;
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        setFieldWarnings((prev) => ({ ...prev, [key]: [] }));
         setEditingFieldKey(null);
         return;
       }
       const nextOverrides = { ...fieldOverrides, [key]: val };
       setFieldOverrides(nextOverrides);
       setEditingFieldKey(null);
-      if (useLocalCapitalize) {
-        return;
-      }
-      const merged = getMergedContext(project, nextOverrides);
-      const parsedValue =
-        key === "affordableHousing"
-          ? /^(1|true|yes)$/i.test(val.trim())
-          : NUMERIC_KEYS.has(key)
-            ? parseFloat(val.replace(/[,$%]/g, "").trim())
-            : val.trim();
+      const merged = getMergedContext(project, nextOverrides, categoryContentUpdates);
+      const parsedValue = normalizeSanityFieldValue(key, val);
       sanityCheckerRef.current?.scheduleCheck(
         key,
         parsedValue,
@@ -1050,10 +1168,10 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
       const deps = FIELD_DEPENDENCIES[key];
       if (deps?.length && sanityCheckerRef.current) {
         const toCheck = deps
-          .filter((dep) => EDITABLE_KEYS.has(dep))
+          .filter((dep) => TUNER_SANITY_KEYS.has(dep))
           .map((depId) => ({
             fieldId: depId,
-            value: merged[depId],
+            value: normalizeSanityFieldValue(depId, merged[depId]),
             context: merged,
             existingFieldData: {},
           }))
@@ -1067,18 +1185,119 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
         }
       }
     },
-    [project, fieldOverrides, useLocalCapitalize]
+    [project, fieldOverrides, categoryContentUpdates]
   );
 
-  const handleRerunSanityCheckAll = useCallback(async () => {
-    if (useLocalCapitalize) {
-      setFieldWarnings({});
+  useEffect(() => {
+    if (!project || !sanityCheckerRef.current) {
+      prevCategoryBRef.current = categoryB;
       return;
     }
+
+    const previous = prevCategoryBRef.current;
+    const changedFields: Array<{ fieldId: string; value: unknown }> = [];
+
+    if (previous.assetClass !== categoryB.assetClass) {
+      changedFields.push({ fieldId: MATCHMAKING_CATEGORY_FIELD_MAP.assetClass, value: categoryB.assetClass });
+    }
+    if (previous.rateType !== categoryB.rateType) {
+      changedFields.push({
+        fieldId: MATCHMAKING_CATEGORY_FIELD_MAP.rateType,
+        value: normalizeMatchmakingRateType(categoryB.rateType),
+      });
+    }
+    if (previous.ratePreference !== categoryB.ratePreference) {
+      changedFields.push({
+        fieldId: MATCHMAKING_CATEGORY_FIELD_MAP.ratePreference,
+        value: categoryB.ratePreference,
+      });
+    }
+    if (previous.termBucket !== categoryB.termBucket) {
+      changedFields.push({
+        fieldId: MATCHMAKING_CATEGORY_FIELD_MAP.termBucket,
+        value: normalizeRequestedTermBucket(categoryB.termBucket),
+      });
+    }
+    if (!arraysEqual(previous.lenderTypes, categoryB.lenderTypes)) {
+      changedFields.push({
+        fieldId: MATCHMAKING_CATEGORY_FIELD_MAP.lenderTypes,
+        value: categoryB.lenderTypes,
+      });
+    }
+
+    if (changedFields.length === 0) {
+      return;
+    }
+
+    const merged = getMergedContext(project, fieldOverrides, categoryContentUpdates);
+    changedFields.forEach(({ fieldId, value }) => {
+      sanityCheckerRef.current?.scheduleCheck(
+        fieldId,
+        value,
+        merged,
+        {},
+        (fid, warnings) => setFieldWarnings((prev) => ({ ...prev, [fid]: warnings })),
+        (fid, err) => console.error(`[LenderMatchTab] sanity check failed for ${fid}:`, err)
+      );
+    });
+
+    const dependentFields = new Set<string>();
+    changedFields.forEach(({ fieldId }) => {
+      (FIELD_DEPENDENCIES[fieldId] || [])
+        .filter((dep) => TUNER_SANITY_KEYS.has(dep))
+        .forEach((dep) => dependentFields.add(dep));
+    });
+
+    if (dependentFields.size > 0) {
+      const toCheck = Array.from(dependentFields)
+        .map((fieldId) => ({
+          fieldId,
+          value: normalizeSanityFieldValue(fieldId, merged[fieldId]),
+          context: merged,
+          existingFieldData: {},
+        }))
+        .filter((field) => field.value !== undefined && field.value !== null && field.value !== "");
+
+      if (toCheck.length > 0) {
+        sanityCheckerRef.current.batchCheck(
+          toCheck,
+          (fid, warnings) => setFieldWarnings((prev) => ({ ...prev, [fid]: warnings })),
+          (fid, err) => console.error(`[LenderMatchTab] batch sanity failed for ${fid}:`, err)
+        );
+      }
+    }
+
+    prevCategoryBRef.current = categoryB;
+  }, [project, fieldOverrides, categoryB, categoryContentUpdates]);
+
+  useEffect(() => {
+    if (!project || !sanityCheckerRef.current) {
+      prevTargetRateRef.current = targetRate;
+      return;
+    }
+    if (prevTargetRateRef.current === targetRate) {
+      return;
+    }
+
+    const merged = getMergedContext(project, fieldOverrides, categoryContentUpdates);
+    if (targetRate != null && Number.isFinite(targetRate)) {
+      sanityCheckerRef.current.scheduleCheck(
+        "interestRate",
+        targetRate,
+        merged,
+        {},
+        (fid, warnings) => setFieldWarnings((prev) => ({ ...prev, [fid]: warnings })),
+        (fid, err) => console.error(`[LenderMatchTab] sanity check failed for ${fid}:`, err)
+      );
+    }
+    prevTargetRateRef.current = targetRate;
+  }, [project, fieldOverrides, categoryContentUpdates, targetRate]);
+
+  const handleRerunSanityCheckAll = useCallback(async () => {
     if (!project || !sanityCheckerRef.current) return;
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
-    const merged = getMergedContext(project, fieldOverrides);
+    const merged = getMergedContext(project, fieldOverrides, categoryContentUpdates);
     const fieldsToCheck: Array<{
       fieldId: string;
       value: unknown;
@@ -1086,16 +1305,19 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
       existingFieldData: Record<string, unknown>;
       authToken?: string;
     }> = [];
-    for (const fieldId of EDITABLE_KEYS) {
+    for (const fieldId of TUNER_SANITY_KEYS) {
       const raw = merged[fieldId];
       if (raw === undefined || raw === null || raw === "") continue;
-      const value =
-        fieldId === "affordableHousing"
-          ? /^(1|true|yes)$/i.test(String(raw).trim())
-          : NUMERIC_KEYS.has(fieldId)
-            ? parseFloat(String(raw).replace(/[,$%]/g, "").trim())
-            : String(raw).trim();
-      if (fieldId === "affordableHousing" || (typeof value !== "number" && value !== "") || Number.isFinite(value)) {
+      const value = normalizeSanityFieldValue(fieldId, raw);
+      const shouldCheck =
+        typeof value === "boolean"
+          ? true
+          : Array.isArray(value)
+            ? value.length > 0
+            : typeof value === "number"
+              ? Number.isFinite(value)
+              : value !== undefined && value !== null && value !== "";
+      if (shouldCheck) {
         fieldsToCheck.push({
           fieldId,
           value,
@@ -1121,7 +1343,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
       );
       setFieldWarnings((prev) => {
         const out = { ...prev };
-        for (const key of EDITABLE_KEYS) {
+        for (const key of TUNER_SANITY_KEYS) {
           out[key] = nextWarnings[key] ?? [];
         }
         return out;
@@ -1129,12 +1351,12 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     } finally {
       setIsRecheckingSanity(false);
     }
-  }, [project, fieldOverrides, useLocalCapitalize]);
+  }, [project, fieldOverrides, categoryContentUpdates]);
 
   const dealSummaryForAI = useMemo(() => {
-    const merged = getMergedContext(project, fieldOverrides);
+    const merged = getMergedContext(project, fieldOverrides, categoryContentUpdates);
     return buildDealSummaryForAIReport(merged);
-  }, [project, fieldOverrides]);
+  }, [project, fieldOverrides, categoryContentUpdates]);
 
   console.log(`[LenderMatchTab] matchScores.length=${matchScores.length}, hasResults=${hasResults}, matchLoading=${matchLoading}, visualizationData=${!!visualizationData}`);
 
@@ -1230,11 +1452,15 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       const base = getBackendUrl();
-      const content_updates = hasOverrides ? normalizeContentUpdates(fieldOverrides) : undefined;
+      const content_updates = hasOverrides ? contentOverridesForRun : undefined;
       const res = await fetch(`${base}/api/v1/project-resume/save-version`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
-        body: JSON.stringify({ projectId, ...(content_updates && Object.keys(content_updates).length > 0 && { content_updates }) }),
+        body: JSON.stringify({
+          projectId,
+          ...(selectedVersionId && { base_resume_id: selectedVersionId }),
+          ...(content_updates && Object.keys(content_updates).length > 0 && { content_updates }),
+        }),
       });
       if (!res.ok) throw new Error("Failed to save version");
       const result = await res.json();
@@ -1280,6 +1506,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                 ...draftPayload,
                 match_run_id: matchRunId,
                 project_resume_id: newVersionId,
+                content_updates: content_updates,
               });
             }
           }
@@ -1294,31 +1521,326 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     } finally {
       setIsSavingVersion(false);
     }
-  }, [projectId, fetchVersions, fieldOverrides, hasOverrides, draftPayload]);
+  }, [
+    projectId,
+    fetchVersions,
+    hasOverrides,
+    draftPayload,
+    contentOverridesForRun,
+    selectedVersionId,
+  ]);
 
   const runAndShowResults = () => {
     if (useLocalCapitalize) {
       runLocalCapitalizeMatch();
     } else {
-      runMatchmaking(fieldOverrides);
+      runMatchmaking(contentOverridesForRun);
     }
     setNarrowView("results");
   };
 
   const openSaveRunModal = useCallback(() => {
-    if (!useLocalCapitalize && hasSanityWarnings) {
+    if (hasSanityWarnings) {
       setValidationAlertOpen(true);
       return;
     }
     setSaveRunNameDraft("");
     setSaveRunModalOpen(true);
-  }, [hasSanityWarnings, useLocalCapitalize]);
+  }, [hasSanityWarnings]);
 
   const submitSaveRunModal = useCallback(() => {
     const trimmed = saveRunNameDraft.trim();
     if (!trimmed) return;
     handleSaveVersion(trimmed);
   }, [saveRunNameDraft, handleSaveVersion]);
+
+  const renderFieldWarnings = useCallback((warnings?: string[]) => {
+    if (!warnings || warnings.length === 0) return null;
+    return (
+      <div className="flex flex-col gap-0.5 mt-1">
+        {warnings.map((warning, index) => (
+          <p
+            key={index}
+            className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1"
+          >
+            {warning}
+          </p>
+        ))}
+      </div>
+    );
+  }, []);
+
+  const renderDealTermSections = useCallback(() => {
+    if (!project) return null;
+
+    return (
+      <div className="space-y-5">
+        {KEY_DEAL_TERMS_SECTIONS.map((section) => (
+          <div key={section.label}>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              {section.label}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {section.keys.map(({ key, label }) => {
+                const warnings = fieldWarnings[key];
+                const rawValue = getFieldValue(project, key);
+
+                if (key === "assetType") {
+                  return (
+                    <div key={key} className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {label}
+                        </label>
+                        <span title="Editable — change and re-run matchmaking">
+                          <Pencil size={10} className="text-blue-500 shrink-0" />
+                        </span>
+                      </div>
+                      <ButtonSelect
+                        label=""
+                        options={matchmakingAssetTypeOptions}
+                        selectedValue={categoryB.assetClass}
+                        onSelect={(assetClass) =>
+                          setCategoryB((prev) => ({
+                            ...prev,
+                            assetClass: String(assetClass),
+                          }))
+                        }
+                        gridCols="grid-cols-2"
+                        buttonClassName="text-xs"
+                      />
+                      {renderFieldWarnings(warnings)}
+                    </div>
+                  );
+                }
+
+                if (key === "interestRateType") {
+                  return (
+                    <div key={key} className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {label}
+                        </label>
+                        <span title="Editable — change and re-run matchmaking">
+                          <Pencil size={10} className="text-blue-500 shrink-0" />
+                        </span>
+                      </div>
+                      <ButtonSelect
+                        label=""
+                        options={MATCHMAKING_RATE_TYPE_PILL_OPTIONS}
+                        selectedValue={categoryB.rateType}
+                        onSelect={(rateType) =>
+                          setCategoryB((prev) => ({
+                            ...prev,
+                            rateType: rateType as CategoryBState["rateType"],
+                          }))
+                        }
+                        gridCols="grid-cols-3"
+                        buttonClassName="text-xs"
+                      />
+                      {renderFieldWarnings(warnings)}
+                    </div>
+                  );
+                }
+
+                if (key === "lenderTypes") {
+                  return (
+                    <div key={key} className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {label}
+                        </label>
+                        <span title="Editable — change and re-run matchmaking">
+                          <Pencil size={10} className="text-blue-500 shrink-0" />
+                        </span>
+                      </div>
+                      <MultiSelectPills
+                        label=""
+                        options={matchmakingLenderTypeOptions}
+                        selectedValues={categoryB.lenderTypes}
+                        onSelect={(lenderTypes) =>
+                          setCategoryB((prev) => ({ ...prev, lenderTypes }))
+                        }
+                        gridCols="grid-cols-2"
+                        buttonClassName="text-xs"
+                      />
+                      <p className="text-[11px] text-gray-500">
+                        Leave all pills unselected to include every lender type.
+                      </p>
+                      {renderFieldWarnings(warnings)}
+                    </div>
+                  );
+                }
+
+                if (key === "requestedTerm") {
+                  return (
+                    <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {label}
+                        </label>
+                        <span title="Editable — change and re-run matchmaking">
+                          <Pencil size={10} className="text-blue-500 shrink-0" />
+                        </span>
+                      </div>
+                      <ButtonSelect
+                        label=""
+                        options={matchmakingTermOptions}
+                        selectedValue={categoryB.termBucket}
+                        onSelect={(termBucket) =>
+                          setCategoryB((prev) => ({
+                            ...prev,
+                            termBucket: String(termBucket),
+                          }))
+                        }
+                        gridCols="grid-cols-2 lg:grid-cols-3"
+                        buttonClassName="text-xs"
+                      />
+                      {renderFieldWarnings(warnings)}
+                    </div>
+                  );
+                }
+
+                if (key === "ratePreference") {
+                  return (
+                    <div key={key} className="space-y-1 sm:col-span-2 lg:col-span-3">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {label}
+                        </label>
+                        <span title="Editable — change and re-run matchmaking">
+                          <Pencil size={10} className="text-blue-500 shrink-0" />
+                        </span>
+                      </div>
+                      <ButtonSelect
+                        label=""
+                        options={matchmakingRatePreferenceOptions}
+                        selectedValue={categoryB.ratePreference}
+                        onSelect={(ratePreference) =>
+                          setCategoryB((prev) => ({
+                            ...prev,
+                            ratePreference:
+                              ratePreference as CategoryBState["ratePreference"],
+                          }))
+                        }
+                        gridCols="grid-cols-1 sm:grid-cols-3"
+                        buttonClassName="text-xs"
+                      />
+                      {renderFieldWarnings(warnings)}
+                    </div>
+                  );
+                }
+
+                if (key === "affordableHousing") {
+                  const overrideValue = fieldOverrides[key];
+                  const selectedValue =
+                    overrideValue !== undefined
+                      ? /^(1|true|yes)$/i.test(overrideValue)
+                        ? "yes"
+                        : "no"
+                      : rawValue === undefined || rawValue === null || rawValue === ""
+                        ? null
+                        : normalizeSanityFieldValue(key, rawValue)
+                          ? "yes"
+                          : "no";
+                  return (
+                    <div key={key} className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {label}
+                        </label>
+                        <span title="Editable — change and re-run matchmaking">
+                          <Pencil size={10} className="text-blue-500 shrink-0" />
+                        </span>
+                      </div>
+                      <ButtonSelect
+                        label=""
+                        options={[
+                          { label: "Yes", value: "yes" },
+                          { label: "No", value: "no" },
+                        ]}
+                        selectedValue={selectedValue}
+                        onSelect={(selected) =>
+                          handleBlurWithSanity(key, String(selected))
+                        }
+                        gridCols="grid-cols-2"
+                        buttonClassName="text-xs"
+                      />
+                      {renderFieldWarnings(warnings)}
+                    </div>
+                  );
+                }
+
+                const overrideValue = EDITABLE_KEYS.has(key)
+                  ? fieldOverrides[key]
+                  : undefined;
+                const displayValue =
+                  overrideValue !== undefined
+                    ? key === "affordableHousing"
+                      ? /^(1|true|yes)$/i.test(overrideValue)
+                        ? "Yes"
+                        : "No"
+                      : overrideValue
+                    : formatDealValue(rawValue, key);
+                const isEditable = EDITABLE_KEYS.has(key);
+                const isModified = overrideValue !== undefined;
+                const isCurrentlyEditing = editingFieldKey === key;
+                const isBoolean = key === "affordableHousing";
+                const inputDefault =
+                  overrideValue !== undefined
+                    ? overrideValue
+                    : isBoolean
+                      ? rawValue === true || rawValue === "true" || rawValue === "1"
+                        ? "yes"
+                        : "no"
+                      : String(rawValue ?? "");
+
+                return (
+                  <DealParameterControl
+                    key={key}
+                    label={label}
+                    displayValue={displayValue}
+                    editable={isEditable}
+                    modified={isModified}
+                    isBoolean={isBoolean}
+                    isEditing={isCurrentlyEditing}
+                    inputDefaultValue={inputDefault}
+                    onStartEdit={() => setEditingFieldKey(key)}
+                    onBlur={(val) => handleBlurWithSanity(key, val)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        (e.target as HTMLInputElement | HTMLSelectElement).blur();
+                      }
+                      if (e.key === "Escape") setEditingFieldKey(null);
+                    }}
+                    warnings={warnings}
+                  />
+                );
+              })}
+            </div>
+            {section.label === "Pricing" && useLocalCapitalize ? (
+              <CategoryBPanel
+                categoryB={categoryB}
+                targetRate={targetRate}
+                setTargetRate={setTargetRate}
+              />
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }, [
+    project,
+    fieldWarnings,
+    categoryB,
+    fieldOverrides,
+    editingFieldKey,
+    handleBlurWithSanity,
+    renderFieldWarnings,
+    useLocalCapitalize,
+    targetRate,
+    setTargetRate,
+  ]);
 
   return (
     <div ref={containerRef} className="w-full max-w-[1600px] mx-auto">
@@ -1479,86 +2001,29 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   <h3 className="text-base font-semibold text-gray-800">Matchmaking parameters</h3>
                   {hasOverrides && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-                      {Object.keys(fieldOverrides).length} changed
+                      {changedCount} changed
                     </span>
                   )}
                 </div>
                 <p className="text-sm text-gray-500 mb-2">
                   Adjust these deal parameters to explore scenarios. Re-run matchmaking to see how lender matches change.
                 </p>
-                {useLocalCapitalize && (
-                  <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 mb-3">
-                    Capitalize uses loan amount, state, and project phase from the project resume (locked on this tab).
-                    Other fields are context; asset class and rate options are set in Matchmaking-only below.
-                  </p>
-                )}
-                {!useLocalCapitalize && (
-                  <div className="flex justify-end mb-4">
-                    <button
-                      type="button"
-                      onClick={handleRerunSanityCheckAll}
-                      disabled={!project || isRecheckingSanity}
-                      title="Re-run validation on all deal parameters (e.g. if a warning did not clear after editing another value)"
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isRecheckingSanity ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                      Re-check all values
-                    </button>
-                  </div>
-                )}
+                <div className="flex justify-end mb-4">
+                  <button
+                    type="button"
+                    onClick={handleRerunSanityCheckAll}
+                    disabled={!project || isRecheckingSanity}
+                    title="Re-run validation on all deal parameters (e.g. if a warning did not clear after editing another value)"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isRecheckingSanity ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                    Re-check all values
+                  </button>
+                </div>
                 {!project ? (
                   <p className="text-sm text-gray-500">No project data. Open a project to see deal terms.</p>
                 ) : (
-                  <div className="space-y-5">
-                    {KEY_DEAL_TERMS_SECTIONS.map((section) => (
-                      <div key={section.label}>
-                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                          {section.label}
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {section.keys.map(({ key, label }) => {
-                            const rawValue = getFieldValue(project, key);
-                            const overrideValue = EDITABLE_KEYS.has(key) ? fieldOverrides[key] : undefined;
-                            const displayValue =
-                              overrideValue !== undefined
-                                ? key === "affordableHousing"
-                                  ? /^(1|true|yes)$/i.test(overrideValue) ? "Yes" : "No"
-                                  : overrideValue
-                                : formatDealValue(rawValue, key);
-                            const isEditable = EDITABLE_KEYS.has(key);
-                            const isModified = overrideValue !== undefined;
-                            const isCurrentlyEditing = editingFieldKey === key;
-                            const isBoolean = key === "affordableHousing";
-                            const inputDefault = overrideValue !== undefined
-                              ? overrideValue
-                              : isBoolean
-                                ? (rawValue === true || rawValue === "true" || rawValue === "1" ? "yes" : "no")
-                                : String(rawValue ?? "");
-                            return (
-                              <DealParameterControl
-                                key={key}
-                                label={label}
-                                displayValue={displayValue}
-                                editable={isEditable}
-                                modified={isModified}
-                                isBoolean={isBoolean}
-                                isEditing={isCurrentlyEditing}
-                                inputDefaultValue={inputDefault}
-                                onStartEdit={() => setEditingFieldKey(key)}
-                                onBlur={(val) => handleBlurWithSanity(key, val)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") (e.target as HTMLInputElement | HTMLSelectElement).blur();
-                                  if (e.key === "Escape") setEditingFieldKey(null);
-                                }}
-                                warnings={fieldWarnings[key]}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                    {useLocalCapitalize && <CategoryBPanel categoryB={categoryB} setCategoryB={setCategoryB} />}
-                  </div>
+                  renderDealTermSections()
                 )}
               </div>
               <div className="flex justify-end">
@@ -1566,12 +2031,12 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   type="button"
                   onClick={runAndShowResults}
                   disabled={
-                    matchRunning || capitalizeRunBlocked || (!useLocalCapitalize && hasSanityWarnings)
+                    matchRunning || capitalizeRunBlocked || hasSanityWarnings
                   }
                   title={
                     capitalizeRunBlocked
                       ? "Enter a target rate (%) when using Target rate preference."
-                      : !useLocalCapitalize && hasSanityWarnings
+                      : hasSanityWarnings
                         ? "Fix validation warnings on deal parameters before running."
                         : undefined
                   }
@@ -1603,15 +2068,17 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   <button
                     type="button"
                     onClick={() =>
-                      useLocalCapitalize ? runLocalCapitalizeMatch() : runMatchmaking(fieldOverrides)
+                      useLocalCapitalize
+                        ? runLocalCapitalizeMatch()
+                        : runMatchmaking(contentOverridesForRun)
                     }
                     disabled={
-                      matchRunning || capitalizeRunBlocked || (!useLocalCapitalize && hasSanityWarnings)
+                      matchRunning || capitalizeRunBlocked || hasSanityWarnings
                     }
                     title={
                       capitalizeRunBlocked
                         ? "Enter a target rate (%) when using Target rate preference."
-                        : !useLocalCapitalize && hasSanityWarnings
+                        : hasSanityWarnings
                           ? "Fix validation warnings on deal parameters before running."
                           : undefined
                     }
@@ -1626,7 +2093,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                     )}
                   </button>
                 </div>
-                {!useLocalCapitalize && hasSanityWarnings && (
+                {hasSanityWarnings && (
                   <p className="text-xs text-amber-600 mt-1">Fix validation warnings on deal parameters before running or saving.</p>
                 )}
                 {matchError && (
@@ -1661,9 +2128,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                     <Loader2 size={32} className="text-blue-500 animate-spin mb-4" />
                     <h4 className="text-base font-semibold text-gray-800">Analyzing Lenders...</h4>
                     <p className="text-sm text-gray-500 text-center mt-2">
-                      {useLocalCapitalize
-                        ? "Running the Capitalize parquet matchmaking engine."
-                        : "Matching your project parameters against the backend matchmaking engine."}
+                      Running matchmaking against the current lender-matching engine.
                     </p>
                   </div>
                 ) : !hasResults ? (
@@ -1801,7 +2266,13 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
               {hasOverrides && (
                 <button
                   type="button"
-                  onClick={() => setFieldOverrides({})}
+                  onClick={() => {
+                    setFieldOverrides({});
+                    setFieldWarnings({});
+                    if (project) {
+                      setCategoryB(getCategoryBState(project));
+                    }
+                  }}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   <RotateCcw size={14} />
@@ -1831,87 +2302,29 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
             <h3 className="text-base font-semibold text-gray-800">Matchmaking parameters</h3>
             {hasOverrides && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-                {Object.keys(fieldOverrides).length} changed
+                {changedCount} changed
               </span>
             )}
           </div>
           <p className="text-sm text-gray-500 mb-2">
             Adjust these deal parameters to explore scenarios. Re-run matchmaking to see how lender matches change.
           </p>
-          {useLocalCapitalize && (
-            <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 mb-3">
-              Capitalize uses loan amount, state, and project phase from the project resume (locked on this tab).
-              Other fields are context; asset class and rate options are set in Matchmaking-only below.
-            </p>
-          )}
-          {!useLocalCapitalize && (
-            <div className="flex justify-end mb-4">
-              <button
-                type="button"
-                onClick={handleRerunSanityCheckAll}
-                disabled={!project || isRecheckingSanity}
-                title="Re-run validation on all deal parameters (e.g. if a warning did not clear after editing another value)"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isRecheckingSanity ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                Re-check all values
-              </button>
-            </div>
-          )}
+          <div className="flex justify-end mb-4">
+            <button
+              type="button"
+              onClick={handleRerunSanityCheckAll}
+              disabled={!project || isRecheckingSanity}
+              title="Re-run validation on all deal parameters (e.g. if a warning did not clear after editing another value)"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isRecheckingSanity ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              Re-check all values
+            </button>
+          </div>
           {!project ? (
             <p className="text-sm text-gray-500">No project data. Open a project to see deal terms.</p>
           ) : (
-            <div className="space-y-5">
-              {KEY_DEAL_TERMS_SECTIONS.map((section) => (
-                <div key={section.label}>
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                    {section.label}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {section.keys.map(({ key, label }) => {
-                      const rawValue = getFieldValue(project, key);
-                      const overrideValue = EDITABLE_KEYS.has(key) ? fieldOverrides[key] : undefined;
-                      const displayValue =
-                        overrideValue !== undefined
-                          ? key === "affordableHousing"
-                            ? /^(1|true|yes)$/i.test(overrideValue) ? "Yes" : "No"
-                            : overrideValue
-                          : formatDealValue(rawValue, key);
-                      const isEditable = EDITABLE_KEYS.has(key);
-                      const isModified = overrideValue !== undefined;
-                      const isCurrentlyEditing = editingFieldKey === key;
-                      const isBoolean = key === "affordableHousing";
-                      const inputDefault = overrideValue !== undefined
-                        ? overrideValue
-                        : isBoolean
-                          ? (rawValue === true || rawValue === "true" || rawValue === "1" ? "yes" : "no")
-                          : String(rawValue ?? "");
-
-                      return (
-                        <DealParameterControl
-                          key={key}
-                          label={label}
-                          displayValue={displayValue}
-                          editable={isEditable}
-                          modified={isModified}
-                          isBoolean={isBoolean}
-                          isEditing={isCurrentlyEditing}
-                          inputDefaultValue={inputDefault}
-                          onStartEdit={() => setEditingFieldKey(key)}
-                          onBlur={(val) => handleBlurWithSanity(key, val)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") (e.target as HTMLInputElement | HTMLSelectElement).blur();
-                            if (e.key === "Escape") setEditingFieldKey(null);
-                          }}
-                          warnings={fieldWarnings[key]}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-              {useLocalCapitalize && <CategoryBPanel categoryB={categoryB} setCategoryB={setCategoryB} />}
-            </div>
+            renderDealTermSections()
           )}
         </div>
       </div>
@@ -1932,15 +2345,17 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
             <button
               type="button"
               onClick={() =>
-                useLocalCapitalize ? runLocalCapitalizeMatch() : runMatchmaking(fieldOverrides)
+                useLocalCapitalize
+                  ? runLocalCapitalizeMatch()
+                  : runMatchmaking(contentOverridesForRun)
               }
               disabled={
-                matchRunning || capitalizeRunBlocked || (!useLocalCapitalize && hasSanityWarnings)
+                matchRunning || capitalizeRunBlocked || hasSanityWarnings
               }
               title={
                 capitalizeRunBlocked
                   ? "Enter a target rate (%) when using Target rate preference."
-                  : !useLocalCapitalize && hasSanityWarnings
+                  : hasSanityWarnings
                     ? "Fix validation warnings on deal parameters before running."
                     : undefined
               }
@@ -1955,7 +2370,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
               )}
             </button>
           </div>
-          {!useLocalCapitalize && hasSanityWarnings && (
+          {hasSanityWarnings && (
             <p className="text-xs text-amber-600 mt-1">Fix validation warnings on deal parameters above before running or saving.</p>
           )}
 
@@ -1993,9 +2408,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
               <Loader2 size={32} className="text-blue-500 animate-spin mb-4" />
               <h4 className="text-base font-semibold text-gray-800">Analyzing Lenders...</h4>
               <p className="text-sm text-gray-500 text-center mt-2">
-                {useLocalCapitalize
-                  ? "Running the Capitalize parquet matchmaking engine."
-                  : "Matching your project parameters against the backend matchmaking engine."}
+                Running matchmaking against the current lender-matching engine.
               </p>
             </div>
           ) : !hasResults ? (

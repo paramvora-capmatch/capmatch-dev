@@ -872,7 +872,7 @@
       "required": true
     },
     "requestedTerm": {
-      "label": "Requested Term",
+      "label": "Loan Term",
       "required": true
     },
     "amortizationYears": {

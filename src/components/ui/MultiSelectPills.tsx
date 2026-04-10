@@ -5,7 +5,7 @@ import { Button } from './Button';
 
 interface MultiSelectPillsProps {
   label?: string;
-  options: ReadonlyArray<string>;
+  options: ReadonlyArray<string | { label: string; value: string }>;
   selectedValues: string[];
   onSelect: (values: string[]) => void;
   required?: boolean;
@@ -32,6 +32,10 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
   isLocked,
   hasAutofillBeenRun = true,
 }) => {
+  const normalizedOptions = options.map((option) =>
+    typeof option === "string" ? { label: option, value: option } : option
+  );
+
   const handleClick = (option: string) => {
     if (disabled) return;
     const isSelected = selectedValues.includes(option);
@@ -64,14 +68,14 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
         </label>
       )}
       <div className={cn(`grid ${gridCols} gap-2`, containerBgClass)}>
-        {options.map((option) => {
-          const isSelected = selectedValues.includes(option);
+        {normalizedOptions.map((option) => {
+          const isSelected = selectedValues.includes(option.value);
           return (
             <Button
-              key={option}
+            key={option.value}
               type="button"
               variant={isSelected ? 'primary' : 'outline'}
-              onClick={() => handleClick(option)}
+            onClick={() => handleClick(option.value)}
               disabled={disabled}
               className={cn(
                 "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500",
@@ -81,7 +85,7 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
                 buttonClassName
               )}
             >
-              {option}
+              {option.label}
             </Button>
           );
         })}

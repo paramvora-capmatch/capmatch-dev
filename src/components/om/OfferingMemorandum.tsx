@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import Image from "next/image";
+import { formatRequestedTermLabel } from "@/lib/matchmaking/resumeFields";
 
 interface OfferingMemorandumProps {
   project: ProjectProfile;
@@ -223,8 +224,12 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
             value={formatDate(project.targetCloseDate)}
           />
           <KeyValueDisplay
-            label="Requested Term"
-            value={project.requestedTerm || "N/A"}
+            label="Loan Term"
+            value={
+              project.requestedTerm != null && project.requestedTerm !== ""
+                ? formatRequestedTermLabel(project.requestedTerm)
+                : "N/A"
+            }
           />
           <KeyValueDisplay
             label="Interest Rate"
