@@ -9,6 +9,8 @@ import {
   Lightbulb,
   FileText,
   Target,
+  TrendingUp,
+  BarChart3,
 } from "lucide-react";
 import { useLenderAIReport, type DealSummaryForAI } from "@/hooks/useLenderAIReport";
 import type { MatchScore } from "@/hooks/useMatchmaking";
@@ -22,6 +24,12 @@ interface LenderAIReportProps {
   lenderName: string;
   /** When set with local Capitalize mode, calls `/api/matchmaking/ai-report`. */
   capitalizeDeal?: DealInput | null;
+}
+
+function scoreColor(score: number): string {
+  if (score >= 0.7) return "text-emerald-700 bg-emerald-50 border-emerald-200";
+  if (score >= 0.4) return "text-amber-700 bg-amber-50 border-amber-200";
+  return "text-red-700 bg-red-50 border-red-200";
 }
 
 export const LenderAIReport: React.FC<LenderAIReportProps> = ({
@@ -70,6 +78,10 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
       </div>
     );
   }
+
+  const insights = content.dimension_insights;
+  const pricingAnalysis = content.pricing_analysis;
+  const ltvContext = content.ltv_context;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
@@ -169,6 +181,43 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
             <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
               {content.executive_summary}
             </p>
+          </div>
+        )}
+
+        {insights && insights.length > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5 mb-2">
+              <BarChart3 size={14} />
+              Dimension Insights
+            </h4>
+            <div className="grid gap-1.5">
+              {insights.map((di, i) => (
+                <div
+                  key={i}
+                  className={`text-xs px-2.5 py-1.5 rounded-md border flex items-start gap-2 ${scoreColor(di.score)}`}
+                >
+                  <span className="font-bold shrink-0 w-6 text-right">{(di.score * 100).toFixed(0)}</span>
+                  <span>{di.insight}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {pricingAnalysis && (
+          <div>
+            <h4 className="text-sm font-semibold text-violet-700 flex items-center gap-1.5 mb-1.5">
+              <TrendingUp size={14} />
+              Pricing Deep Dive
+            </h4>
+            <p className="text-sm text-gray-600 leading-relaxed bg-violet-50/50 border border-violet-100 rounded-md px-3 py-2">
+              {pricingAnalysis}
+            </p>
+            {ltvContext && (
+              <p className="text-sm text-gray-600 leading-relaxed bg-amber-50/50 border border-amber-100 rounded-md px-3 py-2 mt-1.5">
+                {ltvContext}
+              </p>
+            )}
           </div>
         )}
 

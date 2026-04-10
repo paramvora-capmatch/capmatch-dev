@@ -27,6 +27,12 @@ export interface ParameterRecommendationRow {
   explanation: string;
 }
 
+export interface DimensionInsightRow {
+  dimension: string;
+  score: number;
+  insight: string;
+}
+
 export interface AIReportContent {
   numerical_recommendations?: string[];
   parameter_recommendations?: ParameterRecommendationRow[];
@@ -34,6 +40,9 @@ export interface AIReportContent {
   strengths: string[];
   gaps: string[];
   recommendations: string[];
+  dimension_insights?: DimensionInsightRow[];
+  pricing_analysis?: string | null;
+  ltv_context?: string | null;
 }
 
 export function matchScoreToMatchResult(score: MatchScore): MatchResult {

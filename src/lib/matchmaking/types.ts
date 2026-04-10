@@ -56,6 +56,12 @@ export interface MatchResult {
  * Serializable hints for inline percentile / distribution charts in the score breakdown.
  * Populated by the Capitalize engine for each dimension where data supports it.
  */
+export interface ShareBreakdownItem {
+  label: string;
+  share: number;
+  isHighlighted: boolean;
+}
+
 export type DimensionBandViz =
   | {
       kind: "loan_amount";
@@ -75,6 +81,16 @@ export type DimensionBandViz =
       subtitle: string;
     }
   | {
+      kind: "share_breakdown";
+      /** 0–1 share of lender book for the deal's value */
+      share: number;
+      subtitle: string;
+      /** Top items by share for this dimension */
+      topItems: ShareBreakdownItem[];
+      /** Which dimension this breakdown is for (used by the chart) */
+      dimension: "geography" | "asset_class" | "purpose" | "term";
+    }
+  | {
       kind: "spread";
       median: number;
       p25: number | null;
@@ -84,6 +100,8 @@ export type DimensionBandViz =
       /** Target spread (deal target rate − benchmark) when in target mode */
       targetSpread: number | null;
       mode: "competitive" | "target" | "insufficient";
+      /** Implied all-in rate = benchmarkRate + median spread */
+      impliedAllInRate?: number;
     }
   | {
       kind: "ltv_history";

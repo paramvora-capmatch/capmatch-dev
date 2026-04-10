@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchEngineConfig, fetchLendersForDeal } from "@/lib/matchmaking/db";
+import { fetchEngineConfig, fetchLendersForDeal, fetchLenderBreakdowns } from "@/lib/matchmaking/db";
 import { runMatchmaking, type EngineConfig } from "@/lib/matchmaking/engine";
-import type { DealInput, MatchResponse } from "@/lib/matchmaking/types";
+import type { DealInput, DimensionBandViz, MatchResponse, MatchResult, ShareBreakdownItem } from "@/lib/matchmaking/types";
 import {
   ASSET_CLASS_VALUES,
   LENDER_TYPE_VALUES,
   PURPOSE_VALUES,
   STATE_CODES,
   TERM_BUCKET_VALUES,
+  TERM_BUCKET_SHORT_LABELS,
   mapProjectPhaseToPurposes,
 } from "@/lib/matchmaking/constants";
-import type { LenderType } from "@/lib/matchmaking/constants";
+import type { LenderType, TermBucket } from "@/lib/matchmaking/constants";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,105 @@ function parseRateType(v: unknown): "fixed" | "floating" | "any" {
   if (s === "fixed") return "fixed";
   if (s === "floating") return "floating";
   return "any";
+}
+
+function makeBreakdownItems(
+  items: { label: string; share: number }[],
+  highlightLabel: string
+): ShareBreakdownItem[] {
+  return items.map((it) => ({
+    label: it.label,
+    share: it.share,
+    isHighlighted: it.label.toLowerCase() === highlightLabel.toLowerCase(),
+  }));
+}
+
+function upgradeShareViz(
+  dim: { dimension: string; viz?: DimensionBandViz },
+  deal: DealInput,
+  breakdown: import("@/lib/matchmaking/db").LenderBreakdownData
+): void {
+  if (!dim.viz || dim.viz.kind !== "share") return;
+
+  const baseShare = dim.viz.share;
+  const subtitle = dim.viz.subtitle;
+
+  if (dim.dimension === "Geography") {
+    const items = makeBreakdownItems(breakdown.topStates, deal.state);
+    if (!items.some((i) => i.isHighlighted) && baseShare > 0) {
+      items.push({ label: deal.state, share: baseShare, isHighlighted: true });
+    }
+    (dim as { viz: DimensionBandViz }).viz = {
+      kind: "share_breakdown",
+      share: baseShare,
+      subtitle,
+      topItems: items,
+      dimension: "geography",
+    };
+  } else if (dim.dimension === "Asset Class") {
+    const items = makeBreakdownItems(breakdown.topAssets, deal.assetClass);
+    if (!items.some((i) => i.isHighlighted) && baseShare > 0) {
+      items.push({ label: deal.assetClass, share: baseShare, isHighlighted: true });
+    }
+    (dim as { viz: DimensionBandViz }).viz = {
+      kind: "share_breakdown",
+      share: baseShare,
+      subtitle,
+      topItems: items,
+      dimension: "asset_class",
+    };
+  } else if (dim.dimension === "Purpose") {
+    const items = makeBreakdownItems(
+      breakdown.purposes,
+      deal.eligiblePurposes?.[0] ?? deal.purpose
+    );
+    for (const ep of deal.eligiblePurposes ?? [deal.purpose]) {
+      for (const it of items) {
+        if (it.label.toLowerCase() === ep.toLowerCase()) it.isHighlighted = true;
+      }
+    }
+    (dim as { viz: DimensionBandViz }).viz = {
+      kind: "share_breakdown",
+      share: baseShare,
+      subtitle,
+      topItems: items,
+      dimension: "purpose",
+    };
+  } else if (dim.dimension === "Term Fit") {
+    const items = breakdown.topTerms.map((t) => ({
+      label: TERM_BUCKET_SHORT_LABELS[t.label as TermBucket] ?? t.label,
+      share: t.share,
+      isHighlighted: t.label === deal.termBucket,
+    }));
+    (dim as { viz: DimensionBandViz }).viz = {
+      kind: "share_breakdown",
+      share: baseShare,
+      subtitle,
+      topItems: items,
+      dimension: "term",
+    };
+  }
+}
+
+async function enrichResultsWithBreakdowns(
+  results: MatchResult[],
+  deal: DealInput
+): Promise<MatchResult[]> {
+  if (results.length === 0) return results;
+  try {
+    const ids = results.map((r) => r.lenderId);
+    const breakdowns = await fetchLenderBreakdowns(ids);
+    for (const result of results) {
+      const bd = breakdowns.get(result.lenderId);
+      if (!bd) continue;
+      for (const dim of result.dimensions) {
+        upgradeShareViz(dim, deal, bd);
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to enrich results with breakdowns, returning base results:", e);
+  }
+  return results;
 }
 
 export async function POST(req: NextRequest) {
@@ -132,9 +232,11 @@ export async function POST(req: NextRequest) {
 
     const { results, totalEligible, totalScanned } = runMatchmaking(deal, lenders, engineConfig);
 
+    const enrichedResults = await enrichResultsWithBreakdowns(results, deal);
+
     const response: MatchResponse = {
       deal,
-      results,
+      results: enrichedResults,
       totalEligible,
       totalLenders: totalScanned,
       engineVersion: "capitalize-v1.1",

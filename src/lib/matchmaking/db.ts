@@ -254,6 +254,74 @@ export async function fetchLendersForDeal(deal: DealParquetJoinInput): Promise<L
   });
 }
 
+export interface LenderBreakdownData {
+  topStates: { label: string; share: number }[];
+  topAssets: { label: string; share: number }[];
+  purposes: { label: string; share: number }[];
+  topTerms: { label: string; share: number }[];
+}
+
+export async function fetchLenderBreakdowns(lenderIds: string[]): Promise<Map<string, LenderBreakdownData>> {
+  if (!matchmakingParquetReady() || lenderIds.length === 0) {
+    return new Map();
+  }
+  const inList = lenderIds.map(sqlStringLiteral).join(", ");
+  return withConnection(async (conn) => {
+    const [stRes, asRes, puRes, tmRes] = await Promise.all([
+      conn.runAndReadAll(
+        `SELECT lender_id, state AS label, share
+         FROM read_parquet(${pq("lender_state_prefs.parquet")})
+         WHERE lender_id IN (${inList})
+         QUALIFY ROW_NUMBER() OVER (PARTITION BY lender_id ORDER BY share DESC) <= 5`
+      ),
+      conn.runAndReadAll(
+        `SELECT lender_id, asset_class AS label, share
+         FROM read_parquet(${pq("lender_asset_prefs.parquet")})
+         WHERE lender_id IN (${inList})
+         QUALIFY ROW_NUMBER() OVER (PARTITION BY lender_id ORDER BY share DESC) <= 5`
+      ),
+      conn.runAndReadAll(
+        `SELECT lender_id, purpose AS label, share
+         FROM read_parquet(${pq("lender_purpose_prefs.parquet")})
+         WHERE lender_id IN (${inList})`
+      ),
+      conn.runAndReadAll(
+        `SELECT lender_id, term_bucket AS label, share
+         FROM read_parquet(${pq("lender_term_prefs.parquet")})
+         WHERE lender_id IN (${inList})
+         QUALIFY ROW_NUMBER() OVER (PARTITION BY lender_id ORDER BY share DESC) <= 5`
+      ),
+    ]);
+
+    await Promise.all([stRes.readAll(), asRes.readAll(), puRes.readAll(), tmRes.readAll()]);
+
+    const result = new Map<string, LenderBreakdownData>();
+    for (const id of lenderIds) {
+      result.set(id, { topStates: [], topAssets: [], purposes: [], topTerms: [] });
+    }
+
+    function collect(rows: Record<string, unknown>[], key: keyof LenderBreakdownData) {
+      for (const row of rows) {
+        const lid = String(row.lender_id ?? "");
+        const entry = result.get(lid);
+        if (entry) {
+          entry[key].push({
+            label: String(row.label ?? ""),
+            share: Number(row.share ?? 0),
+          });
+        }
+      }
+    }
+
+    collect(stRes.getRowObjectsJson() as Record<string, unknown>[], "topStates");
+    collect(asRes.getRowObjectsJson() as Record<string, unknown>[], "topAssets");
+    collect(puRes.getRowObjectsJson() as Record<string, unknown>[], "purposes");
+    collect(tmRes.getRowObjectsJson() as Record<string, unknown>[], "topTerms");
+
+    return result;
+  });
+}
+
 export async function fetchLenderProfileBundle(lenderId: string): Promise<{
   profile: Record<string, unknown> | null;
   states: Record<string, unknown>[];

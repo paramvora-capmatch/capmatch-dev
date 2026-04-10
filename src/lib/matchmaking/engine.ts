@@ -446,6 +446,7 @@ function scorePricingFit(
   let score: number;
   let explanation: string;
 
+  const impliedAllInRate = bench + lender.spread_median;
   const spreadVizBase = {
     kind: "spread" as const,
     median: lender.spread_median,
@@ -453,6 +454,7 @@ function scorePricingFit(
     p75: lender.spread_p75,
     benchmarkRate: bench,
     marketFloor: floor,
+    impliedAllInRate,
   };
 
   if (mode === "competitive") {

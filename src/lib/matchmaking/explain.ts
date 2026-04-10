@@ -59,3 +59,46 @@ export function ltvOverlayText(ltvMedian: number | null, ltvCount: number, ltvCo
   const cov = ltvCoverage != null ? `${(ltvCoverage * 100).toFixed(0)}%` : "—";
   return `Typical LTV ~${ltvMedian.toFixed(0)}% (${ltvCount} transactions with LTV, ~${cov} of book).`;
 }
+
+export interface DimensionInsight {
+  dimension: string;
+  score: number;
+  insight: string;
+}
+
+export function generateDimensionInsights(result: MatchResult, deal: DealInput): DimensionInsight[] {
+  return result.dimensions.map((dim) => {
+    const pct = (dim.score * 100).toFixed(0);
+    let insight: string;
+
+    if (dim.dimension === "Loan Amount") {
+      insight = dim.score >= 0.7
+        ? `Strong size fit (${pct}/100) — this deal is within the lender's preferred range.`
+        : dim.score >= 0.4
+          ? `Moderate size fit (${pct}/100) — deal size is workable but not ideal for this lender.`
+          : `Weak size fit (${pct}/100) — this deal is near the edge of what this lender typically handles.`;
+    } else if (dim.dimension === "Geography") {
+      insight = dim.score >= 0.7
+        ? `Strong geographic fit (${pct}/100) — ${deal.state} is a core market for this lender.`
+        : dim.score >= 0.3
+          ? `Moderate geographic fit (${pct}/100) — this lender has some presence in ${deal.state}.`
+          : `Weak geographic fit (${pct}/100) — ${deal.state} is not a focus market for this lender.`;
+    } else if (dim.dimension === "Asset Class") {
+      insight = dim.score >= 0.7
+        ? `Strong asset fit (${pct}/100) — ${deal.assetClass} is a key focus for this lender.`
+        : dim.score >= 0.4
+          ? `Moderate asset fit (${pct}/100) — this lender has some ${deal.assetClass} exposure.`
+          : `Weak asset fit (${pct}/100) — ${deal.assetClass} is not a primary focus.`;
+    } else if (dim.dimension === "Pricing Fit") {
+      insight = dim.score >= 0.7
+        ? `Strong pricing alignment (${pct}/100) — this lender's typical spread aligns well.`
+        : dim.score >= 0.4
+          ? `Moderate pricing fit (${pct}/100) — some gap between lender's typical pricing and your target.`
+          : `Weak pricing fit (${pct}/100) — significant pricing gap exists.`;
+    } else {
+      insight = `${dim.dimension}: ${pct}/100 — ${dim.explanation}`;
+    }
+
+    return { dimension: dim.dimension, score: dim.score, insight };
+  });
+}

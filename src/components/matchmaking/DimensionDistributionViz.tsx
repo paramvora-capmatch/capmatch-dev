@@ -24,7 +24,6 @@ function linearPos(value: number, lo: number, hi: number): number {
   return clampPct(((value - lo) / (hi - lo)) * 100);
 }
 
-/** Loan amount: p05–p95 band, quartiles, deal marker, empirical percentile label */
 function LoanAmountChart({ v }: { v: Extract<DimensionBandViz, { kind: "loan_amount" }> }) {
   const { p05, p50, p95, dealAmount, percentile } = v;
   if (!(p95 > p05)) {
@@ -98,6 +97,62 @@ function ShareBar({ v }: { v: Extract<DimensionBandViz, { kind: "share" }> }) {
   );
 }
 
+function ShareBreakdownChart({ v }: { v: Extract<DimensionBandViz, { kind: "share_breakdown" }> }) {
+  const items = v.topItems;
+  if (items.length === 0) {
+    return (
+      <div className="mt-2">
+        <p className="text-[11px] text-gray-500">No distribution data available.</p>
+      </div>
+    );
+  }
+  const maxShare = Math.max(...items.map((i) => i.share), 0.01);
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="space-y-1">
+        {items.map((item) => {
+          const barWidth = clampPct((item.share / maxShare) * 100);
+          return (
+            <div key={item.label} className="flex items-center gap-2">
+              <span
+                className={`text-[11px] w-20 shrink-0 truncate text-right ${
+                  item.isHighlighted ? "font-semibold text-indigo-700" : "text-gray-500"
+                }`}
+                title={item.label}
+              >
+                {item.isHighlighted ? `▸ ${item.label}` : item.label}
+              </span>
+              <div className="flex-1 h-4 bg-slate-100 rounded overflow-hidden border border-slate-200/80">
+                <div
+                  className={`h-full rounded transition-all ${
+                    item.isHighlighted
+                      ? "bg-gradient-to-r from-indigo-500 to-blue-500"
+                      : "bg-gradient-to-r from-slate-300 to-slate-400"
+                  }`}
+                  style={{ width: `${barWidth}%` }}
+                />
+              </div>
+              <span
+                className={`text-[11px] w-12 text-right ${
+                  item.isHighlighted ? "font-semibold text-indigo-700" : "text-gray-500"
+                }`}
+              >
+                {(item.share * 100).toFixed(1)}%
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {!items.some((i) => i.isHighlighted) && (
+        <p className="text-[10px] text-amber-600">
+          Your selection is not among this lender&apos;s top categories.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function SpreadBandChart({ v }: { v: Extract<DimensionBandViz, { kind: "spread" }> }) {
   if (v.mode === "insufficient") {
     return (
@@ -125,8 +180,27 @@ function SpreadBandChart({ v }: { v: Extract<DimensionBandViz, { kind: "spread" 
   }
   const at = (x: number) => linearPos(x, lo, hi);
 
+  const iqrWidth = v.p25 != null && v.p75 != null ? v.p75 - v.p25 : null;
+  const iqrColor =
+    iqrWidth != null
+      ? iqrWidth < 0.8
+        ? "bg-emerald-100/90 border-emerald-200"
+        : iqrWidth < 1.5
+          ? "bg-violet-100/90 border-violet-200"
+          : "bg-amber-100/90 border-amber-200"
+      : "bg-violet-100/90 border-violet-200";
+
   return (
-    <div className="mt-2 space-y-1">
+    <div className="mt-2 space-y-1.5">
+      {v.impliedAllInRate != null && (
+        <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-md px-2.5 py-1.5">
+          <span className="text-[11px] text-indigo-600 font-medium">Implied all-in rate:</span>
+          <span className="text-sm font-bold text-indigo-800">{v.impliedAllInRate.toFixed(2)}%</span>
+          <span className="text-[10px] text-indigo-400">
+            ({v.benchmarkRate.toFixed(2)}% benchmark + {v.median.toFixed(2)}% spread)
+          </span>
+        </div>
+      )}
       <div className="flex justify-between text-[10px] uppercase tracking-wide text-gray-500">
         <span>Lower spread</span>
         <span>Higher spread</span>
@@ -134,7 +208,7 @@ function SpreadBandChart({ v }: { v: Extract<DimensionBandViz, { kind: "spread" 
       <div className="relative h-10 rounded-md bg-slate-50 border border-slate-200">
         {v.p25 != null && v.p75 != null && v.p75 > v.p25 && (
           <div
-            className="absolute inset-y-2 rounded bg-violet-100/90 border border-violet-200"
+            className={`absolute inset-y-2 rounded border ${iqrColor}`}
             style={{ left: `${at(v.p25)}%`, width: `${Math.max(0, at(v.p75) - at(v.p25))}%` }}
             title="25th–75th percentile spread (over benchmark)"
           />
@@ -170,10 +244,15 @@ function SpreadBandChart({ v }: { v: Extract<DimensionBandViz, { kind: "spread" 
           <span className="text-gray-400">Floor:</span> {fmtPctPt(v.marketFloor)}
         </span>
         <span className="text-gray-400">
-          Benchmark {v.benchmarkRate.toFixed(2)}% (DGS10-based)
+          Benchmark {v.benchmarkRate.toFixed(2)}% (DGS10)
         </span>
         {v.mode === "target" && v.targetSpread != null && (
           <span className="font-medium text-rose-700">Target spread: {fmtPctPt(v.targetSpread)}</span>
+        )}
+        {v.mode === "competitive" && (
+          <span className="font-medium text-emerald-700">
+            {v.median <= v.marketFloor + 0.5 ? "Aggressive pricer" : v.median <= v.marketFloor + 1.5 ? "Mid-market" : "Premium pricer"}
+          </span>
         )}
       </div>
     </div>
@@ -231,6 +310,8 @@ export function DimensionDistributionViz({ viz }: { viz: DimensionBandViz }) {
       return <LoanAmountChart v={viz} />;
     case "share":
       return <ShareBar v={viz} />;
+    case "share_breakdown":
+      return <ShareBreakdownChart v={viz} />;
     case "spread":
       return <SpreadBandChart v={viz} />;
     case "ltv_history":

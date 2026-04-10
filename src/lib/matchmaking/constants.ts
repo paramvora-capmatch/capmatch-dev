@@ -45,6 +45,18 @@ export const TERM_BUCKET_LABELS: Record<TermBucket, string> = {
   extended_gt30yr: "Over 30 years",
 };
 
+export const TERM_BUCKET_SHORT_LABELS: Record<TermBucket, string> = {
+  bridge_lte1yr: "Bridge",
+  short_1_3yr: "1–3 yr",
+  medium_3_5yr: "3–5 yr",
+  medium_5_7yr: "5–7 yr",
+  standard_7_10yr: "7–10 yr",
+  long_10_15yr: "10–15 yr",
+  long_15_20yr: "15–20 yr",
+  standard_20_30yr: "20–30 yr",
+  extended_gt30yr: "30+ yr",
+};
+
 /** Term bucket that provides no discriminatory power — scoring stays OFF. */
 export const TERM_BUCKET_NO_DISCRIMINATION = "standard_20_30yr" as const;
 

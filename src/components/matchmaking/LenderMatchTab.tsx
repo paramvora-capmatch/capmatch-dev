@@ -37,7 +37,7 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { AlertModal } from "@/components/ui/AlertModal";
-import { ASSET_CLASS_VALUES, TERM_BUCKET_VALUES, TERM_BUCKET_LABELS, TERM_BUCKET_NO_DISCRIMINATION, LENDER_TYPE_VALUES, LENDER_TYPE_LABELS, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
+import { ASSET_CLASS_VALUES, TERM_BUCKET_VALUES, TERM_BUCKET_LABELS, TERM_BUCKET_SHORT_LABELS, TERM_BUCKET_NO_DISCRIMINATION, LENDER_TYPE_VALUES, LENDER_TYPE_LABELS, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
 import type { DealInput } from "@/lib/matchmaking/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -364,6 +364,40 @@ function CategoryBPanel({
   categoryB: CategoryBState;
   setCategoryB: React.Dispatch<React.SetStateAction<CategoryBState>>;
 }) {
+  const [benchmarkRate, setBenchmarkRate] = useState<number | null>(null);
+  const [spreadBps, setSpreadBps] = useState<number>(200);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/matchmaking/benchmark")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.benchmarkRate != null) {
+          setBenchmarkRate(data.benchmarkRate);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleSpreadChange = useCallback(
+    (bps: number) => {
+      setSpreadBps(bps);
+      if (benchmarkRate != null) {
+        const computed = benchmarkRate + bps / 100;
+        setCategoryB((b) => ({ ...b, targetRate: parseFloat(computed.toFixed(2)) }));
+      }
+    },
+    [benchmarkRate, setCategoryB]
+  );
+
+  useEffect(() => {
+    if (categoryB.ratePreference === "target" && benchmarkRate != null && categoryB.targetRate == null) {
+      const computed = benchmarkRate + spreadBps / 100;
+      setCategoryB((b) => ({ ...b, targetRate: parseFloat(computed.toFixed(2)) }));
+    }
+  }, [categoryB.ratePreference, benchmarkRate, categoryB.targetRate, spreadBps, setCategoryB]);
+
   return (
     <div className="mt-5 pt-4 border-t border-gray-200 space-y-4">
       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -384,20 +418,38 @@ function CategoryBPanel({
             ))}
           </select>
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 sm:col-span-2">
           <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Loan term</label>
-          <select
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
-            value={categoryB.termBucket}
-            onChange={(e) => setCategoryB((b) => ({ ...b, termBucket: e.target.value }))}
-          >
-            <option value="">Any / No preference</option>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCategoryB((b) => ({ ...b, termBucket: "" }))}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
+                categoryB.termBucket === ""
+                  ? "bg-indigo-600 text-white border-indigo-600"
+                  : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+              )}
+            >
+              No preference
+            </button>
             {TERM_BUCKET_VALUES.filter((b) => b !== TERM_BUCKET_NO_DISCRIMINATION).map((b) => (
-              <option key={b} value={b}>
-                {TERM_BUCKET_LABELS[b]}
-              </option>
+              <button
+                key={b}
+                type="button"
+                onClick={() => setCategoryB((prev) => ({ ...prev, termBucket: b }))}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
+                  categoryB.termBucket === b
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                )}
+                title={TERM_BUCKET_LABELS[b]}
+              >
+                {TERM_BUCKET_SHORT_LABELS[b]}
+              </button>
             ))}
-          </select>
+          </div>
         </div>
         <div className="space-y-1 sm:col-span-2">
           <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Lender type</label>
@@ -457,47 +509,103 @@ function CategoryBPanel({
             ))}
           </div>
         </div>
-        <div className="space-y-1 sm:col-span-2">
-          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Rate preference (scoring)</label>
+        <div className="space-y-1.5 sm:col-span-2">
+          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Pricing preference</label>
           <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-wrap">
             {(
               [
-                { v: "none" as const, label: "None" },
-                { v: "competitive" as const, label: "Competitive" },
-                { v: "target" as const, label: "Target" },
+                { v: "none" as const, label: "No Pricing Filter", subtitle: null },
+                { v: "competitive" as const, label: "Best Pricing", subtitle: "Lowest spreads rank highest" },
+                { v: "target" as const, label: "Target Rate", subtitle: "Match to a specific rate" },
               ] as const
-            ).map(({ v, label }) => (
+            ).map(({ v, label, subtitle }) => (
               <button
                 key={v}
                 type="button"
                 onClick={() => setCategoryB((b) => ({ ...b, ratePreference: v }))}
                 className={cn(
-                  "flex-1 min-w-[100px] px-2 py-2 text-xs font-medium",
+                  "flex-1 min-w-[120px] px-2 py-2 text-center",
                   categoryB.ratePreference === v ? "bg-indigo-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
                 )}
               >
-                {label}
+                <span className="text-xs font-medium block">{label}</span>
+                {subtitle && (
+                  <span className={cn(
+                    "text-[10px] block mt-0.5",
+                    categoryB.ratePreference === v ? "text-indigo-200" : "text-gray-400"
+                  )}>
+                    {subtitle}
+                  </span>
+                )}
               </button>
             ))}
           </div>
+          {categoryB.ratePreference === "competitive" && (
+            <p className="text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-md px-2.5 py-1.5">
+              Lenders are scored by how aggressively they price relative to the market floor. Lower typical spreads over benchmark = higher scores.
+            </p>
+          )}
         </div>
         {categoryB.ratePreference === "target" && (
-          <div className="space-y-1 sm:col-span-2">
-            <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Target rate (%)</label>
-            <input
-              type="number"
-              step="0.01"
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
-              placeholder="e.g. 6.5"
-              value={categoryB.targetRate ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                setCategoryB((b) => ({
-                  ...b,
-                  targetRate: v === "" ? undefined : parseFloat(v),
-                }));
-              }}
-            />
+          <div className="space-y-3 sm:col-span-2">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Current Benchmark (10Y Treasury)</span>
+                <span className="text-sm font-semibold text-gray-800">
+                  {benchmarkRate != null ? `${benchmarkRate.toFixed(2)}%` : "Loading..."}
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Spread over benchmark</span>
+                  <span className="text-sm font-semibold text-indigo-700">{spreadBps} bps</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={500}
+                  step={25}
+                  value={spreadBps}
+                  onChange={(e) => handleSpreadChange(parseInt(e.target.value, 10))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                />
+                <div className="flex justify-between text-[10px] text-gray-400">
+                  <span>0 bps</span>
+                  <span>125</span>
+                  <span>250</span>
+                  <span>375</span>
+                  <span>500 bps</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Target All-In Rate</span>
+                <span className="text-lg font-bold text-indigo-700">
+                  {benchmarkRate != null ? `${(benchmarkRate + spreadBps / 100).toFixed(2)}%` : "—"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-gray-400">or enter directly:</span>
+              <input
+                type="number"
+                step="0.01"
+                className="w-28 px-2 py-1 text-xs border border-gray-300 rounded-md"
+                placeholder="e.g. 6.5"
+                value={categoryB.targetRate ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const rate = v === "" ? undefined : parseFloat(v);
+                  setCategoryB((b) => ({ ...b, targetRate: rate }));
+                  if (rate != null && benchmarkRate != null) {
+                    setSpreadBps(Math.max(0, Math.min(500, Math.round((rate - benchmarkRate) * 100 / 25) * 25)));
+                  }
+                }}
+              />
+              <span className="text-[11px] text-gray-400">%</span>
+            </div>
           </div>
         )}
       </div>
