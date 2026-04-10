@@ -35,11 +35,11 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { AlertModal } from "@/components/ui/AlertModal";
-import { ASSET_CLASS_VALUES, TERM_BUCKET_VALUES, TERM_BUCKET_LABELS, TERM_BUCKET_SHORT_LABELS, TERM_BUCKET_NO_DISCRIMINATION, LENDER_TYPE_VALUES, LENDER_TYPE_LABELS, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
+import { ASSET_CLASS_VALUES, TERM_BUCKET_VALUES, TERM_BUCKET_LABELS, TERM_BUCKET_SHORT_LABELS, TERM_BUCKET_NO_DISCRIMINATION, LENDER_TYPE_VALUES, LENDER_TYPE_LABELS, mapProjectPhaseToPurposes, STATE_CODES, benchmarkSeriesIdFromRateAndTerm } from "@/lib/matchmaking/constants";
 import type { DealInput } from "@/lib/matchmaking/types";
 import type { RatePoint, RateTrendSignal } from "@/lib/matchmaking/rateTrend";
 import { rateTrendAdvisoryText } from "@/lib/matchmaking/explain";
-import { RateTrendSparkline } from "./RateTrendSparkline";
+import { RateEnvironmentPanel } from "./RateEnvironmentPanel";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -361,9 +361,11 @@ type CategoryBState = {
 function CategoryBPanel({
   categoryB,
   setCategoryB,
+  benchmarkSeriesId,
 }: {
   categoryB: CategoryBState;
   setCategoryB: React.Dispatch<React.SetStateAction<CategoryBState>>;
+  benchmarkSeriesId: string;
 }) {
   const [allBenchmarks, setAllBenchmarks] = useState<{
     dgs10: number; dgs7: number; dgs5: number; sofr: number;
@@ -406,18 +408,6 @@ function CategoryBPanel({
     }
     return { benchmarkRate: allBenchmarks.dgs10, benchmarkLabel: "10Y Treasury" };
   }, [allBenchmarks, categoryB.rateType, categoryB.termBucket]);
-
-  const benchmarkSeriesId = useMemo(() => {
-    if (categoryB.rateType === "floating") return "SOFR";
-    if (categoryB.rateType === "fixed") {
-      const tb = categoryB.termBucket ?? "";
-      const shortTerms = ["bridge_lte1yr", "short_1_3yr", "medium_3_5yr"];
-      const midTerms = ["medium_5_7yr"];
-      if (shortTerms.includes(tb)) return "DGS5";
-      if (midTerms.includes(tb)) return "DGS7";
-    }
-    return "DGS10";
-  }, [categoryB.rateType, categoryB.termBucket]);
 
   useEffect(() => {
     let cancelled = false;
@@ -676,18 +666,13 @@ function CategoryBPanel({
         )}
       </div>
 
-      {/* Rate Intelligence: sparkline + environment label + advisory */}
+      {/* Rate Intelligence: chart + advisory */}
       {rateSignal && rateHistoryPoints && rateHistoryPoints.length > 30 && (
         <div className="mt-5 pt-4 border-t border-gray-200 space-y-3">
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
             Market rate environment
           </div>
-          <div className="flex items-center gap-3">
-            <RateTrendSparkline points={rateHistoryPoints} signal={rateSignal} />
-            <p className="text-xs text-gray-600 leading-snug flex-1">
-              {rateSignal.environmentLabel}
-            </p>
-          </div>
+          <RateEnvironmentPanel points={rateHistoryPoints} signal={rateSignal} variant="embedded" />
           {advisoryTips.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 space-y-1">
               <p className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">
@@ -1009,6 +994,11 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     lastMatchRunId,
     useLocalCapitalize,
   } = useMatchmaking(projectId, selectedVersionId ?? null, contentOverridesForRun);
+
+  const benchmarkSeriesId = useMemo(
+    () => benchmarkSeriesIdFromRateAndTerm(categoryB.rateType, categoryB.termBucket || undefined),
+    [categoryB.rateType, categoryB.termBucket],
+  );
 
   const mergedForCapitalize = useMemo(
     () => getMergedContext(project, fieldOverrides),
@@ -1629,7 +1619,13 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                         </div>
                       </div>
                     ))}
-                    {useLocalCapitalize && <CategoryBPanel categoryB={categoryB} setCategoryB={setCategoryB} />}
+                    {useLocalCapitalize && (
+                      <CategoryBPanel
+                        categoryB={categoryB}
+                        setCategoryB={setCategoryB}
+                        benchmarkSeriesId={benchmarkSeriesId}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -1982,7 +1978,13 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   </div>
                 </div>
               ))}
-              {useLocalCapitalize && <CategoryBPanel categoryB={categoryB} setCategoryB={setCategoryB} />}
+              {useLocalCapitalize && (
+                <CategoryBPanel
+                  categoryB={categoryB}
+                  setCategoryB={setCategoryB}
+                  benchmarkSeriesId={benchmarkSeriesId}
+                />
+              )}
             </div>
           )}
         </div>
@@ -2108,6 +2110,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
           dealSummary={dealSummaryForAI}
           capitalizeDeal={capitalizeDealForAI}
           advisorRateType={categoryB.rateType}
+          benchmarkSeriesId={benchmarkSeriesId}
           canAddToWishlist={canAddToWishlist}
           onAddToWishlist={handleAddToWishlist}
           wishlistAdded={wishlistLeis}

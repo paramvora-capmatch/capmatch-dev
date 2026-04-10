@@ -18,8 +18,13 @@ interface RateTrendChartProps {
   points: RatePoint[];
   signal: RateTrendSignal;
   lenderSpreadMedian?: number | null;
+  /** When false, caps width at this many CSS pixels. Ignored when fullWidth is true. */
   width?: number;
   height?: number;
+  /** Stretch to parent width (no maxWidth cap). */
+  fullWidth?: boolean;
+  /** Draw horizontal markers for Vasicek 30d/90d projections (requires signal.vasicek). */
+  showVasicekProjections?: boolean;
 }
 
 function computeEmaForChart(values: number[], span: number): number[] {
@@ -37,6 +42,8 @@ export const RateTrendChart: React.FC<RateTrendChartProps> = ({
   lenderSpreadMedian,
   width = 400,
   height = 200,
+  fullWidth = false,
+  showVasicekProjections = false,
 }) => {
   const chartData = useMemo(() => {
     const tail = points.slice(-180);
@@ -54,30 +61,62 @@ export const RateTrendChart: React.FC<RateTrendChartProps> = ({
   }, [points, lenderSpreadMedian]);
 
   const rates = chartData.map((d) => d.rate);
-  const yMin = Math.floor((Math.min(...rates) - 0.2) * 10) / 10;
-  const yMax = Math.ceil((Math.max(...rates) + 0.3) * 10) / 10;
+  const impliedVals = chartData.map((d) => d.implied).filter((v): v is number => v != null);
 
-  const formatDate = (d: string) => {
-    const dt = new Date(d);
-    return `${dt.getMonth() + 1}/${dt.getDate()}`;
+  const refYs: number[] = [...rates, ...impliedVals];
+  const v = signal.vasicek;
+  if (v) {
+    refYs.push(v.longRunMean);
+    if (showVasicekProjections) {
+      refYs.push(v.projected30d, v.projected90d);
+    }
+  }
+
+  const yLo = refYs.length > 0 ? Math.min(...refYs) : signal.current;
+  const yHi = refYs.length > 0 ? Math.max(...refYs) : signal.current;
+  const yMin = Math.floor((yLo - 0.2) * 10) / 10;
+  const yMax = Math.ceil((yHi + 0.3) * 10) / 10;
+
+  /** Calendar trading dates — avoid M/D ticks like "1/5" that read as fractions. */
+  const formatChartDate = (value: string | number) => {
+    const raw = String(value);
+    const dt = new Date(raw);
+    if (Number.isNaN(dt.getTime())) return raw;
+    return dt.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "2-digit",
+    });
   };
 
+  const outerStyle: React.CSSProperties = fullWidth
+    ? { width: "100%", height }
+    : { width: "100%", maxWidth: width, height };
+
   return (
-    <div style={{ width: "100%", maxWidth: width, height }}>
+    <div style={outerStyle}>
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+        <ComposedChart data={chartData} margin={{ top: 8, right: 12, bottom: 28, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis
             dataKey="date"
-            tickFormatter={formatDate}
+            type="category"
+            tickFormatter={formatChartDate}
             tick={{ fontSize: 10 }}
             interval="preserveStartEnd"
-            minTickGap={40}
+            minTickGap={36}
+            label={{
+              value: "Trading date",
+              position: "insideBottom",
+              offset: -18,
+              fontSize: 10,
+              fill: "#6b7280",
+            }}
           />
           <YAxis
             domain={[yMin, yMax]}
             tick={{ fontSize: 10 }}
-            width={40}
+            width={44}
             tickFormatter={(v: number) => `${v.toFixed(1)}%`}
           />
           <Tooltip
@@ -93,7 +132,7 @@ export const RateTrendChart: React.FC<RateTrendChartProps> = ({
                       ? "Implied All-In"
                       : name,
             ]}
-            labelFormatter={formatDate}
+            labelFormatter={formatChartDate}
             contentStyle={{ fontSize: 11 }}
           />
 
@@ -141,18 +180,45 @@ export const RateTrendChart: React.FC<RateTrendChartProps> = ({
             />
           )}
 
-          {signal.vasicek && (
+          {v && (
             <ReferenceLine
-              y={signal.vasicek.longRunMean}
+              y={v.longRunMean}
               stroke="#94a3b8"
               strokeDasharray="8 4"
               label={{
-                value: `Eq: ${signal.vasicek.longRunMean.toFixed(2)}%`,
+                value: `Eq: ${v.longRunMean.toFixed(2)}%`,
                 position: "right",
                 fontSize: 9,
                 fill: "#94a3b8",
               }}
             />
+          )}
+
+          {v && showVasicekProjections && (
+            <>
+              <ReferenceLine
+                y={v.projected30d}
+                stroke="#8b5cf6"
+                strokeDasharray="3 3"
+                label={{
+                  value: `30d: ${v.projected30d.toFixed(2)}%`,
+                  position: "insideTopRight",
+                  fontSize: 9,
+                  fill: "#7c3aed",
+                }}
+              />
+              <ReferenceLine
+                y={v.projected90d}
+                stroke="#7c3aed"
+                strokeDasharray="2 6"
+                label={{
+                  value: `90d: ${v.projected90d.toFixed(2)}%`,
+                  position: "insideBottomRight",
+                  fontSize: 9,
+                  fill: "#6d28d9",
+                }}
+              />
+            </>
           )}
         </ComposedChart>
       </ResponsiveContainer>

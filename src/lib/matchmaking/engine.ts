@@ -8,7 +8,7 @@ import type {
   MatchResult,
 } from "./types";
 import { generateHeadline } from "./explain";
-import { TERM_BUCKET_LABELS, TERM_BUCKET_NO_DISCRIMINATION } from "./constants";
+import { TERM_BUCKET_LABELS, TERM_BUCKET_NO_DISCRIMINATION, benchmarkSeriesIdFromRateAndTerm } from "./constants";
 
 const WEIGHTS_STRUCTURAL = {
   amount: 0.35,
@@ -74,13 +74,7 @@ export function selectBenchmark(
 
 /** Returns the FRED series ID (DGS10, SOFR, etc.) for a deal's benchmark. */
 export function benchmarkSeriesForDeal(deal: DealInput): string {
-  if (deal.rateType === "floating") return "SOFR";
-  if (deal.rateType === "fixed") {
-    const tb = deal.termBucket ?? "";
-    if (["bridge_lte1yr", "short_1_3yr", "medium_3_5yr"].includes(tb)) return "DGS5";
-    if (["medium_5_7yr"].includes(tb)) return "DGS7";
-  }
-  return "DGS10";
+  return benchmarkSeriesIdFromRateAndTerm(deal.rateType, deal.termBucket);
 }
 
 interface EngineLender {
