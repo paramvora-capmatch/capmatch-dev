@@ -136,6 +136,12 @@ function rowToEngineLender(row: LenderRow): EngineLender {
 }
 
 function isEligible(lender: EngineLender, deal: DealInput): boolean {
+  if (deal.lenderTypes && deal.lenderTypes.length > 0) {
+    if (!deal.lenderTypes.includes(lender.primary_lender_type)) {
+      return false;
+    }
+  }
+
   if (lender.total_txns >= 10) {
     if (deal.loanAmount < lender.amount_p05 || deal.loanAmount > lender.amount_p95) {
       return false;

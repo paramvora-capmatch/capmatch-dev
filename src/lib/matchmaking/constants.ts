@@ -48,6 +48,26 @@ export const TERM_BUCKET_LABELS: Record<TermBucket, string> = {
 /** Term bucket that provides no discriminatory power — scoring stays OFF. */
 export const TERM_BUCKET_NO_DISCRIMINATION = "standard_20_30yr" as const;
 
+export const LENDER_TYPE_VALUES = [
+  "bank",
+  "credit union",
+  "private money",
+  "debt fund",
+  "insurance company",
+  "agency",
+] as const;
+
+export type LenderType = (typeof LENDER_TYPE_VALUES)[number];
+
+export const LENDER_TYPE_LABELS: Record<LenderType, string> = {
+  bank: "Bank",
+  "credit union": "Credit Union",
+  "private money": "Private Money",
+  "debt fund": "Debt Fund",
+  "insurance company": "Insurance Co.",
+  agency: "Agency",
+};
+
 export const STATE_CODES = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA",
   "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",

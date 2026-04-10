@@ -4,11 +4,13 @@ import { runMatchmaking, type EngineConfig } from "@/lib/matchmaking/engine";
 import type { DealInput, MatchResponse } from "@/lib/matchmaking/types";
 import {
   ASSET_CLASS_VALUES,
+  LENDER_TYPE_VALUES,
   PURPOSE_VALUES,
   STATE_CODES,
   TERM_BUCKET_VALUES,
   mapProjectPhaseToPurposes,
 } from "@/lib/matchmaking/constants";
+import type { LenderType } from "@/lib/matchmaking/constants";
 
 export const runtime = "nodejs";
 
@@ -70,6 +72,16 @@ export async function POST(req: NextRequest) {
         ? rawTermBucket
         : undefined;
 
+    const rawLenderTypes = body.lender_types ?? body.lenderTypes;
+    const lenderTypes: string[] | undefined =
+      Array.isArray(rawLenderTypes) && rawLenderTypes.length > 0
+        ? rawLenderTypes
+            .map((t: unknown) => String(t).toLowerCase().trim())
+            .filter((t: string) =>
+              LENDER_TYPE_VALUES.includes(t as LenderType)
+            )
+        : undefined;
+
     const deal: DealInput = {
       loanAmount,
       state,
@@ -83,6 +95,7 @@ export async function POST(req: NextRequest) {
           ? Number(body.target_rate ?? body.targetRate)
           : undefined,
       termBucket,
+      lenderTypes: lenderTypes && lenderTypes.length > 0 ? lenderTypes : undefined,
     };
 
     if (!deal.loanAmount || deal.loanAmount <= 0) {

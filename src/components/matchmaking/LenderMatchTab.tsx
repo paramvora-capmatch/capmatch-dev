@@ -37,7 +37,7 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { AlertModal } from "@/components/ui/AlertModal";
-import { ASSET_CLASS_VALUES, TERM_BUCKET_VALUES, TERM_BUCKET_LABELS, TERM_BUCKET_NO_DISCRIMINATION, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
+import { ASSET_CLASS_VALUES, TERM_BUCKET_VALUES, TERM_BUCKET_LABELS, TERM_BUCKET_NO_DISCRIMINATION, LENDER_TYPE_VALUES, LENDER_TYPE_LABELS, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
 import type { DealInput } from "@/lib/matchmaking/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -354,6 +354,7 @@ type CategoryBState = {
   ratePreference: "none" | "competitive" | "target";
   targetRate?: number;
   termBucket: string;
+  lenderTypes: string[];
 };
 
 function CategoryBPanel({
@@ -397,6 +398,46 @@ function CategoryBPanel({
               </option>
             ))}
           </select>
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Lender type</label>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-wrap">
+            <button
+              type="button"
+              onClick={() => setCategoryB((b) => ({ ...b, lenderTypes: [] }))}
+              className={cn(
+                "px-3 py-2 text-xs font-medium",
+                categoryB.lenderTypes.length === 0
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              )}
+            >
+              All
+            </button>
+            {LENDER_TYPE_VALUES.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() =>
+                  setCategoryB((b) => {
+                    const cur = b.lenderTypes;
+                    const next = cur.includes(t)
+                      ? cur.filter((x) => x !== t)
+                      : [...cur, t];
+                    return { ...b, lenderTypes: next.length === LENDER_TYPE_VALUES.length ? [] : next };
+                  })
+                }
+                className={cn(
+                  "px-3 py-2 text-xs font-medium",
+                  categoryB.lenderTypes.includes(t)
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                )}
+              >
+                {LENDER_TYPE_LABELS[t as keyof typeof LENDER_TYPE_LABELS]}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Rate type (confidence)</label>
@@ -484,6 +525,9 @@ function buildCapitalizeRunBody(
   if (categoryB.termBucket) {
     body.term_bucket = categoryB.termBucket;
   }
+  if (categoryB.lenderTypes.length > 0) {
+    body.lender_types = categoryB.lenderTypes;
+  }
   if (
     categoryB.ratePreference === "target" &&
     categoryB.targetRate != null &&
@@ -529,6 +573,7 @@ function buildCapitalizeDealInput(
         ? categoryB.targetRate
         : undefined,
     termBucket: categoryB.termBucket || undefined,
+    lenderTypes: categoryB.lenderTypes.length > 0 ? categoryB.lenderTypes : undefined,
   };
 }
 
@@ -762,6 +807,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     rateType: "any",
     ratePreference: "none",
     termBucket: "",
+    lenderTypes: [],
   });
   const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null);
   const [isSavingVersion, setIsSavingVersion] = useState(false);

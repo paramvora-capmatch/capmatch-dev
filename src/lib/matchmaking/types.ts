@@ -13,6 +13,7 @@ export interface DealInput {
   ratePreference?: "competitive" | "target" | "none";
   targetRate?: number;
   termBucket?: string;
+  lenderTypes?: string[];
 }
 
 export interface MatchResponse {
