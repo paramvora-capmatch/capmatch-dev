@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ChevronDown,
-  ChevronUp,
   Zap,
   Save,
   RotateCcw,
@@ -24,13 +23,12 @@ import {
   Lock,
   BookmarkPlus,
 } from "lucide-react";
-import { useMatchmaking, getMatchmakingDraft, setMatchmakingDraft, type MatchScore, type VariableVizData } from "@/hooks/useMatchmaking";
+import { useMatchmaking, getMatchmakingDraft, setMatchmakingDraft, type MatchScore } from "@/hooks/useMatchmaking";
 import { useProjectStore } from "@/stores/useProjectStore";
 import { supabase } from "@/lib/supabaseClient";
 import { getBackendUrl } from "@/lib/apiConfig";
 import type { ProjectProfile } from "@/types/enhanced-types";
-import { LenderAIReport } from "./LenderAIReport";
-import { DimensionDistributionViz } from "./DimensionDistributionViz";
+import { LenderDetailModal } from "./LenderDetailModal";
 import { FIELD_DEPENDENCIES } from "@/features/project-resume/domain/validationDependencies";
 import { cn } from "@/utils/cn";
 import { Modal, ModalBody, ModalFooter } from "@/components/ui/Modal";
@@ -685,40 +683,27 @@ function buildCapitalizeDealInput(
   };
 }
 
-// ─── Match card with Tier 1 (pillar bars + narrative) and Tier 2 (quick view + AI) ──
+// ─── Match card — summary row that opens LenderDetailModal on click ──
 
 function MatchCard({
-  projectId,
-  matchRunId,
   score,
-  dealSummary,
-  capitalizeDeal,
   advisorRateType,
-  expanded,
-  onToggle,
+  onSelect,
   canAddToWishlist,
-  projectResumeId,
   onAddToWishlist,
   wishlistAdded,
   wishlistLoading,
 }: {
-  projectId: string;
-  matchRunId: string | null;
   score: MatchScore;
-  dealSummary: Record<string, unknown> | null;
-  capitalizeDeal: DealInput | null;
   advisorRateType: "fixed" | "floating" | "any";
-  expanded: boolean;
-  onToggle: () => void;
+  onSelect: () => void;
   canAddToWishlist: boolean;
-  projectResumeId: string | null;
   onAddToWishlist: (score: MatchScore) => void;
   wishlistAdded: Set<string>;
   wishlistLoading: string | null;
 }) {
   const displayName = score.lender_name || score.lender_lei || "Unknown";
   const pillar = score.pillar_scores || {};
-  // Backend sends pillar scores in 0-1; PillarRow/ScoreBar expect 0-100
   const marketFit = (pillar.market_fit ?? pillar.Market ?? 0) * 100;
   const capitalFit = (pillar.capital_fit ?? pillar.Capital ?? 0) * 100;
   const productFit = (pillar.product_fit ?? pillar.Product ?? 0) * 100;
@@ -730,9 +715,8 @@ function MatchCard({
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm transition-shadow hover:shadow-md">
-      {/* Tier 1: Always visible — rank, name, pillar bars, narrative */}
       <div
-        onClick={onToggle}
+        onClick={onSelect}
         className="px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center gap-3">
@@ -791,10 +775,7 @@ function MatchCard({
               )}
               {wishlistAdded.has(score.lender_lei) ? "Saved" : "Wishlist"}
             </button>
-            <div className="flex flex-col items-center gap-1">
-              <ScoreBadge score={score.total_score} />
-              {expanded ? <ChevronUp size={14} className="text-gray-300" /> : <ChevronDown size={14} className="text-gray-300" />}
-            </div>
+            <ScoreBadge score={score.total_score} />
           </div>
         </div>
         {advisorRateType !== "any" && score.capitalize_meta && (
@@ -809,59 +790,6 @@ function MatchCard({
           </p>
         )}
       </div>
-
-      {/* Tier 2: Expanded — variable breakdown + AI report trigger */}
-      {expanded && (
-        <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-4">
-          {score.variable_scores && score.variable_scores.length > 0 && (
-            <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Zap size={16} className="text-blue-600" />
-                <span className="text-base font-semibold text-gray-800">Score breakdown</span>
-              </div>
-              <ul className="space-y-2">
-                {score.variable_scores.map((v: VariableVizData, i: number) => (
-                  <li key={i} className="text-sm border-b border-gray-100 last:border-0 pb-3 last:pb-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="font-medium text-gray-700">{v.name}</span>
-                      <span className="text-xs font-semibold text-gray-500">{(v.score * 100).toFixed(0)}</span>
-                    </div>
-                    <ScoreBar score={v.score * 100} color={v.score >= 0.7 ? "#059669" : v.score >= 0.4 ? "#d97706" : "#dc2626"} />
-                    {v.explanation && (
-                      <p className="text-xs text-gray-500 mt-0.5">{v.explanation}</p>
-                    )}
-                    {v.viz && (
-                      <div className="mt-2 rounded-lg bg-slate-50/80 border border-slate-100 px-2 py-2">
-                        <DimensionDistributionViz viz={v.viz} />
-                      </div>
-                    )}
-                  </li>
-                ))}
-                {score.capitalize_ltv_band && (
-                  <li className="text-sm pt-2 border-t border-dashed border-gray-200">
-                    <span className="font-medium text-gray-700">Historical LTV</span>
-                    <div className="mt-1 rounded-lg bg-amber-50/50 border border-amber-100/80 px-2 py-2">
-                      <DimensionDistributionViz viz={score.capitalize_ltv_band} />
-                    </div>
-                  </li>
-                )}
-              </ul>
-            </div>
-          )}
-
-          {/* Wishlist button moved to Tier 1 header */}
-
-          {/* Tier 3: AI Report */}
-          <LenderAIReport
-            projectId={projectId}
-            matchRunId={matchRunId}
-            score={score}
-            dealSummary={dealSummary}
-            lenderName={displayName}
-            capitalizeDeal={capitalizeDeal}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -877,7 +805,7 @@ interface LenderMatchTabProps {
 
 export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => {
   const [versionDropdownOpen, setVersionDropdownOpen] = useState(false);
-  const [expandedScoreId, setExpandedScoreId] = useState<string | null>(null);
+  const [selectedScore, setSelectedScore] = useState<MatchScore | null>(null);
 
   // Narrow layout: when container width < NARROW_LAYOUT_BREAKPOINT, show Parameters | Results toggle and one panel at a time.
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1726,16 +1654,10 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   matchScores.map((score) => (
                     <MatchCard
                       key={score.id}
-                      projectId={projectId}
-                      matchRunId={savedMatchRunId ?? lastMatchRunId}
                       score={score}
-                      dealSummary={dealSummaryForAI}
-                      capitalizeDeal={capitalizeDealForAI}
                       advisorRateType={categoryB.rateType}
-                      expanded={expandedScoreId === score.id}
-                      onToggle={() => setExpandedScoreId((id) => (id === score.id ? null : score.id))}
+                      onSelect={() => setSelectedScore(score)}
                       canAddToWishlist={canAddToWishlist}
-                      projectResumeId={savedProjectResumeId}
                       onAddToWishlist={handleAddToWishlist}
                       wishlistAdded={wishlistLeis}
                       wishlistLoading={wishlistLoading}
@@ -2064,16 +1986,10 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
             matchScores.map((score) => (
               <MatchCard
                 key={score.id}
-                projectId={projectId}
-                matchRunId={savedMatchRunId ?? lastMatchRunId}
                 score={score}
-                dealSummary={dealSummaryForAI}
-                capitalizeDeal={capitalizeDealForAI}
                 advisorRateType={categoryB.rateType}
-                expanded={expandedScoreId === score.id}
-                onToggle={() => setExpandedScoreId((id) => (id === score.id ? null : score.id))}
+                onSelect={() => setSelectedScore(score)}
                 canAddToWishlist={canAddToWishlist}
-                projectResumeId={savedProjectResumeId}
                 onAddToWishlist={handleAddToWishlist}
                 wishlistAdded={wishlistLeis}
                 wishlistLoading={wishlistLoading}
@@ -2083,6 +1999,24 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
         </div>
       </div>
     </div>
+      )}
+
+      {/* Lender detail modal */}
+      {selectedScore && (
+        <LenderDetailModal
+          isOpen={!!selectedScore}
+          onClose={() => setSelectedScore(null)}
+          projectId={projectId}
+          matchRunId={savedMatchRunId ?? lastMatchRunId}
+          score={selectedScore}
+          dealSummary={dealSummaryForAI}
+          capitalizeDeal={capitalizeDealForAI}
+          advisorRateType={categoryB.rateType}
+          canAddToWishlist={canAddToWishlist}
+          onAddToWishlist={handleAddToWishlist}
+          wishlistAdded={wishlistLeis}
+          wishlistLoading={wishlistLoading}
+        />
       )}
 
       {/* Save run modal: name input for resume version + match run */}

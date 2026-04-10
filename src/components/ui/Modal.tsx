@@ -9,7 +9,7 @@ import { cn } from '../../utils/cn';
 export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title?: string;
+  title?: React.ReactNode;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | '7xl' | '8xl' | '9xl' | '10xl' | 'full';
   headerRight?: React.ReactNode; // Optional right-aligned content before the close button
