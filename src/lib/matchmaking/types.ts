@@ -12,6 +12,7 @@ export interface DealInput {
   rateType?: "fixed" | "floating" | "any";
   ratePreference?: "competitive" | "target" | "none";
   targetRate?: number;
+  termBucket?: string;
 }
 
 export interface MatchResponse {
@@ -144,6 +145,9 @@ export interface LenderProfile {
   ltvCoverage: number;
   ltvP25: number | null;
   ltvP75: number | null;
+  termCoverage: number;
+  termConcentration: number | null;
+  dominantTermBucket: string | null;
 }
 
 export interface ParameterRecommendation {

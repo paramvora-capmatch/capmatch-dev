@@ -71,5 +71,8 @@ export function mapParquetToLenderProfile(
     ltvCoverage: num(profile.ltv_coverage),
     ltvP25: nnullable(profile.ltv_p25),
     ltvP75: nnullable(profile.ltv_p75),
+    termCoverage: num(profile.term_coverage),
+    termConcentration: nnullable(profile.term_concentration),
+    dominantTermBucket: profile.dominant_term_bucket != null ? str(profile.dominant_term_bucket) : null,
   };
 }

@@ -6,6 +6,7 @@ import {
   ASSET_CLASS_VALUES,
   PURPOSE_VALUES,
   STATE_CODES,
+  TERM_BUCKET_VALUES,
   mapProjectPhaseToPurposes,
 } from "@/lib/matchmaking/constants";
 
@@ -62,6 +63,13 @@ export async function POST(req: NextRequest) {
 
     const assetClass = String(body.asset_class ?? body.assetClass ?? "");
 
+    const rawTermBucket = body.term_bucket ?? body.termBucket ?? undefined;
+    const termBucket =
+      typeof rawTermBucket === "string" &&
+      TERM_BUCKET_VALUES.includes(rawTermBucket as (typeof TERM_BUCKET_VALUES)[number])
+        ? rawTermBucket
+        : undefined;
+
     const deal: DealInput = {
       loanAmount,
       state,
@@ -74,6 +82,7 @@ export async function POST(req: NextRequest) {
         body.target_rate != null || body.targetRate != null
           ? Number(body.target_rate ?? body.targetRate)
           : undefined,
+      termBucket,
     };
 
     if (!deal.loanAmount || deal.loanAmount <= 0) {
@@ -98,6 +107,7 @@ export async function POST(req: NextRequest) {
         assetClass: deal.assetClass,
         purpose: deal.purpose,
         eligiblePurposes: deal.eligiblePurposes,
+        termBucket: deal.termBucket,
       }),
       fetchEngineConfig(),
     ]);
@@ -114,7 +124,7 @@ export async function POST(req: NextRequest) {
       results,
       totalEligible,
       totalLenders: totalScanned,
-      engineVersion: "capitalize-v1",
+      engineVersion: "capitalize-v1.1",
       ranAt: new Date().toISOString(),
     };
 

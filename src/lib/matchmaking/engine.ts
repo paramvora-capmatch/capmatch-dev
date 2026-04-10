@@ -8,6 +8,7 @@ import type {
   MatchResult,
 } from "./types";
 import { generateHeadline } from "./explain";
+import { TERM_BUCKET_LABELS, TERM_BUCKET_NO_DISCRIMINATION } from "./constants";
 
 const WEIGHTS_STRUCTURAL = {
   amount: 0.35,
@@ -22,6 +23,23 @@ const WEIGHTS_WITH_RATE = {
   assetClass: 0.18,
   purpose: 0.12,
   pricingFit: 0.13,
+} as const;
+
+const WEIGHTS_WITH_TERM = {
+  amount: 0.32,
+  geography: 0.27,
+  assetClass: 0.18,
+  purpose: 0.12,
+  termFit: 0.11,
+} as const;
+
+const WEIGHTS_WITH_TERM_AND_RATE = {
+  amount: 0.28,
+  geography: 0.24,
+  assetClass: 0.16,
+  purpose: 0.10,
+  termFit: 0.10,
+  pricingFit: 0.12,
 } as const;
 
 export interface EngineConfig {
@@ -61,6 +79,8 @@ interface EngineLender {
   ltv_median: number | null;
   ltv_count: number;
   ltv_coverage: number | null;
+  term_coverage: number;
+  term_share: number | null;
 }
 
 function logArrayDollarQuantiles(arr: number[]): { p25: number; p75: number } | null {
@@ -110,6 +130,8 @@ function rowToEngineLender(row: LenderRow): EngineLender {
     ltv_median: row.ltv_median,
     ltv_count: row.ltv_count,
     ltv_coverage: row.ltv_coverage,
+    term_coverage: row.term_coverage,
+    term_share: row.term_share,
   };
 }
 
@@ -139,9 +161,20 @@ function isEligible(lender: EngineLender, deal: DealInput): boolean {
   return true;
 }
 
+function isTermActive(deal: DealInput): boolean {
+  return (
+    !!deal.termBucket &&
+    deal.termBucket !== TERM_BUCKET_NO_DISCRIMINATION
+  );
+}
+
 function getWeights(deal: DealInput) {
   const useRate = deal.ratePreference === "competitive" || deal.ratePreference === "target";
-  return useRate ? WEIGHTS_WITH_RATE : WEIGHTS_STRUCTURAL;
+  const useTerm = isTermActive(deal);
+  if (useTerm && useRate) return WEIGHTS_WITH_TERM_AND_RATE;
+  if (useTerm) return WEIGHTS_WITH_TERM;
+  if (useRate) return WEIGHTS_WITH_RATE;
+  return WEIGHTS_STRUCTURAL;
 }
 
 function formatDollars(n: number): string {
@@ -328,6 +361,47 @@ function scorePurpose(deal: DealInput, lender: EngineLender): DimensionScore {
   };
 }
 
+function scoreTermFit(deal: DealInput, lender: EngineLender): DimensionScore | null {
+  if (!isTermActive(deal)) return null;
+
+  const w = getWeights(deal);
+  const termWeight = "termFit" in w ? (w as Record<string, number>).termFit : 0;
+  const share = lender.term_share ?? 0;
+  const rawScore = Math.min(share / 0.15, 1.0);
+  const cov = lender.term_coverage;
+  const adjusted = rawScore * cov + 0.5 * (1 - cov);
+
+  const bucketLabel =
+    TERM_BUCKET_LABELS[deal.termBucket as keyof typeof TERM_BUCKET_LABELS] ?? deal.termBucket;
+  const pctStr = (share * 100).toFixed(0);
+
+  let explanation: string;
+  if (adjusted >= 0.8) {
+    explanation = `${pctStr}% of book is ${bucketLabel} — strong term fit`;
+  } else if (adjusted >= 0.5) {
+    explanation = `${pctStr}% ${bucketLabel} with ${(cov * 100).toFixed(0)}% term data coverage`;
+  } else if (cov < 0.5) {
+    explanation = `Limited term data (${(cov * 100).toFixed(0)}% coverage) — scored neutrally`;
+  } else {
+    explanation = `Only ${pctStr}% ${bucketLabel} — not their typical term`;
+  }
+
+  const shareViz: DimensionBandViz = {
+    kind: "share",
+    share: Math.min(1, Math.max(0, share)),
+    subtitle: `Share of book in ${bucketLabel}`,
+  };
+
+  return {
+    dimension: "Term Fit",
+    score: adjusted,
+    weight: termWeight,
+    weighted: adjusted * termWeight,
+    explanation,
+    viz: shareViz,
+  };
+}
+
 function scorePricingFit(
   deal: DealInput,
   lender: EngineLender,
@@ -491,6 +565,8 @@ export function runMatchmaking(
       scoreAssetClass(deal, lender),
       scorePurpose(deal, lender),
     ];
+    const termDim = scoreTermFit(deal, lender);
+    if (termDim) dims.push(termDim);
     const pricingDim = scorePricingFit(deal, lender, engineConfig);
     if (pricingDim) dims.push(pricingDim);
 

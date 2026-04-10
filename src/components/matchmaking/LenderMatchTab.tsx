@@ -37,7 +37,7 @@ import { Modal, ModalBody, ModalFooter } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { AlertModal } from "@/components/ui/AlertModal";
-import { ASSET_CLASS_VALUES, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
+import { ASSET_CLASS_VALUES, TERM_BUCKET_VALUES, TERM_BUCKET_LABELS, TERM_BUCKET_NO_DISCRIMINATION, mapProjectPhaseToPurposes, STATE_CODES } from "@/lib/matchmaking/constants";
 import type { DealInput } from "@/lib/matchmaking/types";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -353,6 +353,7 @@ type CategoryBState = {
   rateType: "fixed" | "floating" | "any";
   ratePreference: "none" | "competitive" | "target";
   targetRate?: number;
+  termBucket: string;
 };
 
 function CategoryBPanel({
@@ -378,6 +379,21 @@ function CategoryBPanel({
             {ASSET_CLASS_VALUES.map((a) => (
               <option key={a} value={a}>
                 {a}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Loan term</label>
+          <select
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+            value={categoryB.termBucket}
+            onChange={(e) => setCategoryB((b) => ({ ...b, termBucket: e.target.value }))}
+          >
+            <option value="">Any / No preference</option>
+            {TERM_BUCKET_VALUES.filter((b) => b !== TERM_BUCKET_NO_DISCRIMINATION).map((b) => (
+              <option key={b} value={b}>
+                {TERM_BUCKET_LABELS[b]}
               </option>
             ))}
           </select>
@@ -465,6 +481,9 @@ function buildCapitalizeRunBody(
     rate_type: categoryB.rateType,
     rate_preference: categoryB.ratePreference,
   };
+  if (categoryB.termBucket) {
+    body.term_bucket = categoryB.termBucket;
+  }
   if (
     categoryB.ratePreference === "target" &&
     categoryB.targetRate != null &&
@@ -509,6 +528,7 @@ function buildCapitalizeDealInput(
       Number.isFinite(categoryB.targetRate)
         ? categoryB.targetRate
         : undefined,
+    termBucket: categoryB.termBucket || undefined,
   };
 }
 
@@ -553,7 +573,7 @@ function MatchCard({
   const dimPreview = (score.variable_scores || [])
     .slice()
     .sort((a, b) => b.weight - a.weight)
-    .slice(0, 4);
+    .slice(0, 6);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm transition-shadow hover:shadow-md">
@@ -741,6 +761,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     assetClass: ASSET_CLASS_VALUES[0],
     rateType: "any",
     ratePreference: "none",
+    termBucket: "",
   });
   const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null);
   const [isSavingVersion, setIsSavingVersion] = useState(false);

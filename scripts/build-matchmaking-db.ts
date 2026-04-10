@@ -90,8 +90,12 @@ WITH txn_clean AS (
         CASE
             WHEN term IS NULL OR TRIM(CAST(term AS VARCHAR)) = '' THEN NULL
             WHEN CAST(CAST(term AS DOUBLE) AS INTEGER) = 0 THEN NULL
-            WHEN CAST(CAST(term AS DOUBLE) AS INTEGER) BETWEEN 1 AND 600
-                THEN CAST(CAST(term AS DOUBLE) AS INTEGER)
+            WHEN CAST(CAST(term AS DOUBLE) AS INTEGER) BETWEEN 1 AND 600 THEN
+                CASE
+                    WHEN CAST(CAST(term AS DOUBLE) AS INTEGER) IN (4,5,7,8,10,15,20,25,30,35,40)
+                        THEN CAST(CAST(term AS DOUBLE) AS INTEGER) * 12
+                    ELSE CAST(CAST(term AS DOUBLE) AS INTEGER)
+                END
             ELSE NULL
         END AS term_months,
         CASE
@@ -108,7 +112,19 @@ WITH txn_clean AS (
 txn_base AS (
     SELECT *,
         CASE WHEN norm_rate BETWEEN 1 AND 30 THEN norm_rate ELSE NULL END AS valid_rate,
-        CASE WHEN norm_ltv > 0 AND norm_ltv <= 200 THEN norm_ltv ELSE NULL END AS valid_ltv
+        CASE WHEN norm_ltv > 0 AND norm_ltv <= 200 THEN norm_ltv ELSE NULL END AS valid_ltv,
+        CASE
+            WHEN term_months IS NULL THEN NULL
+            WHEN term_months <= 12 THEN 'bridge_lte1yr'
+            WHEN term_months <= 36 THEN 'short_1_3yr'
+            WHEN term_months <= 60 THEN 'medium_3_5yr'
+            WHEN term_months <= 84 THEN 'medium_5_7yr'
+            WHEN term_months <= 120 THEN 'standard_7_10yr'
+            WHEN term_months <= 180 THEN 'long_10_15yr'
+            WHEN term_months <= 240 THEN 'long_15_20yr'
+            WHEN term_months <= 360 THEN 'standard_20_30yr'
+            ELSE 'extended_gt30yr'
+        END AS term_bucket
     FROM txn_clean
 )`;
 
@@ -161,7 +177,12 @@ lender_stats AS (
             / COUNT(*) AS asset_coverage,
         COUNT(DISTINCT asset_class) AS asset_class_count,
         COUNT(CASE WHEN purpose IS NOT NULL AND purpose != '' THEN 1 END)::DOUBLE
-            / COUNT(*) AS purpose_coverage
+            / COUNT(*) AS purpose_coverage,
+        COUNT(term_months)::BIGINT AS term_txn_count,
+        CASE WHEN COUNT(*) > 0
+            THEN COUNT(term_months)::DOUBLE / COUNT(*)
+            ELSE 0.0
+        END AS term_coverage
     FROM txn_base
     GROUP BY lender_id
 ),
@@ -203,6 +224,36 @@ asset_hhi AS (
         GROUP BY lender_id, asset_class
     )
     GROUP BY lender_id
+),
+term_hhi AS (
+    SELECT
+        lender_id,
+        SUM(share * share) AS term_concentration
+    FROM (
+        SELECT
+            lender_id,
+            term_bucket,
+            COUNT(*)::DOUBLE / SUM(COUNT(*)) OVER (PARTITION BY lender_id) AS share
+        FROM txn_base
+        WHERE term_bucket IS NOT NULL
+        GROUP BY lender_id, term_bucket
+    )
+    GROUP BY lender_id
+),
+term_dominant AS (
+    SELECT DISTINCT ON (lender_id)
+        lender_id,
+        term_bucket AS dominant_term_bucket
+    FROM (
+        SELECT
+            lender_id,
+            term_bucket,
+            COUNT(*) AS cnt
+        FROM txn_base
+        WHERE term_bucket IS NOT NULL
+        GROUP BY lender_id, term_bucket
+    )
+    ORDER BY lender_id, cnt DESC
 ),
 spread_agg AS (
     SELECT
@@ -289,11 +340,15 @@ SELECT
     la.ltv_count,
     la.ltv_coverage,
     la.ltv_p25,
-    la.ltv_p75
+    la.ltv_p75,
+    th.term_concentration,
+    td.dominant_term_bucket
 FROM lender_stats s
 LEFT JOIN lender_type_agg t USING (lender_id)
 LEFT JOIN geo_hhi g USING (lender_id)
 LEFT JOIN asset_hhi a USING (lender_id)
+LEFT JOIN term_hhi th USING (lender_id)
+LEFT JOIN term_dominant td USING (lender_id)
 LEFT JOIN spread_agg sp USING (lender_id)
 LEFT JOIN rate_type_agg rt USING (lender_id)
 LEFT JOIN ltv_agg la USING (lender_id)
@@ -348,6 +403,11 @@ async function validate(conn: DuckDBConnection): Promise<void> {
       name: "Lenders with spread_count >= 10",
       sql: "SELECT COUNT(*)::BIGINT AS n FROM lender_profiles WHERE spread_count >= 10",
       minExpected: 5_000,
+    },
+    {
+      name: "Lenders with term prefs",
+      sql: "SELECT COUNT(DISTINCT lender_id)::BIGINT AS n FROM lender_term_prefs",
+      minExpected: 14_000,
     },
     {
       name: "Benchmark daily rows",
@@ -553,6 +613,19 @@ async function build(): Promise<void> {
       GROUP BY lender_id;
     `);
 
+    await conn.run(`
+      CREATE TABLE lender_term_prefs AS
+      ${TXN_CLEAN_AND_BASE}
+      SELECT
+          lender_id,
+          term_bucket,
+          COUNT(*) AS txn_count,
+          COUNT(*)::DOUBLE / SUM(COUNT(*)) OVER (PARTITION BY lender_id) AS share
+      FROM txn_base
+      WHERE term_bucket IS NOT NULL
+      GROUP BY lender_id, term_bucket;
+    `);
+
     await validate(conn);
 
     console.log("Step 6: export parquet →", OUTPUT_DIR);
@@ -561,6 +634,7 @@ async function build(): Promise<void> {
       "lender_state_prefs",
       "lender_asset_prefs",
       "lender_purpose_prefs",
+      "lender_term_prefs",
       "lender_amount_arrays",
       "benchmark_rates_daily",
       "engine_config",

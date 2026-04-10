@@ -8,6 +8,7 @@ const REQUIRED_FILES = [
   "lender_state_prefs.parquet",
   "lender_asset_prefs.parquet",
   "lender_purpose_prefs.parquet",
+  "lender_term_prefs.parquet",
   "lender_amount_arrays.parquet",
   "benchmark_rates_daily.parquet",
   "engine_config.parquet",
@@ -85,6 +86,8 @@ export interface DealParquetJoinInput {
   purpose: string;
   /** Optional multi-purpose (e.g. Bridge); shares are summed in SQL. */
   eligiblePurposes?: string[];
+  /** Optional term bucket for term-fit scoring. */
+  termBucket?: string;
 }
 
 export interface LenderRow {
@@ -119,6 +122,8 @@ export interface LenderRow {
   ltv_count: number;
   ltv_p25: number | null;
   ltv_p75: number | null;
+  term_coverage: number;
+  term_share: number | null;
 }
 
 const CANONICAL_PURPOSES = new Set(["Sale", "Refinance", "New Construction"]);
@@ -146,6 +151,11 @@ export async function fetchLendersForDeal(deal: DealParquetJoinInput): Promise<L
   const state = deal.state.toUpperCase();
   const purposes = purposeInList(deal);
   const inList = purposes.map((p) => sqlStringLiteral(p)).join(", ");
+
+  const termJoin = deal.termBucket
+    ? `LEFT JOIN read_parquet(${pq("lender_term_prefs.parquet")}) tp
+        ON p.lender_id = tp.lender_id AND tp.term_bucket = ${sqlStringLiteral(deal.termBucket)}`
+    : "";
 
   const sql = `
     SELECT
@@ -179,7 +189,9 @@ export async function fetchLendersForDeal(deal: DealParquetJoinInput): Promise<L
       p.ltv_coverage,
       COALESCE(p.ltv_count, 0) AS ltv_count,
       p.ltv_p25,
-      p.ltv_p75
+      p.ltv_p75,
+      COALESCE(p.term_coverage, 0) AS term_coverage,
+      ${deal.termBucket ? "tp.share AS term_share" : "NULL AS term_share"}
     FROM read_parquet(${pq("lender_profiles.parquet")}) p
     LEFT JOIN read_parquet(${pq("lender_state_prefs.parquet")}) sp
       ON p.lender_id = sp.lender_id AND sp.state = ${sqlStringLiteral(state)}
@@ -193,6 +205,7 @@ export async function fetchLendersForDeal(deal: DealParquetJoinInput): Promise<L
     ) pp ON p.lender_id = pp.lender_id
     LEFT JOIN read_parquet(${pq("lender_amount_arrays.parquet")}) aa
       ON p.lender_id = aa.lender_id
+    ${termJoin}
   `;
 
   return withConnection(async (conn) => {
@@ -235,6 +248,8 @@ export async function fetchLendersForDeal(deal: DealParquetJoinInput): Promise<L
       ltv_count: Number(row.ltv_count ?? 0),
       ltv_p25: row.ltv_p25 != null ? Number(row.ltv_p25) : null,
       ltv_p75: row.ltv_p75 != null ? Number(row.ltv_p75) : null,
+      term_coverage: Number(row.term_coverage ?? 0),
+      term_share: row.term_share != null ? Number(row.term_share) : null,
     }));
   });
 }
