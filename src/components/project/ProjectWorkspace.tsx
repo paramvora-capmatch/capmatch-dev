@@ -45,9 +45,7 @@ import {
 import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
-import { useAutofill } from "@/hooks/useAutofill";
 import { useShallow } from "zustand/react/shallow";
-import { AlertModal } from "@/components/ui/AlertModal";
 import { useChatStore } from "@/stores/useChatStore";
 import { usePermissionStore } from "@/stores/usePermissionStore";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -59,6 +57,18 @@ import { AccessControlTab } from "./AccessControlTab";
 import { LenderMatchTab } from "../matchmaking/LenderMatchTab";
 import { FileText, ShieldCheck, Users } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { AutofillOrchestrator } from "@/components/ui/AutofillOrchestrator";
+import {
+	AUTOFILL_COMPLETED_EVENT,
+	AUTOFILL_FAILED_EVENT,
+	AUTOFILL_PROGRESS_EVENT,
+	AUTOFILL_STARTED_EVENT,
+	type AutofillContext,
+	type AutofillLifecycleEventDetail,
+	type AutofillPhase,
+	type AutofillProgressEventDetail,
+	type AutofillProgressMetadata,
+} from "@/types/jobs";
 
 const unwrapValue = (val: any) => {
 	if (val && typeof val === "object" && "value" in val) {
@@ -267,19 +277,98 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		setLocalContent: setBorrowerResumeLocalContent,
 	} = useProjectBorrowerResume(projectId);
 
-	// Autofill hook for View OM functionality
-	const projectAddress =
-		activeProject?.propertyAddressStreet &&
-			activeProject?.propertyAddressCity &&
-			activeProject?.propertyAddressState
-			? `${activeProject.propertyAddressStreet} | ${activeProject.propertyAddressCity
-				} ${activeProject.propertyAddressState}, ${activeProject.propertyAddressZip || ""
-				}`.trim()
-			: undefined;
-	const { isAutofilling, handleAutofill, errorModal, clearErrorModal } = useAutofill(projectId, {
-		projectAddress,
-	});
+	const [autofillOverlayActive, setAutofillOverlayActive] = useState(false);
+	const [autofillOverlayContext, setAutofillOverlayContext] =
+		useState<AutofillContext>("project");
+	const [autofillOverlayPhase, setAutofillOverlayPhase] =
+		useState<AutofillPhase>("initializing");
+	const [autofillOverlayMetadata, setAutofillOverlayMetadata] =
+		useState<AutofillProgressMetadata>({});
+	const autofillOverlayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null
+	);
 	const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+
+	const clearAutofillOverlayTimeout = useCallback(() => {
+		if (autofillOverlayTimeoutRef.current) {
+			clearTimeout(autofillOverlayTimeoutRef.current);
+			autofillOverlayTimeoutRef.current = null;
+		}
+	}, []);
+
+	const resetAutofillOverlay = useCallback(() => {
+		clearAutofillOverlayTimeout();
+		setAutofillOverlayActive(false);
+		setAutofillOverlayPhase("initializing");
+		setAutofillOverlayMetadata({});
+	}, [clearAutofillOverlayTimeout]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const handleStarted = (event: Event) => {
+			const detail = (event as CustomEvent<AutofillLifecycleEventDetail>)
+				.detail;
+			if (!detail || detail.projectId !== projectId) return;
+			clearAutofillOverlayTimeout();
+			setAutofillOverlayActive(true);
+			setAutofillOverlayContext(detail.context);
+			setAutofillOverlayPhase("initializing");
+			setAutofillOverlayMetadata({});
+		};
+
+		const handleProgress = (event: Event) => {
+			const detail = (event as CustomEvent<AutofillProgressEventDetail>)
+				.detail;
+			if (!detail || detail.projectId !== projectId) return;
+			clearAutofillOverlayTimeout();
+			setAutofillOverlayActive(true);
+			setAutofillOverlayContext(detail.context);
+			setAutofillOverlayPhase(detail.phase);
+			setAutofillOverlayMetadata(detail.metadata ?? {});
+		};
+
+		const handleCompleted = (event: Event) => {
+			const detail = (event as CustomEvent<AutofillLifecycleEventDetail>)
+				.detail;
+			if (!detail || detail.projectId !== projectId) return;
+			clearAutofillOverlayTimeout();
+			setAutofillOverlayActive(true);
+			setAutofillOverlayContext(detail.context);
+			setAutofillOverlayPhase("completed");
+			setAutofillOverlayMetadata((prev) => ({
+				...prev,
+				phase: "completed",
+			}));
+			autofillOverlayTimeoutRef.current = setTimeout(() => {
+				resetAutofillOverlay();
+			}, 1400);
+		};
+
+		const handleFailed = (event: Event) => {
+			const detail = (event as CustomEvent<AutofillLifecycleEventDetail>)
+				.detail;
+			if (!detail || detail.projectId !== projectId) return;
+			resetAutofillOverlay();
+		};
+
+		window.addEventListener(AUTOFILL_STARTED_EVENT, handleStarted);
+		window.addEventListener(AUTOFILL_PROGRESS_EVENT, handleProgress);
+		window.addEventListener(AUTOFILL_COMPLETED_EVENT, handleCompleted);
+		window.addEventListener(AUTOFILL_FAILED_EVENT, handleFailed);
+
+		return () => {
+			window.removeEventListener(AUTOFILL_STARTED_EVENT, handleStarted);
+			window.removeEventListener(AUTOFILL_PROGRESS_EVENT, handleProgress);
+			window.removeEventListener(AUTOFILL_COMPLETED_EVENT, handleCompleted);
+			window.removeEventListener(AUTOFILL_FAILED_EVENT, handleFailed);
+			clearAutofillOverlayTimeout();
+		};
+	}, [
+		projectId,
+		clearAutofillOverlayTimeout,
+		resetAutofillOverlay,
+	]);
 
 	// Calculate if we're still in initial loading phase
 	// We only show full loader if we don't have the project data yet
@@ -1896,12 +1985,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 					</div>
 				</Modal>
 			</div>
-			<AlertModal
-				isOpen={errorModal.isOpen}
-				onClose={clearErrorModal}
-				title={errorModal.title}
-				message={errorModal.message}
-				variant="error"
+			<AutofillOrchestrator
+				isActive={autofillOverlayActive}
+				context={autofillOverlayContext}
+				phase={autofillOverlayPhase}
+				metadata={autofillOverlayMetadata}
 			/>
 		</>
 	);

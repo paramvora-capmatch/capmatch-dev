@@ -5,10 +5,28 @@ import { supabase } from "@/lib/supabaseClient";
 import { getBackendUrl } from "@/lib/apiConfig";
 import { useProjects } from "@/hooks/useProjects";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-
-type AutofillContext = "project" | "borrower";
+import {
+	AUTOFILL_COMPLETED_EVENT,
+	AUTOFILL_FAILED_EVENT,
+	AUTOFILL_PROGRESS_EVENT,
+	AUTOFILL_STARTED_EVENT,
+	type AutofillContext,
+	type AutofillLifecycleEventDetail,
+	type AutofillPhase,
+	type AutofillProgressEventDetail,
+	type AutofillProgressMetadata,
+} from "@/types/jobs";
 
 const MAX_JOB_WAIT_MS = 300000; // 5 minutes - safety timeout if realtime never delivers
+const AUTOFILL_PHASES: AutofillPhase[] = [
+	"initializing",
+	"doc_scanning",
+	"doc_extracting",
+	"kb_querying",
+	"ai_merging",
+	"saving",
+	"completed",
+];
 
 interface UseAutofillOptions {
 	projectAddress?: string;
@@ -38,7 +56,7 @@ interface JobRow {
 	id: string;
 	status: string;
 	error_message?: string | null;
-	metadata?: Record<string, unknown> | null;
+	metadata?: AutofillProgressMetadata | null;
 }
 
 export interface AutofillErrorModal {
@@ -47,12 +65,20 @@ export interface AutofillErrorModal {
 	message: string;
 }
 
+const isAutofillPhase = (value: unknown): value is AutofillPhase =>
+	typeof value === "string" &&
+	AUTOFILL_PHASES.includes(value as AutofillPhase);
+
 export const useAutofill = (
 	projectId: string,
 	options?: UseAutofillOptions
 ) => {
 	const [isAutofilling, setIsAutofilling] = useState(false);
 	const [showSparkles, setShowSparkles] = useState(false);
+	const [progressPhase, setProgressPhase] =
+		useState<AutofillPhase>("initializing");
+	const [progressMetadata, setProgressMetadata] =
+		useState<AutofillProgressMetadata>({});
 	const [errorModal, setErrorModal] = useState<AutofillErrorModal>({
 		isOpen: false,
 		title: "",
@@ -60,13 +86,32 @@ export const useAutofill = (
 	});
 	const jobChannelRef = useRef<RealtimeChannel | null>(null);
 	const jobTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const activeJobIdRef = useRef<string | null>(null);
 	const { refreshProject } = useProjects();
 	const context: AutofillContext = options?.context ?? "project";
 	const endpointPath = getEndpointPath(context);
 
+	const dispatchWindowEvent = useCallback(
+		(
+			eventName:
+				| typeof AUTOFILL_STARTED_EVENT
+				| typeof AUTOFILL_PROGRESS_EVENT
+				| typeof AUTOFILL_COMPLETED_EVENT
+				| typeof AUTOFILL_FAILED_EVENT,
+			detail: AutofillLifecycleEventDetail | AutofillProgressEventDetail
+		) => {
+			if (typeof window === "undefined") return;
+			window.dispatchEvent(new CustomEvent(eventName, { detail }));
+		},
+		[]
+	);
+
 	const clearAutofillState = useCallback(() => {
 		setIsAutofilling(false);
 		setShowSparkles(false);
+		setProgressPhase("initializing");
+		setProgressMetadata({});
+		activeJobIdRef.current = null;
 		if (jobChannelRef.current) {
 			supabase.removeChannel(jobChannelRef.current);
 			jobChannelRef.current = null;
@@ -87,6 +132,7 @@ export const useAutofill = (
 
 	const startJobRealtime = useCallback(
 		(jobId: string) => {
+			activeJobIdRef.current = jobId;
 			// Clear any previous subscription/timeout
 			if (jobChannelRef.current) {
 				supabase.removeChannel(jobChannelRef.current);
@@ -97,7 +143,10 @@ export const useAutofill = (
 				jobTimeoutRef.current = null;
 			}
 
-			const handleTerminal = (status: "completed" | "failed", errorMessage?: string | null) => {
+			const handleTerminal = (
+				status: "completed" | "failed",
+				errorMessage?: string | null
+			) => {
 				if (jobChannelRef.current) {
 					supabase.removeChannel(jobChannelRef.current);
 					jobChannelRef.current = null;
@@ -110,23 +159,33 @@ export const useAutofill = (
 				setShowSparkles(false);
 
 				if (status === "completed") {
+					setProgressPhase("completed");
+					setProgressMetadata((prev) => ({
+						...prev,
+						phase: "completed",
+					}));
 					toast.success("Autofill completed successfully");
 					refreshProject(projectId).catch((err) => {
 						console.error("[useAutofill] Failed to refresh after completion:", err);
 					});
-					if (typeof window !== "undefined") {
-						window.dispatchEvent(
-							new CustomEvent("autofill-completed", {
-								detail: { projectId, context },
-							})
-						);
-					}
+					dispatchWindowEvent(AUTOFILL_COMPLETED_EVENT, {
+						projectId,
+						context,
+						jobId,
+					});
 				} else {
+					dispatchWindowEvent(AUTOFILL_FAILED_EVENT, {
+						projectId,
+						context,
+						jobId,
+					});
 					showError(
 						"Autofill failed",
 						errorMessage || "Autofill failed. Please try again."
 					);
 				}
+
+				activeJobIdRef.current = null;
 			};
 
 			const channel = supabase
@@ -141,6 +200,18 @@ export const useAutofill = (
 					},
 					(payload) => {
 						const row = payload.new as JobRow;
+						const metadata = row.metadata ?? {};
+						if (isAutofillPhase(metadata.phase)) {
+							setProgressPhase(metadata.phase);
+							setProgressMetadata(metadata);
+							dispatchWindowEvent(AUTOFILL_PROGRESS_EVENT, {
+								projectId,
+								context,
+								jobId,
+								phase: metadata.phase,
+								metadata,
+							});
+						}
 						if (row.status === "completed") {
 							handleTerminal("completed");
 							return;
@@ -162,13 +233,21 @@ export const useAutofill = (
 				}
 				setIsAutofilling(false);
 				setShowSparkles(false);
+				setProgressPhase("initializing");
+				setProgressMetadata({});
+				dispatchWindowEvent(AUTOFILL_FAILED_EVENT, {
+					projectId,
+					context,
+					jobId,
+				});
+				activeJobIdRef.current = null;
 				showError(
 					"Autofill taking too long",
 					"Autofill is taking longer than expected. Please check back later or refresh the page."
 				);
 			}, MAX_JOB_WAIT_MS);
 		},
-		[projectId, context, refreshProject, showError]
+		[projectId, context, dispatchWindowEvent, refreshProject, showError]
 	);
 
 	// Cleanup on unmount
@@ -280,13 +359,13 @@ export const useAutofill = (
 			const jobId = body?.job_id;
 
 			if (jobId) {
-				if (typeof window !== "undefined") {
-					window.dispatchEvent(
-						new CustomEvent("autofill-started", {
-							detail: { projectId, context },
-						})
-					);
-				}
+				setProgressPhase("initializing");
+				setProgressMetadata({});
+				dispatchWindowEvent(AUTOFILL_STARTED_EVENT, {
+					projectId,
+					context,
+					jobId,
+				});
 				startJobRealtime(jobId);
 			} else {
 				// Backend may not return job_id (e.g. old deployment); stop spinner
@@ -310,6 +389,7 @@ export const useAutofill = (
 		options?.projectAddress,
 		context,
 		endpointPath,
+		dispatchWindowEvent,
 		startJobRealtime,
 		showError,
 		clearAutofillState,
@@ -318,6 +398,8 @@ export const useAutofill = (
 	return {
 		isAutofilling,
 		showSparkles,
+		progressPhase,
+		progressMetadata,
 		handleAutofill,
 		clearAutofillState,
 		errorModal,
