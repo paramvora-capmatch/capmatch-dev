@@ -261,6 +261,23 @@ export const apiClient = {
   },
 
   /**
+   * Accept an org invite for an existing authenticated user (e.g. Google OAuth onboarding).
+   */
+  acceptInviteExistingUser: async (params: {
+    token: string;
+    user_id: string;
+    full_name: string;
+  }) => {
+    return apiRequest<{ status: string }>(
+      '/api/v1/auth/accept-invite-existing',
+      {
+        method: 'POST',
+        body: JSON.stringify(params),
+      }
+    );
+  },
+
+  /**
    * Create a new project
    *
    * @param params - Project creation parameters
@@ -423,6 +440,7 @@ export const apiClient = {
     email: string;
     password?: string;
     full_name: string;
+    org_name?: string;
     existing_user?: boolean;
     user_id?: string;
   }) => {

@@ -28,6 +28,7 @@ export const AuthRedirector = () => {
   const { user, isAuthenticated, isLoading, justLoggedIn, clearJustLoggedIn } =
     useAuth();
   const isHydrating = useAuthStore((s) => s.isHydrating);
+  const needsOnboarding = useAuthStore((s) => s.needsOnboarding);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -38,6 +39,7 @@ export const AuthRedirector = () => {
     }
 
     const isAuthPage = pathname === "/login";
+    const isOnboardingPage = pathname === "/onboarding";
     const isHomePage = pathname === "/";
     const isProtected = isProtectedPath(pathname);
 
@@ -58,6 +60,11 @@ export const AuthRedirector = () => {
       }
     };
 
+    if (needsOnboarding && !isOnboardingPage) {
+      router.replace("/onboarding");
+      return;
+    }
+
     if (isAuthenticated && user) {
       // Logged-in user on the login page → send to dashboard
       if (isAuthPage) {
@@ -69,12 +76,22 @@ export const AuthRedirector = () => {
         clearJustLoggedIn();
         performRedirect();
       }
-    } else if (!isAuthenticated && isProtected) {
+    } else if (!isAuthenticated && !needsOnboarding && isProtected) {
       // Unauthenticated on a protected route → redirect to login
       const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`;
       router.replace(loginUrl);
     }
-  }, [isAuthenticated, isHydrating, isLoading, user, pathname, router, justLoggedIn, clearJustLoggedIn]);
+  }, [
+    isAuthenticated,
+    isHydrating,
+    isLoading,
+    user,
+    pathname,
+    router,
+    justLoggedIn,
+    clearJustLoggedIn,
+    needsOnboarding,
+  ]);
 
   // While hydrating on a protected page, show the splash screen to prevent flash
   if ((isHydrating || isLoading) && isProtectedPath(pathname)) {

@@ -4,25 +4,33 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../hooks/useAuth";
-import { supabase } from "../../../lib/supabaseClient";
-import { getBackendUrl } from "../../../lib/apiConfig";
 
 import AuthLayout from "../../../components/layout/AuthLayout";
 import { Form, FormGroup } from "../../../components/ui/Form";
 import { Input } from "../../../components/ui/Input";
 import { Button } from "../../../components/ui/Button";
-import { Sparkles, Mail, Lock, Chrome } from "lucide-react";
+import { Sparkles, Mail, Lock, Chrome, User, Building2 } from "lucide-react";
 
-import { SplashScreen } from "../../../components/ui/SplashScreen";
-import { Modal, ModalBody, ModalFooter } from "../../../components/ui/Modal";
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const LoginForm = () => {
+  const [mode, setMode] = useState<"login" | "signup">("login");
+
+  // Login fields
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Sign-up fields
+  const [signupFullName, setSignupFullName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+  const [signupOrgName, setSignupOrgName] = useState("");
+  const [wantsCreateOrg, setWantsCreateOrg] = useState(true);
+  const [signupError, setSignupError] = useState<string | null>(null);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCheckingNewAccount, setIsCheckingNewAccount] = useState(false);
-  const [showNewAccountConfirm, setShowNewAccountConfirm] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
   const {
@@ -73,12 +81,27 @@ const LoginForm = () => {
     }
   }, [authLoading, isAuthenticated, user, router, searchParams]);
 
+  const switchToSignup = () => {
+    setMode("signup");
+    setValidationError(null);
+    setSignupError(null);
+    setSignupEmail(email);
+    setWantsCreateOrg(true);
+  };
+
+  const switchToLogin = () => {
+    setMode("login");
+    setValidationError(null);
+    setSignupError(null);
+    setEmail(signupEmail);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
     setIsSubmitting(true);
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!EMAIL_REGEX.test(email)) {
       setValidationError("Please enter a valid email address.");
       setIsSubmitting(false);
       return;
@@ -90,117 +113,66 @@ const LoginForm = () => {
     }
 
     try {
-      // First, attempt a normal password sign-in.
       await signInWithPassword(email, password, loginSource);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-
-      // If the message already looks like a clear credentials error, we may
-      // want to check whether this email actually has an account before
-      // offering to create a new one.
-      const isCredsError =
-        /incorrect email or password/i.test(msg) ||
-        /invalid login credentials/i.test(msg);
-
-      if (!isCredsError) {
-        setValidationError(msg || "Could not sign you in. Please try again.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      try {
-        setIsCheckingNewAccount(true);
-
-        // Check if email has a profile via backend (rate-limited).
-        const res = await fetch(`${getBackendUrl()}/api/v1/auth/check-email`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        });
-        if (!res.ok) {
-          setValidationError("Incorrect email or password.");
-          return;
-        }
-        const json = await res.json();
-        const exists = !!json?.exists;
-
-        if (exists) {
-          // Email is already registered; treat this as an incorrect password.
-          setValidationError("Incorrect password for this account.");
-          return;
-        }
-
-        // For LenderLine traffic, skip the confirmation modal and immediately
-        // onboard the user by creating an account with the provided credentials.
-        if (isLenderline) {
-          try {
-            await signUp(email, password, loginSource);
-            // After successful sign-up + sign-in, send them straight to the dashboard.
-            const redirectUrl = searchParams.get("redirect");
-            router.replace(redirectUrl || "/dashboard");
-          } catch (signUpErr) {
-            console.error("[Login] LenderLine sign-up failed:", signUpErr);
-            const msg =
-              signUpErr instanceof Error
-                ? signUpErr.message
-                : String(signUpErr);
-            setValidationError(
-              msg || "Could not create your account. Please try again."
-            );
-          }
-          return;
-        }
-
-        // No existing account with this email. Ask for explicit confirmation
-        // before creating a new account using email/password.
-        setShowNewAccountConfirm(true);
-      } catch (checkErr) {
-        console.error(
-          "[Login] Error during sign-up confirmation flow:",
-          checkErr
-        );
-        setValidationError(
-          "Could not complete sign-in or sign-up. Please try again."
-        );
-      } finally {
-        setIsCheckingNewAccount(false);
-        setIsSubmitting(false);
-      }
-      return;
-    }
-
-    // Successful sign-in path (listener will redirect); clear submitting state.
-    setIsSubmitting(false);
-  };
-
-  const handleConfirmCreateAccount = async () => {
-    setValidationError(null);
-    setShowNewAccountConfirm(false);
-    setIsSubmitting(true);
-    try {
-      await signUp(email, password, loginSource);
-      // After successful sign-up and automatic sign-in, proactively route the
-      // new user to the main borrower dashboard. The global auth listener will
-      // also update state, but this avoids leaving them on the login page.
-      const redirectUrl = searchParams.get("redirect");
-      router.replace(redirectUrl || "/dashboard");
-    } catch (err) {
-      console.error("[Login] Error during confirmed sign-up:", err);
-      const msg = err instanceof Error ? err.message : String(err);
       setValidationError(
-        msg || "Could not create your account. Please try again."
+        msg || "Could not sign you in. Please check your email and password."
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleCancelCreateAccount = () => {
-    setShowNewAccountConfirm(false);
-    setValidationError(
-      "We couldn't find an account with this email. Please try a different email or check for typos."
-    );
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignupError(null);
+
+    if (!signupFullName.trim()) {
+      setSignupError("Please enter your full name.");
+      return;
+    }
+    if (!EMAIL_REGEX.test(signupEmail)) {
+      setSignupError("Please enter a valid email address.");
+      return;
+    }
+    if (signupPassword.length < 8) {
+      setSignupError("Password must be at least 8 characters long.");
+      return;
+    }
+    if (signupPassword !== signupConfirmPassword) {
+      setSignupError("Passwords do not match.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await signUp(
+        signupEmail.trim(),
+        signupPassword,
+        signupFullName.trim(),
+        wantsCreateOrg ? signupOrgName.trim() || undefined : undefined,
+        loginSource
+      );
+      const redirectUrl = searchParams.get("redirect");
+      router.replace(redirectUrl || "/dashboard");
+    } catch (err) {
+      console.error("[Login] Sign-up failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setSignupError(msg || "Could not create your account. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const subtitle =
+    mode === "login"
+      ? isLenderline
+        ? "Sign in to your CapMatch account to access LenderLine."
+        : "Sign in to your account."
+      : isLenderline
+        ? "Create your CapMatch account to access LenderLine."
+        : "Create your CapMatch account.";
 
   return (
     <div className="bg-white rounded-xl shadow-xl overflow-hidden p-8">
@@ -211,121 +183,248 @@ const LoginForm = () => {
             {isLenderline ? "Access LenderLine" : "Welcome to CapMatch"}
           </h2>
         </div>
-        <p className="text-gray-600">
-          {isLenderline
-            ? "Sign in or create your CapMatch account to access LenderLine."
-            : "Sign in or create your account in one step."}
-        </p>
+        <p className="text-gray-600">{subtitle}</p>
       </div>
-      <div>
-        <Form onSubmit={handleLogin} className="space-y-6">
-          <FormGroup>
-            <Input
-              id="email"
-              type="email"
-              label="Email Address"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              leftIcon={<Mail className="h-5 w-5 text-gray-400" />}
-              required
-            />
-          </FormGroup>
-          <FormGroup>
-            <Input
-              id="password"
-              type="password"
-              label="Password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              error={validationError || undefined}
-              leftIcon={<Lock className="h-5 w-5 text-gray-400" />}
-              required
-            />
-          </FormGroup>
 
-          <Button
-            type="submit"
-            variant="primary"
-            fullWidth
-            size="lg"
-            isLoading={authLoading || isSubmitting || isCheckingNewAccount}
-          >
-            {isLenderline ? "Continue to LenderLine" : "Continue with Email"}
-          </Button>
+      {mode === "login" ? (
+        <div>
+          <Form onSubmit={handleLogin} className="space-y-6">
+            <FormGroup>
+              <Input
+                id="email"
+                type="email"
+                label="Email Address"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                leftIcon={<Mail className="h-5 w-5 text-gray-400" />}
+                autoComplete="email"
+                required
+              />
+            </FormGroup>
+            <FormGroup>
+              <Input
+                id="password"
+                type="password"
+                label="Password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                error={validationError || undefined}
+                leftIcon={<Lock className="h-5 w-5 text-gray-400" />}
+                autoComplete="current-password"
+                required
+              />
+            </FormGroup>
 
-          {/* Removed test account quick login buttons */}
-
-          <div className="relative my-4">
-            <div
-              className="absolute inset-0 flex items-center"
-              aria-hidden="true"
+            <Button
+              type="submit"
+              variant="primary"
+              fullWidth
+              size="lg"
+              isLoading={authLoading || isSubmitting}
             >
-              <div className="w-full border-t border-gray-300" />
+              {isLenderline ? "Sign in to LenderLine" : "Sign In"}
+            </Button>
+
+            <div className="relative my-4">
+              <div
+                className="absolute inset-0 flex items-center"
+                aria-hidden="true"
+              >
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-2 text-gray-500">Or</span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-white px-2 text-gray-500">Or</span>
+
+            <Button
+              type="button"
+              variant="outline"
+              fullWidth
+              size="lg"
+              onClick={() => signInWithGoogle(loginSource)}
+              leftIcon={<Chrome className="h-5 w-5" />}
+              isLoading={authLoading}
+            >
+              {isLenderline
+                ? "Sign in with Google to access LenderLine"
+                : "Sign in with Google"}
+            </Button>
+
+            <p className="text-center text-sm text-gray-600 pt-2">
+              Don&apos;t have an account?{" "}
+              <button
+                type="button"
+                onClick={switchToSignup}
+                className="text-blue-600 hover:text-blue-700 font-semibold underline underline-offset-2"
+              >
+                Sign up
+              </button>
+            </p>
+
+            <p className="text-center text-xs text-gray-500 pt-2">
+              By continuing, you agree to our Terms of Service and Privacy
+              Policy.
+            </p>
+          </Form>
+        </div>
+      ) : (
+        <div>
+          <Form onSubmit={handleSignup} className="space-y-5">
+            <FormGroup>
+              <Input
+                id="signupFullName"
+                type="text"
+                label="Full Name"
+                placeholder="Jane Doe"
+                value={signupFullName}
+                onChange={(e) => setSignupFullName(e.target.value)}
+                leftIcon={<User className="h-5 w-5 text-gray-400" />}
+                autoComplete="name"
+                required
+              />
+            </FormGroup>
+            <FormGroup>
+              <Input
+                id="signupEmail"
+                type="email"
+                label="Email Address"
+                placeholder="you@example.com"
+                value={signupEmail}
+                onChange={(e) => setSignupEmail(e.target.value)}
+                leftIcon={<Mail className="h-5 w-5 text-gray-400" />}
+                autoComplete="email"
+                required
+              />
+            </FormGroup>
+            <FormGroup>
+              <Input
+                id="signupPassword"
+                type="password"
+                label="Password"
+                placeholder="At least 8 characters"
+                value={signupPassword}
+                onChange={(e) => setSignupPassword(e.target.value)}
+                leftIcon={<Lock className="h-5 w-5 text-gray-400" />}
+                autoComplete="new-password"
+                required
+              />
+            </FormGroup>
+            <FormGroup>
+              <Input
+                id="signupConfirmPassword"
+                type="password"
+                label="Confirm Password"
+                placeholder="Re-enter your password"
+                value={signupConfirmPassword}
+                onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                leftIcon={<Lock className="h-5 w-5 text-gray-400" />}
+                autoComplete="new-password"
+                required
+              />
+            </FormGroup>
+            <FormGroup>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  checked={wantsCreateOrg}
+                  onChange={(e) => {
+                    setWantsCreateOrg(e.target.checked);
+                    if (!e.target.checked) setSignupOrgName("");
+                  }}
+                />
+                <span className="text-sm text-gray-700">
+                  <span className="font-semibold text-gray-900">
+                    Create a new organization
+                  </span>
+                  <span className="block text-gray-600 mt-0.5">
+                    We&apos;ll set up a borrower organization for your account. You
+                    can optionally choose a display name below.
+                  </span>
+                </span>
+              </label>
+            </FormGroup>
+            {wantsCreateOrg && (
+              <FormGroup>
+                <Input
+                  id="signupOrgName"
+                  type="text"
+                  label="Organization name (optional)"
+                  placeholder="e.g., Acme Capital LLC"
+                  value={signupOrgName}
+                  onChange={(e) => setSignupOrgName(e.target.value)}
+                  leftIcon={<Building2 className="h-5 w-5 text-gray-400" />}
+                  autoComplete="organization"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Leave blank to use a default name based on your full name.
+                </p>
+              </FormGroup>
+            )}
+
+            {signupError && (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {signupError}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              variant="primary"
+              fullWidth
+              size="lg"
+              isLoading={authLoading || isSubmitting}
+            >
+              Create Account
+            </Button>
+
+            <div className="relative my-4">
+              <div
+                className="absolute inset-0 flex items-center"
+                aria-hidden="true"
+              >
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-2 text-gray-500">Or</span>
+              </div>
             </div>
-          </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            fullWidth
-            size="lg"
-            onClick={() => signInWithGoogle(loginSource)}
-            leftIcon={<Chrome className="h-5 w-5" />}
-            isLoading={authLoading}
-          >
-            {isLenderline
-              ? "Sign in with Google to access LenderLine"
-              : "Sign in with Google"}
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              fullWidth
+              size="lg"
+              onClick={() => signInWithGoogle(loginSource)}
+              leftIcon={<Chrome className="h-5 w-5" />}
+              isLoading={authLoading}
+            >
+              {isLenderline
+                ? "Sign up with Google to access LenderLine"
+                : "Sign up with Google"}
+            </Button>
 
-          {/* Unified flow: remove sign-in/sign-up toggle */}
+            <p className="text-center text-sm text-gray-600 pt-2">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={switchToLogin}
+                className="text-blue-600 hover:text-blue-700 font-semibold underline underline-offset-2"
+              >
+                Sign in
+              </button>
+            </p>
 
-          <p className="text-center text-xs text-gray-500 pt-2">
-            By continuing, you agree to our Terms of Service and Privacy Policy.
-          </p>
-        </Form>
-      </div>
-
-      {/* New account confirmation modal */}
-      <Modal
-        isOpen={showNewAccountConfirm}
-        onClose={handleCancelCreateAccount}
-        title="Create a new CapMatch account?"
-        size="md"
-      >
-        <ModalBody>
-          <p className="text-sm text-gray-700">
-            We couldn&apos;t find an existing account for{" "}
-            <span className="font-semibold break-all">{email}</span>.
-          </p>
-          <p className="mt-3 text-sm text-gray-700">
-            If you continue, we&apos;ll create a new CapMatch account using this
-            email address and the password you entered.
-          </p>
-        </ModalBody>
-        <ModalFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleCancelCreateAccount}
-          >
-            Go Back
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            onClick={handleConfirmCreateAccount}
-            isLoading={isSubmitting}
-          >
-            Yes, create my account
-          </Button>
-        </ModalFooter>
-      </Modal>
+            <p className="text-center text-xs text-gray-500 pt-2">
+              By continuing, you agree to our Terms of Service and Privacy
+              Policy.
+            </p>
+          </Form>
+        </div>
+      )}
     </div>
   );
 };

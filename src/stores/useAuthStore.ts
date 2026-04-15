@@ -11,9 +11,18 @@ import {
 import { Session } from "@supabase/supabase-js"; // Import Session type
 import { apiClient } from "@/lib/apiClient";
 
+export type PendingOnboardUser = {
+  id: string;
+  email: string;
+  fullName: string;
+};
+
 interface AuthState {
   user: EnhancedUser | null;
   isAuthenticated: boolean;
+  /** Google (or other) OAuth: session exists but borrower onboarding not finished */
+  needsOnboarding: boolean;
+  pendingOnboardUser: PendingOnboardUser | null;
   /**
    * Transient flag for the *initial* auth/session resolution on app load.
    * Only this should gate the global "Initializing application..." splash.
@@ -45,6 +54,8 @@ interface AuthActions {
   signUp: (
     email: string,
     password: string,
+    fullName: string,
+    orgName?: string,
     source?: "direct" | "lenderline"
   ) => Promise<void>;
   logout: () => Promise<void>;
@@ -55,6 +66,8 @@ interface AuthActions {
   // RBAC additions
   loadOrgMemberships: () => Promise<void>;
   acceptInvite: (token: string, accept?: boolean) => Promise<void>;
+  completeOnboarding: (orgName?: string) => Promise<void>;
+  joinOrgViaInvite: (inviteToken: string) => Promise<void>;
 }
 
 // Global singleton to ensure auth listener is set up only once across all navigations
@@ -69,6 +82,8 @@ const RECOVERY_COOLDOWN_MS = 5000; // 5 seconds between recovery attempts
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   user: null,
   isAuthenticated: false,
+  needsOnboarding: false,
+  pendingOnboardUser: null,
   // On first load we are hydrating until `checkInitialSession` settles.
   isHydrating: true,
   isLoading: true,
@@ -145,7 +160,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
               get().loadOrgMemberships();
             }
           } else {
-
             try {
               const userEmail = authUser.email;
               const fullName = authUser.user_metadata?.name || "New User";
@@ -153,31 +167,37 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 throw new Error("Authenticated user has no email");
               }
 
-              // Check if this is a lender user - use onboard-lender instead of onboard-borrower
-              const isLenderEmail = userEmail.includes("lender") || userEmail.endsWith("@lender.com");
-              
-              let onboardError: Error | null = null;
-              
-              if (isLenderEmail) {
-                // Use lender onboarding endpoint
-                const { error } = await apiClient.onboardLender({
-                  existing_user: true,
-                  user_id: authUser.id,
-                  email: userEmail,
-                  full_name: fullName,
-                  org_name: `${fullName}'s Organization`,
+              const isLenderEmail =
+                userEmail.includes("lender") || userEmail.endsWith("@lender.com");
+
+              if (!isLenderEmail) {
+                // Borrower OAuth: defer org creation / join flow to /onboarding
+                const loginSource =
+                  (authUser.user_metadata?.loginSource as EnhancedUser["loginSource"]) ||
+                  "direct";
+                set({
+                  needsOnboarding: true,
+                  pendingOnboardUser: {
+                    id: authUser.id,
+                    email: userEmail,
+                    fullName,
+                  },
+                  loginSource,
+                  user: null,
+                  isAuthenticated: false,
+                  isHydrating: false,
+                  isLoading: false,
                 });
-                onboardError = error;
-              } else {
-                // Use borrower onboarding endpoint
-                const { error } = await apiClient.onboardBorrower({
-                  existing_user: true,
-                  user_id: authUser.id,
-                  email: userEmail,
-                  full_name: fullName,
-                });
-                onboardError = error;
+                return;
               }
+
+              const { error: onboardError } = await apiClient.onboardLender({
+                existing_user: true,
+                user_id: authUser.id,
+                email: userEmail,
+                full_name: fullName,
+                org_name: `${fullName}'s Organization`,
+              });
 
               if (onboardError) {
                 console.error(
@@ -189,7 +209,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 return;
               }
 
-              // Fetch profile again after onboarding
               const { data: profileAfter, error: profileAfterErr } = await supabase
                 .from("profiles")
                 .select("app_role, full_name")
@@ -197,11 +216,11 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 .single();
 
               if (profileAfter && !profileAfterErr) {
-                const role = profileAfter.app_role as EnhancedUser["role"]; // Removed 'as any'
+                const role = profileAfter.app_role as EnhancedUser["role"];
                 const loginSource = authUser.user_metadata.loginSource || "direct";
                 const enhancedUser: EnhancedUser = {
                   id: authUser.id,
-                  email: authUser.email ?? '',
+                  email: authUser.email ?? "",
                   role,
                   loginSource,
                   lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
@@ -433,39 +452,38 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                     throw new Error("Authenticated user has no email");
                   }
 
-                  // Check if this is a lender user - use onboard-lender instead of onboard-borrower
-                  const isLenderEmail = userEmail.includes("lender") || userEmail.endsWith("@lender.com");
-                  
-                  let onboardError: Error | null = null;
-                  
-                  if (isLenderEmail) {
-                    // Use lender onboarding endpoint
-                    const { error } = await apiClient.onboardLender({
-                      existing_user: true,
-                      user_id: authUser.id,
-                      email: userEmail,
-                      full_name: fullName,
-                      org_name: `${fullName}'s Organization`,
+                  const isLenderEmail =
+                    userEmail.includes("lender") || userEmail.endsWith("@lender.com");
+
+                  if (!isLenderEmail) {
+                    set({
+                      needsOnboarding: true,
+                      pendingOnboardUser: {
+                        id: authUser.id,
+                        email: userEmail,
+                        fullName,
+                      },
+                      loginSource: oauthLoginSource,
+                      user: null,
+                      isAuthenticated: false,
                     });
-                    onboardError = error;
-                  } else {
-                    // Use borrower onboarding endpoint
-                    const { error } = await apiClient.onboardBorrower({
-                      existing_user: true,
-                      user_id: authUser.id,
-                      email: userEmail,
-                      full_name: fullName,
-                    });
-                    onboardError = error;
+                    return;
                   }
-                  
+
+                  const { error: onboardError } = await apiClient.onboardLender({
+                    existing_user: true,
+                    user_id: authUser.id,
+                    email: userEmail,
+                    full_name: fullName,
+                    org_name: `${fullName}'s Organization`,
+                  });
+
                   if (onboardError) {
                     console.error("[AuthStore] Onboarding existing user failed:", onboardError);
                     await supabase.auth.signOut();
                     return;
                   }
 
-                  // Fetch profile again after onboarding
                   const { data: profileAfter, error: profileAfterErr } = await supabase
                     .from("profiles")
                     .select("app_role, full_name")
@@ -473,12 +491,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                     .single();
 
                   if (profileAfter && !profileAfterErr) {
-                    const role = profileAfter.app_role as EnhancedUser["role"]; // Removed 'as any'
+                    const role = profileAfter.app_role as EnhancedUser["role"];
                     const enhancedUser: EnhancedUser = {
                       id: authUser.id,
-                      email: authUser.email ?? '',
+                      email: authUser.email ?? "",
                       role,
-                      loginSource: oauthLoginSource, // Used oauthLoginSource
+                      loginSource: oauthLoginSource,
                       lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
                       name: profileAfter.full_name || authUser.user_metadata.name,
                     };
@@ -486,7 +504,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                     set({
                       user: enhancedUser,
                       isAuthenticated: true,
-                      loginSource: oauthLoginSource, // Used oauthLoginSource
+                      loginSource: oauthLoginSource,
                     });
 
                     if (
@@ -514,6 +532,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 isAuthenticated: false,
                 loginSource: "direct",
                 justLoggedIn: false,
+                needsOnboarding: false,
+                pendingOnboardUser: null,
                 // Clear RBAC data
                 activeOrg: null,
                 orgMemberships: [],
@@ -593,14 +613,15 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     }
   },
 
-  signUp: async (email, password) => {
+  signUp: async (email, password, fullName, orgName, _source) => {
     try {
 
       // Use the FastAPI endpoint to onboard the borrower
       const { data, error } = await apiClient.onboardBorrower({
         email,
         password,
-        full_name: "New User", // Assuming a default name for now
+        full_name: fullName.trim(),
+        ...(orgName?.trim() ? { org_name: orgName.trim() } : {}),
       });
 
       if (error) {
@@ -720,6 +741,102 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     throw new Error(
       "acceptInvite requires password and full_name. Use useOrgStore.acceptInvite() instead."
     );
+  },
+
+  completeOnboarding: async (orgName?: string) => {
+    const pending = get().pendingOnboardUser;
+    if (!pending) {
+      throw new Error("No pending onboarding session");
+    }
+    const { error } = await apiClient.onboardBorrower({
+      existing_user: true,
+      user_id: pending.id,
+      email: pending.email,
+      full_name: pending.fullName.trim(),
+      ...(orgName?.trim() ? { org_name: orgName.trim() } : {}),
+    });
+    if (error) throw error;
+
+    const { data: profile, error: profileErr } = await supabase
+      .from("profiles")
+      .select("app_role, full_name")
+      .eq("id", pending.id)
+      .single();
+    if (!profile || profileErr) {
+      throw new Error("Profile not found after onboarding");
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const loginSource =
+      (sessionData.session?.user.user_metadata?.loginSource as EnhancedUser["loginSource"]) ||
+      get().loginSource;
+    const role = profile.app_role as EnhancedUser["role"];
+    const enhancedUser: EnhancedUser = {
+      id: pending.id,
+      email: pending.email,
+      role,
+      loginSource,
+      lastLogin: new Date(
+        sessionData.session?.user.last_sign_in_at || Date.now()
+      ),
+      name: profile.full_name || pending.fullName,
+    };
+
+    set({
+      needsOnboarding: false,
+      pendingOnboardUser: null,
+      user: enhancedUser,
+      isAuthenticated: true,
+      loginSource,
+    });
+    await get().loadOrgMemberships();
+  },
+
+  joinOrgViaInvite: async (inviteToken: string) => {
+    const pending = get().pendingOnboardUser;
+    if (!pending) {
+      throw new Error("No pending onboarding session");
+    }
+    const { error } = await apiClient.acceptInviteExistingUser({
+      token: inviteToken.trim(),
+      user_id: pending.id,
+      full_name: pending.fullName.trim(),
+    });
+    if (error) throw error;
+
+    const { data: profile, error: profileErr } = await supabase
+      .from("profiles")
+      .select("app_role, full_name")
+      .eq("id", pending.id)
+      .single();
+    if (!profile || profileErr) {
+      throw new Error("Profile not found after joining organization");
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const loginSource =
+      (sessionData.session?.user.user_metadata?.loginSource as EnhancedUser["loginSource"]) ||
+      get().loginSource;
+    const role = profile.app_role as EnhancedUser["role"];
+    const enhancedUser: EnhancedUser = {
+      id: pending.id,
+      email: pending.email,
+      role,
+      loginSource,
+      lastLogin: new Date(
+        sessionData.session?.user.last_sign_in_at || Date.now()
+      ),
+      name: profile.full_name || pending.fullName,
+    };
+
+    set({
+      needsOnboarding: false,
+      pendingOnboardUser: null,
+      user: enhancedUser,
+      isAuthenticated: true,
+      loginSource,
+    });
+    await get().loadOrgMemberships();
   },
 }));
 
