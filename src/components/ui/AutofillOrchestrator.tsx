@@ -268,9 +268,16 @@ function AnimationCanvas({ children }: { children: React.ReactNode }) {
 function AnimationBackdrop() {
 	return (
 		<>
-			<circle cx="100" cy="100" r="94" fill={BLUE_50} />
-			<circle cx="100" cy="100" r="84" fill="white" opacity="0.82" />
-			<circle cx="100" cy="100" r="78" stroke={BLUE_100} strokeWidth="1.5" opacity="0.8" />
+			<circle cx="100" cy="100" r="94" fill="white" />
+			<circle cx="100" cy="100" r="84" fill="white" opacity="0.92" />
+			<circle
+				cx="100"
+				cy="100"
+				r="78"
+				stroke="#e2e8f0"
+				strokeWidth="1.5"
+				opacity="0.95"
+			/>
 		</>
 	);
 }
@@ -1075,6 +1082,10 @@ function buildDetailLine(
 	const contextLabel =
 		context === "borrower" ? "Borrower resume" : "Project resume";
 
+	if (phase === "completed") {
+		return "";
+	}
+
 	if (phase === "doc_scanning" && typeof metadata.total_docs === "number") {
 		return `${metadata.total_docs} document${metadata.total_docs === 1 ? "" : "s"} queued for processing`;
 	}
@@ -1094,10 +1105,10 @@ function buildDetailLine(
 	) {
 		return `${metadata.doc_fields ?? 0} document fields + ${metadata.kb_fields ?? 0} knowledge-base fields`;
 	}
-	if (typeof metadata.total_docs === "number") {
-		return `${contextLabel} autofill is in progress`;
+	if (phase === "saving") {
+		return `${contextLabel} results are being written`;
 	}
-	return `${contextLabel} autofill is running`;
+	return "";
 }
 
 export function AutofillOrchestrator({
@@ -1126,14 +1137,21 @@ export function AutofillOrchestrator({
 					transition={{ duration: 0.2 }}
 				>
 					<motion.div
-						className="w-full max-w-lg rounded-[28px] border border-blue-100 bg-white px-6 py-7 shadow-2xl shadow-black/15 sm:px-8"
+						className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white px-6 py-7 shadow-2xl shadow-black/15 sm:px-8"
 						initial={{ opacity: 0, y: 8, scale: 0.98 }}
 						animate={{ opacity: 1, y: 0, scale: 1 }}
 						exit={{ opacity: 0, y: 8, scale: 0.98 }}
 						transition={{ duration: 0.18 }}
 					>
 						<div className="flex flex-col items-center text-center">
-							<div className="relative flex h-[200px] w-[200px] items-center justify-center overflow-hidden rounded-[40px] bg-blue-50/45 ring-1 ring-blue-100/80">
+							<div className="flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-600">
+								<Sparkles className="h-3.5 w-3.5" />
+								{context === "borrower"
+									? "Borrower resume autofill"
+									: "Project resume autofill"}
+							</div>
+
+							<div className="relative mt-6 flex h-[200px] w-[200px] items-center justify-center overflow-hidden">
 								{isComplete ? (
 									<div className="flex h-full w-full items-center justify-center">
 										<motion.div
@@ -1149,22 +1167,18 @@ export function AutofillOrchestrator({
 								)}
 							</div>
 
-							<div className="mt-5 min-w-0">
-								<div className="flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-blue-600">
-									<Sparkles className="h-3.5 w-3.5" />
-									{context === "borrower"
-										? "Borrower resume autofill"
-										: "Project resume autofill"}
-								</div>
-								<h3 className="mt-4 text-[28px] font-semibold tracking-tight text-slate-900">
+							<div className="mt-6 min-w-0">
+								<h3 className="text-[28px] font-semibold tracking-tight text-slate-900">
 									{activePhase.label}
 								</h3>
 								<p className="mt-3 max-w-md text-sm leading-6 text-slate-600">
 									{activePhase.subtext}
 								</p>
-								<p className="mt-2 text-sm text-slate-500">
-									{detailLine}
-								</p>
+								{detailLine ? (
+									<p className="mt-2 text-sm text-slate-500">
+										{detailLine}
+									</p>
+								) : null}
 							</div>
 						</div>
 
@@ -1211,9 +1225,9 @@ export function AutofillOrchestrator({
 							</div>
 						</div>
 
-						<div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-slate-600">
-							Autofilling can take around 10 minutes. Please don&apos;t close this window while your documents are being processed.
-						</div>
+						<p className="mt-5 text-center text-xs text-slate-400">
+							This may take up to 10 min. Please keep this window open.
+						</p>
 					</motion.div>
 				</motion.div>
 			) : null}
