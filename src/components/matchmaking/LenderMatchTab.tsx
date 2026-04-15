@@ -578,20 +578,24 @@ function CategoryBPanel({
 
   useEffect(() => {
     let cancelled = false;
-    const base = getBackendUrl();
-    fetch(`${base}/api/v1/matchmaking/capitalize/benchmark`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled && data?.dgs10 != null) {
-          setAllBenchmarks({
-            dgs10: data.dgs10,
-            dgs7: data.dgs7 ?? data.dgs10,
-            dgs5: data.dgs5 ?? data.dgs10,
-            sofr: data.sofr ?? data.dgs10,
-          });
-        }
-      })
-      .catch(() => {});
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = getBackendUrl();
+      const res = await fetch(`${base}/api/v1/matchmaking/capitalize/benchmark`, {
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+      });
+      if (!res.ok || cancelled) return;
+      const data = await res.json();
+      if (!cancelled && data?.dgs10 != null) {
+        setAllBenchmarks({
+          dgs10: data.dgs10,
+          dgs7: data.dgs7 ?? data.dgs10,
+          dgs5: data.dgs5 ?? data.dgs10,
+          sofr: data.sofr ?? data.dgs10,
+        });
+      }
+    })().catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
@@ -613,15 +617,21 @@ function CategoryBPanel({
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/matchmaking/benchmark/history?series=${benchmarkSeriesId}&days=365`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled && data?.points && data?.signal) {
-          setRateHistoryPoints(data.points as RatePoint[]);
-          setRateSignal(data.signal as RateTrendSignal);
-        }
-      })
-      .catch(() => {});
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const base = getBackendUrl();
+      const series = encodeURIComponent(benchmarkSeriesId);
+      const res = await fetch(`${base}/api/v1/matchmaking/capitalize/benchmark/history?series=${series}&days=365`, {
+        headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+      });
+      if (!res.ok || cancelled) return;
+      const data = await res.json();
+      if (!cancelled && data?.points && data?.signal) {
+        setRateHistoryPoints(data.points as RatePoint[]);
+        setRateSignal(data.signal as RateTrendSignal);
+      }
+    })().catch(() => {});
     return () => { cancelled = true; };
   }, [benchmarkSeriesId]);
 
@@ -991,7 +1001,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   const [categoryB, setCategoryB] = useState<CategoryBState>({
     assetClass: ASSET_CLASS_VALUES[0],
     rateType: "any",
-    ratePreference: "none",
+    ratePreference: "target",
     termBucket: "",
     lenderTypes: [],
   });
