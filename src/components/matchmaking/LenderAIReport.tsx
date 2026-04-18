@@ -11,6 +11,8 @@ import {
   Target,
   TrendingUp,
   BarChart3,
+  BookOpen,
+  Activity,
 } from "lucide-react";
 import { useLenderAIReport, type DealSummaryForAI } from "@/hooks/useLenderAIReport";
 import type { MatchScore } from "@/hooks/useMatchmaking";
@@ -83,6 +85,9 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
   const pricingAnalysis = content.pricing_analysis;
   const ltvContext = content.ltv_context;
   const rateEnvironment = content.rate_environment;
+  // V2 additions. Optional — older V1 saved reports simply skip these blocks.
+  const algorithmExplanation = content.algorithm_explanation;
+  const distributionInsights = content.distribution_insights;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
@@ -182,6 +187,38 @@ export const LenderAIReport: React.FC<LenderAIReportProps> = ({
             <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
               {content.executive_summary}
             </p>
+          </div>
+        )}
+
+        {algorithmExplanation && (
+          <div>
+            <h4 className="text-sm font-semibold text-indigo-800 flex items-center gap-1.5 mb-1.5">
+              <BookOpen size={14} />
+              Why this score
+            </h4>
+            <p className="text-sm text-gray-700 leading-relaxed bg-indigo-50/60 border border-indigo-100 rounded-md px-3 py-2">
+              {algorithmExplanation}
+            </p>
+          </div>
+        )}
+
+        {distributionInsights && distributionInsights.length > 0 && (
+          <div>
+            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5">
+              <Activity size={14} />
+              What the distributions show
+            </h4>
+            <ul className="space-y-1">
+              {distributionInsights.map((d, i) => (
+                <li
+                  key={i}
+                  className="text-sm text-gray-700 flex items-start gap-2"
+                >
+                  <span className="text-slate-500 mt-0.5 shrink-0">•</span>
+                  <span>{d}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 

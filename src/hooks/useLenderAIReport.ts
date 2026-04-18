@@ -44,6 +44,9 @@ export interface AIReportContent {
   pricing_analysis?: string | null;
   ltv_context?: string | null;
   rate_environment?: string | null;
+  // V2 additions — optional so old saved V1 reports still render.
+  algorithm_explanation?: string | null;
+  distribution_insights?: string[];
 }
 
 export function matchScoreToMatchResult(score: MatchScore): MatchResult {
@@ -60,10 +63,8 @@ export function matchScoreToMatchResult(score: MatchScore): MatchResult {
     finalScore: score.total_score,
     affinityScore: Math.min(1, Math.max(0, affinity)),
     confidence: {
-      base: 1,
       recency: 1,
-      completeness: 1,
-      rateType: meta?.rateTypeFactor ?? 1,
+      rateTypeGate: meta?.rateTypeFactor ?? 1,
       combined: confCombined,
     },
     dimensions: (score.variable_scores || []).map((v) => ({
