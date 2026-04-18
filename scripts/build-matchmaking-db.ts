@@ -1,4 +1,23 @@
 /**
+ * DEPRECATED as of Algorithm V2 (see data-exploration/Capitalize/v2/docs/).
+ *
+ * The Capitalize matchmaking parquet artifacts are now built by the Python
+ * script at:
+ *
+ *   data-exploration/Capitalize/v2/scripts/09_build_v2_lender_artifacts.py
+ *
+ * That script is the single source of truth. It produces every parquet the
+ * FastAPI backend consumes, including benchmark_rates_daily, engine_config,
+ * and lender_regime_profiles which this TypeScript builder used to produce.
+ *
+ * This file is left in the repo as a historical reference for the V1 schema
+ * but is NOT imported or invoked by production code. Do not run it; running
+ * it against the V1 schema will not produce artifacts that the V2 FastAPI
+ * backend can consume.
+ *
+ * ---
+ *
+ * (Original docstring, preserved for reference:)
  * One-time / occasional build: Capitalize SQLite scrape + FRED CSVs → parquet
  * under data/matchmaking/. Run from repo root:
  *

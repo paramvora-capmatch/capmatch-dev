@@ -2,6 +2,9 @@
 
 import React from "react";
 import type { DimensionBandViz } from "@/lib/matchmaking/types";
+import { AmountDistributionPlot } from "./v2/AmountDistributionPlot";
+import { SpreadDistributionPlot } from "./v2/SpreadDistributionPlot";
+import { CategoricalShareBars } from "./v2/CategoricalShareBars";
 
 function fmtUsd(n: number): string {
   if (!Number.isFinite(n)) return "—";
@@ -324,6 +327,10 @@ function LtvHistoryChart({ v }: { v: Extract<DimensionBandViz, { kind: "ltv_hist
 }
 
 export function DimensionDistributionViz({ viz }: { viz: DimensionBandViz }) {
+  // Defensive: old V1 saved runs may be missing fields on V2 viz kinds.
+  // The switch returns null for unknown / malformed kinds rather than
+  // throwing, so a broken viz never brings down the detail modal.
+  if (!viz || typeof (viz as { kind?: string }).kind !== "string") return null;
   switch (viz.kind) {
     case "loan_amount":
       return <LoanAmountChart v={viz} />;
@@ -335,5 +342,13 @@ export function DimensionDistributionViz({ viz }: { viz: DimensionBandViz }) {
       return <SpreadBandChart v={viz} />;
     case "ltv_history":
       return <LtvHistoryChart v={viz} />;
+    case "loan_amount_gmm":
+      return <AmountDistributionPlot viz={viz} />;
+    case "spread_gmm":
+      return <SpreadDistributionPlot viz={viz} />;
+    case "categorical_laplace":
+      return <CategoricalShareBars viz={viz} />;
+    default:
+      return null;
   }
 }
