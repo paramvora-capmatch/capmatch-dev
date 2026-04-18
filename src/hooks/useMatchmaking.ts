@@ -53,6 +53,10 @@ export interface VariableVizData {
   name: string;
   key: string;
   score: number;
+  /** V2: raw fit before confidence. Optional for V1 saved runs. */
+  fit?: number;
+  /** V2: per-signal confidence multiplier. Optional for V1 saved runs. */
+  confidence?: number;
   weight: number;
   weighted: number;
   explanation: string;
@@ -64,9 +68,15 @@ export interface CapitalizeMatchMeta {
   confidenceCombined: number;
   rateTypeFactor: number;
   spreadMedian: number | null;
-  ltvMedian: number | null;
-  ltvCoverage: number | null;
+  ltvMedian?: number | null;
+  ltvCoverage?: number | null;
   lenderType: string;
+  // V2 additions (optional for V1 saved runs).
+  engineVersion?: string;
+  recency?: number;
+  rateTypeGate?: number;
+  gates?: Record<string, string>;
+  vCeilingInfo?: import("@/lib/matchmaking/types").VCeilingInfo;
 }
 
 export interface MatchScore {
@@ -119,8 +129,10 @@ export function capitalizeMatchResultToMatchScore(r: MatchResult): MatchScore {
     pillar_scores: {},
     variable_scores: r.dimensions.map((d) => ({
       name: d.dimension,
-      key: d.dimension.toLowerCase().replace(/\s+/g, "_"),
+      key: d.key ?? d.dimension.toLowerCase().replace(/\s+/g, "_"),
       score: d.score,
+      fit: d.fit,
+      confidence: d.confidence,
       weight: d.weight,
       weighted: d.weighted,
       explanation: d.explanation,
@@ -129,16 +141,20 @@ export function capitalizeMatchResultToMatchScore(r: MatchResult): MatchScore {
     capitalize_ltv_band: r.ltvBand,
     lender_typical: {
       total_loans: r.totalTxns,
-      ltv_median: r.ltvMedian,
+      ltv_median: r.ltvMedian ?? null,
       loan_amount_median: null,
     },
     capitalize_meta: {
       confidenceCombined: r.confidence.combined,
-      rateTypeFactor: r.confidence.rateType,
+      rateTypeFactor: r.confidence.rateTypeGate ?? r.confidence.rateType ?? 1,
+      recency: r.confidence.recency,
+      rateTypeGate: r.confidence.rateTypeGate,
       spreadMedian: r.spreadMedian,
-      ltvMedian: r.ltvMedian,
-      ltvCoverage: r.ltvCoverage,
+      ltvMedian: r.ltvMedian ?? null,
+      ltvCoverage: r.ltvCoverage ?? null,
       lenderType: r.lenderType,
+      gates: r.gates,
+      vCeilingInfo: r.vCeilingInfo,
     },
   };
 }

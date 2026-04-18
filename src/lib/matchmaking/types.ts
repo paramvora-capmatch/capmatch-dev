@@ -46,10 +46,23 @@ export interface MatchResult {
   /** Optional overlays for UI (from lender_profiles). */
   spreadMedian: number | null;
   spreadCount: number;
-  ltvMedian: number | null;
-  ltvCoverage: number | null;
+  ltvMedian?: number | null;
+  ltvCoverage?: number | null;
   /** Optional historical LTV band for UI (not a scored dimension). */
   ltvBand?: Extract<DimensionBandViz, { kind: "ltv_history" }>;
+  /** V2: per-gate pass reasons (eligibility). Optional for V1 saved runs. */
+  gates?: Record<string, string>;
+  /** V2: V-ceiling breakdown. Optional for V1 saved runs. */
+  vCeilingInfo?: VCeilingInfo;
+}
+
+export interface VCeilingInfo {
+  weightedSum: number;
+  minFit: number;
+  minFitDimension: string;
+  vCeiling: number;
+  affinity: number;
+  ceilingBinding: boolean;
 }
 
 /**
@@ -60,6 +73,31 @@ export interface ShareBreakdownItem {
   label: string;
   share: number;
   isHighlighted: boolean;
+}
+
+export interface GmmComponent {
+  weight: number;
+  mean: number;
+  variance: number;
+}
+
+export interface GmmAmountComponent extends GmmComponent {
+  meanDollars: number;
+  stdDollars: number;
+}
+
+export interface DensityCurve {
+  xs: number[];
+  ys: number[];
+  xsDollars?: number[];
+  xsLog?: number[];
+}
+
+export interface CategoricalShareRow {
+  category: string;
+  rawShare: number;
+  smoothedShare: number;
+  nInCategory: number;
 }
 
 export type DimensionBandViz =
@@ -112,23 +150,75 @@ export type DimensionBandViz =
       p75: number | null;
       coverage: number | null;
       txnCount: number;
+    }
+  // V2 viz kinds. Emitted by services/matchmaking/v2 scorers.
+  | {
+      kind: "loan_amount_gmm";
+      dealAmount: number;
+      components: GmmAmountComponent[];
+      densityCurve: DensityCurve;
+      peakDensity: number;
+      routingMode: string;
+      k: number;
+      nDistinctAmounts: number;
+    }
+  | {
+      kind: "spread_gmm";
+      mode: "competitive" | "target";
+      dealSpread: number;
+      competitivePoint: number;
+      components: GmmComponent[];
+      densityCurve: DensityCurve;
+      peakDensity: number;
+      routingMode: string;
+      k: number;
+      spreadN: number;
+      spreadMedian: number | null;
+      spreadP25: number | null;
+      spreadP75: number | null;
+    }
+  | {
+      kind: "categorical_laplace";
+      dimension: "state" | "property" | "purpose" | "term";
+      dealValue: string;
+      nPrior: number;
+      k: number;
+      rawShare: number;
+      smoothedShare: number;
+      shares: CategoricalShareRow[];
+      hhi?: number;
+      nationalBonusApplied?: number;
+      termCoverage?: number;
     };
 
 export interface DimensionScore {
   dimension: string;
+  /** V2: stable machine key (amount / geography / property / purpose / termFit / pricingFit). */
+  key?: string;
   score: number;
+  /** V2: raw [0,1] fit, pre-confidence. Optional for old V1 saved runs. */
+  fit?: number;
+  /** V2: per-signal confidence [0,1]. Optional for old V1 saved runs. */
+  confidence?: number;
   weight: number;
   weighted: number;
   explanation: string;
   viz?: DimensionBandViz;
 }
 
+/**
+ * ConfidenceBreakdown: V2 fields are (recency, rateTypeGate, combined); V1
+ * fields (base, completeness, rateType) are still accepted so old saved
+ * runs keep rendering.
+ */
 export interface ConfidenceBreakdown {
-  base: number;
-  recency: number;
-  completeness: number;
-  rateType: number;
   combined: number;
+  recency?: number;
+  rateTypeGate?: number;
+  // V1 fields, optional.
+  base?: number;
+  completeness?: number;
+  rateType?: number;
 }
 
 export interface LenderProfile {

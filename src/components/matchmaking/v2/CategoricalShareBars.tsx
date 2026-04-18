@@ -31,7 +31,7 @@ export function CategoricalShareBars({ viz }: { viz: CategoricalViz }) {
     <div className="mt-2 space-y-1.5">
       <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-gray-500">
         <span>
-          Top {rows.length} {viz.dimension} shares (Laplace smoothed)
+          Top {rows.length} {viz.dimension} shares
         </span>
       </div>
       <div className="space-y-1">
@@ -74,10 +74,7 @@ export function CategoricalShareBars({ viz }: { viz: CategoricalViz }) {
           );
         })}
       </div>
-      <div className="text-[10px] text-gray-500">
-        Darker bar = Laplace-smoothed share (what the algorithm scores).
-        Lighter gray = raw share.
-      </div>
+      <div className="text-[10px] text-gray-500">Darker bar = scored share. Lighter gray = raw share.</div>
     </div>
   );
 }
