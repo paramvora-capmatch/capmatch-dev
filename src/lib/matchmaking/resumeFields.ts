@@ -243,7 +243,9 @@ export function normalizeMatchmakingRatePreference(
 ): MatchmakingRatePreferenceValue {
   const raw = String(maybeExtractValue(value) ?? "").trim().toLowerCase();
   if (raw === "competitive" || raw === "target" || raw === "none") return raw;
-  return "target";
+  // V2 default: competitive. V1 used "target" but the new spread GMM makes
+  // competitive the meaningful default for the average advisor.
+  return "competitive";
 }
 
 export function normalizeMatchmakingLenderTypes(value: unknown): string[] {

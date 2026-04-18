@@ -140,11 +140,13 @@ export const LenderDetailModal: React.FC<LenderDetailModalProps> = ({
         {/* Overview strip */}
         {(score.overall_narrative || (advisorRateType !== "any" && score.capitalize_meta)) && (
           <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 space-y-1">
-            {score.overall_narrative && (
-              <p className="text-sm text-gray-600 italic leading-relaxed">
-                {score.overall_narrative}
-              </p>
-            )}
+            <div className="flex items-center justify-between gap-3">
+              {score.overall_narrative && (
+                <p className="text-sm text-gray-600 italic leading-relaxed flex-1">
+                  {score.overall_narrative}
+                </p>
+              )}
+            </div>
             {advisorRateType !== "any" && score.capitalize_meta && (
               <p className="text-xs text-slate-500">
                 Rate-type confidence: {(score.capitalize_meta.rateTypeFactor * 100).toFixed(0)}% of blend
@@ -166,7 +168,18 @@ export const LenderDetailModal: React.FC<LenderDetailModalProps> = ({
                 <li key={i} className="text-sm border-b border-gray-100 last:border-0 pb-3 last:pb-0">
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="font-medium text-gray-700">{v.name}</span>
-                    <span className="text-xs font-semibold text-gray-500">{(v.score * 100).toFixed(0)}</span>
+                    <span className="flex items-center gap-2 text-xs text-gray-500">
+                      {v.fit != null && v.confidence != null && (
+                        <span className="tabular-nums">
+                          <span className="text-gray-400">fit </span>
+                          <span className="font-medium text-gray-700">{(v.fit * 100).toFixed(0)}</span>
+                          <span className="text-gray-300 mx-0.5">×</span>
+                          <span className="text-gray-400">conf </span>
+                          <span className="font-medium text-gray-700">{(v.confidence * 100).toFixed(0)}</span>
+                        </span>
+                      )}
+                      <span className="font-semibold">{(v.score * 100).toFixed(0)}</span>
+                    </span>
                   </div>
                   <ScoreBar score={v.score * 100} color={v.score >= 0.7 ? "#059669" : v.score >= 0.4 ? "#d97706" : "#dc2626"} />
                   {v.explanation && (

@@ -1001,7 +1001,9 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
   const [categoryB, setCategoryB] = useState<CategoryBState>({
     assetClass: ASSET_CLASS_VALUES[0],
     rateType: "any",
-    ratePreference: "target",
+    // V2 default. The competitive-spread GMM is meaningful for any deal, while
+    // "target" requires an explicit target rate that advisors don't always have.
+    ratePreference: "competitive",
     termBucket: "",
     lenderTypes: [],
   });

@@ -51,13 +51,13 @@ export function AmountDistributionPlot({ viz }: { viz: AmountViz }) {
     <div className="mt-2">
       <div className="flex items-center justify-between mb-1">
         <span className="text-[10px] uppercase tracking-wide text-gray-500">
-          Lender loan-size distribution (K={viz.k} · {viz.routingMode})
+          Lender loan-size distribution ({viz.routingMode})
         </span>
         <span className="text-[10px] text-gray-500">{viz.nDistinctAmounts} distinct amounts</span>
       </div>
-      <div className="h-28 w-full">
+      <div className="h-36 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={points} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+          <ComposedChart data={points} margin={{ top: 18, right: 4, left: 4, bottom: 0 }}>
             <defs>
               <linearGradient id="amtGrad" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%" stopColor="#6366f1" stopOpacity={0.55} />
@@ -74,7 +74,13 @@ export function AmountDistributionPlot({ viz }: { viz: AmountViz }) {
               stroke="#d1d5db"
               tickCount={4}
             />
-            <YAxis hide domain={[0, "dataMax"]} />
+            <YAxis
+              hide
+              domain={[
+                0,
+                (dataMax: number) => (Number.isFinite(dataMax) && dataMax > 0 ? dataMax * 1.2 : dataMax),
+              ]}
+            />
             <Tooltip
               formatter={(v: number) => v.toFixed(4)}
               labelFormatter={(v) => fmtUsd(Number(v))}
