@@ -37,7 +37,6 @@ export const PropertyLocationMap: React.FC<PropertyLocationMapProps> = ({
 	}
 
 	const encodedAddress = encodeURIComponent(normalizedAddress);
-	const mapUrl = `https://www.openstreetmap.org/search?query=${encodedAddress}`;
 	const streetViewUrl = `https://www.google.com/maps?q=${encodedAddress}&layer=c`;
 
 	return (
@@ -60,15 +59,6 @@ export const PropertyLocationMap: React.FC<PropertyLocationMapProps> = ({
 						</p>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
-						<a
-							href={mapUrl}
-							target="_blank"
-							rel="noreferrer"
-							className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
-						>
-							Open Map
-							<ExternalLink className="h-3.5 w-3.5" />
-						</a>
 						<a
 							href={streetViewUrl}
 							target="_blank"

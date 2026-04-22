@@ -887,12 +887,6 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 					>
 						<div className="flex-1 p-6 relative overflow-hidden">
 							<div className="space-y-6">
-								{propertyAddress && (
-									<PropertyLocationMap
-										address={propertyAddress}
-										projectName={project.projectName}
-									/>
-								)}
 								{(
 									((formSchema as any).steps || []) as any[]
 								).map((step: any, stepIndex: number) => {
@@ -1412,6 +1406,20 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	)}
 																</div>
 
+																	{subsectionId ===
+																		"project-identity" &&
+																		propertyAddress && (
+																			<div className="mt-4">
+																				<PropertyLocationMap
+																					address={
+																						propertyAddress
+																					}
+																					projectName={
+																						project.projectName
+																					}
+																				/>
+																			</div>
+																		)}
 
 																	{/* T12 Financial Table */}
 																	{subsectionId === "t12-financials" && (() => {
