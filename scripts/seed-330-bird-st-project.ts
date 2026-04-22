@@ -8,6 +8,9 @@ const roundToOneDecimal = (value: number): number =>
 
 const assessedValue = 3_085_649;
 const firstMortgageAmount = 1_600_000;
+const acquisitionDate = "2020-08-12";
+const yubaCityZoningReferenceUrl =
+	"https://yubacity.net/doing_business/zoning_ordinances.php";
 
 const seedConfig: PropertyUpsurgeSeedConfig = {
 	projectName: "330 Bird St Apartments",
@@ -27,15 +30,21 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		propertyAddressCounty: "Sutter",
 		propertyAddressZip: "95991",
 		parcelNumber: "051-452-026-000",
-		zoningDesignation: "R3 (Residential)",
+		zoningDesignation: "R-3",
+		zoningDescriptionUrl: yubaCityZoningReferenceUrl,
 		taxingDistrictID: "1-000",
 		projectDescription:
-			"22,008 sq ft, 2-story residential apartment complex built in 1971 on 1.13 acres, containing approximately 28 units (48 beds) with a pool.",
+			"330 Bird St is a 28-unit, two-story apartment community in central Yuba City with a pool, courtyard-style common area, and two on-site laundry rooms. Public records point to a 1971 vintage asset on roughly 1.13 acres, with recent permit history showing continued investment in roofing, HVAC, and electrical systems.",
 		businessPlanSummary:
-			"Public-record refinance scenario for an existing multifamily property. The seed anchors loan sizing to the recorded first mortgage and keeps ambiguous operational fields blank when the ATTOM bundle does not provide a reliable value.",
+			"This reads as a refinance of a stabilized workforce apartment property rather than a major repositioning story. Ownership has already been reinvesting into core building systems, so the practical near-term plan is to keep the property operating, handle routine turns and maintenance, and continue holding the asset in an established Yuba City rental pocket.",
 		marketOverviewSummary:
-			"Strong historical appreciation in the 95991 zip code. In 2018, average home values were $272,657. By 2025, values appreciated to $393,223 (Median $385,000), supported by 288 recent sales transactions.",
-		adjacentLandUse: "Robust educational corridor (Yuba City Unified School District): King Avenue Elementary (C-): 0.52 miles. Gray Avenue Middle (D+): 1.12 miles. River Valley High (C+): 2.48 miles.",
+			"330 Bird sits in an established Yuba City multifamily pocket where renter demand is supported by the broader Yuba-Sutter employment base, including healthcare, education, food processing, and commuters tied to Beale Air Force Base. Current online asking rents around $1,450 to $1,495 for two-bedroom units suggest the property competes as practical workforce housing rather than luxury product.",
+		adjacentLandUse:
+			"The surrounding area is primarily established residential fabric with neighborhood-serving uses mixed in. ATTOM school data places King Avenue Elementary about 0.52 miles away, Gray Avenue Middle about 1.12 miles away, and River Valley High about 2.48 miles away; Sutter County Free Library is roughly 0.8 miles away, Sutter Surgical Hospital North Valley is about 1.0 mile away, and Yuba City City Hall is about 1.2 miles away.",
+		siteAccess:
+			"Bird Street feeds into Yuba City's local street grid and sits about a mile east of CA-99, giving the property straightforward north-south regional access while still functioning as an in-town apartment location.",
+		proximityShopping:
+			"Residents are a short drive from the Downtown/Plumas Street commercial area and the broader shopping and service base that makes Yuba City the business hub of the Yuba-Sutter region.",
 		totalResidentialUnits: 28,
 		averageUnitSize: 786,
 		totalResidentialNRSF: 22_008,
@@ -56,6 +65,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		utilityAvailability: "Sewer: MUNICIPAL, Water: COMMERCIAL, Heating: YES",
 		realEstateTaxes: 35_053.32,
 		purchasePrice: 2_850_000,
+		purchasePriceDate: acquisitionDate,
 		capexBudget: 150_890,
 		loanAmountRequested: firstMortgageAmount,
 		loanType: "COM (Commercial)",
@@ -74,7 +84,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		capexItems:
 			"HVAC change-outs (multiple units), TPO Reroofing, Main Breaker electrical change. (Detailed permit log shows $150k+ in systematic improvements since 2017).",
 		useOfProceeds:
-			"Refinance existing multifamily asset based on the recorded first mortgage and public-record parcel data.",
+			"Loan proceeds are intended to refinance the existing Symetra debt on the apartment community and preserve flexibility for ongoing maintenance, unit turns, and normal operating reserves.",
 		exitStrategy: "Refinance",
 		currentSiteStatus: "Developed / Improved",
 		foreclosureHistory: "Clean",
@@ -83,11 +93,11 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 			"PARCEL MAP NO 37 FORMERLY @: 01-292-026- - 12-03-2003 PARCEL 1 AS SHOWN ON SUBD MAP RECORDED IN BOOK 1 OF SURVEYS, PG 37.",
 		msaName: "Yuba City MSA",
 		submarketName: "Sutter County",
+		landAcqClose: acquisitionDate,
 		sponsorEntityName: "PROPERTY UPSURGE 101 LLC",
 		sponsorStructure: "LLC",
-		contactInfo: "2015 SHASTA ST, REDDING, CA 96001-0421",
 		internalAdvisorNotes:
-			"Mapped from data/property-upserge/330_bird_st.json. Added 28 implicitly derived units.",
+			"Mapped from data/property-upserge/330_bird_st.json and supplemented with Yuba City GIS zoning layers plus live property marketing pages. Purchase date uses ATTOM's recorded 2020-08-12 saleTransDate. Parcel-level Yuba City GIS spot checks at 051-452-026-000 returned zoning R-3. ATTOM and public web sources do not expose a reliable current loan maturity, so targetCloseDate is intentionally left unset rather than inferred.",
 	},
 	borrowerResume: {
 		fullLegalName: "PROPERTY UPSURGE 101 LLC",
