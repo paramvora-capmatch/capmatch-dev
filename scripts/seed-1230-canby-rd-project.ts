@@ -1,5 +1,6 @@
+// Run with: npx tsx scripts/seed-1230-canby-rd-project.ts [--prod] [cleanup]
 import {
-	runPropertyUpsurgeSeed,
+	propertyUpsurgeMain,
 	type PropertyUpsurgeSeedConfig,
 } from "./seed-property-upsurge-common";
 
@@ -43,7 +44,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		marketOverviewSummary:
 			"The Canby/Hilltop pocket is one of Redding's stronger apartment locations because it sits near the city's main retail corridor, regional medical employment, and quick I-5/CA-44 access. Current online rents around $1,295 to $1,495 for one- and two-bedroom units reinforce the asset's position as practical workforce rental housing rather than a for-sale residential story.",
 		adjacentLandUse:
-			"The site sits within an established northeast Redding residential-commercial area. ATTOM school data places Mistletoe Elementary about 0.90 miles away, Boulder Creek Elementary about 0.92 miles away, and Enterprise High about 2.24 miles away; Hilltop Drive is roughly 0.4 miles away, Churn Creek Road about 0.6 miles away, the Redding Library about 2.0 miles away, and Mercy Medical Center roughly 2.5 miles away.",
+			"The site sits within an established northeast Redding residential-commercial area. Nearby school references place Mistletoe Elementary about 0.90 miles away, Boulder Creek Elementary about 0.92 miles away, and Enterprise High about 2.24 miles away; Hilltop Drive is roughly 0.4 miles away, Churn Creek Road about 0.6 miles away, the Redding Library about 2.0 miles away, and Mercy Medical Center roughly 2.5 miles away.",
 		siteAccess:
 			"Canby Road gives residents quick access to Hilltop Drive and Churn Creek Road, with I-5 about 0.9 miles away and CA-44 about 1.3 miles away for broader regional movement across Redding and beyond.",
 		proximityShopping:
@@ -101,7 +102,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		equityPartner: "YANIV BENAROYA",
 		sponsorEntityName: "BHZ TRUST",
 		internalAdvisorNotes:
-			"Mapped from data/property-upserge/1230_canby.json and supplemented with City of Redding GIS zoning layers plus live property marketing pages. Purchase date uses ATTOM's recorded 2024-07-16 saleTransDate. Parcel-level City of Redding GIS spot checks at 107-570-018-000 returned RC (Regional Commercial) and supplied the municipal code link. ATTOM's 5-unit / 6,272 SF / 19,572 gross SF record appears to reflect a partial improvement card rather than the full complex, so the seed uses the marketed 131-unit, 104,939 SF, 2-story profile from live property and brokerage pages. TargetCloseDate and other maturity-based fields remain intentionally unset where no reliable due date surfaced.",
+			"Mapped from data/property-upserge/1230_canby.json and supplemented with City of Redding GIS zoning layers plus live property marketing pages. Purchase date uses the recorded 2024-07-16 transaction date. Parcel-level City of Redding GIS spot checks at 107-570-018-000 returned RC (Regional Commercial) and supplied the municipal code link. The source bundle's 5-unit / 6,272 SF / 19,572 gross SF record appears to reflect a partial improvement card rather than the full complex, so the seed uses the marketed 131-unit, 104,939 SF, 2-story profile from live property and brokerage pages. TargetCloseDate and other maturity-based fields remain intentionally unset where no reliable due date surfaced.",
 	},
 	borrowerResume: {
 		fullLegalName: "BHZ Trust",
@@ -130,7 +131,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 	},
 };
 
-runPropertyUpsurgeSeed(seedConfig).catch((error) => {
+propertyUpsurgeMain(seedConfig).catch((error) => {
 	console.error("[seed] 1230 Canby Rd seed failed:", error);
 	process.exitCode = 1;
 });

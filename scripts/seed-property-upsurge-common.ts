@@ -22,6 +22,10 @@ interface OnboardResponse {
 
 const args = process.argv.slice(2);
 const isProduction = args.includes("--prod") || args.includes("--production");
+const isCleanup =
+	args.includes("cleanup") ||
+	args.includes("--cleanup") ||
+	args.includes("-c");
 
 if (isProduction) {
 	console.log("🌐 Production mode enabled\n");
@@ -1124,4 +1128,97 @@ export async function runPropertyUpsurgeSeed(
 	console.log(
 		"  - SoGood-specific docs, images, and chat message fixtures were intentionally not seeded because no matching artifacts were provided."
 	);
+}
+
+/**
+ * Deletes all projects matching `projectName` and related rows (same pattern as
+ * seed-marshall-project / seed-lasalle-project). Does not remove shared demo users/orgs.
+ */
+export async function cleanupPropertyUpsurgeProject(
+	projectName: string
+): Promise<void> {
+	console.log(`🧹 Cleaning up property-upsurge project: ${projectName}...\n`);
+
+	const { data: projects } = await supabaseAdmin
+		.from("projects")
+		.select("id, name, owner_org_id")
+		.eq("name", projectName);
+
+	if (!projects?.length) {
+		console.log(`[cleanup] No project found with name "${projectName}".`);
+		return;
+	}
+
+	const projectIds = projects.map((p) => p.id);
+
+	for (const project of projects) {
+		await supabaseAdmin
+			.from("lender_project_access")
+			.delete()
+			.eq("project_id", project.id);
+
+		const { data: threads } = await supabaseAdmin
+			.from("chat_threads")
+			.select("id")
+			.eq("project_id", project.id);
+
+		if (threads?.length) {
+			const tids = threads.map((t) => t.id);
+			await supabaseAdmin
+				.from("chat_thread_participants")
+				.delete()
+				.in("thread_id", tids);
+			await supabaseAdmin.from("chat_threads").delete().eq("project_id", project.id);
+		}
+
+		const { data: resources } = await supabaseAdmin
+			.from("resources")
+			.select("id")
+			.eq("project_id", project.id);
+
+		if (resources?.length) {
+			const rids = resources.map((r) => r.id);
+			await supabaseAdmin.from("permissions").delete().in("resource_id", rids);
+			await supabaseAdmin.from("resources").delete().in("id", rids);
+		}
+
+		await supabaseAdmin.from("project_resumes").delete().eq("project_id", project.id);
+		await supabaseAdmin.from("borrower_resumes").delete().eq("project_id", project.id);
+		await supabaseAdmin.from("om").delete().eq("project_id", project.id);
+	}
+
+	await supabaseAdmin
+		.from("project_access_grants")
+		.delete()
+		.in("project_id", projectIds);
+
+	await supabaseAdmin.from("projects").delete().in("id", projectIds);
+
+	console.log(
+		`[cleanup] ✅ Deleted ${projects.length} project(s) named "${projectName}". Borrower/advisor/lender preserved.`
+	);
+}
+
+/**
+ * CLI entry: `npx tsx scripts/seed-…-project.ts [--prod] [cleanup]`
+ */
+export async function propertyUpsurgeMain(
+	seedConfig: PropertyUpsurgeSeedConfig
+): Promise<void> {
+	if (isProduction && !isCleanup) {
+		console.log("⚠️  PRODUCTION MODE. Wait 5s to cancel...\n");
+		await new Promise((r) => setTimeout(r, 5000));
+	}
+	if (isProduction && isCleanup) {
+		console.log("⚠️  PRODUCTION CLEANUP. Wait 5s to cancel...\n");
+		await new Promise((r) => setTimeout(r, 5000));
+	}
+
+	if (isCleanup) {
+		await cleanupPropertyUpsurgeProject(seedConfig.projectName);
+		console.log("\n✨ Cleanup done!");
+		return;
+	}
+
+	await runPropertyUpsurgeSeed(seedConfig);
 }

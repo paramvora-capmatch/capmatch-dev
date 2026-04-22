@@ -1,5 +1,6 @@
+// Run with: npx tsx scripts/seed-540-south-st-project.ts [--prod] [cleanup]
 import {
-	runPropertyUpsurgeSeed,
+	propertyUpsurgeMain,
 	type PropertyUpsurgeSeedConfig,
 } from "./seed-property-upsurge-common";
 
@@ -45,7 +46,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		marketOverviewSummary:
 			"540 South St sits in an established Redding multifamily area just south of Downtown. The location benefits from nearby schools, neighborhood services, and civic anchors, which supports day-to-day renter demand for existing apartment housing more directly than a for-sale residential narrative.",
 		adjacentLandUse:
-			"The surrounding area is a mix of established residential and neighborhood-serving uses. ATTOM school data places Sequoia Middle School about 0.31 miles away, Cypress Elementary about 0.37 miles away, and Shasta High about 1.85 miles away, with Downtown Redding civic uses, the Redding Library, and Mercy Medical Center also nearby.",
+			"The surrounding area is a mix of established residential and neighborhood-serving uses. Nearby school references place Sequoia Middle School about 0.31 miles away, Cypress Elementary about 0.37 miles away, and Shasta High about 1.85 miles away, with Downtown Redding civic uses, the Redding Library, and Mercy Medical Center also nearby.",
 		siteAccess:
 			"South Street provides neighborhood access into the surrounding residential blocks and convenient connections into Downtown Redding and the city's primary north-south roadway network.",
 		proximityShopping:
@@ -106,7 +107,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		sponsorEntityName: "DK PROPERTIES 540 SOUTH LLC",
 		sponsorStructure: "Limited Liability Company",
 		internalAdvisorNotes:
-			"Mapped from data/property-upserge/540_south_st.json and supplemented with data/property-upserge/540-capitalize.txt. Purchase date uses the recorded 2021-08-17 transaction date and target close date uses the recorded 2026-08-17 estimated due date. City of Redding GIS spot checks within parcel 102-090-028-000 returned both RM-15 and RS-3.5, so the zoning is noted as split-zoned RM-15 / RS-3.5 rather than ATTOM's generic commercial bucket.",
+			"Mapped from data/property-upserge/540_south_st.json and supplemented with recorded loan-date research. Purchase date uses the recorded 2021-08-17 transaction date and target close date uses the recorded 2026-08-17 estimated due date. City of Redding GIS spot checks within parcel 102-090-028-000 returned both RM-15 and RS-3.5, so the zoning is noted as split-zoned RM-15 / RS-3.5 rather than a generic commercial bucket.",
 	},
 	borrowerResume: {
 		fullLegalName: "YANIV BENAROYA LIVING TRUST, DK PROPERTIES 540 SOUTH LLC, THE BENAROYA TRUST",
@@ -134,7 +135,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 	},
 };
 
-runPropertyUpsurgeSeed(seedConfig).catch((error) => {
+propertyUpsurgeMain(seedConfig).catch((error) => {
 	console.error("[seed] 540 South St seed failed:", error);
 	process.exitCode = 1;
 });

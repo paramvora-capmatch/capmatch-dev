@@ -1,5 +1,6 @@
+// Run with: npx tsx scripts/seed-330-bird-st-project.ts [--prod] [cleanup]
 import {
-	runPropertyUpsurgeSeed,
+	propertyUpsurgeMain,
 	type PropertyUpsurgeSeedConfig,
 } from "./seed-property-upsurge-common";
 
@@ -40,7 +41,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		marketOverviewSummary:
 			"330 Bird sits in an established Yuba City multifamily pocket where renter demand is supported by the broader Yuba-Sutter employment base, including healthcare, education, food processing, and commuters tied to Beale Air Force Base. Current online asking rents around $1,450 to $1,495 for two-bedroom units suggest the property competes as practical workforce housing rather than luxury product.",
 		adjacentLandUse:
-			"The surrounding area is primarily established residential fabric with neighborhood-serving uses mixed in. ATTOM school data places King Avenue Elementary about 0.52 miles away, Gray Avenue Middle about 1.12 miles away, and River Valley High about 2.48 miles away; Sutter County Free Library is roughly 0.8 miles away, Sutter Surgical Hospital North Valley is about 1.0 mile away, and Yuba City City Hall is about 1.2 miles away.",
+			"The surrounding area is primarily established residential fabric with neighborhood-serving uses mixed in. Nearby school references place King Avenue Elementary about 0.52 miles away, Gray Avenue Middle about 1.12 miles away, and River Valley High about 2.48 miles away; Sutter County Free Library is roughly 0.8 miles away, Sutter Surgical Hospital North Valley is about 1.0 mile away, and Yuba City City Hall is about 1.2 miles away.",
 		siteAccess:
 			"Bird Street feeds into Yuba City's local street grid and sits about a mile east of CA-99, giving the property straightforward north-south regional access while still functioning as an in-town apartment location.",
 		proximityShopping:
@@ -97,7 +98,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		sponsorEntityName: "PROPERTY UPSURGE 101 LLC",
 		sponsorStructure: "LLC",
 		internalAdvisorNotes:
-			"Mapped from data/property-upserge/330_bird_st.json and supplemented with Yuba City GIS zoning layers plus live property marketing pages. Purchase date uses ATTOM's recorded 2020-08-12 saleTransDate. Parcel-level Yuba City GIS spot checks at 051-452-026-000 returned zoning R-3. ATTOM and public web sources do not expose a reliable current loan maturity, so targetCloseDate is intentionally left unset rather than inferred.",
+			"Mapped from data/property-upserge/330_bird_st.json and supplemented with Yuba City GIS zoning layers plus live property marketing pages. Purchase date uses the recorded 2020-08-12 transaction date. Parcel-level Yuba City GIS spot checks at 051-452-026-000 returned zoning R-3. Available public sources do not expose a reliable current loan maturity, so targetCloseDate is intentionally left unset rather than inferred.",
 	},
 	borrowerResume: {
 		fullLegalName: "PROPERTY UPSURGE 101 LLC",
@@ -121,13 +122,13 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 			"330 BIRD ST, YUBA CITY, CA 95991 (28-Unit / 48-Bed Apartment Complex)",
 		foreclosureHistory: "None detected on this asset.",
 		bioNarrative:
-			"Public record identifies PROPERTY UPSURGE 101 LLC and the Benaroya family members as owners tied to the 330 Bird St apartment property in Yuba City, California. ATTOM shows absentee ownership with a shared Redding mailing address and a current first mortgage with Symetra Life Insurance Co.",
+			"Public record identifies PROPERTY UPSURGE 101 LLC and the Benaroya family members as owners tied to the 330 Bird St apartment property in Yuba City, California. Recorded ownership data also points to absentee ownership with a shared Redding mailing address and a current first mortgage with Symetra Life Insurance Co.",
 		assetClassesExperience: ["Multi-Family / Apartments"],
 		scheduleOfRealEstateOwned: "330 BIRD ST, YUBA CITY, CA 95991",
 	},
 };
 
-runPropertyUpsurgeSeed(seedConfig).catch((error) => {
+propertyUpsurgeMain(seedConfig).catch((error) => {
 	console.error("[seed] 330 Bird St seed failed:", error);
 	process.exitCode = 1;
 });

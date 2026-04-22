@@ -108,7 +108,7 @@ function formatDealValue(value: unknown, key: string): string {
   }
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "number") {
-    const currencyKeys = ["loanAmountRequested", "stabilizedValue", "purchasePrice", "baseConstruction", "loanFees", "propertyNoiT12", "noiYear1"];
+    const currencyKeys = ["loanAmountRequested", "stabilizedValue", "purchasePrice", "baseConstruction", "loanFees", "propertyNoiT12", "noiYear1", "stabilizedNoiProjected"];
     const percentKeys = ["targetLtvPercent", "ltv", "interestRate", "floorRate", "originationFee"];
     if (currencyKeys.includes(key)) return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
     if (percentKeys.includes(key)) return `${value}%`;
@@ -127,6 +127,7 @@ function formatDate(iso: string | null): string | null {
 // 9 Key Deal Terms grouped by matchmaking dimension
 const KEY_DEAL_TERMS_SECTIONS: { label: string; keys: { key: string; label: string }[] }[] = [
   { label: "Geography", keys: [
+    { key: "propertyAddressStreet", label: "Street address" },
     { key: "propertyAddressState", label: "State" },
     { key: "propertyAddressCounty", label: "County" },
     { key: "propertyAddressCity", label: "City" },
@@ -142,7 +143,8 @@ const KEY_DEAL_TERMS_SECTIONS: { label: string; keys: { key: string; label: stri
   { label: "Leverage", keys: [{ key: "targetLtvPercent", label: "Target LTV %" }] },
   { label: "Coverage", keys: [
     { key: "dscr", label: "DSCR" },
-    { key: "propertyNoiT12", label: "NOI T12" },
+    { key: "propertyNoiT12", label: "NOI (T12)" },
+    { key: "noiYear1", label: "NOI (Year 1)" },
   ]},
   { label: "Affordability", keys: [
     { key: "affordableHousing", label: "Affordable housing" },
@@ -386,6 +388,7 @@ function getFieldOverridesFromContentUpdates(
 
 /** Keys and labels for AI report deal summary (subset of merged context). */
 const DEAL_SUMMARY_KEYS: { key: string; label: string }[] = [
+  { key: "propertyAddressStreet", label: "Street address" },
   { key: "propertyAddressState", label: "State" },
   { key: "propertyAddressCounty", label: "County" },
   { key: "propertyAddressCity", label: "City" },
@@ -408,8 +411,8 @@ const DEAL_SUMMARY_KEYS: { key: string; label: string }[] = [
   { key: "lenderTypes", label: "Lender types" },
   { key: "affordableHousing", label: "Affordable housing" },
   { key: "affordableUnitsNumber", label: "Affordable units number" },
-  { key: "propertyNoiT12", label: "Property NOI T12" },
-  { key: "noiYear1", label: "NOI Year 1" },
+  { key: "propertyNoiT12", label: "NOI (T12)" },
+  { key: "noiYear1", label: "NOI (Year 1)" },
 ];
 
 function buildDealSummaryForAIReport(merged: Record<string, unknown>): Record<string, unknown> {
