@@ -146,7 +146,7 @@ export default function OMDashboardPage() {
 
 	// Build timeline from flat date fields
 	const timelineData = [
-		{ phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: "completed" },
+		{ phase: "Acquisition", date: content?.landAcqClose ?? null, status: "completed" },
 		{ phase: "Entitlements", date: content?.entitlements ?? null, status: "completed" },
 		{ phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: "current" },
 		{ phase: "Completion", date: content?.completionDate ?? null, status: "pending" },

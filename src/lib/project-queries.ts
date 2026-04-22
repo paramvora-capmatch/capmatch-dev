@@ -35,6 +35,7 @@ export interface ProjectResumeContent {
 	propertyAddressZip?: string;
 	parcelNumber?: string;
 	zoningDesignation?: string;
+	zoningDescriptionUrl?: string;
 	expectedZoningChanges?: string;
 	constructionType?: string;
 	groundbreakingDate?: string;
@@ -153,6 +154,7 @@ export interface ProjectResumeContent {
 	useOfProceeds?: string;
 	recoursePreference?: string;
 	purchasePrice?: number;
+	purchasePriceDate?: string;
 	totalProjectCost?: number;
 	capexBudget?: number;
 	propertyNoiT12?: number;

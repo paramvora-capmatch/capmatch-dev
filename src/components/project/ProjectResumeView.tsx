@@ -48,6 +48,7 @@ import { T12FinancialTable } from "@/components/project/T12FinancialTable";
 import { T12FinancialData, T12Category } from "@/types/t12-financial";
 import { isFieldVisibleForDealType, DealType } from "@/lib/deal-type-field-config";
 import { FieldHelpTooltip } from "@/components/ui/FieldHelpTooltip";
+import { PropertyLocationMap } from "@/components/shared/PropertyLocationMap";
 
 interface ProjectResumeViewProps {
 	project: ProjectProfile;
@@ -439,7 +440,9 @@ const getFieldLabel = (field: {
 		paceFinancing: "PACE Financing",
 		historicTaxCredits: "Historic Tax Credits",
 		newMarketsCredits: "New Markets Tax Credits",
-		landAcqClose: "Land Acquisition Close",
+		landAcqClose: "Acquisition Date",
+		purchasePriceDate: "Purchase Price Date",
+		zoningDescriptionUrl: "Zoning Reference",
 		entitlements: "Entitlements",
 		finalPlans: "Final Plans",
 		permitsIssued: "Permits Issued",
@@ -716,11 +719,23 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 		fieldId: string,
 		fieldMeta?: { fieldId: string; description: string }
 	): string => {
+		if (fieldId === "landAcqClose") {
+			return "Acquisition Date";
+		}
 		const config = getFieldConfig(fieldId);
 		if (config.label) return config.label as string;
 		if (fieldMeta) return getFieldLabel(fieldMeta);
 		return fieldId;
 	};
+
+	const propertyAddress = [
+		project.propertyAddressStreet,
+		project.propertyAddressCity,
+		project.propertyAddressState,
+		project.propertyAddressZip,
+	]
+		.filter(Boolean)
+		.join(", ");
 
 
 
@@ -872,6 +887,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 					>
 						<div className="flex-1 p-6 relative overflow-hidden">
 							<div className="space-y-6">
+								{propertyAddress && (
+									<PropertyLocationMap
+										address={propertyAddress}
+										projectName={project.projectName}
+									/>
+								)}
 								{(
 									((formSchema as any).steps || []) as any[]
 								).map((step: any, stepIndex: number) => {
@@ -1329,6 +1350,22 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																						value,
 																						field.dataType
 																					);
+																				const displayValue =
+																					field.fieldId ===
+																						"zoningDescriptionUrl" &&
+																					formattedValue !==
+																						"N/A" ? (
+																						<a
+																							href={formattedValue}
+																							target="_blank"
+																							rel="noreferrer"
+																							className="text-blue-700 underline underline-offset-2 hover:text-blue-800"
+																						>
+																							Open municipal zoning reference
+																						</a>
+																					) : (
+																						formattedValue
+																					);
 																				const isFullWidth =
 																					field.dataType ===
 																					"Textarea" ||
@@ -1364,7 +1401,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																						</span>
 																					}
 																					value={
-																						formattedValue
+																						displayValue
 																					}
 																					fullWidth={
 																						isFullWidth

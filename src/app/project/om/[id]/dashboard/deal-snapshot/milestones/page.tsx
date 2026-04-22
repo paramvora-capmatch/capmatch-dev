@@ -28,7 +28,7 @@ export default function MilestonesPage() {
   
   // Build milestones from flat date fields with status from resume (calculated by backend)
   const milestones = [
-    { phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: content?.landAcqStatus ?? null },
+    { phase: "Acquisition", date: content?.landAcqClose ?? null, status: content?.landAcqStatus ?? null },
     { phase: "Entitlements", date: content?.entitlementsDate ?? null, status: content?.entitlementsStatus ?? null },
     { phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: content?.groundbreakingStatus ?? null },
     { phase: "Vertical Start", date: content?.verticalStart ?? null, status: content?.verticalStartStatus ?? null },
@@ -41,7 +41,7 @@ export default function MilestonesPage() {
   const milestonesWithDuration = milestones.map((milestone, index) => {
     let duration: number | null = null;
     
-    // First milestone (Land Acquisition) has no duration
+    // First milestone (Acquisition) has no duration
     if (index === 0) {
       return { ...milestone, duration: null };
     }

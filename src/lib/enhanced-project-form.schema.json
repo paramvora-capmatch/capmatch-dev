@@ -221,6 +221,7 @@
 						"capexBudget",
 						"capexItems",
 						"purchasePrice",
+						"purchasePriceDate",
 						"landAcquisition",
 						"baseConstruction",
 						"contingency",
@@ -460,6 +461,7 @@
 				"totalCapitalization",
 				"capexBudget",
 				"purchasePrice",
+				"purchasePriceDate",
 				"landAcquisition",
 				"baseConstruction",
 				"contingency",
@@ -881,6 +883,7 @@
 					"fields": [
 						"parcelNumber",
 						"zoningDesignation",
+						"zoningDescriptionUrl",
 						"expectedZoningChanges",
 						"totalSiteAcreage",
 						"buildableAcreage",
@@ -982,6 +985,7 @@
 			"fields": [
 				"parcelNumber",
 				"zoningDesignation",
+				"zoningDescriptionUrl",
 				"expectedZoningChanges",
 				"totalSiteAcreage",
 				"buildableAcreage",
@@ -1182,6 +1186,10 @@
 			"label": "Zoning Designation",
 			"required": true
 		},
+		"zoningDescriptionUrl": {
+			"label": "Zoning Reference",
+			"required": false
+		},
 		"loanAmountRequested": {
 			"label": "Loan Amount Requested ($)",
 			"required": true
@@ -1232,6 +1240,10 @@
 		},
 		"purchasePrice": {
 			"label": "Purchase Price / Current Basis ($)",
+			"required": false
+		},
+		"purchasePriceDate": {
+			"label": "Purchase Price Date",
 			"required": false
 		},
 		"totalProjectCost": {
@@ -1807,7 +1819,7 @@
 			"required": true
 		},
 		"landAcqClose": {
-			"label": "Land Acq. Close",
+			"label": "Acquisition Date",
 			"required": true
 		},
 		"finalPlans": {
@@ -1932,7 +1944,7 @@
 		},
 		"contactInfo": {
 			"label": "Contact Info",
-			"required": true
+			"required": false
 		},
 		"syndicationStatus": {
 			"label": "Syndication Status",

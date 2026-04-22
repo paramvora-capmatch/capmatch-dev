@@ -71,6 +71,7 @@
           "fields": [
             "parcelNumber",
             "zoningDesignation",
+            "zoningDescriptionUrl",
             "expectedZoningChanges",
             "totalSiteAcreage",
             "buildableAcreage",
@@ -151,6 +152,7 @@
       "fields": [
         "parcelNumber",
         "zoningDesignation",
+        "zoningDescriptionUrl",
         "expectedZoningChanges",
         "totalSiteAcreage",
         "buildableAcreage",
@@ -270,6 +272,7 @@
           "fields": [
             "landAcquisition",
             "purchasePrice",
+            "purchasePriceDate",
             "baseConstruction",
             "contingency",
             "constructionFees",
@@ -335,6 +338,7 @@
         "absorptionProjection",
         "landAcquisition",
         "purchasePrice",
+        "purchasePriceDate",
         "baseConstruction",
         "contingency",
         "constructionFees",
@@ -735,6 +739,10 @@
       "label": "Zoning Designation",
       "required": true
     },
+    "zoningDescriptionUrl": {
+      "label": "Zoning Reference",
+      "required": false
+    },
     "expectedZoningChanges": {
       "label": "Expected Zoning Changes",
       "required": false
@@ -908,7 +916,7 @@
       "required": true
     },
     "landAcqClose": {
-      "label": "Land Acq. Close",
+      "label": "Acquisition Date",
       "required": true
     },
     "groundbreakingDate": {
@@ -949,6 +957,10 @@
     },
     "purchasePrice": {
       "label": "Purchase Price / Current Basis ($)",
+      "required": false
+    },
+    "purchasePriceDate": {
+      "label": "Purchase Price Date",
       "required": false
     },
     "baseConstruction": {
@@ -1121,7 +1133,7 @@
     },
     "contactInfo": {
       "label": "Contact Info",
-      "required": true
+      "required": false
     },
     "yieldOnCost": {
       "label": "Yield on Cost",

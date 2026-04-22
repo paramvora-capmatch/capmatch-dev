@@ -80,6 +80,7 @@ export const projectResumeFieldDealTypes: Record<string, FieldDealType> = {
   totalDevelopmentCost: ['ground_up'],
   totalProjectCost: ['ground_up', 'refinance'],
   purchasePrice: ['ground_up', 'refinance'],
+  purchasePriceDate: ['ground_up', 'refinance'],
   landAcquisition: ['ground_up'],
   baseConstruction: ['ground_up'],
   guaranteedMaximumPrice: ['ground_up'],
@@ -243,6 +244,7 @@ export const projectResumeFieldDealTypes: Record<string, FieldDealType> = {
   // Section 7: Site & Context - Land & Zoning
   // ============================================================================
   zoningDesignation: ['ground_up', 'refinance'],
+  zoningDescriptionUrl: ['ground_up', 'refinance'],
   totalSiteAcreage: ['ground_up', 'refinance'],
   buildableAcreage: ['ground_up'],
   farUtilized: ['ground_up'],

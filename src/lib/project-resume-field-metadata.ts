@@ -75,6 +75,14 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Text",
 		section: "basic-info",
 	},
+	zoningDescriptionUrl: {
+		fieldId: "zoningDescriptionUrl",
+		description:
+			"Municipal link that describes the applicable zoning district or ordinance for the site.",
+		expectedValue: "Full URL to a city or county zoning reference page",
+		dataType: "Text",
+		section: "site-context",
+	},
 	assetType: {
 		fieldId: "assetType",
 		description:
@@ -1704,6 +1712,13 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Currency",
 		section: "financials",
 	},
+	purchasePriceDate: {
+		fieldId: "purchasePriceDate",
+		description: "Date associated with the recorded purchase price or basis.",
+		expectedValue: "Date, e.g., 2021-08-17",
+		dataType: "Date",
+		section: "financials",
+	},
 	totalProjectCost: {
 		fieldId: "totalProjectCost",
 		description: "Total cost of the project (TDC).",
@@ -2673,7 +2688,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Section 6: Timeline & Milestones
 	landAcqClose: {
 		fieldId: "landAcqClose",
-		description: "Date of land acquisition closing.",
+		description: "Acquisition date for the property.",
 		expectedValue: "Date",
 		dataType: "Date",
 		section: "timeline",

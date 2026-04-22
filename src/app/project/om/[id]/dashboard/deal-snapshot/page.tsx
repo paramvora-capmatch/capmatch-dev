@@ -60,7 +60,7 @@ export default function DealSnapshotPage() {
     
     // Build milestones from flat date fields with status from resume (calculated by backend)
     const milestones = [
-      { phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: content?.landAcqStatus ?? null },
+      { phase: "Acquisition", date: content?.landAcqClose ?? null, status: content?.landAcqStatus ?? null },
       { phase: "Entitlements", date: content?.entitlements ?? null, status: content?.entitlementsStatus ?? null },
       { phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: content?.groundbreakingStatus ?? null },
       { phase: "Completion", date: content?.completionDate ?? null, status: content?.completionStatus ?? null },

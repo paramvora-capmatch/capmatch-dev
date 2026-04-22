@@ -10,6 +10,10 @@ const assessedValue = 9_041_681;
 const firstMortgageAmount = 6_604_500;
 const grossArea = 51_435;
 const unitCount = 84;
+const acquisitionDate = "2021-08-17";
+const loanMaturityDate = "2026-08-17";
+const reddingZoningReferenceUrl =
+	"https://www.municode.com/library/ca/redding/codes/code_of_ordinances?nodeId=TIT18ZO_DIVIIIBADIRE_CH18.31REDIREREESRSRESIMIRMREMUMI";
 
 const seedConfig: PropertyUpsurgeSeedConfig = {
 	projectName: "540 South St Apartments",
@@ -21,7 +25,6 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		dealStatus: "Operating / Stabilized",
 		masterPlanName: "KUTRAS RIVERSIDE ADDITION",
 		ownershipType: "COMPANY / LLC",
-		zoningOverlayDistrict: "COMMERCIAL",
 		projectPhase: "Built / Existing (Year Built: 1977)",
 		constructionType: "FRAME / WOOD",
 		lastRenovationDate:
@@ -32,15 +35,21 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		propertyAddressCounty: "Shasta County",
 		propertyAddressZip: "96001",
 		parcelNumber: "102-090-028-000",
-		zoningDesignation: "COMMERCIAL",
+		zoningDesignation: "Split-zoned RM-15 / RS-3.5",
+		zoningDescriptionUrl: reddingZoningReferenceUrl,
 		taxingDistrictID: "1-000",
 		projectDescription:
-			"84-Unit Multifamily Apartment Complex built in 1977, totaling 51,435 sqft on 4.54 acres in Redding, CA.",
+			"540 South St is an 84-unit apartment community in Redding totaling roughly 51,435 square feet on a 4.54-acre site. The property was built in 1977 and is operating as an existing multifamily asset with major roof, HVAC, and electrical work already completed in recent years.",
 		businessPlanSummary:
-			"Public-record refinance scenario for an existing 84-unit apartment property. The seed uses ATTOM gross building area instead of the smaller building-size field because the gross-size figure appears to represent the full asset.",
+			"This is a straightforward refinance of a stabilized apartment property. Ownership has already completed meaningful capital work, so the near-term plan is to keep the asset operating, continue routine turns and maintenance, and hold the community as workforce-oriented housing in Redding.",
 		marketOverviewSummary:
-			"The 96001 zip code has seen steady appreciation. Average residential sale prices grew from $284,441 in 2018 to $401,212 in 2025 (Median: $372,000), supported by ~525 average annual transactions.",
-		adjacentLandUse: "Exceptional proximity to the Redding Elementary and Shasta Union High School Districts: Sequoia Middle School (Rating: B-): 0.31 miles. Cypress Elementary School (Rating: D): 0.37 miles. Shasta High School (Rating: A): 1.85 miles.",
+			"540 South St sits in an established Redding multifamily area just south of Downtown. The location benefits from nearby schools, neighborhood services, and civic anchors, which supports day-to-day renter demand for existing apartment housing more directly than a for-sale residential narrative.",
+		adjacentLandUse:
+			"The surrounding area is a mix of established residential and neighborhood-serving uses. ATTOM school data places Sequoia Middle School about 0.31 miles away, Cypress Elementary about 0.37 miles away, and Shasta High about 1.85 miles away, with Downtown Redding civic uses, the Redding Library, and Mercy Medical Center also nearby.",
+		siteAccess:
+			"South Street provides neighborhood access into the surrounding residential blocks and convenient connections into Downtown Redding and the city's primary north-south roadway network.",
+		proximityShopping:
+			"Neighborhood retail and services are available in and around Downtown Redding, giving residents access to everyday shopping without relying on a single destination center.",
 		totalResidentialUnits: unitCount,
 		totalResidentialNRSF: grossArea,
 		averageUnitSize: roundToOneDecimal(grossArea / unitCount),
@@ -60,6 +69,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		roofTypeAge: "Comparable/Comp - Re-roofed heavily in July 2022",
 		realEstateTaxes: 94_948.74,
 		purchasePrice: 8_510_000,
+		purchasePriceDate: acquisitionDate,
 		totalProjectCost: 8_510_000,
 		baseConstruction: 7_980_473,
 		sponsorEquity: 1_905_500,
@@ -67,7 +77,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		loanAmountRequested: firstMortgageAmount,
 		loanType: "Senior Debt",
 		requestedTerm: 5,
-		targetCloseDate: "2021-08-11",
+		targetCloseDate: loanMaturityDate,
 		lender: "EXCHANGE BANCORP OF MISSOURI INC.",
 		existingLender: "EXCHANGE BANCORP OF MISSOURI INC.",
 		existingLoanAmount: firstMortgageAmount,
@@ -81,7 +91,7 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		appraisedInsurableValue: 9_041_681,
 		capexItems: "Roofing: Full tear-off and reroofing across almost all buildings (Estimated >$46.5k). HVAC: Complete removal and replacement of rooftop package units across 9 buildings throughout 2022-2023. Electrical: Removed/replaced 400 amp main panel (Feb 2022).",
 		useOfProceeds:
-			"Refinance existing multifamily asset based on the recorded first mortgage and public-record parcel data.",
+			"Loan proceeds are intended to refinance the existing debt on the 84-unit apartment community and keep the property positioned for ongoing maintenance, unit turns, and normal operating needs.",
 		exitStrategy: "Refinance",
 		currentSiteStatus: "Active / Occupied",
 		topography: "VIEW - NONE",
@@ -90,14 +100,13 @@ const seedConfig: PropertyUpsurgeSeedConfig = {
 		landValueDefinition_Legal: "SUBD: KUTRAS RIVERSIDE ADDITION",
 		msaName: "Redding, CA",
 		submarketName: "Redding",
-		landAcqClose: "2021-08-11",
+		landAcqClose: acquisitionDate,
 		landAcqStatus: "Closed",
 		completionStatus: "Complete",
 		sponsorEntityName: "DK PROPERTIES 540 SOUTH LLC",
 		sponsorStructure: "Limited Liability Company",
-		contactInfo: "2015 SHASTA ST, REDDING, CA 96001-0421",
 		internalAdvisorNotes:
-			"Mapped from data/property-upserge/540_south_st.json and supplemented with data/property-upserge/540-capitalize.txt. Complete modernization executed in 2022.",
+			"Mapped from data/property-upserge/540_south_st.json and supplemented with data/property-upserge/540-capitalize.txt. Purchase date uses the recorded 2021-08-17 transaction date and target close date uses the recorded 2026-08-17 estimated due date. City of Redding GIS spot checks within parcel 102-090-028-000 returned both RM-15 and RS-3.5, so the zoning is noted as split-zoned RM-15 / RS-3.5 rather than ATTOM's generic commercial bucket.",
 	},
 	borrowerResume: {
 		fullLegalName: "YANIV BENAROYA LIVING TRUST, DK PROPERTIES 540 SOUTH LLC, THE BENAROYA TRUST",

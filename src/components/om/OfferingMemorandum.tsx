@@ -11,11 +11,11 @@ import {
   User,
   FileText,
   BarChart3,
-  Image as ImageIcon,
   Users,
 } from "lucide-react";
 import Image from "next/image";
 import { formatRequestedTermLabel } from "@/lib/matchmaking/resumeFields";
+import { PropertyLocationMap } from "@/components/shared/PropertyLocationMap";
 
 interface OfferingMemorandumProps {
   project: ProjectProfile;
@@ -50,6 +50,28 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
   project,
   profile,
 }) => {
+  const propertyAddress = [
+    project.propertyAddressStreet,
+    project.propertyAddressCity,
+    project.propertyAddressState,
+    project.propertyAddressZip,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const zoningReference = project.zoningDescriptionUrl ? (
+    <a
+      href={project.zoningDescriptionUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="text-blue-700 underline underline-offset-2 hover:text-blue-800"
+    >
+      Open municipal zoning reference
+    </a>
+  ) : (
+    "N/A"
+  );
+
   return (
     <div className="om-container space-y-8 md:space-y-12 print:space-y-6">
       {/* OM Header */}
@@ -89,7 +111,7 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
           <KeyValueDisplay
             label="Address"
-            value={`${project.propertyAddressStreet}, ${project.propertyAddressCity}, ${project.propertyAddressState} ${project.propertyAddressZip}`}
+            value={propertyAddress || "N/A"}
           />
           <KeyValueDisplay
             label="County"
@@ -108,6 +130,7 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
             label="Zoning Designation"
             value={project.zoningDesignation || "N/A"}
           />
+          <KeyValueDisplay label="Zoning Reference" value={zoningReference} />
           <KeyValueDisplay
             label="Total Residential Units"
             value={project.totalResidentialUnits?.toLocaleString() || "N/A"}
@@ -165,12 +188,13 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
             value={project.leedSustainabilityRating || "N/A"}
           />
         </div>
-        <PlaceholderBlock
-          height="h-48"
-          text="Property Photos / Map Placeholder"
-          className="mt-6"
-          icon={<ImageIcon />}
-        />
+        {propertyAddress && (
+          <PropertyLocationMap
+            address={propertyAddress}
+            projectName={project.projectName}
+            className="mt-6"
+          />
+        )}
         <h4 className="text-lg font-semibold mt-6 mb-3 text-gray-700">
           Property Description
         </h4>
@@ -269,6 +293,10 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
           <KeyValueDisplay
             label="Purchase Price / Basis"
             value={formatCurrency(project.purchasePrice)}
+          />
+          <KeyValueDisplay
+            label="Purchase Price Date"
+            value={formatDate(project.purchasePriceDate)}
           />
           <KeyValueDisplay
             label="Total Project Cost"
@@ -794,7 +822,7 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
           <Section title="Timeline & Milestones" icon={<FileText />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
               <KeyValueDisplay
-                label="Land Acq. Close"
+                label="Acquisition Date"
                 value={formatDate(project.landAcqClose)}
               />
               <KeyValueDisplay

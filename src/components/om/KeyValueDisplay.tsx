@@ -19,6 +19,9 @@ export const KeyValueDisplay: React.FC<KeyValueDisplayProps> = ({
 }) => {
   const unwrapValue = (val: any): any => {
     if (val && typeof val === "object") {
+      if (React.isValidElement(val)) {
+        return val;
+      }
       if ("value" in val) {
         return (val as any).value;
       }
@@ -30,6 +33,29 @@ export const KeyValueDisplay: React.FC<KeyValueDisplayProps> = ({
   };
 
   let raw = unwrapValue(value);
+
+  if (React.isValidElement(raw)) {
+    return (
+      <div className={cn(
+          "py-1",
+          fullWidth ? "md:col-span-2" : "",
+          className
+      )}>
+        <div className={cn(
+            "text-xs font-medium text-gray-500 uppercase tracking-wider",
+            isLarge ? "mb-0.5" : "mb-0.5"
+         )}>
+            {label}
+         </div>
+        <p className={cn(
+            "text-gray-900",
+            isLarge ? "text-lg md:text-xl font-semibold" : "text-sm md:text-base"
+        )}>
+            {raw}
+         </p>
+      </div>
+    );
+  }
 
   if (Array.isArray(raw)) {
     raw = raw.join(", ");

@@ -325,6 +325,7 @@ export interface ProjectProfile {
 	useOfProceeds?: string | null;
 	recoursePreference?: RecoursePreference | null;
 	purchasePrice?: number | null;
+	purchasePriceDate?: string | null;
 	totalProjectCost?: number | null;
 	capexBudget?: number | null;
 	propertyNoiT12?: number | null;
@@ -343,6 +344,7 @@ export interface ProjectProfile {
 	// Extended fields from ProjectResumeContent (for type safety)
 	parcelNumber?: string;
 	zoningDesignation?: string;
+	zoningDescriptionUrl?: string;
 	expectedZoningChanges?: string;
 	constructionType?: string;
 	groundbreakingDate?: string;
