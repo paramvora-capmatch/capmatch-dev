@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { DuckDBInstance, DuckDBConnection } from "@duckdb/node-api";
 
-/** Parquet outputs from scripts/build-matchmaking-db.ts */
+/** Parquet outputs from the Capitalize v2 Python artifact pipeline. */
 const REQUIRED_FILES = [
   "lender_profiles.parquet",
   "lender_state_prefs.parquet",
@@ -65,7 +65,7 @@ function pq(name: (typeof REQUIRED_FILES)[number]): string {
 
 export async function fetchEngineConfig(): Promise<EngineConfigRow> {
   if (!matchmakingParquetReady()) {
-    throw new Error("Matchmaking parquet files missing; run: npx tsx scripts/build-matchmaking-db.ts");
+    throw new Error("Matchmaking parquet files missing; regenerate via data-exploration Capitalize v2 Python pipeline.");
   }
   return withConnection(async (conn) => {
     const reader = await conn.runAndReadAll(
@@ -142,7 +142,7 @@ export async function fetchBenchmarkHistory(
   days: number,
 ): Promise<BenchmarkHistoryRow[]> {
   if (!matchmakingParquetReady()) {
-    throw new Error("Matchmaking parquet files missing; run: npx tsx scripts/build-matchmaking-db.ts");
+    throw new Error("Matchmaking parquet files missing; regenerate via data-exploration Capitalize v2 Python pipeline.");
   }
   if (!VALID_SERIES.has(series)) {
     throw new Error(`Invalid series: ${series}. Must be one of: ${[...VALID_SERIES].join(", ")}`);
@@ -232,7 +232,7 @@ function purposeInList(deal: DealParquetJoinInput): string[] {
  */
 export async function fetchLendersForDeal(deal: DealParquetJoinInput): Promise<LenderRow[]> {
   if (!matchmakingParquetReady()) {
-    throw new Error("Matchmaking parquet files missing; run: npx tsx scripts/build-matchmaking-db.ts");
+    throw new Error("Matchmaking parquet files missing; regenerate via data-exploration Capitalize v2 Python pipeline.");
   }
   const state = deal.state.toUpperCase();
   const purposes = purposeInList(deal);
@@ -415,7 +415,7 @@ export async function fetchLenderProfileBundle(lenderId: string): Promise<{
   purposes: Record<string, unknown>[];
 }> {
   if (!matchmakingParquetReady()) {
-    throw new Error("Matchmaking parquet files missing; run: npx tsx scripts/build-matchmaking-db.ts");
+    throw new Error("Matchmaking parquet files missing; regenerate via data-exploration Capitalize v2 Python pipeline.");
   }
   const idLit = sqlStringLiteral(lenderId);
   return withConnection(async (conn) => {

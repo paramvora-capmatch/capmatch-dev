@@ -487,6 +487,15 @@ export function useMatchmaking(
             }));
             return;
           }
+          const engineVersion = data?.algorithm?.engineVersion ?? data?.engineVersion;
+          if (engineVersion !== "capitalize-v2.1.0") {
+            throw new Error(`Unsupported matchmaking engine: ${engineVersion ?? "missing"}`);
+          }
+          if (data?.schemaVersion !== "matchmaking-capitalize-response-v2.1") {
+            throw new Error(
+              `Unsupported matchmaking response schema: ${String(data?.schemaVersion ?? "missing")}`
+            );
+          }
           const scores =
             Array.isArray(data.scores) && data.scores.length > 0
               ? data.scores
@@ -507,7 +516,8 @@ export function useMatchmaking(
           const draftPayload: MatchmakingDraftPayload = {
             run_id: data.run_id ?? `capitalize_${Date.now()}`,
             config: (data.config as Record<string, unknown>) ?? {
-              engine: "capitalize-v1",
+              engine: "capitalize-v2.1.0",
+              schemaVersion: "matchmaking-capitalize-response-v2.1",
               capitalize_total_eligible: data.totalEligible,
               capitalize_total_scanned: data.totalLenders,
             },

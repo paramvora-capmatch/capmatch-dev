@@ -42,7 +42,7 @@ import {
   ASSET_CLASS_VALUES,
   LENDER_TYPE_LABELS,
   STATE_CODES,
-  benchmarkSeriesIdFromRateAndTerm,
+  benchmarkSelectionFromRateAndTerm,
   mapProjectPhaseToPurposes,
 } from "@/lib/matchmaking/constants";
 import type { DealInput } from "@/lib/matchmaking/types";
@@ -565,11 +565,13 @@ function CategoryBPanel({
   targetRate,
   setTargetRate,
   benchmarkSeriesId,
+  benchmarkLabel,
 }: {
   categoryB: CategoryBState;
   targetRate?: number;
   setTargetRate: (rate?: number) => void;
   benchmarkSeriesId: string;
+  benchmarkLabel: string;
 }) {
   const [allBenchmarks, setAllBenchmarks] = useState<{
     dgs10: number; dgs7: number; dgs5: number; sofr: number;
@@ -602,21 +604,19 @@ function CategoryBPanel({
     return () => { cancelled = true; };
   }, []);
 
-  const { benchmarkRate, benchmarkLabel } = useMemo(() => {
-    if (!allBenchmarks) return { benchmarkRate: null, benchmarkLabel: "" };
-    if (categoryB.rateType === "floating") {
-      return { benchmarkRate: allBenchmarks.sofr, benchmarkLabel: "SOFR" };
+  const { benchmarkRate, derivedBenchmarkLabel } = useMemo(() => {
+    if (!allBenchmarks) return { benchmarkRate: null, derivedBenchmarkLabel: "" };
+    if (benchmarkSeriesId === "SOFR") {
+      return { benchmarkRate: allBenchmarks.sofr, derivedBenchmarkLabel: benchmarkLabel };
     }
-    if (categoryB.rateType === "fixed") {
-      const tb = categoryB.termBucket ?? "";
-      const shortTerms = ["bridge_lte1yr", "short_1_3yr", "medium_3_5yr"];
-      const midTerms = ["medium_5_7yr"];
-      if (shortTerms.includes(tb)) return { benchmarkRate: allBenchmarks.dgs5, benchmarkLabel: "5Y Treasury" };
-      if (midTerms.includes(tb)) return { benchmarkRate: allBenchmarks.dgs7, benchmarkLabel: "7Y Treasury" };
-      return { benchmarkRate: allBenchmarks.dgs10, benchmarkLabel: "10Y Treasury" };
+    if (benchmarkSeriesId === "DGS5") {
+      return { benchmarkRate: allBenchmarks.dgs5, derivedBenchmarkLabel: benchmarkLabel };
     }
-    return { benchmarkRate: allBenchmarks.dgs10, benchmarkLabel: "10Y Treasury" };
-  }, [allBenchmarks, categoryB.rateType, categoryB.termBucket]);
+    if (benchmarkSeriesId === "DGS7") {
+      return { benchmarkRate: allBenchmarks.dgs7, derivedBenchmarkLabel: benchmarkLabel };
+    }
+    return { benchmarkRate: allBenchmarks.dgs10, derivedBenchmarkLabel: benchmarkLabel };
+  }, [allBenchmarks, benchmarkSeriesId, benchmarkLabel]);
 
   useEffect(() => {
     let cancelled = false;
@@ -687,7 +687,7 @@ function CategoryBPanel({
         <div className="space-y-3">
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Current Benchmark ({benchmarkLabel || "10Y Treasury"})</span>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Current Benchmark ({derivedBenchmarkLabel || "10Y Treasury"})</span>
               <span className="text-sm font-semibold text-gray-800">
                 {benchmarkRate != null ? `${benchmarkRate.toFixed(2)}%` : "Loading..."}
               </span>
@@ -781,29 +781,28 @@ function buildCapitalizeRunBody(
   const state = String(merged.propertyAddressState ?? "").trim().toUpperCase();
   const projectPhase =
     merged.projectPhase != null && merged.projectPhase !== "" ? String(merged.projectPhase) : "";
+  const resolvedTermBucket = categoryB.termBucket || "standard_20_30yr";
   const body: Record<string, unknown> = {
     loanAmount: loan,
     state,
-    project_phase: projectPhase,
-    asset_class: categoryB.assetClass,
-    rate_type: categoryB.rateType,
-    rate_preference: categoryB.ratePreference,
+    projectPhase: projectPhase,
+    assetClass: categoryB.assetClass,
+    rateType: categoryB.rateType,
+    ratePreference: categoryB.ratePreference,
+    termBucket: resolvedTermBucket,
   };
-  if (categoryB.termBucket) {
-    body.term_bucket = categoryB.termBucket;
-  }
   if (categoryB.lenderTypes.length > 0) {
-    body.lender_types = categoryB.lenderTypes;
+    body.lenderTypes = categoryB.lenderTypes;
   }
   if (
     categoryB.ratePreference === "target" &&
     targetRate != null &&
     Number.isFinite(targetRate)
   ) {
-    body.target_rate = targetRate;
+    body.targetRate = targetRate;
   }
   if (contentOverrides && Object.keys(contentOverrides).length > 0) {
-    body.content_overrides = contentOverrides;
+    body.contentOverrides = contentOverrides;
   }
   return body;
 }
@@ -840,7 +839,7 @@ function buildCapitalizeDealInput(
       Number.isFinite(targetRate)
         ? targetRate
         : undefined,
-    termBucket: categoryB.termBucket || undefined,
+    termBucket: categoryB.termBucket || "standard_20_30yr",
     lenderTypes: categoryB.lenderTypes.length > 0 ? categoryB.lenderTypes : undefined,
   };
 }
@@ -1158,8 +1157,8 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     lastMatchRunId,
     useLocalCapitalize,
   } = useMatchmaking(projectId, selectedVersionId ?? null, contentOverridesForRun);
-  const benchmarkSeriesId = useMemo(
-    () => benchmarkSeriesIdFromRateAndTerm(categoryB.rateType, categoryB.termBucket || undefined),
+  const { seriesId: benchmarkSeriesId, label: benchmarkLabel } = useMemo(
+    () => benchmarkSelectionFromRateAndTerm(categoryB.rateType, categoryB.termBucket || undefined),
     [categoryB.rateType, categoryB.termBucket],
   );
   const capitalizeDealForAI = useMemo(
@@ -1994,6 +1993,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
                   targetRate={targetRate}
                   setTargetRate={setTargetRate}
                   benchmarkSeriesId={benchmarkSeriesId}
+                  benchmarkLabel={benchmarkLabel}
                 />
               ) : null}
             </div>
@@ -2015,6 +2015,7 @@ export const LenderMatchTab: React.FC<LenderMatchTabProps> = ({ projectId }) => 
     targetRate,
     setTargetRate,
     benchmarkSeriesId,
+    benchmarkLabel,
   ]);
 
   return (

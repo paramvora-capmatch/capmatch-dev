@@ -17,11 +17,17 @@ export interface DealInput {
 }
 
 export interface MatchResponse {
+  schemaVersion?: "matchmaking-capitalize-response-v2.1";
+  algorithm?: {
+    engineVersion: "capitalize-v2.1.0";
+    paramVersion: string;
+    runtimeSource?: string;
+  };
   deal: DealInput;
   results: MatchResult[];
   totalEligible: number;
   totalLenders: number;
-  engineVersion: string;
+  engineVersion: "capitalize-v2.1.0";
   ranAt: string;
 }
 
